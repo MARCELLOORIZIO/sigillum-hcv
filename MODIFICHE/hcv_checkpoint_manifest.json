@@ -1,0 +1,36 @@
+{
+  "checkpoint": "HCV - Verifica Identità e Salvataggio",
+  "created_at": "2026-05-11T21:00:07",
+  "file_count": 24,
+  "files": [
+    "camera_page.dart",
+    "camera_service.dart",
+    "hcv_crypto.dart",
+    "hcv_engine.dart",
+    "hcv_identity.dart",
+    "hcv_import_router_page.dart",
+    "hcv_import_service.dart",
+    "hcv_live_signals.dart",
+    "hcv_package.dart",
+    "hcv_registry_service.dart",
+    "hcv_trust_analyzer.dart",
+    "hcv_verifier.dart",
+    "hcv_video_watermark.dart",
+    "HcvImportService.txt",
+    "hcvpack_player_page.dart",
+    "home_page.dart",
+    "import_page.dart",
+    "main.dart",
+    "registry_verify_page.dart",
+    "text_cert_page.dart",
+    "verifier_page.dart",
+    "verify_page.dart",
+    "video_player_verify_page.dart",
+    "video_verify_page.dart"
+  ],
+  "missing": [],
+  "notes": [
+    "Checkpoint creato dai file caricati nella conversazione.",
+    "Base di ripartenza per analisi/fix HCV, HCVPACK, identità creator, import e verifica."
+  ]
+}

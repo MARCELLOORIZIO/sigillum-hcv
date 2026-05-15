@@ -1,0 +1,37 @@
+import 'dart:io';
+
+enum HCVImportType {
+  pack,
+  certificate,
+  video,
+  unsupported,
+}
+
+class HCVImportResult {
+  final HCVImportType type;
+  final String path;
+
+  HCVImportResult(this.type, this.path);
+}
+
+class HCVImportService {
+  HCVImportResult detect(String path) {
+    final lower = path.toLowerCase();
+
+    if (lower.endsWith('.hcvpack')) {
+      return HCVImportResult(HCVImportType.pack, path);
+    }
+
+    if (lower.endsWith('.hcv')) {
+      return HCVImportResult(HCVImportType.certificate, path);
+    }
+
+    if (lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.avi')) {
+      return HCVImportResult(HCVImportType.video, path);
+    }
+
+    return HCVImportResult(HCVImportType.unsupported, path);
+  }
+}
