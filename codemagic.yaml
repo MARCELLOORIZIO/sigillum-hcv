@@ -1,0 +1,24 @@
+workflows:
+  ios-workflow:
+    name: iOS Workflow
+
+    environment:
+      flutter: stable
+      xcode: latest
+
+    integrations:
+      app_store_connect: Codemagic
+
+    ios_signing:
+      distribution_type: development
+      bundle_identifier: com.example.sigillumhcv
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Build iOS
+        script: flutter build ipa --debug
+
+    artifacts:
+      - build/ios/ipa/*.ipa
