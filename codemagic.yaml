@@ -10,7 +10,7 @@ workflows:
         bundle_identifier: com.sigillum.hcv
 
     integrations:
-      app_store_connect: Codemagic
+      app_store_connect: Codemagic-HCV
 
     scripts:
       - name: Flutter pub get
@@ -27,3 +27,4 @@ workflows:
 
     artifacts:
       - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
