@@ -5,6 +5,9 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.sigillum.hcv
 
     integrations:
       app_store_connect: Codemagic
@@ -13,6 +16,10 @@ workflows:
       - name: Flutter pub get
         script: |
           flutter pub get
+
+      - name: Set up iOS code signing
+        script: |
+          xcode-project use-profiles
 
       - name: Build IPA
         script: |
