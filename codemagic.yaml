@@ -23,7 +23,7 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter build ipa --debug
+          flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
