@@ -446,29 +446,46 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> shareVideoAndCertificate() async {
-    if (videoPath == null || hcvPath == null) return;
+    if (videoPath == null || hcvPath == null) {
+      setState(() => status = 'NESSUN FILE DA CONDIVIDERE');
+      return;
+    }
 
-    final shareText = hcvId == null
-        ? 'HCV Human Verified ✔'
-        : 'HCV Human Verified ✔\nID: $hcvId\nVerify with HCV App';
-
-    await Share.shareXFiles(
-      [XFile(videoPath!), XFile(hcvPath!)],
-      text: shareText,
-    );
+    try {
+      await Share.shareXFiles(
+        [
+          XFile(videoPath!, mimeType: 'video/mp4'),
+          XFile(hcvPath!, mimeType: 'application/json'),
+        ],
+        text: hcvId == null
+            ? 'HCV Human Verified ✔'
+            : 'HCV Human Verified ✔\nID: $hcvId\nVerify with SIGILLUM',
+        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+      );
+    } catch (e) {
+      setState(() => status = 'SHARE ERROR: $e');
+    }
   }
 
   Future<void> sharePackage() async {
-    if (packagePath == null) return;
+    if (packagePath == null) {
+      setState(() => status = 'NESSUN PACCHETTO DA CONDIVIDERE');
+      return;
+    }
 
-    final shareText = hcvId == null
-        ? 'HCV Human Verified ✔'
-        : 'HCV Human Verified ✔\nID: $hcvId\nOffline package';
-
-    await Share.shareXFiles(
-      [XFile(packagePath!)],
-      text: shareText,
-    );
+    try {
+      await Share.shareXFiles(
+        [
+          XFile(packagePath!, mimeType: 'application/octet-stream'),
+        ],
+        text: hcvId == null
+            ? 'HCV Human Verified ✔'
+            : 'HCV Human Verified ✔\nID: $hcvId\nOffline package',
+        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+      );
+    } catch (e) {
+      setState(() => status = 'SHARE PACK ERROR: $e');
+    }
   }
 
   @override
