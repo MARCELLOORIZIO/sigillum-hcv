@@ -15,6 +15,7 @@ import 'hcv_registry_service.dart';
 import 'hcv_live_signals.dart';
 import 'hcv_trust_analyzer.dart';
 import 'hcv_video_watermark.dart';
+import 'package:path_provider/path_provider.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -143,7 +144,13 @@ class _CameraPageState extends State<CameraPage> {
       return dir;
     }
 
-    return await Directory.systemTemp.createTemp('sigillum');
+    final dir = await getApplicationDocumentsDirectory();
+
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+
+    return dir;
   }
 
   Future<String> saveVideoToDownloadsTemporary(String sourcePath) async {
