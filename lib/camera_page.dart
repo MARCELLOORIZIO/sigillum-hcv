@@ -132,25 +132,33 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Directory _downloadsDirectory() {
+  Future<Directory> _downloadsDirectory() async {
     if (Platform.isAndroid) {
-      return Directory('/storage/emulated/0/Download');
+      final dir = Directory('/storage/emulated/0/Download');
+
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      return dir;
     }
 
-    return Directory.systemTemp;
+    return await Directory.systemTemp.createTemp('sigillum');
   }
 
   Future<String> saveVideoToDownloadsTemporary(String sourcePath) async {
-    await _ensureDownloadsDirectory();
+    final dir = await _downloadsDirectory();
 
     final sourceFile = File(sourcePath);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
+
     final savedPath = p.join(
-      _downloadsDirectory().path,
+      dir.path,
       'hcv_video_$timestamp.mp4',
     );
 
     final savedFile = await sourceFile.copy(savedPath);
+
     return savedFile.path;
   }
 
@@ -158,12 +166,12 @@ class _CameraPageState extends State<CameraPage> {
     required String currentPath,
     required String hcvId,
   }) async {
-    await _ensureDownloadsDirectory();
-
     final currentFile = File(currentPath);
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
+    final dir = await _downloadsDirectory();
+
     final newPath = p.join(
-      _downloadsDirectory().path,
+      dir.path,
       'hcv_video_$safeId.mp4',
     );
 
@@ -181,12 +189,12 @@ class _CameraPageState extends State<CameraPage> {
     required String currentPath,
     required String hcvId,
   }) async {
-    await _ensureDownloadsDirectory();
-
     final currentFile = File(currentPath);
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
+    final dir = await _downloadsDirectory();
+
     final newPath = p.join(
-      _downloadsDirectory().path,
+      dir.path,
       'hcv_video_$safeId.hcv',
     );
 
@@ -211,12 +219,12 @@ class _CameraPageState extends State<CameraPage> {
     required String currentPath,
     required String hcvId,
   }) async {
-    await _ensureDownloadsDirectory();
-
     final currentFile = File(currentPath);
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
+    final dir = await _downloadsDirectory();
+
     final newPath = p.join(
-      _downloadsDirectory().path,
+      dir.path,
       'hcv_video_$safeId.hcvpack',
     );
 
