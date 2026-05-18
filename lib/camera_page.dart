@@ -127,20 +127,17 @@ class _CameraPageState extends State<CameraPage> {
     } catch (e) {
       setState(() {
         recording = false;
-        status = 'EMULATOR CAMERA ERROR → usa TEST';
+        status = 'CAMERA/SAVE ERROR: $e';
       });
     }
   }
 
   Directory _downloadsDirectory() {
-    return Directory('/storage/emulated/0/Download');
-  }
-
-  Future<void> _ensureDownloadsDirectory() async {
-    final dir = _downloadsDirectory();
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
+    if (Platform.isAndroid) {
+      return Directory('/storage/emulated/0/Download');
     }
+
+    return Directory.systemTemp;
   }
 
   Future<String> saveVideoToDownloadsTemporary(String sourcePath) async {
