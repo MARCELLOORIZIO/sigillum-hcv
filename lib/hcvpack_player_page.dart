@@ -72,8 +72,17 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     if (Platform.isIOS) {
       await iosVideoController?.dispose();
       iosVideoController = vp.VideoPlayerController.file(tempVideoFile);
-      await iosVideoController!.initialize();
-      await iosVideoController!.play();
+      try {
+        await iosVideoController!.initialize();
+        await iosVideoController!.play();
+      } catch (e) {
+        setState(() {
+          status = "ERRORE PLAYER iOS: $e";
+          result = "PLAYER ERROR ❌";
+        });
+        return;
+      }
+
       if (mounted) setState(() {});
       return;
     }
