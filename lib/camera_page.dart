@@ -698,15 +698,6 @@ class _CameraPageState extends State<CameraPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: 260,
-                  child: OutlinedButton.icon(
-                    onPressed: fakeTest,
-                    icon: const Icon(Icons.science),
-                    label: const Text('TEST HCV'),
-                  ),
-                ),
               ],
               _verifiedCard(),
               _registryCard(),

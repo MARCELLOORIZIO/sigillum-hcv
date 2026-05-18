@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart' as vp;
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
@@ -30,6 +31,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
   late final Player player;
   late final VideoController controller;
+  vp.VideoPlayerController? iosVideoController;
 
   String status = "Seleziona file .hcvpack";
   String? result;
@@ -64,6 +66,22 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     if (widget.initialPath != null && widget.initialPath!.isNotEmpty) {
       Future.microtask(() => loadPackage(widget.initialPath!));
     }
+  }
+
+  Future<void> _openVideo(File tempVideoFile) async {
+    if (Platform.isIOS) {
+      await iosVideoController?.dispose();
+      iosVideoController = vp.VideoPlayerController.file(tempVideoFile);
+      await iosVideoController!.initialize();
+      await iosVideoController!.play();
+      if (mounted) setState(() {});
+      return;
+    }
+
+    await player.open(
+      Media(tempVideoFile.path),
+      play: true,
+    );
   }
 
   Future<void> pickPack() async {
@@ -104,6 +122,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         });
         return;
       }
+
       setState(() {
         loading = true;
         status = "Analisi HCVPACK...";
@@ -224,10 +243,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         final tempVideoFile = await _writeTempVideo(videoBytes);
         extractedVideoFile = tempVideoFile;
 
-        await player.open(
-          Media(tempVideoFile.path),
-          play: true,
-        );
+        await _openVideo(tempVideoFile);
 
         setState(() {
           loading = false;
@@ -355,6 +371,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         });
         return;
       }
+
       certificateData = certificate;
 
       print("HCV IDENTITY:");
@@ -399,10 +416,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       final tempVideoFile = await _writeTempVideo(videoBytes);
       extractedVideoFile = tempVideoFile;
 
-      await player.open(
-        Media(tempVideoFile.path),
-        play: true,
-      );
+      await _openVideo(tempVideoFile);
 
       setState(() {
         loading = false;
@@ -418,10 +432,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       final tempVideoFile = await _writeTempVideo(videoBytes);
       extractedVideoFile = tempVideoFile;
 
-      await player.open(
-        Media(tempVideoFile.path),
-        play: true,
-      );
+      await _openVideo(tempVideoFile);
 
       setState(() {
         loading = false;
@@ -438,10 +449,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       final tempVideoFile = await _writeTempVideo(videoBytes);
       extractedVideoFile = tempVideoFile;
 
-      await player.open(
-        Media(tempVideoFile.path),
-        play: true,
-      );
+      await _openVideo(tempVideoFile);
 
       setState(() {
         loading = false;
@@ -467,10 +475,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     final certOk = await verifier.verifyFile(tempHcvFile.path);
 
     if (!certOk) {
-      await player.open(
-        Media(tempVideoFile.path),
-        play: true,
-      );
+      await _openVideo(tempVideoFile);
 
       setState(() {
         loading = false;
@@ -481,10 +486,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     }
 
     if (videoHash != storedHash) {
-      await player.open(
-        Media(tempVideoFile.path),
-        play: true,
-      );
+      await _openVideo(tempVideoFile);
 
       setState(() {
         loading = false;
@@ -494,10 +496,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       return;
     }
 
-    await player.open(
-      Media(tempVideoFile.path),
-      play: true,
-    );
+    await _openVideo(tempVideoFile);
 
     final meta = certificate["meta"];
     final identity = meta is Map ? meta["identity"] : null;
@@ -681,6 +680,29 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     );
   }
 
+  Widget buildVideoArea() {
+    if (Platform.isIOS) {
+      if (iosVideoController != null &&
+          iosVideoController!.value.isInitialized) {
+        return Center(
+          child: AspectRatio(
+            aspectRatio: iosVideoController!.value.aspectRatio,
+            child: vp.VideoPlayer(iosVideoController!),
+          ),
+        );
+      }
+
+      return const Center(
+        child: Text(
+          "Apri un HCVPACK",
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    return Video(controller: controller);
+  }
+
   Widget buildStatusPanel() {
     return Container(
       width: double.infinity,
@@ -773,6 +795,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
   @override
   void dispose() {
+    iosVideoController?.dispose();
     player.dispose();
 
     try {
@@ -805,7 +828,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: Video(controller: controller),
+                          child: buildVideoArea(),
                         ),
                         const Positioned(
                           top: 12,
