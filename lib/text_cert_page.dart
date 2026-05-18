@@ -252,7 +252,10 @@ class _TextCertPageState extends State<TextCertPage> {
         ? originalText
         : '$originalText\n\nHCV VERIFIED ✔\nID: $hcvId\nVerify with HCV App';
 
-    await Share.share(socialText);
+    await Share.share(
+      socialText,
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+    );
   }
 
   Future<void> shareTextFileAndCertificate() async {
@@ -265,6 +268,7 @@ class _TextCertPageState extends State<TextCertPage> {
     await Share.shareXFiles(
       [XFile(textPath!), XFile(hcvPath!)],
       text: shareText,
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
     );
   }
 
