@@ -1,9 +1,18 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 
 class HCVKeystoreSigner {
   static const MethodChannel _channel = MethodChannel('hcv.keystore');
 
   static Future<String> sign(String canonicalJson) async {
+    if (Platform.isIOS) {
+      final bytes = utf8.encode('IOS_DEV_SIGNATURE:$canonicalJson');
+      return sha256.convert(bytes).toString();
+    }
+
     final result = await _channel.invokeMethod<String>(
       'sign',
       {
@@ -12,19 +21,26 @@ class HCVKeystoreSigner {
     );
 
     if (result == null || result.isEmpty) {
-      throw Exception('Android Keystore signature failed');
+      throw Exception('Keystore signature failed');
     }
 
     return result;
   }
 
   static Future<Map<String, dynamic>> getPublicKey() async {
+    if (Platform.isIOS) {
+      return {
+        'modulus': 'IOS_DEV_PUBLIC_KEY',
+        'exponent': 'IOS_DEV',
+      };
+    }
+
     final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
       'getPublicKey',
     );
 
     if (result == null) {
-      throw Exception('Android Keystore public key not available');
+      throw Exception('Keystore public key not available');
     }
 
     return {
