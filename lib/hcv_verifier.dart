@@ -24,7 +24,7 @@ class HCVVerifier {
         return _verifyV2(data);
       }
 
-      return _verifyLegacy(data);7
+      return _verifyLegacy(data);
     } catch (_) {
       return false;
     }
