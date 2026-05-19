@@ -179,7 +179,7 @@ class _CameraPageState extends State<CameraPage> {
 
     final newPath = p.join(
       dir.path,
-      'hcv_video_$safeId.mp4',
+      'hcv_video_$safeId.hcvpack',
     );
 
     final newFile = File(newPath);
