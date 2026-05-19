@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'hcv_registry_service.dart';
 import 'hcv_verifier.dart';
+import 'package:path/path.dart' as p;
 
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
@@ -59,12 +60,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final fileName = path.split('/').last;
 
       final match = RegExp(
-        r'HCV-[A-Z0-9]+',
+        r'hcv_video_([A-Za-z0-9\-]+)',
         caseSensitive: false,
       ).firstMatch(fileName);
 
       if (match != null) {
-        idController.text = match.group(0)!.toUpperCase();
+        idController.text = match.group(1)!.toUpperCase();
         status =
             'Video ricevuto. HCV-ID rilevato automaticamente. Premi VERIFICA DA REGISTRY';
       } else {
@@ -122,7 +123,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     ).firstMatch(fileName);
 
     if (match != null) {
-      idController.text = match.group(0)!.toUpperCase();
+      idController.text = match.group(1)!.toUpperCase();
     }
 
     setState(() {
