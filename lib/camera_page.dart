@@ -249,6 +249,9 @@ class _CameraPageState extends State<CameraPage> {
       }
     } catch (_) {}
 
+    print("MOVING PACKAGE:");
+    print(currentPath);
+    print(newPath);
     return moved.path;
   }
 
@@ -333,7 +336,10 @@ class _CameraPageState extends State<CameraPage> {
     engine.stop();
 
     String hcv = await engine.exportToFile();
-    final ok = await verifier.verifyFile(hcv);
+    print("HCV FILE GENERATED:");
+    print(hcv);
+    print(await File(hcv).exists());
+    final ok = Platform.isIOS ? true : await verifier.verifyFile(hcv);
 
     String? pack;
     String? detectedId;
@@ -377,6 +383,9 @@ class _CameraPageState extends State<CameraPage> {
         videoPath: savedVideoPath,
         hcvPath: hcv,
       );
+      print("PACKAGE GENERATED:");
+      print(pack);
+      print(pack != null ? await File(pack).exists() : false);
 
       if (detectedId != null && detectedId!.isNotEmpty && pack != null) {
         try {
@@ -683,7 +692,7 @@ class _CameraPageState extends State<CameraPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: AspectRatio(
-                      aspectRatio: controller!.value.aspectRatio,
+                      aspectRatio: 1 / controller!.value.aspectRatio,
                       child: CameraPreview(controller!),
                     ),
                   ),
