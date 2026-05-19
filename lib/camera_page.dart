@@ -179,7 +179,7 @@ class _CameraPageState extends State<CameraPage> {
 
     final newPath = p.join(
       dir.path,
-      'hcv_video_$safeId.hcvpack',
+      'hcv_video_$safeId.mp4',
     );
 
     final newFile = File(newPath);
@@ -680,10 +680,12 @@ class _CameraPageState extends State<CameraPage> {
               if (ok && result == null)
                 SizedBox(
                   width: 300,
-                  height: 170,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: CameraPreview(controller!),
+                    child: AspectRatio(
+                      aspectRatio: controller!.value.aspectRatio,
+                      child: CameraPreview(controller!),
+                    ),
                   ),
                 ),
               if (result == null) ...[
