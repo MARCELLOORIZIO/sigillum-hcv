@@ -3,16 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
-import 'package:video_player/video_player.dart' as vp;
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import 'hcv_verifier.dart';
-import 'hcv_logo_badge.dart';
 
 class HCVPackPlayerPage extends StatefulWidget {
   final String? initialPath;
@@ -28,10 +24,6 @@ class HCVPackPlayerPage extends StatefulWidget {
 
 class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   final verifier = HCVVerifier();
-
-  late final Player player;
-  late final VideoController controller;
-  vp.VideoPlayerController? iosVideoController;
 
   String status = "Seleziona file .hcvpack";
   String? result;
@@ -58,39 +50,14 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   void initState() {
     super.initState();
 
-    MediaKit.ensureInitialized();
-
-    player = Player();
-    controller = VideoController(player);
-
     if (widget.initialPath != null && widget.initialPath!.isNotEmpty) {
       Future.microtask(() => loadPackage(widget.initialPath!));
     }
   }
 
   Future<void> _openVideo(File tempVideoFile) async {
-    if (Platform.isIOS) {
-      await iosVideoController?.dispose();
-      iosVideoController = vp.VideoPlayerController.file(tempVideoFile);
-      try {
-        await iosVideoController!.initialize();
-        await iosVideoController!.play();
-      } catch (e) {
-        setState(() {
-          status = "ERRORE PLAYER iOS: $e";
-          result = "PLAYER ERROR ❌";
-        });
-        return;
-      }
-
-      if (mounted) setState(() {});
-      return;
-    }
-
-    await player.open(
-      Media(tempVideoFile.path),
-      play: true,
-    );
+    extractedVideoFile = tempVideoFile;
+    return;
   }
 
   Future<void> pickPack() async {
@@ -148,6 +115,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         verifiedAiProofLevel = null;
         verifiedAudioTrust = null;
         verifiedAudioCaptured = null;
+        certificateData = null;
+        extractedVideoFile = null;
       });
 
       final file = File(packPath);
@@ -252,7 +221,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         final tempVideoFile = await _writeTempVideo(videoBytes);
         extractedVideoFile = tempVideoFile;
 
-        //await _openVideo(tempVideoFile);
+        await _openVideo(tempVideoFile);
 
         setState(() {
           loading = false;
@@ -267,9 +236,6 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       if (certificate is Map<String, dynamic>) {
         certificateData = certificate;
-
-        print("HCV IDENTITY:");
-        print(certificateData?["meta"]?["identity"]);
       }
 
       if (certificate is! Map<String, dynamic>) {
@@ -383,9 +349,6 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       certificateData = certificate;
 
-      print("HCV IDENTITY:");
-      print(certificateData?["meta"]?["identity"]);
-
       final videoBytes = base64Decode(videoBase64);
 
       await _verifyAndPlay(
@@ -408,14 +371,6 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     required String sourceLabel,
   }) async {
     certificateData = certificate;
-
-    print("===== PLAYER CERTIFICATE META =====");
-    print(certificateData?["meta"]);
-
-    print("===== PLAYER IDENTITY =====");
-    print(certificateData?["meta"]?["identity"]);
-
-    print("===================================");
 
     final videoHash = sha256.convert(videoBytes).toString();
 
@@ -584,221 +539,137 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     return result != null;
   }
 
-  Widget buildBadge() {
+  Widget buildResultBadge() {
     if (!hasResult) {
-      return const SizedBox();
+      return const SizedBox.shrink();
     }
 
-    final meta = certificateData?["meta"];
-    final identity = meta is Map ? meta["identity"] : null;
-
-    return Positioned(
-      top: 18,
-      left: 16,
-      right: 16,
-      child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 14,
-          ),
-          decoration: BoxDecoration(
-            color: isVerified ? Colors.green : Colors.red,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.45),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                isVerified ? "HUMAN VERIFIED" : "NOT VERIFIED",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-              ),
-              if (isVerified && identity is Map) ...[
-                const SizedBox(height: 10),
-                const Divider(
-                  color: Colors.white24,
-                  height: 1,
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  "Verified by",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  (identity["creatorName"] ?? "Unknown Creator").toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Trust: ${(identity["trustLevel"] ?? "UNKNOWN").toString()}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  "Type: ${verifiedFileType ?? "video"}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget buildLoadingOverlay() {
-    if (!loading) return const SizedBox();
-
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.45),
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-    );
-  }
-
-  Widget buildVideoArea() {
-    if (Platform.isIOS) {
-      if (iosVideoController != null &&
-          iosVideoController!.value.isInitialized) {
-        return Center(
-          child: AspectRatio(
-            aspectRatio: iosVideoController!.value.aspectRatio,
-            child: vp.VideoPlayer(iosVideoController!),
-          ),
-        );
-      }
-
-      return const Center(
-        child: Text(
-          "Apri un HCVPACK",
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-    return const Center(
-      child: Text(
-        "Premi APRI HCVPACK",
-        style: TextStyle(color: Colors.white),
-      ),
-    );
-  }
-
-  Widget buildStatusPanel() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: SafeArea(
-        top: false,
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isVerified ? Colors.green.shade700 : Colors.red.shade700,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            isVerified ? Icons.verified : Icons.error,
+            color: Colors.white,
+            size: 52,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isVerified ? "HUMAN VERIFIED" : "NOT VERIFIED",
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            result ?? "",
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildDetailsPanel() {
+    if (!isVerified) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(top: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isVerified)
-              Text(
-                status,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
+            const Text(
+              "Dettagli verifica HCVPACK",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
-            if (result != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                result ?? "",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: isVerified ? Colors.green : Colors.red,
-                ),
-              ),
-              if (isVerified && verifiedCreatorName != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  "Verified by: $verifiedCreatorName",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  "Trust: ${verifiedTrustLevel ?? "UNKNOWN"}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  "Issuer: ${verifiedIssuer ?? "UNKNOWN"}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  "File type: ${verifiedFileType ?? "video"}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  "HCV Trust",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Trust Level: ${verifiedHcvTrustLevel ?? '-'}\n"
-                  "Live Capture: ${verifiedLiveCaptureTrust ?? '-'}\n"
-                  "Screen Replay Risk: ${verifiedScreenReplayRisk ?? '-'}\n"
-                  "Synthetic Risk: ${verifiedSyntheticRisk ?? '-'}\n"
-                  "Scene Authenticity: ${verifiedSceneAuthenticity ?? '-'}\n"
-                  "AI Proof Level: ${verifiedAiProofLevel ?? '-'}\n"
-                  "Audio: ${verifiedAudioCaptured ?? '-'}\n"
-                  "Audio Trust: ${verifiedAudioTrust ?? '-'}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ],
-            ],
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: loading ? null : pickPack,
-              child: const Text("APRI HCVPACK"),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Verified by: ${verifiedCreatorName ?? '-'}",
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Trust: ${verifiedTrustLevel ?? '-'}",
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Issuer: ${verifiedIssuer ?? '-'}",
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "File type: ${verifiedFileType ?? '-'}",
+              textAlign: TextAlign.center,
+            ),
+            const Divider(height: 24),
+            Text(
+              "Trust Level: ${verifiedHcvTrustLevel ?? '-'}\n"
+              "Live Capture: ${verifiedLiveCaptureTrust ?? '-'}\n"
+              "Screen Replay Risk: ${verifiedScreenReplayRisk ?? '-'}\n"
+              "Synthetic Risk: ${verifiedSyntheticRisk ?? '-'}\n"
+              "Scene Authenticity: ${verifiedSceneAuthenticity ?? '-'}\n"
+              "AI Proof Level: ${verifiedAiProofLevel ?? '-'}\n"
+              "Audio: ${verifiedAudioCaptured ?? '-'}\n"
+              "Audio Trust: ${verifiedAudioTrust ?? '-'}",
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildVideoInfoPanel() {
+    if (extractedVideoFile == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(top: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            const Icon(Icons.movie_creation_outlined, size: 36),
+            const SizedBox(height: 8),
+            const Text(
+              "Video estratto dal pacchetto",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              extractedVideoFile!.path,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Playback video disattivato su iOS in questa build.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12),
             ),
           ],
         ),
@@ -808,9 +679,6 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
   @override
   void dispose() {
-    iosVideoController?.dispose();
-    player.dispose();
-
     try {
       extractedVideoFile?.deleteSync();
     } catch (_) {}
@@ -821,44 +689,53 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("SIGILLUM Player"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        title: const Text("SIGILLUM HCVPACK"),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              alignment: Alignment.center,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: buildVideoArea(),
-                        ),
-                        const Positioned(
-                          top: 12,
-                          right: 12,
-                          child: HCVLogoBadge(),
-                        ),
-                      ],
-                    ),
+                const Icon(
+                  Icons.inventory_2,
+                  size: 72,
+                  color: Colors.blueGrey,
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  "Lettore HCVPACK",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (hasResult) buildBadge(),
-                buildLoadingOverlay(),
+                const SizedBox(height: 12),
+                Text(
+                  status,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                buildResultBadge(),
+                buildDetailsPanel(),
+                buildVideoInfoPanel(),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: loading ? null : pickPack,
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text("APRI HCVPACK"),
+                ),
+                if (loading) ...[
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(),
+                ],
               ],
             ),
           ),
-          buildStatusPanel(),
-        ],
+        ),
       ),
     );
   }
