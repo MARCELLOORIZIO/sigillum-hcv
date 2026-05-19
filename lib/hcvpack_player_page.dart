@@ -252,7 +252,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         final tempVideoFile = await _writeTempVideo(videoBytes);
         extractedVideoFile = tempVideoFile;
 
-        await _openVideo(tempVideoFile);
+        //await _openVideo(tempVideoFile);
 
         setState(() {
           loading = false;
@@ -708,8 +708,12 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         ),
       );
     }
-
-    return Video(controller: controller);
+    return const Center(
+      child: Text(
+        "Premi APRI HCVPACK",
+        style: TextStyle(color: Colors.white),
+      ),
+    );
   }
 
   Widget buildStatusPanel() {
