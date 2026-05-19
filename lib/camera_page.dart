@@ -16,6 +16,7 @@ import 'hcv_live_signals.dart';
 import 'hcv_trust_analyzer.dart';
 import 'hcv_video_watermark.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
