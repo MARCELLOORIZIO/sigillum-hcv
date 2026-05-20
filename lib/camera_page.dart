@@ -17,6 +17,7 @@ import 'hcv_trust_analyzer.dart';
 import 'hcv_video_watermark.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'hcv_social_fingerprint.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -290,6 +291,15 @@ class _CameraPageState extends State<CameraPage> {
       rethrow;
     }
 
+    Map<String, dynamic>? socialFingerprint;
+
+    try {
+      socialFingerprint =
+          await HCVSocialFingerprint().buildFromVideo(savedVideoPath);
+    } catch (_) {
+      socialFingerprint = null;
+    }
+
     setState(() {
       status = 'CREATING HCV CERTIFICATE...';
       videoPath = savedVideoPath;
@@ -328,6 +338,9 @@ class _CameraPageState extends State<CameraPage> {
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
       "publishedVideo": true,
+      "socialVerification": true,
+      "socialFingerprintAlgorithm": socialFingerprint?["algorithm"],
+      "socialFingerprint": socialFingerprint,
     });
 
     if (lastLiveSignals != null) {
