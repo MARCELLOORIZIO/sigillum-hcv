@@ -23,6 +23,23 @@ class RegistryVerifyPage extends StatefulWidget {
 }
 
 class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
+  String? extractHcvIdFromName(String fileName) {
+    final patterns = [
+      RegExp(r'hcv_video_(HCV-[A-Z0-9]+)', caseSensitive: false),
+      RegExp(r'(HCV-[A-Z0-9]+)', caseSensitive: false),
+    ];
+
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(fileName);
+
+      if (match != null) {
+        return match.group(1)!.toUpperCase();
+      }
+    }
+
+    return null;
+  }
+
   final idController = TextEditingController();
 
   final registry = const HCVRegistryService();
@@ -84,6 +101,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   Future<void> pickMedia() async {
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
+      withData: true,
       allowedExtensions: [
         'mp4',
         'mov',
@@ -99,8 +117,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     if (picked == null) return;
 
-    final path = picked.files.single.path;
-    if (path == null) return;
+    final pickedFile = picked.files.single;
+    String? path = pickedFile.path;
+
+    if (path == null && pickedFile.bytes != null) {
+      final dir = await getApplicationDocumentsDirectory();
+      final localFile = File('${dir.path}/${pickedFile.name}');
+      await localFile.writeAsBytes(pickedFile.bytes!);
+      path = localFile.path;
+    }
+
+    if (path == null) {
+      setState(() {
+        status = 'File selezionato ma non importabile su iOS';
+      });
+      return;
+    }
 
     final lowerPath = path.toLowerCase();
 
@@ -115,21 +147,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return;
     }
 
-    final fileName = path.split('/').last;
+    final fileName = picked.files.single.name;
+    final detectedId = extractHcvIdFromName(fileName);
 
-    final match = RegExp(
-      r'HCV-[A-Z0-9]+',
-      caseSensitive: false,
-    ).firstMatch(fileName);
-
-    if (match != null) {
-      idController.text = match.group(1)!.toUpperCase();
+    if (detectedId != null) {
+      idController.text = detectedId;
     }
 
     setState(() {
       mediaPath = path;
       result = null;
-      status = match != null
+      status = detectedId != null
           ? 'HCV-ID rilevato dal nome file. Ora premi VERIFICA DA REGISTRY'
           : 'Media originale selezionato. Inserisci HCV-ID e premi VERIFICA DA REGISTRY';
     });
