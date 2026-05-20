@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class HCVVideoWatermark {
   Future<String> createPublishedVideo({
@@ -54,32 +55,38 @@ class HCVVideoWatermark {
     const fontFile = "/system/fonts/Roboto-Regular.ttf";
 
     final filter = [
-      // background
-      "drawbox=x=18:y=h-66:w=210:h=46:color=black@0.42:t=fill",
+      // social-friendly background box
+      "drawbox=x=18:y=h-118:w=330:h=98:color=black@0.62:t=fill",
 
       // outer square
-      "drawbox=x=28:y=h-52:w=14:h=14:color=white@0.92:t=2",
+      "drawbox=x=30:y=h-100:w=22:h=22:color=white@0.95:t=2",
 
       // inner square
-      "drawbox=x=32:y=h-48:w=6:h=6:color=white@0.92:t=fill",
+      "drawbox=x=36:y=h-94:w=10:h=10:color=white@0.95:t=fill",
 
-      // SIGILLUM
-      "drawtext=fontfile=$fontFile:text='SIGILLUM':"
-          "x=52:y=h-56:"
-          "fontsize=11:"
-          "fontcolor=white@0.95",
+      // SIGILLUM VERIFIED
+      "drawtext=fontfile=$fontFile:text='SIGILLUM VERIFIED':"
+          "x=62:y=h-104:"
+          "fontsize=16:"
+          "fontcolor=white@0.98",
 
       // HUMAN VERIFIED
       "drawtext=fontfile=$fontFile:text='HUMAN VERIFIED':"
-          "x=52:y=h-42:"
-          "fontsize=8:"
-          "fontcolor=white@0.72",
+          "x=62:y=h-82:"
+          "fontsize=11:"
+          "fontcolor=white@0.85",
 
-      // HCV-ID
-      "drawtext=fontfile=$fontFile:text='$safeHcvId':"
-          "x=52:y=h-30:"
-          "fontsize=7:"
-          "fontcolor=white@0.58",
+      // HCV-ID visible for social reposts
+      "drawtext=fontfile=$fontFile:text='HCV-ID\\: $safeHcvId':"
+          "x=62:y=h-62:"
+          "fontsize=10:"
+          "fontcolor=white@0.92",
+
+      // Verify URL visible
+      "drawtext=fontfile=$fontFile:text='VERIFY\\: $safeVerify':"
+          "x=62:y=h-44:"
+          "fontsize=8:"
+          "fontcolor=white@0.70",
     ].join(",");
 
     final command = "-y "
@@ -138,6 +145,6 @@ class HCVVideoWatermark {
       }
     }
 
-    return Directory.systemTemp;
+    return await getApplicationDocumentsDirectory();
   }
 }
