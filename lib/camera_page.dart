@@ -30,6 +30,8 @@ class _CameraPageState extends State<CameraPage> {
   CameraController? controller;
   List<CameraDescription>? cameras;
 
+  int selectedCameraIndex = 0;
+
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
 
@@ -38,6 +40,14 @@ class _CameraPageState extends State<CameraPage> {
 
   bool ready = false;
   bool recording = false;
+
+  bool photoMode = false;
+
+  FlashMode currentFlashMode = FlashMode.off;
+
+  double currentZoom = 1.0;
+  double minZoom = 1.0;
+  double maxZoom = 1.0;
 
   String status = 'INIT';
   String? result;
@@ -65,12 +75,15 @@ class _CameraPageState extends State<CameraPage> {
       }
 
       controller = CameraController(
-        cameras!.first,
+        cameras![selectedCameraIndex],
         ResolutionPreset.medium,
         enableAudio: true,
       );
 
       await controller!.initialize();
+
+      minZoom = await controller!.getMinZoomLevel();
+      maxZoom = await controller!.getMaxZoomLevel();
 
       setState(() {
         ready = true;
@@ -79,6 +92,53 @@ class _CameraPageState extends State<CameraPage> {
     } catch (e) {
       setState(() => status = 'ERROR: $e');
     }
+  }
+
+  Future<void> switchCamera() async {
+    if (cameras == null || cameras!.length < 2) return;
+
+    selectedCameraIndex = selectedCameraIndex == 0 ? 1 : 0;
+
+    await controller?.dispose();
+
+    controller = CameraController(
+      cameras![selectedCameraIndex],
+      ResolutionPreset.high,
+      enableAudio: !photoMode,
+    );
+
+    await controller!.initialize();
+
+    minZoom = await controller!.getMinZoomLevel();
+    maxZoom = await controller!.getMaxZoomLevel();
+
+    if (!mounted) return;
+
+    setState(() {});
+  }
+
+  Future<void> toggleFlash() async {
+    if (controller == null) return;
+
+    if (currentFlashMode == FlashMode.off) {
+      currentFlashMode = FlashMode.torch;
+    } else {
+      currentFlashMode = FlashMode.off;
+    }
+
+    await controller!.setFlashMode(currentFlashMode);
+
+    setState(() {});
+  }
+
+  Future<void> setZoom(double zoom) async {
+    if (controller == null) return;
+
+    currentZoom = zoom.clamp(minZoom, maxZoom);
+
+    await controller!.setZoomLevel(currentZoom);
+
+    setState(() {});
   }
 
   Future<void> start() async {
@@ -131,6 +191,92 @@ class _CameraPageState extends State<CameraPage> {
       setState(() {
         recording = false;
         status = 'CAMERA/SAVE ERROR: $e';
+      });
+    }
+  }
+
+  Future<void> takePhoto() async {
+    if (controller == null) return;
+
+    try {
+      setState(() {
+        status = 'SCATTO FOTO...';
+      });
+
+      final file = await controller!.takePicture();
+
+      final savedPhotoPath = await saveVideoToDownloadsTemporary(file.path);
+
+      final engine = HCVEngine();
+
+      engine.start();
+
+      final preparedHcvId = engine.hcvId;
+
+      final preparedVerificationUrl = "hcv://verify/$preparedHcvId";
+
+      setState(() {
+        hcvId = preparedHcvId;
+        verificationUrl = preparedVerificationUrl;
+        status = 'ADDING SIGILLUM WATERMARK...';
+      });
+
+      final publishedPhoto = await HCVVideoWatermark().createPublishedVideo(
+        inputPath: savedPhotoPath,
+        hcvId: preparedHcvId,
+        verificationUrl: preparedVerificationUrl,
+      );
+
+      final fileBytes = await File(publishedPhoto).readAsBytes();
+
+      final hash = sha256.convert(fileBytes).toString();
+
+      engine.setContent(
+        type: 'photo',
+        hash: hash,
+        size: fileBytes.length,
+        name: p.basename(publishedPhoto),
+      );
+
+      engine.setClaims({
+        "fileIntegrity": "VERIFIED",
+        "captureSource": "HCV_CAMERA",
+        "captureType": "PHOTO",
+        "trustLevel": "HCV_PHOTO",
+        "watermark": "SIGILLUM_VISIBLE",
+      });
+
+      engine.stop();
+
+      String hcv = await engine.exportToFile();
+
+      final ok = await verifier.verifyFile(hcv);
+
+      String? pack;
+
+      if (ok) {
+        final packer = HCVPackage();
+
+        pack = await packer.createPackage(
+          videoPath: publishedPhoto,
+          hcvPath: hcv,
+        );
+      }
+
+      setState(() {
+        result = ok ? 'VALID ✔' : 'INVALID ❌';
+
+        status = ok ? 'PHOTO VERIFIED ✔' : 'PHOTO INVALID ❌';
+
+        videoPath = publishedPhoto;
+        hcvPath = hcv;
+        packagePath = pack;
+
+        recording = false;
+      });
+    } catch (e) {
+      setState(() {
+        status = 'PHOTO ERROR: $e';
       });
     }
   }
@@ -692,67 +838,254 @@ class _CameraPageState extends State<CameraPage> {
     final ok = controller != null && controller!.value.isInitialized;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Crea video HCV')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            children: [
-              _statusBadge(),
-              const SizedBox(height: 20),
-              if (ok && result == null)
-                SizedBox(
-                  width: 300,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: AspectRatio(
-                      aspectRatio: 1 / controller!.value.aspectRatio,
-                      child: CameraPreview(controller!),
-                    ),
-                  ),
-                ),
-              if (result == null) ...[
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: 260,
-                  child: ElevatedButton.icon(
-                    onPressed: !ready ? null : (recording ? stop : start),
-                    icon: Icon(recording ? Icons.stop : Icons.videocam),
-                    label: Text(
-                      recording ? 'STOP REGISTRAZIONE' : 'REGISTRA VIDEO',
-                    ),
-                  ),
-                ),
-              ],
-              _verifiedCard(),
-              _registryCard(),
-              _actionButtons(),
-              _createdFilesCard(),
-              if (result != null) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: 260,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        status = 'READY ✔';
-                        result = null;
-                        videoPath = null;
-                        hcvPath = null;
-                        packagePath = null;
-                        hcvId = null;
-                        verificationUrl = null;
-                        registryStatus = null;
-                      });
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('CREA NUOVO VIDEO'),
-                  ),
-                ),
-              ],
-            ],
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text('SIGILLUM Camera'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              currentFlashMode == FlashMode.off
+                  ? Icons.flash_off
+                  : Icons.flash_on,
+            ),
+            onPressed: toggleFlash,
           ),
-        ),
+          IconButton(
+            icon: const Icon(Icons.flip_camera_ios),
+            onPressed: switchCamera,
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          // CAMERA PREVIEW FULLSCREEN
+          if (ok)
+            Positioned.fill(
+              child: OverflowBox(
+                maxWidth: double.infinity,
+                maxHeight: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: controller!.value.previewSize!.height,
+                    height: controller!.value.previewSize!.width,
+                    child: CameraPreview(controller!),
+                  ),
+                ),
+              ),
+            ),
+
+          // DARK OVERLAY IF RESULT
+          if (result != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.65),
+              ),
+            ),
+
+          // TOP STATUS
+          Positioned(
+            top: 24,
+            left: 20,
+            right: 20,
+            child: SafeArea(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.55),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: _statusBadge(),
+                ),
+              ),
+            ),
+          ),
+
+          // ZOOM SLIDER
+          if (ok && result == null)
+            Positioned(
+              right: 6,
+              top: 140,
+              bottom: 180,
+              child: RotatedBox(
+                quarterTurns: 3,
+                child: SizedBox(
+                  width: 220,
+                  child: Slider(
+                    value: currentZoom,
+                    min: minZoom,
+                    max: maxZoom,
+                    onChanged: setZoom,
+                  ),
+                ),
+              ),
+            ),
+
+          // BOTTOM CAMERA CONTROLS
+          if (result == null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.only(
+                    bottom: 24,
+                    top: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.95),
+                        Colors.black.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // FOTO / VIDEO
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('VIDEO'),
+                            selected: !photoMode,
+                            onSelected: (_) {
+                              setState(() {
+                                photoMode = false;
+                              });
+                            },
+                          ),
+                          const SizedBox(width: 14),
+                          ChoiceChip(
+                            label: const Text('FOTO'),
+                            selected: photoMode,
+                            onSelected: (_) {
+                              setState(() {
+                                photoMode = true;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 26),
+
+                      // SHUTTER BUTTON
+                      GestureDetector(
+                        onTap: !ready
+                            ? null
+                            : photoMode
+                                ? takePhoto
+                                : (recording ? stop : start),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: recording ? 92 : 102,
+                          height: recording ? 92 : 102,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: recording ? Colors.red : Colors.white,
+                            border: Border.all(
+                              color: Colors.white70,
+                              width: 5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.45),
+                                blurRadius: 18,
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: recording
+                                ? Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  )
+                                : Icon(
+                                    photoMode
+                                        ? Icons.camera_alt
+                                        : Icons.videocam,
+                                    color: Colors.black,
+                                    size: 42,
+                                  ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // STATUS TEXT
+                      Text(
+                        recording
+                            ? 'REGISTRAZIONE IN CORSO'
+                            : photoMode
+                                ? 'MODALITÀ FOTO'
+                                : 'MODALITÀ VIDEO',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // RESULT PANELS
+          if (result != null)
+            Positioned.fill(
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 120),
+                      _verifiedCard(),
+                      _registryCard(),
+                      _actionButtons(),
+                      _createdFilesCard(),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: 260,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              status = 'READY ✔';
+                              result = null;
+                              videoPath = null;
+                              hcvPath = null;
+                              packagePath = null;
+                              hcvId = null;
+                              verificationUrl = null;
+                              registryStatus = null;
+                            });
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('CREA NUOVO VIDEO'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
