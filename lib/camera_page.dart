@@ -132,13 +132,21 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> setZoom(double zoom) async {
-    if (controller == null) return;
+    if (controller == null || !controller!.value.isInitialized) return;
 
-    currentZoom = zoom.clamp(minZoom, maxZoom);
+    final safeZoom = zoom.clamp(minZoom, maxZoom).toDouble();
 
-    await controller!.setZoomLevel(currentZoom);
+    try {
+      await controller!.setZoomLevel(safeZoom);
 
-    setState(() {});
+      setState(() {
+        currentZoom = safeZoom;
+      });
+    } catch (e) {
+      setState(() {
+        status = 'ZOOM ERROR: $e';
+      });
+    }
   }
 
   Future<void> start() async {
@@ -852,6 +860,12 @@ class _CameraPageState extends State<CameraPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
         title: const Text('SIGILLUM Camera'),
         actions: [
           IconButton(
@@ -918,20 +932,27 @@ class _CameraPageState extends State<CameraPage> {
           ),
 
           // ZOOM SLIDER
-          if (ok && result == null)
+          if (ok && result == null && maxZoom > minZoom)
             Positioned(
               left: 24,
               right: 24,
               bottom: 170,
-              child: Slider(
-                value: currentZoom.clamp(minZoom, maxZoom),
-                min: minZoom,
-                max: maxZoom,
-                divisions: 20,
-                label: '${currentZoom.toStringAsFixed(1)}x',
-                onChanged: (value) async {
-                  await setZoom(value);
-                },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Slider(
+                  value: currentZoom.clamp(minZoom, maxZoom).toDouble(),
+                  min: minZoom,
+                  max: maxZoom,
+                  divisions: 20,
+                  label: '${currentZoom.toStringAsFixed(1)}x',
+                  onChanged: (value) {
+                    setZoom(value);
+                  },
+                ),
               ),
             ),
 

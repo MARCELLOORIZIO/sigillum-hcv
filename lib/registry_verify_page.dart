@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_verifier.dart';
 import 'package:path/path.dart' as p;
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
@@ -38,6 +39,33 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
 
     return null;
+  }
+
+  Future<String?> extractHcvIdFromImage(String path) async {
+    try {
+      final inputImage = InputImage.fromFilePath(path);
+
+      final textRecognizer =
+          TextRecognizer(script: TextRecognitionScript.latin);
+
+      final recognizedText = await textRecognizer.processImage(inputImage);
+
+      await textRecognizer.close();
+
+      final text = recognizedText.text.toUpperCase();
+
+      final regex = RegExp(r'HCV-[A-Z0-9]+');
+
+      final match = regex.firstMatch(text);
+
+      if (match != null) {
+        return match.group(0);
+      }
+
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   final idController = TextEditingController();
@@ -148,10 +176,21 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
 
     final fileName = picked.files.single.name;
+
     final detectedId = extractHcvIdFromName(fileName);
 
     if (detectedId != null) {
       idController.text = detectedId;
+    } else {
+      final ocrId = await extractHcvIdFromImage(path);
+
+      if (ocrId != null) {
+        idController.text = ocrId;
+
+        setState(() {
+          status = 'HCV-ID rilevato via OCR ✔';
+        });
+      }
     }
 
     setState(() {
