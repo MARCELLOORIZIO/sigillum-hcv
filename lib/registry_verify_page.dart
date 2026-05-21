@@ -157,9 +157,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     setState(() {
       mediaPath = path;
       result = null;
+
       status = detectedId != null
           ? 'HCV-ID rilevato dal nome file. Ora premi VERIFICA DA REGISTRY'
-          : 'Media originale selezionato. Inserisci HCV-ID e premi VERIFICA DA REGISTRY';
+          : 'Video selezionato. Leggi HCV-ID dal watermark e inseriscilo manualmente.';
     });
   }
 
