@@ -205,7 +205,7 @@ class _CameraPageState extends State<CameraPage> {
 
       final file = await controller!.takePicture();
 
-      final savedPhotoPath = await saveVideoToDownloadsTemporary(file.path);
+      final savedPhotoPath = await savePhotoToDocuments(file.path);
 
       final engine = HCVEngine();
 
@@ -221,11 +221,7 @@ class _CameraPageState extends State<CameraPage> {
         status = 'ADDING SIGILLUM WATERMARK...';
       });
 
-      final publishedPhoto = await HCVVideoWatermark().createPublishedVideo(
-        inputPath: savedPhotoPath,
-        hcvId: preparedHcvId,
-        verificationUrl: preparedVerificationUrl,
-      );
+      final publishedPhoto = savedPhotoPath;
 
       final fileBytes = await File(publishedPhoto).readAsBytes();
 
@@ -314,6 +310,21 @@ class _CameraPageState extends State<CameraPage> {
 
     final savedFile = await sourceFile.copy(savedPath);
 
+    return savedFile.path;
+  }
+
+  Future<String> savePhotoToDocuments(String sourcePath) async {
+    final dir = await _downloadsDirectory();
+
+    final sourceFile = File(sourcePath);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+    final savedPath = p.join(
+      dir.path,
+      'hcv_photo_$timestamp.jpg',
+    );
+
+    final savedFile = await sourceFile.copy(savedPath);
     return savedFile.path;
   }
 
@@ -984,11 +995,15 @@ class _CameraPageState extends State<CameraPage> {
                             : () async {
                                 if (photoMode) {
                                   await takePhoto();
-                                } else if (recording) {
-                                  await stop();
-                                } else {
-                                  await start();
+                                  return;
                                 }
+
+                                if (recording) {
+                                  await stop();
+                                  return;
+                                }
+
+                                await start();
                               },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
