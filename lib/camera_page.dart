@@ -909,20 +909,18 @@ class _CameraPageState extends State<CameraPage> {
           // ZOOM SLIDER
           if (ok && result == null)
             Positioned(
-              right: 6,
-              top: 140,
-              bottom: 180,
-              child: RotatedBox(
-                quarterTurns: 3,
-                child: SizedBox(
-                  width: 220,
-                  child: Slider(
-                    value: currentZoom,
-                    min: minZoom,
-                    max: maxZoom,
-                    onChanged: setZoom,
-                  ),
-                ),
+              left: 24,
+              right: 24,
+              bottom: 170,
+              child: Slider(
+                value: currentZoom.clamp(minZoom, maxZoom),
+                min: minZoom,
+                max: maxZoom,
+                divisions: 20,
+                label: '${currentZoom.toStringAsFixed(1)}x',
+                onChanged: (value) async {
+                  await setZoom(value);
+                },
               ),
             ),
 
@@ -983,9 +981,15 @@ class _CameraPageState extends State<CameraPage> {
                       GestureDetector(
                         onTap: !ready
                             ? null
-                            : photoMode
-                                ? takePhoto
-                                : (recording ? stop : start),
+                            : () async {
+                                if (photoMode) {
+                                  await takePhoto();
+                                } else if (recording) {
+                                  await stop();
+                                } else {
+                                  await start();
+                                }
+                              },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
                           width: recording ? 92 : 102,
@@ -1056,6 +1060,25 @@ class _CameraPageState extends State<CameraPage> {
                   child: Column(
                     children: [
                       const SizedBox(height: 120),
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: IconButton(
+                          icon: const Icon(Icons.close,
+                              color: Colors.white, size: 32),
+                          onPressed: () {
+                            setState(() {
+                              status = 'READY ✔';
+                              result = null;
+                              videoPath = null;
+                              hcvPath = null;
+                              packagePath = null;
+                              hcvId = null;
+                              verificationUrl = null;
+                              registryStatus = null;
+                            });
+                          },
+                        ),
+                      ),
                       _verifiedCard(),
                       _registryCard(),
                       _actionButtons(),
@@ -1077,7 +1100,7 @@ class _CameraPageState extends State<CameraPage> {
                             });
                           },
                           icon: const Icon(Icons.refresh),
-                          label: const Text('CREA NUOVO VIDEO'),
+                          label: const Text('TORNA ALLA CAMERA'),
                         ),
                       ),
                     ],
