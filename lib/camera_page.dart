@@ -1095,12 +1095,11 @@ class _CameraPageState extends State<CameraPage> {
                   padding: const EdgeInsets.all(18),
                   child: Column(
                     children: [
-                      const SizedBox(height: 120),
                       Align(
-                        alignment: Alignment.topRight,
+                        alignment: Alignment.topLeft,
                         child: IconButton(
-                          icon: const Icon(Icons.close,
-                              color: Colors.white, size: 32),
+                          icon: const Icon(Icons.arrow_back,
+                              color: Colors.white, size: 34),
                           onPressed: () {
                             setState(() {
                               status = 'READY ✔';
@@ -1111,6 +1110,7 @@ class _CameraPageState extends State<CameraPage> {
                               hcvId = null;
                               verificationUrl = null;
                               registryStatus = null;
+                              recording = false;
                             });
                           },
                         ),
