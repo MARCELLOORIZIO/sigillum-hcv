@@ -276,6 +276,12 @@ class _CameraPageState extends State<CameraPage> {
           videoPath: publishedPhoto,
           hcvPath: hcv,
         );
+        if (pack != null) {
+          pack = await movePackageToUnifiedName(
+            currentPath: pack,
+            hcvId: preparedHcvId,
+          );
+        }
       }
 
       setState(() {
@@ -289,6 +295,9 @@ class _CameraPageState extends State<CameraPage> {
 
         recording = false;
       });
+      if (ok) {
+        await uploadCertificateToRegistry();
+      }
     } catch (e) {
       setState(() {
         status = 'PHOTO ERROR: $e';
