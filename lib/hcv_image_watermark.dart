@@ -11,7 +11,7 @@ class HCVImageWatermark {
     final inputFile = File(inputPath);
 
     if (!await inputFile.exists()) {
-      throw Exception('Foto non trovata');
+      throw Exception('Photo not found');
     }
 
     final bytes = await inputFile.readAsBytes();
@@ -19,51 +19,54 @@ class HCVImageWatermark {
     final image = img.decodeImage(bytes);
 
     if (image == null) {
-      throw Exception('Immagine non valida');
+      throw Exception('Invalid image');
     }
 
-    final overlayHeight = 90;
+    final overlayHeight = (image.height * 0.16).toInt();
+
+    final topY = image.height - overlayHeight;
 
     img.fillRect(
       image,
-      x1: 20,
-      y1: image.height - overlayHeight,
-      x2: 360,
-      y2: image.height - 20,
-      color: img.ColorRgb8(0, 0, 0),
+      x1: 0,
+      y1: topY,
+      x2: image.width,
+      y2: image.height,
+      color: img.ColorRgba8(0, 0, 0, 140),
     );
+
+    final titleSize = (image.width * 0.035).toInt();
+    final smallSize = (image.width * 0.018).toInt();
 
     img.drawString(
       image,
       'SIGILLUM',
-      font: img.arial24,
+      font: img.arial48,
       x: 40,
-      y: image.height - 78,
+      y: topY + 26,
       color: img.ColorRgb8(255, 255, 255),
     );
 
     img.drawString(
       image,
       'HUMAN VERIFIED',
-      font: img.arial14,
-      x: 40,
-      y: image.height - 48,
+      font: img.arial24,
+      x: 42,
+      y: topY + 92,
       color: img.ColorRgb8(220, 220, 220),
     );
 
     img.drawString(
       image,
       hcvId,
-      font: img.arial14,
-      x: 40,
-      y: image.height - 28,
-      color: img.ColorRgb8(180, 180, 180),
+      font: img.arial24,
+      x: 42,
+      y: topY + 132,
+      color: img.ColorRgb8(255, 215, 0),
     );
 
-    final dir = inputFile.parent;
-
     final outputPath = p.join(
-      dir.path,
+      inputFile.parent.path,
       'hcv_photo_$hcvId.jpg',
     );
 
