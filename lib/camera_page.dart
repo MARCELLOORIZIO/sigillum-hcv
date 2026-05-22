@@ -18,6 +18,7 @@ import 'hcv_video_watermark.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'hcv_social_fingerprint.dart';
+import 'hcv_image_watermark.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -229,7 +230,10 @@ class _CameraPageState extends State<CameraPage> {
         status = 'ADDING SIGILLUM WATERMARK...';
       });
 
-      final publishedPhoto = savedPhotoPath;
+      final publishedPhoto = await HCVImageWatermark().createPublishedPhoto(
+        inputPath: savedPhotoPath,
+        hcvId: preparedHcvId,
+      );
 
       final fileBytes = await File(publishedPhoto).readAsBytes();
 
@@ -1097,22 +1101,25 @@ class _CameraPageState extends State<CameraPage> {
                     children: [
                       Align(
                         alignment: Alignment.topLeft,
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: Colors.white, size: 34),
-                          onPressed: () {
-                            setState(() {
-                              status = 'READY ✔';
-                              result = null;
-                              videoPath = null;
-                              hcvPath = null;
-                              packagePath = null;
-                              hcvId = null;
-                              verificationUrl = null;
-                              registryStatus = null;
-                              recording = false;
-                            });
-                          },
+                        child: CircleAvatar(
+                          backgroundColor: Colors.white,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.black),
+                            onPressed: () {
+                              setState(() {
+                                status = 'READY ✔';
+                                result = null;
+                                videoPath = null;
+                                hcvPath = null;
+                                packagePath = null;
+                                hcvId = null;
+                                verificationUrl = null;
+                                registryStatus = null;
+                                recording = false;
+                              });
+                            },
+                          ),
                         ),
                       ),
                       _verifiedCard(),
