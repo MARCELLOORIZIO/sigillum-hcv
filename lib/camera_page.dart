@@ -235,6 +235,13 @@ class _CameraPageState extends State<CameraPage> {
         hcvId: preparedHcvId,
       );
 
+      try {
+        if (savedPhotoPath != publishedPhoto &&
+            await File(savedPhotoPath).exists()) {
+          await File(savedPhotoPath).delete();
+        }
+      } catch (_) {}
+
       final fileBytes = await File(publishedPhoto).readAsBytes();
 
       final hash = sha256.convert(fileBytes).toString();
@@ -447,12 +454,21 @@ class _CameraPageState extends State<CameraPage> {
       verificationUrl = preparedVerificationUrl;
     });
 
+    final originalVideoBeforeWatermark = savedVideoPath;
+
     try {
       savedVideoPath = await HCVVideoWatermark().createPublishedVideo(
         inputPath: savedVideoPath,
         hcvId: preparedHcvId,
         verificationUrl: preparedVerificationUrl,
       );
+
+      try {
+        if (originalVideoBeforeWatermark != savedVideoPath &&
+            await File(originalVideoBeforeWatermark).exists()) {
+          await File(originalVideoBeforeWatermark).delete();
+        }
+      } catch (_) {}
     } catch (e) {
       setState(() {
         status = 'WATERMARK ERROR: $e';
@@ -856,6 +872,20 @@ class _CameraPageState extends State<CameraPage> {
     );
   }
 
+  Widget _zoomButton(String label, double value) {
+    final selected = (currentZoom - value).abs() < 0.2;
+
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: selected ? Colors.white : Colors.black87,
+        foregroundColor: selected ? Colors.black : Colors.white,
+        shape: const StadiumBorder(),
+      ),
+      onPressed: () => setZoom(value),
+      child: Text(label),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ok = controller != null && controller!.value.isInitialized;
@@ -938,28 +968,20 @@ class _CameraPageState extends State<CameraPage> {
           // ZOOM SLIDER
           if (ok && result == null && maxZoom > minZoom)
             Positioned(
-              left: 24,
-              right: 24,
-              bottom: 170,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Slider(
-                  value: currentZoom.clamp(minZoom, maxZoom).toDouble(),
-                  min: minZoom,
-                  max: maxZoom,
-                  divisions: 20,
-                  label: '${currentZoom.toStringAsFixed(1)}x',
-                  onChanged: (value) {
-                    setZoom(value);
-                  },
-                ),
+              left: 0,
+              right: 0,
+              bottom: 175,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _zoomButton('1x', 1.0),
+                  const SizedBox(width: 10),
+                  _zoomButton('2x', 2.0),
+                  const SizedBox(width: 10),
+                  _zoomButton('3x', 3.0),
+                ],
               ),
             ),
-
           // BOTTOM CAMERA CONTROLS
           if (result == null)
             Positioned(
@@ -992,6 +1014,12 @@ class _CameraPageState extends State<CameraPage> {
                           ChoiceChip(
                             label: const Text('VIDEO'),
                             selected: !photoMode,
+                            selectedColor: Colors.white,
+                            backgroundColor: Colors.black54,
+                            labelStyle: TextStyle(
+                              color: !photoMode ? Colors.black : Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                             onSelected: (_) {
                               setState(() {
                                 photoMode = false;
@@ -1002,6 +1030,12 @@ class _CameraPageState extends State<CameraPage> {
                           ChoiceChip(
                             label: const Text('FOTO'),
                             selected: photoMode,
+                            selectedColor: Colors.white,
+                            backgroundColor: Colors.black54,
+                            labelStyle: TextStyle(
+                              color: photoMode ? Colors.black : Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                             onSelected: (_) {
                               setState(() {
                                 photoMode = true;

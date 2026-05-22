@@ -22,9 +22,9 @@ class HCVImageWatermark {
       throw Exception('Invalid image');
     }
 
-    final overlayHeight = (image.height * 0.16).toInt();
+    final overlayHeight = (image.height * 0.22).toInt();
 
-    final topY = image.height - overlayHeight;
+    final topY = image.height - overlayHeight - 180;
 
     img.fillRect(
       image,
