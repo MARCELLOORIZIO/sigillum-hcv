@@ -979,7 +979,7 @@ class _CameraPageState extends State<CameraPage> {
             Positioned(
               left: 0,
               right: 0,
-              bottom: 175,
+              bottom: 250,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1023,8 +1023,9 @@ class _CameraPageState extends State<CameraPage> {
                           ChoiceChip(
                             label: const Text('VIDEO'),
                             selected: !photoMode,
+                            showCheckmark: false,
                             selectedColor: Colors.white,
-                            backgroundColor: Colors.black54,
+                            backgroundColor: Colors.white24,
                             labelStyle: TextStyle(
                               color: !photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
@@ -1039,8 +1040,9 @@ class _CameraPageState extends State<CameraPage> {
                           ChoiceChip(
                             label: const Text('FOTO'),
                             selected: photoMode,
+                            showCheckmark: false,
                             selectedColor: Colors.white,
-                            backgroundColor: Colors.black54,
+                            backgroundColor: Colors.white24,
                             labelStyle: TextStyle(
                               color: photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
