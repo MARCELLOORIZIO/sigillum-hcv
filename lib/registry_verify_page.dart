@@ -11,6 +11,9 @@ import 'hcv_verifier.dart';
 import 'package:path/path.dart' as p;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new/return_code.dart';
+
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
 
@@ -63,6 +66,37 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
 
       return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> extractHcvIdFromVideoFrame(String videoPath) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final framePath =
+          '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      final command =
+          "-y -i '$videoPath' -ss 00:00:01 -frames:v 1 '$framePath'";
+
+      final session = await FFmpegKit.execute(command);
+      final code = await session.getReturnCode();
+
+      if (code == null || !ReturnCode.isSuccess(code)) {
+        return null;
+      }
+
+      final id = await extractHcvIdFromImage(framePath);
+
+      try {
+        final frameFile = File(framePath);
+        if (await frameFile.exists()) {
+          await frameFile.delete();
+        }
+      } catch (_) {}
+
+      return id;
     } catch (_) {
       return null;
     }
@@ -190,6 +224,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           lowerPath.endsWith('.jpeg') ||
           lowerPath.endsWith('.png')) {
         ocrId = await extractHcvIdFromImage(path);
+      } else if (lowerPath.endsWith('.mp4') ||
+          lowerPath.endsWith('.mov') ||
+          lowerPath.endsWith('.m4v')) {
+        ocrId = await extractHcvIdFromVideoFrame(path);
+      }
+
+      if (ocrId != null) {
+        idController.text = ocrId;
+
+        setState(() {
+          status = 'HCV-ID rilevato via OCR nel media ✔';
+        });
       }
 
       if (ocrId != null) {
@@ -358,7 +404,19 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           status =
               'SOCIAL VERIFIED ✔\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
 
-          result = 'SOCIAL VERIFIED ✔';
+          final hcvIdWasDetectedInMedia = status.toUpperCase().contains('OCR');
+
+          if (hcvIdWasDetectedInMedia) {
+            status =
+                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.';
+
+            result = 'SOCIAL VERIFIED ✔';
+          } else {
+            status =
+                'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. Verifica social non conclusiva.';
+
+            result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
+          }
         }
       });
     } catch (e) {
