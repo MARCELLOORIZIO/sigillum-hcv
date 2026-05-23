@@ -903,8 +903,14 @@ class _CameraPageState extends State<CameraPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.of(context).pop();
           },
@@ -916,18 +922,18 @@ class _CameraPageState extends State<CameraPage> {
               currentFlashMode == FlashMode.off
                   ? Icons.flash_off
                   : Icons.flash_on,
+              color: Colors.white,
             ),
             onPressed: toggleFlash,
           ),
           IconButton(
-            icon: const Icon(Icons.flip_camera_ios),
+            icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
             onPressed: switchCamera,
           ),
         ],
       ),
       body: Stack(
         children: [
-          // CAMERA PREVIEW FULLSCREEN
           if (ok)
             Positioned.fill(
               child: OverflowBox(
@@ -943,18 +949,14 @@ class _CameraPageState extends State<CameraPage> {
                 ),
               ),
             ),
-
-          // DARK OVERLAY IF RESULT
           if (result != null)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.65),
+                color: Colors.black.withValues(alpha: 0.65),
               ),
             ),
-
-          // TOP STATUS
           Positioned(
-            top: 24,
+            top: 18,
             left: 20,
             right: 20,
             child: SafeArea(
@@ -965,21 +967,22 @@ class _CameraPageState extends State<CameraPage> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.55),
+                    color: Colors.black.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
+                    ),
                   ),
                   child: _statusBadge(),
                 ),
               ),
             ),
           ),
-
-          // ZOOM SLIDER
           if (ok && result == null && maxZoom > minZoom)
             Positioned(
               left: 0,
               right: 0,
-              bottom: 250,
+              bottom: 245,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -991,7 +994,6 @@ class _CameraPageState extends State<CameraPage> {
                 ],
               ),
             ),
-          // BOTTOM CAMERA CONTROLS
           if (result == null)
             Positioned(
               left: 0,
@@ -1001,22 +1003,22 @@ class _CameraPageState extends State<CameraPage> {
                 child: Container(
                   padding: const EdgeInsets.only(
                     bottom: 24,
-                    top: 20,
+                    top: 22,
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
                       colors: [
-                        Colors.black.withOpacity(0.95),
-                        Colors.black.withOpacity(0.0),
+                        Colors.black.withValues(alpha: 0.98),
+                        Colors.black.withValues(alpha: 0.65),
+                        Colors.black.withValues(alpha: 0.0),
                       ],
                     ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // FOTO / VIDEO
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -1025,7 +1027,8 @@ class _CameraPageState extends State<CameraPage> {
                             selected: !photoMode,
                             showCheckmark: false,
                             selectedColor: Colors.white,
-                            backgroundColor: Colors.white24,
+                            backgroundColor: Colors.black,
+                            side: const BorderSide(color: Colors.white70),
                             labelStyle: TextStyle(
                               color: !photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
@@ -1042,7 +1045,8 @@ class _CameraPageState extends State<CameraPage> {
                             selected: photoMode,
                             showCheckmark: false,
                             selectedColor: Colors.white,
-                            backgroundColor: Colors.white24,
+                            backgroundColor: Colors.black,
+                            side: const BorderSide(color: Colors.white70),
                             labelStyle: TextStyle(
                               color: photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
@@ -1055,10 +1059,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 26),
-
-                      // SHUTTER BUTTON
                       GestureDetector(
                         onTap: !ready
                             ? null
@@ -1088,7 +1089,7 @@ class _CameraPageState extends State<CameraPage> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.45),
+                                color: Colors.black.withValues(alpha: 0.45),
                                 blurRadius: 18,
                               ),
                             ],
@@ -1113,10 +1114,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 18),
-
-                      // STATUS TEXT
                       Text(
                         recording
                             ? 'REGISTRAZIONE IN CORSO'
@@ -1135,8 +1133,6 @@ class _CameraPageState extends State<CameraPage> {
                 ),
               ),
             ),
-
-          // RESULT PANELS
           if (result != null)
             Positioned.fill(
               child: SafeArea(
@@ -1149,8 +1145,10 @@ class _CameraPageState extends State<CameraPage> {
                         child: CircleAvatar(
                           backgroundColor: Colors.white,
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back,
-                                color: Colors.black),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.black,
+                            ),
                             onPressed: () {
                               setState(() {
                                 status = 'READY ✔';
@@ -1167,6 +1165,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 24),
                       _verifiedCard(),
                       _registryCard(),
                       _actionButtons(),
@@ -1175,6 +1174,10 @@ class _CameraPageState extends State<CameraPage> {
                       SizedBox(
                         width: 260,
                         child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white),
+                          ),
                           onPressed: () {
                             setState(() {
                               status = 'READY ✔';
@@ -1185,6 +1188,7 @@ class _CameraPageState extends State<CameraPage> {
                               hcvId = null;
                               verificationUrl = null;
                               registryStatus = null;
+                              recording = false;
                             });
                           },
                           icon: const Icon(Icons.refresh),
