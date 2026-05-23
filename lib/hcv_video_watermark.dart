@@ -56,7 +56,7 @@ class HCVVideoWatermark {
 
     final filter = [
       // social-friendly background box
-      "drawbox=x=18:y=h-118:w=330:h=98:color=black@0.62:t=fill",
+      //"drawbox=x=18:y=h-92:w=300:h=72:color=black@0.42:t=fill",
 
       // outer square
       "drawbox=x=30:y=h-100:w=22:h=22:color=white@0.95:t=2",
@@ -72,19 +72,19 @@ class HCVVideoWatermark {
 
       // HUMAN VERIFIED
       "drawtext=fontfile=$fontFile:text='HUMAN VERIFIED':"
-          "x=62:y=h-82:"
+          "x=52:y=h-78:"
           "fontsize=11:"
           "fontcolor=white@0.85",
 
       // HCV-ID visible for social reposts
       "drawtext=fontfile=$fontFile:text='HCV-ID\\: $safeHcvId':"
-          "x=62:y=h-62:"
+          "x=52:y=h-56:"
           "fontsize=10:"
           "fontcolor=white@0.92",
 
       // Verify URL visible
       "drawtext=fontfile=$fontFile:text='VERIFY\\: $safeVerify':"
-          "x=62:y=h-44:"
+          "x=52:y=h-38:"
           "fontsize=8:"
           "fontcolor=white@0.70",
     ].join(",");

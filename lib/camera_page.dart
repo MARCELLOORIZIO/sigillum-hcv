@@ -980,18 +980,60 @@ class _CameraPageState extends State<CameraPage> {
           ),
           if (ok && result == null && maxZoom > minZoom)
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 310,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _zoomButton('1x', 1.0),
-                  const SizedBox(width: 10),
-                  _zoomButton('2x', 2.0),
-                  const SizedBox(width: 10),
-                  _zoomButton('3x', 3.0),
-                ],
+              left: 30,
+              right: 30,
+              bottom: 305,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.zoom_out,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: Colors.white,
+                          inactiveTrackColor:
+                              Colors.white.withValues(alpha: 0.25),
+                          thumbColor: Colors.white,
+                          overlayColor: Colors.white.withValues(alpha: 0.15),
+                          trackHeight: 2.5,
+                        ),
+                        child: Slider(
+                          value: currentZoom.clamp(
+                            minZoom,
+                            maxZoom,
+                          ),
+                          min: minZoom,
+                          max: maxZoom,
+                          onChanged: (value) async {
+                            await setZoom(value);
+                          },
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${currentZoom.toStringAsFixed(1)}x',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           if (result == null)
