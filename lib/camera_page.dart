@@ -982,7 +982,7 @@ class _CameraPageState extends State<CameraPage> {
             Positioned(
               left: 0,
               right: 0,
-              bottom: 245,
+              bottom: 310,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
