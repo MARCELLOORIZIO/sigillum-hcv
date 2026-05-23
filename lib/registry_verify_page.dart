@@ -182,7 +182,15 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (detectedId != null) {
       idController.text = detectedId;
     } else {
-      final ocrId = await extractHcvIdFromImage(path);
+      String? ocrId;
+
+      final lowerPath = path.toLowerCase();
+
+      if (lowerPath.endsWith('.jpg') ||
+          lowerPath.endsWith('.jpeg') ||
+          lowerPath.endsWith('.png')) {
+        ocrId = await extractHcvIdFromImage(path);
+      }
 
       if (ocrId != null) {
         idController.text = ocrId;
