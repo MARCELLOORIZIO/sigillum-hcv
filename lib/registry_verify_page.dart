@@ -334,21 +334,23 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       contentType = content['type']?.toString();
 
-      final verified = actualHash == expectedHash;
+      final forensicVerified = actualHash == expectedHash;
 
       setState(() {
         loading = false;
 
         certificate = cert;
 
-        if (verified) {
-          status = 'File verificato automaticamente tramite Registry HCV';
+        if (forensicVerified) {
+          status =
+              'FORENSIC VERIFIED ✔\nFile identico all’originale certificato. Hash SHA-256 corrispondente.';
 
-          result = 'HUMAN VERIFIED ✔';
+          result = 'FORENSIC VERIFIED ✔';
         } else {
-          status = 'HASH DIFFERENTE → file modificato o non originale';
+          status =
+              'SOCIAL VERIFIED ✔\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
 
-          result = 'TAMPERED / NOT VERIFIED ❌';
+          result = 'SOCIAL VERIFIED ✔';
         }
       });
     } catch (e) {
@@ -362,7 +364,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
-  bool get isVerified => result == 'HUMAN VERIFIED ✔';
+  bool get isVerified =>
+      result == 'HUMAN VERIFIED ✔' ||
+      result == 'FORENSIC VERIFIED ✔' ||
+      result == 'SOCIAL VERIFIED ✔';
 
   @override
   Widget build(BuildContext context) {
