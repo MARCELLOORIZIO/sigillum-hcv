@@ -185,21 +185,20 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> stop() async {
-    if (controller == null || !controller!.value.isRecordingVideo) return;
+    if (controller == null) return;
 
     try {
-      final video = await controller!.stopVideoRecording();
-      try {
-        lastLiveSignals = await liveSignals.stopAndBuildSummary();
-      } catch (_) {
-        lastLiveSignals = null;
-      }
+      final file = await controller!.stopVideoRecording();
 
-      await processVideo(video.path);
-    } catch (e) {
       setState(() {
         recording = false;
-        status = 'CAMERA/SAVE ERROR: $e';
+        status = 'PROCESSING VIDEO...';
+      });
+
+      await processVideo(file.path);
+    } catch (e) {
+      setState(() {
+        status = 'STOP ERROR: $e';
       });
     }
   }
