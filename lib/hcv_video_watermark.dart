@@ -47,12 +47,11 @@ class HCVVideoWatermark {
     final safeInput = _escapePath(inputPath);
     final safeOutput = _escapePath(outputPath);
     final safeHcvId = _escapeText(hcvId);
-    final safeVerify = _escapeText(
-      verificationUrl ??
-          "https://hcv-registry-server.onrender.com/verify/$hcvId",
-    );
+    final safeVerify = _escapeText("VERIFY WITH HCV-ID");
 
-    const fontFile = "/system/fonts/Roboto-Regular.ttf";
+    final fontFile = Platform.isIOS
+        ? "/System/Library/Fonts/Core/Avenir.ttc"
+        : "/system/fonts/Roboto-Regular.ttf";
 
     final filter = [
       // social-friendly background box
