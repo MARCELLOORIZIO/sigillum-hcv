@@ -43,6 +43,7 @@ class _CameraPageState extends State<CameraPage> {
   bool recording = false;
 
   bool photoMode = false;
+  String captureMode = 'studio';
 
   FlashMode currentFlashMode = FlashMode.off;
 
@@ -512,11 +513,13 @@ class _CameraPageState extends State<CameraPage> {
     final trustAnalysis = HCVTrustAnalyzer.analyze(
       liveSignals: lastLiveSignals,
       audioCaptured: true,
+      captureMode: captureMode,
     );
 
     engine.setClaims({
       "fileIntegrity": "VERIFIED",
       "captureSource": "HCV_CAMERA",
+      "captureMode": captureMode,
       "liveCapture": true,
       "liveCaptureMode": "PASSIVE",
       "audioCaptured": true,
@@ -526,8 +529,10 @@ class _CameraPageState extends State<CameraPage> {
       "syntheticRisk": "REDUCED",
       "sceneAuthenticity": "LIVE_CAPTURE",
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
-      "trustLevel": "HCV_LIVE",
+      "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
+      "passiveLiveProofScore": trustAnalysis["score"],
+      "captureModeNote": trustAnalysis["note"],
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
       "publishedVideo": true,
@@ -1100,6 +1105,57 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                         ],
                       ),
+                      if (!photoMode) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('STUDIO'),
+                              selected: captureMode == 'studio',
+                              showCheckmark: false,
+                              selectedColor: Colors.white,
+                              backgroundColor: Colors.black,
+                              side: const BorderSide(color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: captureMode == 'studio'
+                                    ? Colors.black
+                                    : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              onSelected: recording
+                                  ? null
+                                  : (_) {
+                                      setState(() {
+                                        captureMode = 'studio';
+                                      });
+                                    },
+                            ),
+                            const SizedBox(width: 14),
+                            ChoiceChip(
+                              label: const Text('FIELD'),
+                              selected: captureMode == 'field',
+                              showCheckmark: false,
+                              selectedColor: Colors.white,
+                              backgroundColor: Colors.black,
+                              side: const BorderSide(color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: captureMode == 'field'
+                                    ? Colors.black
+                                    : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              onSelected: recording
+                                  ? null
+                                  : (_) {
+                                      setState(() {
+                                        captureMode = 'field';
+                                      });
+                                    },
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 26),
                       GestureDetector(
                         onTap: !ready

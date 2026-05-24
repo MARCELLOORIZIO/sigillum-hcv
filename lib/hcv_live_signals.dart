@@ -56,6 +56,7 @@ class HCVLiveSignals {
       'type': 'HCV_LIVE_SIGNALS_V1',
       'startedAt': _startedAt?.toIso8601String(),
       'stoppedAt': _stoppedAt?.toIso8601String(),
+      'durationSeconds': _durationSeconds(),
       'accelerometerSamples': _accelerometer.length,
       'gyroscopeSamples': _gyroscope.length,
       'accelerometerMotionScore': _motionScore(_accelerometer),
@@ -63,7 +64,13 @@ class HCVLiveSignals {
       'continuity': _continuityScore(),
       'signalsRecorded': _accelerometer.isNotEmpty || _gyroscope.isNotEmpty,
       'antiReplaySignal': 'PASSIVE_SENSOR_CAPTURE',
+      'challengeType': 'NONE_PASSIVE',
     };
+  }
+
+  int _durationSeconds() {
+    if (_startedAt == null || _stoppedAt == null) return 0;
+    return _stoppedAt!.difference(_startedAt!).inSeconds;
   }
 
   double _motionScore(List<Map<String, dynamic>> samples) {
