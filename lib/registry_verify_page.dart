@@ -44,6 +44,39 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return null;
   }
 
+  String? extractHcvIdFromText(String value) {
+    final normalized = value
+        .toUpperCase()
+        .replaceAll('HCV-ID:', 'HCV-')
+        .replaceAll('HCV ID:', 'HCV-')
+        .replaceAll('HCVID:', 'HCV-')
+        .replaceAll('ID:', '')
+        .replaceAll('HCV_ID', 'HCV-')
+        .replaceAll('HCV_', 'HCV-');
+
+    final match = RegExp(r'HCV-[A-F0-9]{8}').firstMatch(normalized);
+    return match?.group(0);
+  }
+
+  String normalizeSocialText(String value) {
+    final footer = RegExp(
+      r'\s+HCV VERIFIED\s*[^\r\n]*\s+ID:\s*HCV-[A-F0-9]{8}\s+VERIFY WITH SIGILLUM\s*$',
+      caseSensitive: false,
+      multiLine: true,
+    );
+
+    return value.replaceFirst(footer, '').trim();
+  }
+
+  Future<String?> extractHcvIdFromTextFile(String path) async {
+    try {
+      final text = await File(path).readAsString();
+      return extractHcvIdFromText(text);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> extractHcvIdFromImage(String path) async {
     try {
       final inputImage = InputImage.fromFilePath(path);
@@ -322,6 +355,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           lowerPath.endsWith('.mov') ||
           lowerPath.endsWith('.m4v')) {
         ocrId = await extractHcvIdFromVideoFrame(path);
+      } else if (lowerPath.endsWith('.txt')) {
+        ocrId = await extractHcvIdFromTextFile(path);
       }
 
       if (ocrId != null) {
@@ -349,7 +384,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       status = detectedId != null
           ? 'HCV-ID rilevato dal nome file. Ora premi VERIFICA DA REGISTRY'
-          : 'Video selezionato. Leggi HCV-ID dal watermark e inseriscilo manualmente.';
+          : 'File selezionato. Se disponibile, inserisci o rileva HCV-ID e premi VERIFICA DA REGISTRY.';
     });
   }
 
@@ -474,6 +509,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final actualHash = sha256.convert(mediaBytes).toString();
 
       final expectedHash = content['hash']?.toString();
+      final contentTypeForVerification = content['type']?.toString();
+
+      var socialTextVerified = false;
+
+      if (contentTypeForVerification == 'text' &&
+          mediaPath!.toLowerCase().endsWith('.txt')) {
+        try {
+          final text = await mediaFile.readAsString();
+          final originalText = normalizeSocialText(text);
+          final originalBytes = utf8.encode(originalText);
+          final originalHash = sha256.convert(originalBytes).toString();
+          socialTextVerified = originalHash == expectedHash;
+        } catch (_) {
+          socialTextVerified = false;
+        }
+      }
 
       final meta = cert['meta'];
 
@@ -485,7 +536,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         trustLevel = identity['trustLevel']?.toString();
       }
 
-      contentType = content['type']?.toString();
+      contentType = contentTypeForVerification;
 
       final forensicVerified = actualHash == expectedHash;
 
@@ -499,13 +550,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               'FORENSIC VERIFIED ✔\nFile identico all’originale certificato. Hash SHA-256 corrispondente.';
 
           result = 'FORENSIC VERIFIED ✔';
+        } else if (socialTextVerified) {
+          status =
+              'SOCIAL VERIFIED ✔\nTesto originale verificato. Il post contiene footer SIGILLUM/HCV-ID, quindi il file non è identico byte-per-byte ma il contenuto certificato corrisponde.';
+
+          result = 'SOCIAL VERIFIED ✔';
         } else {
           status =
               'SOCIAL VERIFIED ✔\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
 
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
 
-          if (hcvIdWasDetectedInMedia) {
+          if (hcvIdWasDetectedInMedia && contentType != 'text') {
             status =
                 'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.';
 
