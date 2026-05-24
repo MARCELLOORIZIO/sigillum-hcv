@@ -128,6 +128,71 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return null;
   }
 
+  List<String> _b8Variants(String hcvId) {
+    final match = RegExp(r'^HCV-([A-F0-9]{8})$').firstMatch(hcvId);
+
+    if (match == null) {
+      return const [];
+    }
+
+    final chars = match.group(1)!.split('');
+    final positions = <int>[];
+
+    for (var i = 0; i < chars.length; i++) {
+      if (chars[i] == '8' || chars[i] == 'B') {
+        positions.add(i);
+      }
+    }
+
+    if (positions.isEmpty) {
+      return const [];
+    }
+
+    final variants = <String>{};
+
+    void walk(int positionIndex, List<String> current) {
+      if (variants.length >= 64) {
+        return;
+      }
+
+      if (positionIndex == positions.length) {
+        variants.add('HCV-${current.join()}');
+        return;
+      }
+
+      final index = positions[positionIndex];
+      final original = current[index];
+      final alternate = original == '8' ? 'B' : '8';
+
+      walk(positionIndex + 1, current);
+
+      current[index] = alternate;
+      walk(positionIndex + 1, current);
+      current[index] = original;
+    }
+
+    walk(0, List<String>.from(chars));
+    variants.remove(hcvId);
+
+    return variants.toList();
+  }
+
+  Future<MapEntry<String, Map<String, dynamic>>> _fetchCertificate(
+    String hcvId,
+  ) async {
+    try {
+      return MapEntry(hcvId, await registry.fetchCertificate(hcvId));
+    } catch (originalError) {
+      for (final candidate in _b8Variants(hcvId)) {
+        try {
+          return MapEntry(candidate, await registry.fetchCertificate(candidate));
+        } catch (_) {}
+      }
+
+      throw originalError;
+    }
+  }
+
   final idController = TextEditingController();
 
   final registry = const HCVRegistryService();
@@ -334,7 +399,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     });
 
     try {
-      final cert = await registry.fetchCertificate(hcvId);
+      final resolved = await _fetchCertificate(hcvId);
+      hcvId = resolved.key;
+      final cert = resolved.value;
+      idController.text = hcvId;
 
       final claims = cert['claims'];
 

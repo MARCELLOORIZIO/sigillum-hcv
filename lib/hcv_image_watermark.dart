@@ -22,7 +22,7 @@ class HCVImageWatermark {
       throw Exception('Invalid image');
     }
 
-    final overlayHeight = 92;
+    final overlayHeight = 124;
 
     final topY = image.height - overlayHeight - 28;
 
@@ -35,13 +35,10 @@ class HCVImageWatermark {
       color: img.ColorRgba8(0, 0, 0, 140),
     );
 
-    final titleSize = (image.width * 0.035).toInt();
-    final smallSize = (image.width * 0.018).toInt();
-
     img.drawString(
       image,
       'SIGILLUM',
-      font: img.arial14,
+      font: img.arial24,
       x: 28,
       y: topY + 12,
       color: img.ColorRgb8(255, 255, 255),
@@ -52,16 +49,16 @@ class HCVImageWatermark {
       'HUMAN VERIFIED',
       font: img.arial14,
       x: 28,
-      y: topY + 38,
+      y: topY + 48,
       color: img.ColorRgb8(220, 220, 220),
     );
 
     img.drawString(
       image,
       hcvId,
-      font: img.arial14,
+      font: img.arial24,
       x: 28,
-      y: topY + 60,
+      y: topY + 74,
       color: img.ColorRgb8(255, 215, 0),
     );
 
