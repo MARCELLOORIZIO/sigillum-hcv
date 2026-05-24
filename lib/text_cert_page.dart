@@ -234,7 +234,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final socialText = hcvId == null
         ? originalText
-        : '$originalText\n\nHCV VERIFIED ✔\nID: $hcvId\nVerify with HCV App';
+        : '$originalText\n\nHCV VERIFIED ✔\nID: $hcvId\nVerify with SIGILLUM';
 
     await Clipboard.setData(ClipboardData(text: socialText));
 
@@ -250,7 +250,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final socialText = hcvId == null
         ? originalText
-        : '$originalText\n\nHCV VERIFIED ✔\nID: $hcvId\nVerify with HCV App';
+        : '$originalText\n\nHCV VERIFIED ✔\nID: $hcvId\nVerify with SIGILLUM';
 
     await Share.share(
       socialText,
@@ -263,7 +263,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final shareText = hcvId == null
         ? 'HCV Human Verified ✔'
-        : 'HCV Human Verified ✔\nID: $hcvId\nVerify with HCV App';
+        : 'HCV Human Verified ✔\nID: $hcvId\nVerify with SIGILLUM';
 
     await Share.shareXFiles(
       [XFile(textPath!), XFile(hcvPath!)],
