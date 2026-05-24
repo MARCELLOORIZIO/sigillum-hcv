@@ -14,6 +14,8 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
+import 'hcv_social_fingerprint.dart';
+
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
 
@@ -75,6 +77,35 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<String?> detectHcvIdFromMediaPath(String path) async {
+    final fileName = p.basename(path);
+    final fromName = extractHcvIdFromName(fileName);
+
+    if (fromName != null) {
+      return fromName;
+    }
+
+    final lowerPath = path.toLowerCase();
+
+    if (lowerPath.endsWith('.jpg') ||
+        lowerPath.endsWith('.jpeg') ||
+        lowerPath.endsWith('.png')) {
+      return extractHcvIdFromImage(path);
+    }
+
+    if (lowerPath.endsWith('.mp4') ||
+        lowerPath.endsWith('.mov') ||
+        lowerPath.endsWith('.m4v')) {
+      return extractHcvIdFromVideoFrame(path);
+    }
+
+    if (lowerPath.endsWith('.txt')) {
+      return extractHcvIdFromTextFile(path);
+    }
+
+    return null;
   }
 
   Future<String?> extractHcvIdFromImage(String path) async {
@@ -226,6 +257,91 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  int _hexDistance(String left, String right) {
+    final maxLength = left.length < right.length ? left.length : right.length;
+    var distance = (left.length - right.length).abs() * 4;
+
+    for (var i = 0; i < maxLength; i++) {
+      final a = int.tryParse(left[i], radix: 16);
+      final b = int.tryParse(right[i], radix: 16);
+
+      if (a == null || b == null) {
+        distance += 4;
+      } else {
+        var diff = a ^ b;
+        while (diff > 0) {
+          distance += diff & 1;
+          diff >>= 1;
+        }
+      }
+    }
+
+    return distance;
+  }
+
+  Future<bool?> _matchesCertifiedVideoFingerprint(
+    Map<String, dynamic> cert,
+  ) async {
+    if (mediaPath == null) {
+      return null;
+    }
+
+    final lowerPath = mediaPath!.toLowerCase();
+    if (!lowerPath.endsWith('.mp4') &&
+        !lowerPath.endsWith('.mov') &&
+        !lowerPath.endsWith('.m4v')) {
+      return null;
+    }
+
+    final claims = cert['claims'];
+    if (claims is! Map) {
+      return null;
+    }
+
+    final stored = claims['socialFingerprint'];
+    if (stored is! Map) {
+      return null;
+    }
+
+    final storedHashes = stored['frameHashes'];
+    if (storedHashes is! List || storedHashes.isEmpty) {
+      return null;
+    }
+
+    try {
+      final current = await HCVSocialFingerprint().buildFromVideo(mediaPath!);
+      final currentHashes = current['frameHashes'];
+
+      if (currentHashes is! List || currentHashes.isEmpty) {
+        return false;
+      }
+
+      final count = storedHashes.length < currentHashes.length
+          ? storedHashes.length
+          : currentHashes.length;
+
+      if (count == 0) {
+        return false;
+      }
+
+      var matched = 0;
+
+      for (var i = 0; i < count; i++) {
+        final expected = storedHashes[i].toString();
+        final actual = currentHashes[i].toString();
+        final distance = _hexDistance(expected, actual);
+
+        if (distance <= 72) {
+          matched++;
+        }
+      }
+
+      return matched >= (count / 2).ceil();
+    } catch (_) {
+      return false;
+    }
+  }
+
   final idController = TextEditingController();
 
   final registry = const HCVRegistryService();
@@ -259,24 +375,39 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final path = widget.initialMediaPath;
 
     if (path != null && path.isNotEmpty) {
-      mediaPath = path;
-
-      final fileName = path.split('/').last;
-
-      final match = RegExp(
-        r'hcv_video_([A-Za-z0-9\-]+)',
-        caseSensitive: false,
-      ).firstMatch(fileName);
-
-      if (match != null) {
-        idController.text = match.group(1)!.toUpperCase();
-        status =
-            'Video ricevuto. HCV-ID rilevato automaticamente. Premi VERIFICA DA REGISTRY';
-      } else {
-        status =
-            'Video ricevuto. Inserisci HCV-ID e premi VERIFICA DA REGISTRY';
-      }
+      Future.microtask(() => _autoVerifySharedPath(path));
     }
+  }
+
+  Future<void> _autoVerifySharedPath(String path) async {
+    if (!mounted) return;
+
+    setState(() {
+      mediaPath = path;
+      result = null;
+      status = 'File ricevuto. Lettura HCV-ID e verifica automatica...';
+      hcvIdDetectedByOcr = false;
+    });
+
+    final detectedId = await detectHcvIdFromMediaPath(path);
+
+    if (!mounted) return;
+
+    if (detectedId == null || detectedId.isEmpty) {
+      setState(() {
+        status =
+            'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';
+      });
+      return;
+    }
+
+    setState(() {
+      hcvIdDetectedByOcr = true;
+      idController.text = detectedId;
+      status = 'HCV-ID rilevato. Verifica Registry automatica...';
+    });
+
+    await verifyFromRegistry();
   }
 
   @override
@@ -539,6 +670,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       contentType = contentTypeForVerification;
 
       final forensicVerified = actualHash == expectedHash;
+      final videoFingerprintMatches =
+          await _matchesCertifiedVideoFingerprint(cert);
 
       setState(() {
         loading = false;
@@ -561,7 +694,28 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
 
-          if (hcvIdWasDetectedInMedia && contentType != 'text') {
+          if (hcvIdWasDetectedInMedia &&
+              contentType == 'video' &&
+              videoFingerprintMatches == true) {
+            status =
+                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perché il file è stato ricompresso o rinominato.';
+
+            result = 'SOCIAL VERIFIED ✔';
+          } else if (hcvIdWasDetectedInMedia &&
+              contentType == 'video' &&
+              videoFingerprintMatches == null) {
+            status =
+                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.';
+
+            result = 'SOCIAL VERIFIED ✔';
+          } else if (hcvIdWasDetectedInMedia &&
+              contentType == 'video' &&
+              videoFingerprintMatches == false) {
+            status =
+                'HCV-ID rilevato nel video, ma il fingerprint social non corrisponde al contenuto certificato. Possibile ID sovrapposto a un video diverso.';
+
+            result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
+          } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
             status =
                 'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.';
 

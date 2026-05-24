@@ -1,9 +1,12 @@
 package com.example.hcv_app
 
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.webkit.MimeTypeMap
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -105,7 +108,8 @@ class MainActivity : FlutterActivity() {
         return try {
             val input = contentResolver.openInputStream(uri) ?: return null
 
-            val fileName = "shared_${System.currentTimeMillis()}.hcvpack"
+            val extension = resolveExtension(uri)
+            val fileName = "shared_${System.currentTimeMillis()}$extension"
             val outFile = File(cacheDir, fileName)
 
             input.use { inputStream ->
@@ -117,6 +121,53 @@ class MainActivity : FlutterActivity() {
             outFile.absolutePath
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private fun resolveExtension(uri: Uri): String {
+        val displayName = queryDisplayName(uri)
+        val displayExtension = displayName
+            ?.substringAfterLast('.', "")
+            ?.lowercase()
+
+        if (!displayExtension.isNullOrBlank() && displayExtension.length <= 8) {
+            return ".$displayExtension"
+        }
+
+        val mime = contentResolver.getType(uri)
+        val mimeExtension = MimeTypeMap.getSingleton()
+            .getExtensionFromMimeType(mime)
+            ?.lowercase()
+
+        if (!mimeExtension.isNullOrBlank()) {
+            return ".$mimeExtension"
+        }
+
+        return ".bin"
+    }
+
+    private fun queryDisplayName(uri: Uri): String? {
+        var cursor: Cursor? = null
+
+        return try {
+            cursor = contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )
+
+            if (cursor != null && cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) cursor.getString(index) else null
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        } finally {
+            cursor?.close()
         }
     }
 
