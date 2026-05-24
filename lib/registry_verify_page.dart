@@ -95,34 +95,42 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   Future<String?> extractHcvIdFromVideoFrame(String videoPath) async {
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final framePath =
-          '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final times = [
+      '00:00:00.2',
+      '00:00:00.8',
+      '00:00:01.5',
+      '00:00:02.5',
+    ];
 
-      final command =
-          "-y -i '$videoPath' -ss 00:00:00.3 -frames:v 1 '$framePath'";
-
-      final session = await FFmpegKit.execute(command);
-      final code = await session.getReturnCode();
-
-      if (code == null || !ReturnCode.isSuccess(code)) {
-        return null;
-      }
-
-      final id = await extractHcvIdFromImage(framePath);
-
+    for (final time in times) {
       try {
-        final frameFile = File(framePath);
-        if (await frameFile.exists()) {
-          await frameFile.delete();
+        final tempDir = await getTemporaryDirectory();
+        final framePath =
+            '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        final command = "-y -ss $time -i '$videoPath' -frames:v 1 '$framePath'";
+
+        final session = await FFmpegKit.execute(command);
+        final code = await session.getReturnCode();
+
+        if (code != null && ReturnCode.isSuccess(code)) {
+          final id = await extractHcvIdFromImage(framePath);
+
+          try {
+            final frameFile = File(framePath);
+            if (await frameFile.exists()) {
+              await frameFile.delete();
+            }
+          } catch (_) {}
+
+          if (id != null && id.isNotEmpty) {
+            return id;
+          }
         }
       } catch (_) {}
-
-      return id;
-    } catch (_) {
-      return null;
     }
+
+    return null;
   }
 
   final idController = TextEditingController();
@@ -149,6 +157,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? aiProofLevel;
 
   bool loading = false;
+  bool hcvIdDetectedByOcr = false;
 
   @override
   void initState() {
@@ -202,6 +211,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     if (picked == null) return;
 
+    hcvIdDetectedByOcr = false;
+
     final pickedFile = picked.files.single;
     String? path = pickedFile.path;
 
@@ -254,6 +265,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
 
       if (ocrId != null) {
+        hcvIdDetectedByOcr = true;
+
         idController.text = ocrId;
 
         setState(() {
@@ -427,7 +440,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           status =
               'SOCIAL VERIFIED ✔\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
 
-          final hcvIdWasDetectedInMedia = status.toUpperCase().contains('OCR');
+          final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
 
           if (hcvIdWasDetectedInMedia) {
             status =
