@@ -77,9 +77,12 @@ class HCVVideoWatermark {
 
       // HCV-ID visible for social reposts
       "drawtext=fontfile=$fontFile:text='HCV-ID\\: $safeHcvId':"
-          "x=52:y=h-56:"
-          "fontsize=10:"
-          "fontcolor=white@0.92",
+          "x=40:y=h-72:"
+          "fontsize=18:"
+          "fontcolor=yellow:"
+          "box=1:"
+          "boxcolor=black@0.55:"
+          "boxborderw=8",
 
       // Verify URL visible
       "drawtext=fontfile=$fontFile:text='VERIFY\\: $safeVerify':"

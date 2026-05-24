@@ -55,38 +55,28 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       await textRecognizer.close();
 
-      final text = recognizedText.text.toUpperCase();
-
-      final normalized = text
+      final normalized = recognizedText.text
+          .toUpperCase()
           .replaceAll(' ', '')
           .replaceAll('\n', '')
           .replaceAll('\r', '')
           .replaceAll('HCV-ID:', 'HCV-')
           .replaceAll('HCVID:', 'HCV-')
+          .replaceAll('HCVID', 'HCV-')
           .replaceAll('HCV1D:', 'HCV-')
+          .replaceAll('HCV1D', 'HCV-')
+          .replaceAll('HCV_LD', 'HCV-')
+          .replaceAll('HCV_ID', 'HCV-')
           .replaceAll('HCV—', 'HCV-')
-          .replaceAll('HCV_', 'HCV-');
+          .replaceAll('HCV—', 'HCV-')
+          .replaceAll('HCV_', 'HCV-')
+          .replaceAll('O', '0');
 
-      final patterns = [
-        RegExp(r'HCV-[A-Z0-9]{4,20}'),
-        RegExp(r'HCV[A-Z0-9]{4,20}'),
-      ];
+      final match = RegExp(r'HCV-[A-F0-9]{8}').firstMatch(normalized);
 
-      for (final pattern in patterns) {
-        final match = pattern.firstMatch(normalized);
-
-        if (match != null) {
-          final raw = match.group(0)!;
-
-          if (raw.startsWith('HCV-')) {
-            return raw;
-          }
-
-          return raw.replaceFirst('HCV', 'HCV-');
-        }
+      if (match != null) {
+        return match.group(0);
       }
-
-      return null;
 
       return null;
     } catch (_) {
@@ -100,6 +90,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       '00:00:00.8',
       '00:00:01.5',
       '00:00:02.5',
+      '00:00:04.0',
+      '00:00:06.0',
+      '00:00:08.0',
     ];
 
     for (final time in times) {
@@ -108,7 +101,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         final framePath =
             '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-        final command = "-y -ss $time -i '$videoPath' -frames:v 1 '$framePath'";
+        final command = "-y -ss $time -i '$videoPath' "
+            "-vf \"crop=iw:ih*0.35:0:ih*0.65,scale=iw*2:ih*2,eq=contrast=1.6:brightness=0.05:saturation=1.2\" "
+            "-frames:v 1 '$framePath'";
 
         final session = await FFmpegKit.execute(command);
         final code = await session.getReturnCode();
