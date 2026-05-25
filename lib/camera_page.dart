@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'hcv_social_fingerprint.dart';
 import 'hcv_image_watermark.dart';
+import 'hcv_screen_replay_analyzer.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -486,12 +487,20 @@ class _CameraPageState extends State<CameraPage> {
     }
 
     Map<String, dynamic>? socialFingerprint;
+    Map<String, dynamic>? screenReplayAnalysis;
 
     try {
       socialFingerprint =
           await HCVSocialFingerprint().buildFromVideo(savedVideoPath);
     } catch (_) {
       socialFingerprint = null;
+    }
+
+    try {
+      screenReplayAnalysis =
+          await HCVScreenReplayAnalyzer().analyzeVideo(savedVideoPath);
+    } catch (_) {
+      screenReplayAnalysis = null;
     }
 
     setState(() {
@@ -515,6 +524,8 @@ class _CameraPageState extends State<CameraPage> {
       audioCaptured: true,
       captureMode: captureMode,
     );
+    final detectedScreenReplayRisk =
+        screenReplayAnalysis?["screenReplayRisk"]?.toString();
 
     engine.setClaims({
       "fileIntegrity": "VERIFIED",
@@ -525,14 +536,21 @@ class _CameraPageState extends State<CameraPage> {
       "audioCaptured": true,
       "audioIncludedInVideoContainer": true,
       "sensorIntegrity": lastLiveSignals == null ? "NOT_RECORDED" : "RECORDED",
-      "screenReplayRisk": "REDUCED",
-      "syntheticRisk": "REDUCED",
-      "sceneAuthenticity": "LIVE_CAPTURE",
+      "syntheticRisk": detectedScreenReplayRisk == "HIGH"
+          ? "POSSIBLE_SCREEN_REPLAY"
+          : "REDUCED",
+      "sceneAuthenticity": detectedScreenReplayRisk == "HIGH"
+          ? "LIVE_CAPTURE_WITH_SCREEN_REPLAY_RISK"
+          : "LIVE_CAPTURE",
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
       "passiveLiveProofScore": trustAnalysis["score"],
       "captureModeNote": trustAnalysis["note"],
+      "screenReplayAnalysis": screenReplayAnalysis,
+      "screenReplayRisk":
+          screenReplayAnalysis?["screenReplayRisk"] ?? trustAnalysis["screenReplayRisk"],
+      "screenReplayRiskScore": screenReplayAnalysis?["screenReplayRiskScore"],
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
       "publishedVideo": true,

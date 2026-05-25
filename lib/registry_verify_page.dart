@@ -361,6 +361,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? hcvTrustLevel;
   String? liveCaptureTrust;
   String? screenReplayRisk;
+  String? screenReplayRiskScore;
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
@@ -559,6 +560,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       hcvTrustLevel = null;
       liveCaptureTrust = null;
       screenReplayRisk = null;
+      screenReplayRiskScore = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
       aiProofLevel = null;
@@ -576,6 +578,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         hcvTrustLevel = claims['trustLevel']?.toString();
         liveCaptureTrust = claims['liveCaptureTrust']?.toString();
         screenReplayRisk = claims['screenReplayRisk']?.toString();
+        screenReplayRiskScore = claims['screenReplayRiskScore']?.toString();
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
         aiProofLevel = claims['aiProofLevel']?.toString();
@@ -856,6 +859,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Trust Level: ${hcvTrustLevel ?? '-'}\n'
                   'Live Capture: ${liveCaptureTrust ?? '-'}\n'
                   'Screen Replay Risk: ${screenReplayRisk ?? '-'}\n'
+                  'Screen Replay Score: ${screenReplayRiskScore ?? '-'}\n'
                   'Synthetic Risk: ${syntheticRisk ?? '-'}\n'
                   'Scene Authenticity: ${sceneAuthenticity ?? '-'}\n'
                   'AI Proof Level: ${aiProofLevel ?? '-'}',
