@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'hcv_identity.dart';
 
 class IdentityPage extends StatefulWidget {
   const IdentityPage({super.key});
@@ -12,9 +13,10 @@ class _IdentityPageState extends State<IdentityPage> {
   final TextEditingController nameController = TextEditingController();
 
   String creatorId = "";
-  String deviceId = "";
-  String trustLevel = "LOCAL_VERIFIED";
-  String status = "Caricamento identità...";
+  String keyFingerprint = "";
+  String privacyMode = "";
+  String trustLevel = "LOCAL_KEY_VERIFIED";
+  String status = "Caricamento identita...";
 
   @override
   void initState() {
@@ -23,15 +25,17 @@ class _IdentityPageState extends State<IdentityPage> {
   }
 
   Future<void> loadIdentity() async {
-    final prefs = await SharedPreferences.getInstance();
+    final identity = await HCVIdentity().loadIdentity();
 
     setState(() {
-      creatorId = prefs.getString("hcv_creator_id") ?? "";
-      deviceId = prefs.getString("hcv_device_id") ?? "";
+      creatorId = identity["creatorId"]?.toString() ?? "";
+      keyFingerprint =
+          identity["devicePublicKeyFingerprint"]?.toString() ?? "";
+      privacyMode = identity["privacyMode"]?.toString() ?? "";
       nameController.text =
-          prefs.getString("hcv_creator_name") ?? "Local Android Creator";
-      trustLevel = "LOCAL_VERIFIED";
-      status = "Identità caricata";
+          identity["creatorName"]?.toString() ?? "Local Creator";
+      trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
+      status = "Identita caricata";
     });
   }
 
@@ -45,11 +49,17 @@ class _IdentityPageState extends State<IdentityPage> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("hcv_creator_name", name);
+    final identityStore = HCVIdentity();
+    await identityStore.saveCreatorName(name);
+    final identity = await identityStore.loadIdentity();
 
     setState(() {
-      status = "Identità salvata";
+      creatorId = identity["creatorId"]?.toString() ?? "";
+      keyFingerprint =
+          identity["devicePublicKeyFingerprint"]?.toString() ?? "";
+      privacyMode = identity["privacyMode"]?.toString() ?? "";
+      trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
+      status = "Identita salvata";
     });
   }
 
@@ -86,7 +96,7 @@ class _IdentityPageState extends State<IdentityPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Identità Creator"),
+        title: const Text("Identita Creator"),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -98,26 +108,20 @@ class _IdentityPageState extends State<IdentityPage> {
                 size: 72,
                 color: Colors.green,
               ),
-
               const SizedBox(height: 20),
-
               const Text(
-                "Identità HCV",
+                "Identita SIGILLUM",
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 12),
-
               const Text(
-                "Questa identità verrà inserita nei nuovi certificati HCV.",
+                "Questa identita usa una chiave del dispositivo. SIGILLUM non raccoglie il numero di serie del telefono.",
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 28),
-
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(
@@ -125,25 +129,20 @@ class _IdentityPageState extends State<IdentityPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-
               const SizedBox(height: 16),
-
               ElevatedButton(
                 onPressed: saveIdentity,
-                child: const Text("SALVA IDENTITÀ"),
+                child: const Text("SALVA IDENTITA"),
               ),
-
               const SizedBox(height: 24),
-
               Text(
                 status,
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 24),
-
               infoRow("Creator ID", creatorId),
-              infoRow("Device ID", deviceId),
+              infoRow("Device Key Fingerprint", keyFingerprint),
+              infoRow("Privacy Mode", privacyMode),
               infoRow("Trust Level", trustLevel),
             ],
           ),

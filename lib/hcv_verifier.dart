@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -15,10 +14,6 @@ class HCVVerifier {
       final data = jsonDecode(jsonString);
 
       if (data is! Map<String, dynamic>) return false;
-
-      if (Platform.isIOS) {
-        return true;
-      }
 
       if (data["signatureAlgorithm"] == "RSA-SHA256-HCV-V2") {
         return _verifyV2(data);
