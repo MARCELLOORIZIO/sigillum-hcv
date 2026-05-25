@@ -1048,8 +1048,8 @@ class _CameraPageState extends State<CameraPage> {
               child: SafeArea(
                 child: Container(
                   padding: const EdgeInsets.only(
-                    bottom: 24,
-                    top: 22,
+                    bottom: 14,
+                    top: 58,
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -1105,58 +1105,73 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                         ],
                       ),
-                      if (!photoMode) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ChoiceChip(
-                              label: const Text('STUDIO'),
-                              selected: captureMode == 'studio',
-                              showCheckmark: false,
-                              selectedColor: Colors.white,
-                              backgroundColor: Colors.black,
-                              side: const BorderSide(color: Colors.white70),
-                              labelStyle: TextStyle(
-                                color: captureMode == 'studio'
-                                    ? Colors.black
-                                    : Colors.white,
-                                fontWeight: FontWeight.bold,
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 40,
+                        child: photoMode
+                            ? const SizedBox.shrink()
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('STUDIO'),
+                                    selected: captureMode == 'studio',
+                                    showCheckmark: false,
+                                    selectedColor:
+                                        Colors.green.withValues(alpha: 0.28),
+                                    backgroundColor:
+                                        Colors.black.withValues(alpha: 0.62),
+                                    side: BorderSide(
+                                      color: captureMode == 'studio'
+                                          ? Colors.greenAccent
+                                          : Colors.white54,
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: captureMode == 'studio'
+                                          ? Colors.greenAccent
+                                          : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    onSelected: recording
+                                        ? null
+                                        : (_) {
+                                            setState(() {
+                                              captureMode = 'studio';
+                                            });
+                                          },
+                                  ),
+                                  const SizedBox(width: 14),
+                                  ChoiceChip(
+                                    label: const Text('FIELD'),
+                                    selected: captureMode == 'field',
+                                    showCheckmark: false,
+                                    selectedColor:
+                                        Colors.green.withValues(alpha: 0.28),
+                                    backgroundColor:
+                                        Colors.black.withValues(alpha: 0.62),
+                                    side: BorderSide(
+                                      color: captureMode == 'field'
+                                          ? Colors.greenAccent
+                                          : Colors.white54,
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: captureMode == 'field'
+                                          ? Colors.greenAccent
+                                          : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    onSelected: recording
+                                        ? null
+                                        : (_) {
+                                            setState(() {
+                                              captureMode = 'field';
+                                            });
+                                          },
+                                  ),
+                                ],
                               ),
-                              onSelected: recording
-                                  ? null
-                                  : (_) {
-                                      setState(() {
-                                        captureMode = 'studio';
-                                      });
-                                    },
-                            ),
-                            const SizedBox(width: 14),
-                            ChoiceChip(
-                              label: const Text('FIELD'),
-                              selected: captureMode == 'field',
-                              showCheckmark: false,
-                              selectedColor: Colors.white,
-                              backgroundColor: Colors.black,
-                              side: const BorderSide(color: Colors.white70),
-                              labelStyle: TextStyle(
-                                color: captureMode == 'field'
-                                    ? Colors.black
-                                    : Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              onSelected: recording
-                                  ? null
-                                  : (_) {
-                                      setState(() {
-                                        captureMode = 'field';
-                                      });
-                                    },
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 26),
+                      ),
+                      const SizedBox(height: 20),
                       GestureDetector(
                         onTap: !ready
                             ? null
@@ -1175,8 +1190,8 @@ class _CameraPageState extends State<CameraPage> {
                               },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          width: recording ? 92 : 102,
-                          height: recording ? 92 : 102,
+                          width: recording ? 78 : 86,
+                          height: recording ? 78 : 86,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: recording ? Colors.red : Colors.white,
@@ -1194,11 +1209,11 @@ class _CameraPageState extends State<CameraPage> {
                           child: Center(
                             child: recording
                                 ? Container(
-                                    width: 34,
-                                    height: 34,
+                                    width: 28,
+                                    height: 28,
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(7),
                                     ),
                                   )
                                 : Icon(
@@ -1206,7 +1221,7 @@ class _CameraPageState extends State<CameraPage> {
                                         ? Icons.camera_alt
                                         : Icons.videocam,
                                     color: Colors.black,
-                                    size: 42,
+                                    size: 34,
                                   ),
                           ),
                         ),
