@@ -5,6 +5,8 @@ import UIKit
 class SceneDelegate: FlutterSceneDelegate {
   private var intentChannel: FlutterMethodChannel?
   private var keystoreChannel: FlutterMethodChannel?
+  private let appGroupId = "group.com.sigillum.hcv"
+  private let sharedPathKey = "hcv.share.path"
 
   override func scene(
     _ scene: UIScene,
@@ -106,10 +108,28 @@ class SceneDelegate: FlutterSceneDelegate {
   }
 
   private func handleSharedUrl(_ url: URL) {
+    if url.scheme == "sigillum" {
+      handleSharedAppGroupFile()
+      return
+    }
+
     guard let path = copySharedFileToCache(url) else {
       return
     }
 
+    UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
+    intentChannel?.invokeMethod("onSharedPath", arguments: path)
+  }
+
+  private func handleSharedAppGroupFile() {
+    guard
+      let defaults = UserDefaults(suiteName: appGroupId),
+      let path = defaults.string(forKey: sharedPathKey)
+    else {
+      return
+    }
+
+    defaults.removeObject(forKey: sharedPathKey)
     UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
     intentChannel?.invokeMethod("onSharedPath", arguments: path)
   }
