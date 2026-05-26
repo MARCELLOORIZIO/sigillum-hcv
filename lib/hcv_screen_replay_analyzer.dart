@@ -147,12 +147,18 @@ class HCVScreenReplayAnalyzer {
       final uniformityScore = _uniformityScore(image);
       final rectangleEdgeScore = _rectangleEdgeScore(image);
       final gridScore = _gridLikeScore(image);
+      final pixelGridUniformityScore = _pixelGridUniformityScore(image);
       final bandScore = _profileContrast(_horizontalBandProfile(image, 16));
 
       var riskScore = 0;
       if (uniformityScore > 0.72) riskScore += 20;
       if (rectangleEdgeScore > 0.58) riskScore += 30;
       if (gridScore > 0.35) riskScore += 30;
+      if (pixelGridUniformityScore > 0.36) {
+        riskScore += 45;
+      } else if (pixelGridUniformityScore > 0.26) {
+        riskScore += 25;
+      }
       if (bandScore > 0.22) {
         riskScore += 60;
       } else if (bandScore > 0.16) {
@@ -171,12 +177,14 @@ class HCVScreenReplayAnalyzer {
         'uniformityScore': _round(uniformityScore),
         'rectangleEdgeScore': _round(rectangleEdgeScore),
         'gridLikeScore': _round(gridScore),
+        'pixelGridUniformityScore': _round(pixelGridUniformityScore),
         'refreshBandScore': _round(bandScore),
         'localTemporalFlickerScore': null,
         'signals': {
           'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
           'flatSceneUniformity': uniformityScore > 0.72,
           'pixelGridOrMoireHint': gridScore > 0.35,
+          'uniformPixelGrid': pixelGridUniformityScore > 0.26,
           'horizontalRefreshBands': bandScore > 0.10,
           'temporalFrequencyUnavailable': true,
         },
@@ -203,11 +211,13 @@ class HCVScreenReplayAnalyzer {
     final uniformityScore =
         images.map(_uniformityScore).reduce((a, b) => a + b) / images.length;
     final rectangleEdgeScore =
-        images.map(_rectangleEdgeScore).reduce((a, b) => a + b) /
-            images.length;
+        images.map(_rectangleEdgeScore).reduce((a, b) => a + b) / images.length;
     final microVariationScore = _microVariationScore(images);
     final gridScore =
         images.map(_gridLikeScore).reduce((a, b) => a + b) / images.length;
+    final pixelGridUniformityScore =
+        images.map(_pixelGridUniformityScore).reduce((a, b) => a + b) /
+            images.length;
     final localTemporalFlickerScore = _localTemporalFlickerScore(images);
     final refreshBandScore = _refreshBandScore(images);
 
@@ -216,12 +226,14 @@ class HCVScreenReplayAnalyzer {
     final flatSceneUniformity = uniformityScore > 0.72;
     final lowMicroVariation = microVariationScore < 0.035;
     final pixelGridOrMoireHint = gridScore > 0.35;
+    final uniformPixelGrid = pixelGridUniformityScore > 0.26;
     final localRefreshFlicker = localTemporalFlickerScore > 0.16;
     final horizontalRefreshBands = refreshBandScore > 0.12;
     final pairedLocalRefresh =
         localTemporalFlickerScore > 0.16 && refreshBandScore > 0.055;
     final strongDisplayTrace = horizontalRefreshBands ||
         pairedLocalRefresh ||
+        uniformPixelGrid ||
         (pixelGridOrMoireHint && rectangularDisplayEdges);
 
     var riskScore = 0;
@@ -231,9 +243,12 @@ class HCVScreenReplayAnalyzer {
       if (flatSceneUniformity) riskScore += 10;
       if (lowMicroVariation) riskScore += 5;
       if (pixelGridOrMoireHint) riskScore += 20;
+      if (uniformPixelGrid) riskScore += 35;
       if (pairedLocalRefresh) riskScore += 45;
       if (horizontalRefreshBands) riskScore += 35;
-    } else if (localRefreshFlicker || lowMicroVariation || flatSceneUniformity) {
+    } else if (localRefreshFlicker ||
+        lowMicroVariation ||
+        flatSceneUniformity) {
       riskScore = 20;
     }
     riskScore = riskScore.clamp(0, 100).toInt();
@@ -247,6 +262,7 @@ class HCVScreenReplayAnalyzer {
       'rectangleEdgeScore': _round(rectangleEdgeScore),
       'microVariationScore': _round(microVariationScore),
       'gridLikeScore': _round(gridScore),
+      'pixelGridUniformityScore': _round(pixelGridUniformityScore),
       'localTemporalFlickerScore': _round(localTemporalFlickerScore),
       'refreshBandScore': _round(refreshBandScore),
       'signals': {
@@ -255,6 +271,7 @@ class HCVScreenReplayAnalyzer {
         'flatSceneUniformity': flatSceneUniformity,
         'lowMicroVariation': lowMicroVariation,
         'pixelGridOrMoireHint': pixelGridOrMoireHint,
+        'uniformPixelGrid': uniformPixelGrid,
         'localRefreshFlicker': localRefreshFlicker,
         'horizontalRefreshBands': horizontalRefreshBands,
         'pairedLocalRefresh': pairedLocalRefresh,
@@ -306,10 +323,9 @@ class HCVScreenReplayAnalyzer {
     }
 
     final mean = values.reduce((a, b) => a + b) / values.length;
-    final variance = values
-            .map((v) => (v - mean) * (v - mean))
-            .reduce((a, b) => a + b) /
-        values.length;
+    final variance =
+        values.map((v) => (v - mean) * (v - mean)).reduce((a, b) => a + b) /
+            values.length;
 
     return (1.0 - sqrt(variance).clamp(0.0, 1.0)).toDouble();
   }
@@ -432,7 +448,8 @@ class HCVScreenReplayAnalyzer {
 
     final meanBandDelta = temporalBandChange / max(pairs, 1);
     final bandContrast = images
-            .map((image) => _profileContrast(_horizontalBandProfile(image, bands)))
+            .map((image) =>
+                _profileContrast(_horizontalBandProfile(image, bands)))
             .reduce((a, b) => a + b) /
         images.length;
 
@@ -491,8 +508,9 @@ class HCVScreenReplayAnalyzer {
 
     final mean = series.reduce((a, b) => a + b) / series.length;
     final centered = series.map((value) => value - mean).toList();
-    final energy = centered.map((value) => value.abs()).reduce((a, b) => a + b) /
-        centered.length;
+    final energy =
+        centered.map((value) => value.abs()).reduce((a, b) => a + b) /
+            centered.length;
 
     if (energy < 0.01) return 0;
 
@@ -543,6 +561,83 @@ class HCVScreenReplayAnalyzer {
     }
 
     return alternating / max(count, 1);
+  }
+
+  double _pixelGridUniformityScore(img.Image image) {
+    final sample = img.copyResize(
+      image,
+      width: 240,
+      height: 240,
+      interpolation: img.Interpolation.nearest,
+    );
+
+    final horizontal = _axisPeriodicityScore(sample, horizontal: true);
+    final vertical = _axisPeriodicityScore(sample, horizontal: false);
+
+    return ((horizontal + vertical) / 2).clamp(0.0, 1.0).toDouble();
+  }
+
+  double _axisPeriodicityScore(
+    img.Image image, {
+    required bool horizontal,
+  }) {
+    final values = <double>[];
+    final outerLimit = horizontal ? image.height : image.width;
+    final innerLimit = horizontal ? image.width : image.height;
+
+    for (var outer = 10; outer < outerLimit - 10; outer += 6) {
+      final diffs = <double>[];
+
+      for (var inner = 2; inner < innerLimit - 2; inner++) {
+        final current = horizontal
+            ? img.getLuminance(image.getPixel(inner, outer))
+            : img.getLuminance(image.getPixel(outer, inner));
+        final previous = horizontal
+            ? img.getLuminance(image.getPixel(inner - 1, outer))
+            : img.getLuminance(image.getPixel(outer, inner - 1));
+
+        diffs.add((current - previous).abs() / 255.0);
+      }
+
+      values.add(_periodicEdgeScore(diffs));
+    }
+
+    if (values.isEmpty) return 0;
+
+    values.sort();
+    final topCount = max(1, (values.length * 0.25).ceil());
+    final top = values.sublist(values.length - topCount);
+
+    return top.reduce((a, b) => a + b) / top.length;
+  }
+
+  double _periodicEdgeScore(List<double> diffs) {
+    if (diffs.length < 24) return 0;
+
+    var best = 0.0;
+
+    for (var period = 2; period <= 10; period++) {
+      var aligned = 0.0;
+      var total = 0.0;
+      var count = 0;
+
+      for (var i = period; i < diffs.length; i++) {
+        final a = diffs[i];
+        final b = diffs[i - period];
+        aligned += min(a, b);
+        total += max(a, b);
+        count++;
+      }
+
+      if (count == 0 || total <= 0) continue;
+
+      final periodicity = aligned / total;
+      final contrast = diffs.reduce((a, b) => a + b) / diffs.length;
+      final score = periodicity * min(1.0, contrast * 8.0);
+      best = max(best, score);
+    }
+
+    return best.clamp(0.0, 1.0).toDouble();
   }
 
   double _round(double value) => double.parse(value.toStringAsFixed(4));

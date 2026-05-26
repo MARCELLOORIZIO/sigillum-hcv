@@ -412,6 +412,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveProbeRisk;
   String? localTemporalFlickerScore;
   String? refreshBandScore;
+  String? pixelGridUniformityScore;
   String? liveProbeLocalFlickerScore;
   String? liveProbeRefreshBandScore;
   String? syntheticRisk;
@@ -619,6 +620,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveProbeRisk = null;
       localTemporalFlickerScore = null;
       refreshBandScore = null;
+      pixelGridUniformityScore = null;
       liveProbeLocalFlickerScore = null;
       liveProbeRefreshBandScore = null;
       syntheticRisk = null;
@@ -649,6 +651,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               screenReplayAnalysis['localTemporalFlickerScore']?.toString();
           refreshBandScore =
               screenReplayAnalysis['refreshBandScore']?.toString();
+          pixelGridUniformityScore =
+              screenReplayAnalysis['pixelGridUniformityScore']?.toString();
         }
         final liveScreenProbe = claims['liveScreenProbe'];
         if (liveScreenProbe is Map) {
@@ -980,6 +984,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   liveProbeRisk != null ||
                   localTemporalFlickerScore != null ||
                   refreshBandScore != null ||
+                  pixelGridUniformityScore != null ||
                   liveProbeLocalFlickerScore != null ||
                   liveProbeRefreshBandScore != null ||
                   syntheticRisk != null ||
@@ -1008,6 +1013,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Probe Refresh Band: ${liveProbeRefreshBandScore ?? '-'}\n'
                   'Local Flicker Score: ${localTemporalFlickerScore ?? '-'}\n'
                   'Refresh Band Score: ${refreshBandScore ?? '-'}\n'
+                  'Pixel Grid Uniformity: ${pixelGridUniformityScore ?? '-'}\n'
                   'Synthetic Risk: ${syntheticRisk ?? '-'}\n'
                   'Scene Authenticity: ${sceneAuthenticity ?? '-'}\n'
                   'AI Proof Level: ${aiProofLevel ?? '-'}',
