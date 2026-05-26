@@ -9,6 +9,34 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 class HCVSocialFingerprint {
+  Future<Map<String, dynamic>> buildFromImage(String imagePath) async {
+    final file = File(imagePath);
+    if (!await file.exists()) {
+      throw Exception('Immagine non trovata: $imagePath');
+    }
+
+    final bytes = await file.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+
+    if (decoded == null) {
+      throw Exception('Immagine non leggibile per fingerprint social');
+    }
+
+    final normalized = img.copyResize(
+      decoded,
+      width: 16,
+      height: 16,
+      interpolation: img.Interpolation.average,
+    );
+    final hash = _averageHash(normalized);
+
+    return {
+      'algorithm': 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1',
+      'imageHash': hash,
+      'combinedHash': sha256.convert(hash.codeUnits).toString(),
+    };
+  }
+
   Future<Map<String, dynamic>> buildFromVideo(String videoPath) async {
     final file = File(videoPath);
     if (!await file.exists()) {

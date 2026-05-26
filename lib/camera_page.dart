@@ -246,6 +246,14 @@ class _CameraPageState extends State<CameraPage> {
       final fileBytes = await File(publishedPhoto).readAsBytes();
 
       final hash = sha256.convert(fileBytes).toString();
+      Map<String, dynamic>? socialFingerprint;
+
+      try {
+        socialFingerprint =
+            await HCVSocialFingerprint().buildFromImage(publishedPhoto);
+      } catch (_) {
+        socialFingerprint = null;
+      }
 
       engine.setContent(
         type: 'photo',
@@ -259,7 +267,18 @@ class _CameraPageState extends State<CameraPage> {
         "captureSource": "HCV_CAMERA",
         "captureType": "PHOTO",
         "trustLevel": "HCV_PHOTO",
+        "liveCapture": true,
+        "liveCaptureMode": "STILL_CAPTURE",
+        "liveCaptureTrust": "PHOTO_CAPTURE",
+        "syntheticRisk": "UNKNOWN",
+        "sceneAuthenticity": "PHOTO_CAPTURE",
+        "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
+        "screenReplayRisk": "NOT_ANALYZED_FOR_PHOTO",
+        "screenReplayRiskScore": null,
         "watermark": "SIGILLUM_VISIBLE",
+        "socialVerification": true,
+        "socialFingerprintAlgorithm": socialFingerprint?["algorithm"],
+        "socialFingerprint": socialFingerprint,
       });
 
       engine.stop();

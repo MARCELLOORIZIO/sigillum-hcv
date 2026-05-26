@@ -342,6 +342,49 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  Future<bool?> _matchesCertifiedImageFingerprint(
+    Map<String, dynamic> cert,
+  ) async {
+    if (mediaPath == null) {
+      return null;
+    }
+
+    final lowerPath = mediaPath!.toLowerCase();
+    if (!lowerPath.endsWith('.jpg') &&
+        !lowerPath.endsWith('.jpeg') &&
+        !lowerPath.endsWith('.png')) {
+      return null;
+    }
+
+    final claims = cert['claims'];
+    if (claims is! Map) {
+      return null;
+    }
+
+    final stored = claims['socialFingerprint'];
+    if (stored is! Map) {
+      return null;
+    }
+
+    final expected = stored['imageHash']?.toString();
+    if (expected == null || expected.isEmpty) {
+      return null;
+    }
+
+    try {
+      final current = await HCVSocialFingerprint().buildFromImage(mediaPath!);
+      final actual = current['imageHash']?.toString();
+
+      if (actual == null || actual.isEmpty) {
+        return false;
+      }
+
+      return _hexDistance(expected, actual) <= 72;
+    } catch (_) {
+      return false;
+    }
+  }
+
   final idController = TextEditingController();
 
   final registry = const HCVRegistryService();
@@ -675,6 +718,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final forensicVerified = actualHash == expectedHash;
       final videoFingerprintMatches =
           await _matchesCertifiedVideoFingerprint(cert);
+      final imageFingerprintMatches =
+          await _matchesCertifiedImageFingerprint(cert);
 
       setState(() {
         loading = false;
@@ -716,6 +761,27 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               videoFingerprintMatches == false) {
             status =
                 'HCV-ID rilevato nel video, ma il fingerprint social non corrisponde al contenuto certificato. Possibile ID sovrapposto a un video diverso.';
+
+            result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
+          } else if (hcvIdWasDetectedInMedia &&
+              contentType == 'photo' &&
+              imageFingerprintMatches == true) {
+            status =
+                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perché il file è stato ricompresso o rinominato.';
+
+            result = 'SOCIAL VERIFIED ✔';
+          } else if (hcvIdWasDetectedInMedia &&
+              contentType == 'photo' &&
+              imageFingerprintMatches == null) {
+            status =
+                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.';
+
+            result = 'SOCIAL VERIFIED ✔';
+          } else if (hcvIdWasDetectedInMedia &&
+              contentType == 'photo' &&
+              imageFingerprintMatches == false) {
+            status =
+                'HCV-ID rilevato nella foto, ma il fingerprint immagine non corrisponde al contenuto certificato. Possibile ID sovrapposto a una foto diversa.';
 
             result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
           } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
