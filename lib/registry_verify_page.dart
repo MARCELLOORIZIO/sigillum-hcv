@@ -405,6 +405,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveCaptureTrust;
   String? screenReplayRisk;
   String? screenReplayRiskScore;
+  String? localTemporalFlickerScore;
+  String? refreshBandScore;
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
@@ -604,6 +606,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveCaptureTrust = null;
       screenReplayRisk = null;
       screenReplayRiskScore = null;
+      localTemporalFlickerScore = null;
+      refreshBandScore = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
       aiProofLevel = null;
@@ -622,6 +626,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         liveCaptureTrust = claims['liveCaptureTrust']?.toString();
         screenReplayRisk = claims['screenReplayRisk']?.toString();
         screenReplayRiskScore = claims['screenReplayRiskScore']?.toString();
+        final screenReplayAnalysis = claims['screenReplayAnalysis'];
+        if (screenReplayAnalysis is Map) {
+          localTemporalFlickerScore =
+              screenReplayAnalysis['localTemporalFlickerScore']?.toString();
+          refreshBandScore =
+              screenReplayAnalysis['refreshBandScore']?.toString();
+        }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
         aiProofLevel = claims['aiProofLevel']?.toString();
@@ -908,6 +919,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               if (hcvTrustLevel != null ||
                   liveCaptureTrust != null ||
                   screenReplayRisk != null ||
+                  localTemporalFlickerScore != null ||
+                  refreshBandScore != null ||
                   syntheticRisk != null ||
                   sceneAuthenticity != null ||
                   aiProofLevel != null) ...[
@@ -926,6 +939,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Capture: ${liveCaptureTrust ?? '-'}\n'
                   'Screen Replay Risk: ${screenReplayRisk ?? '-'}\n'
                   'Screen Replay Score: ${screenReplayRiskScore ?? '-'}\n'
+                  'Local Flicker Score: ${localTemporalFlickerScore ?? '-'}\n'
+                  'Refresh Band Score: ${refreshBandScore ?? '-'}\n'
                   'Synthetic Risk: ${syntheticRisk ?? '-'}\n'
                   'Scene Authenticity: ${sceneAuthenticity ?? '-'}\n'
                   'AI Proof Level: ${aiProofLevel ?? '-'}',

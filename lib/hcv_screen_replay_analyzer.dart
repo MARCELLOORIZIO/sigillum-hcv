@@ -27,9 +27,9 @@ class HCVScreenReplayAnalyzer {
       final framePattern = p.join(workDir.path, 'frame_%03d.jpg');
 
       final command = "-y -i '$videoPath' "
-          "-vf \"fps=2,scale=160:160:force_original_aspect_ratio=decrease,"
-          "pad=160:160:(ow-iw)/2:(oh-ih)/2,format=gray\" "
-          "-frames:v 12 '$framePattern'";
+          "-vf \"fps=30,scale=120:120:force_original_aspect_ratio=decrease,"
+          "pad=120:120:(ow-iw)/2:(oh-ih)/2,format=gray\" "
+          "-frames:v 60 '$framePattern'";
 
       final session = await FFmpegKit.execute(command);
       final code = await session.getReturnCode();
@@ -67,6 +67,8 @@ class HCVScreenReplayAnalyzer {
       final microVariationScore = _microVariationScore(images);
       final gridScore =
           images.map(_gridLikeScore).reduce((a, b) => a + b) / images.length;
+      final localTemporalFlickerScore = _localTemporalFlickerScore(images);
+      final refreshBandScore = _refreshBandScore(images);
 
       var riskScore = 0;
       if (flickerScore > 0.10) riskScore += 25;
@@ -74,6 +76,8 @@ class HCVScreenReplayAnalyzer {
       if (rectangleEdgeScore > 0.58) riskScore += 25;
       if (microVariationScore < 0.035) riskScore += 15;
       if (gridScore > 0.35) riskScore += 15;
+      if (localTemporalFlickerScore > 0.16) riskScore += 25;
+      if (refreshBandScore > 0.12) riskScore += 25;
       riskScore = riskScore.clamp(0, 100);
 
       final risk = riskScore >= 60
@@ -92,12 +96,16 @@ class HCVScreenReplayAnalyzer {
         'rectangleEdgeScore': _round(rectangleEdgeScore),
         'microVariationScore': _round(microVariationScore),
         'gridLikeScore': _round(gridScore),
+        'localTemporalFlickerScore': _round(localTemporalFlickerScore),
+        'refreshBandScore': _round(refreshBandScore),
         'signals': {
           'displayFlicker': flickerScore > 0.10,
           'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
           'flatSceneUniformity': uniformityScore > 0.72,
           'lowMicroVariation': microVariationScore < 0.035,
           'pixelGridOrMoireHint': gridScore > 0.35,
+          'localRefreshFlicker': localTemporalFlickerScore > 0.16,
+          'horizontalRefreshBands': refreshBandScore > 0.12,
         },
         'note':
             'Passive screen replay analysis. This lowers or raises risk but is not absolute proof.',
@@ -232,6 +240,147 @@ class HCVScreenReplayAnalyzer {
     }
 
     return total / max(count, 1);
+  }
+
+  double _localTemporalFlickerScore(List<img.Image> images) {
+    if (images.length < 12) return 0;
+
+    const tiles = 4;
+    final w = images.first.width;
+    final h = images.first.height;
+    var strongestTile = 0.0;
+
+    for (var ty = 0; ty < tiles; ty++) {
+      for (var tx = 0; tx < tiles; tx++) {
+        final series = <double>[];
+
+        for (final image in images) {
+          final x0 = (tx * w / tiles).floor();
+          final x1 = ((tx + 1) * w / tiles).floor();
+          final y0 = (ty * h / tiles).floor();
+          final y1 = ((ty + 1) * h / tiles).floor();
+          series.add(_regionMeanLuma(image, x0, y0, x1, y1));
+        }
+
+        strongestTile = max(strongestTile, _temporalPulseScore(series));
+      }
+    }
+
+    return strongestTile.clamp(0.0, 1.0).toDouble();
+  }
+
+  double _refreshBandScore(List<img.Image> images) {
+    if (images.length < 12) return 0;
+
+    const bands = 12;
+    var temporalBandChange = 0.0;
+    var pairs = 0;
+
+    for (var i = 1; i < images.length; i++) {
+      final previous = _horizontalBandProfile(images[i - 1], bands);
+      final current = _horizontalBandProfile(images[i], bands);
+
+      var bandDelta = 0.0;
+      for (var j = 0; j < bands; j++) {
+        bandDelta += (current[j] - previous[j]).abs();
+      }
+
+      temporalBandChange += bandDelta / bands;
+      pairs++;
+    }
+
+    final meanBandDelta = temporalBandChange / max(pairs, 1);
+    final bandContrast = images
+            .map((image) => _profileContrast(_horizontalBandProfile(image, bands)))
+            .reduce((a, b) => a + b) /
+        images.length;
+
+    return ((meanBandDelta * 2.5) + (bandContrast * 0.6))
+        .clamp(0.0, 1.0)
+        .toDouble();
+  }
+
+  List<double> _horizontalBandProfile(img.Image image, int bands) {
+    final profile = <double>[];
+    final h = image.height;
+
+    for (var band = 0; band < bands; band++) {
+      final y0 = (band * h / bands).floor();
+      final y1 = ((band + 1) * h / bands).floor();
+      profile.add(_regionMeanLuma(image, 0, y0, image.width, y1));
+    }
+
+    return profile;
+  }
+
+  double _profileContrast(List<double> profile) {
+    if (profile.isEmpty) return 0;
+
+    final mean = profile.reduce((a, b) => a + b) / profile.length;
+    final variance = profile
+            .map((value) => (value - mean) * (value - mean))
+            .reduce((a, b) => a + b) /
+        profile.length;
+
+    return sqrt(variance).clamp(0.0, 1.0).toDouble();
+  }
+
+  double _regionMeanLuma(
+    img.Image image,
+    int x0,
+    int y0,
+    int x1,
+    int y1,
+  ) {
+    var total = 0.0;
+    var count = 0;
+
+    for (var y = y0; y < y1; y += 3) {
+      for (var x = x0; x < x1; x += 3) {
+        total += img.getLuminance(image.getPixel(x, y)) / 255.0;
+        count++;
+      }
+    }
+
+    return total / max(count, 1);
+  }
+
+  double _temporalPulseScore(List<double> series) {
+    if (series.length < 6) return 0;
+
+    final mean = series.reduce((a, b) => a + b) / series.length;
+    final centered = series.map((value) => value - mean).toList();
+    final energy = centered.map((value) => value.abs()).reduce((a, b) => a + b) /
+        centered.length;
+
+    if (energy < 0.01) return 0;
+
+    var alternating = 0.0;
+    var repeatedPairs = 0.0;
+    var transitions = 0;
+
+    for (var i = 1; i < centered.length; i++) {
+      if (centered[i].sign != centered[i - 1].sign) {
+        transitions++;
+      }
+      alternating += (centered[i] - centered[i - 1]).abs();
+    }
+
+    for (var i = 2; i < centered.length; i++) {
+      repeatedPairs += (centered[i] - centered[i - 2]).abs();
+    }
+
+    final transitionRatio = transitions / (centered.length - 1);
+    final alternatingStrength = alternating / (centered.length - 1);
+    final twoFrameStability =
+        1.0 - (repeatedPairs / max(centered.length - 2, 1)).clamp(0.0, 1.0);
+
+    return ((energy * 3.0) +
+            (alternatingStrength * 2.0) +
+            (transitionRatio * 0.35) +
+            (twoFrameStability * 0.25))
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   double _gridLikeScore(img.Image image) {
