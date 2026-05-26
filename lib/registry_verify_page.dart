@@ -249,7 +249,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     } catch (originalError) {
       for (final candidate in _b8Variants(hcvId)) {
         try {
-          return MapEntry(candidate, await registry.fetchCertificate(candidate));
+          return MapEntry(
+              candidate, await registry.fetchCertificate(candidate));
         } catch (_) {}
       }
 
@@ -407,8 +408,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? screenReplayRiskScore;
   String? screenReplaySegmentsAnalyzed;
   String? screenReplayWorstSecond;
+  String? liveProbeFrames;
+  String? liveProbeRisk;
   String? localTemporalFlickerScore;
   String? refreshBandScore;
+  String? liveProbeLocalFlickerScore;
+  String? liveProbeRefreshBandScore;
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
@@ -610,8 +615,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       screenReplayRiskScore = null;
       screenReplaySegmentsAnalyzed = null;
       screenReplayWorstSecond = null;
+      liveProbeFrames = null;
+      liveProbeRisk = null;
       localTemporalFlickerScore = null;
       refreshBandScore = null;
+      liveProbeLocalFlickerScore = null;
+      liveProbeRefreshBandScore = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
       aiProofLevel = null;
@@ -640,6 +649,15 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               screenReplayAnalysis['localTemporalFlickerScore']?.toString();
           refreshBandScore =
               screenReplayAnalysis['refreshBandScore']?.toString();
+        }
+        final liveScreenProbe = claims['liveScreenProbe'];
+        if (liveScreenProbe is Map) {
+          liveProbeFrames = liveScreenProbe['framesAnalyzed']?.toString();
+          liveProbeRisk = liveScreenProbe['screenReplayRisk']?.toString();
+          liveProbeLocalFlickerScore =
+              liveScreenProbe['localTemporalFlickerScore']?.toString();
+          liveProbeRefreshBandScore =
+              liveScreenProbe['refreshBandScore']?.toString();
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
@@ -846,8 +864,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       result == 'FORENSIC VERIFIED ✔' ||
       result == 'SOCIAL VERIFIED ✔';
 
-  bool get isScreenReplayWarning =>
-      result == 'VERIFIED WITH SCREEN RISK ⚠️';
+  bool get isScreenReplayWarning => result == 'VERIFIED WITH SCREEN RISK ⚠️';
 
   bool _isScreenReplayRisk(String? risk) {
     final value = risk?.toUpperCase();
@@ -959,8 +976,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   screenReplayRisk != null ||
                   screenReplaySegmentsAnalyzed != null ||
                   screenReplayWorstSecond != null ||
+                  liveProbeFrames != null ||
+                  liveProbeRisk != null ||
                   localTemporalFlickerScore != null ||
                   refreshBandScore != null ||
+                  liveProbeLocalFlickerScore != null ||
+                  liveProbeRefreshBandScore != null ||
                   syntheticRisk != null ||
                   sceneAuthenticity != null ||
                   aiProofLevel != null) ...[
@@ -979,8 +1000,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Capture: ${liveCaptureTrust ?? '-'}\n'
                   'Screen Replay Risk: ${screenReplayRisk ?? '-'}\n'
                   'Screen Replay Score: ${screenReplayRiskScore ?? '-'}\n'
+                  'Live Probe Risk: ${liveProbeRisk ?? '-'}\n'
+                  'Live Probe Frames: ${liveProbeFrames ?? '-'}\n'
                   'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'
                   'Worst Replay Second: ${screenReplayWorstSecond ?? '-'}\n'
+                  'Live Probe Local Flicker: ${liveProbeLocalFlickerScore ?? '-'}\n'
+                  'Live Probe Refresh Band: ${liveProbeRefreshBandScore ?? '-'}\n'
                   'Local Flicker Score: ${localTemporalFlickerScore ?? '-'}\n'
                   'Refresh Band Score: ${refreshBandScore ?? '-'}\n'
                   'Synthetic Risk: ${syntheticRisk ?? '-'}\n'

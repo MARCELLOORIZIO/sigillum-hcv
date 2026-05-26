@@ -20,6 +20,7 @@ import 'package:image_picker/image_picker.dart';
 import 'hcv_social_fingerprint.dart';
 import 'hcv_image_watermark.dart';
 import 'hcv_screen_replay_analyzer.dart';
+import 'hcv_live_screen_probe.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -39,6 +40,7 @@ class _CameraPageState extends State<CameraPage> {
 
   final liveSignals = HCVLiveSignals();
   Map<String, dynamic>? lastLiveSignals;
+  Map<String, dynamic>? pendingLiveScreenProbe;
 
   bool ready = false;
   bool recording = false;
@@ -157,8 +159,7 @@ class _CameraPageState extends State<CameraPage> {
     if (controller!.value.isRecordingVideo) return;
 
     setState(() {
-      recording = true;
-      status = 'STARTING...';
+      status = 'CHECKING LIVE SCREEN FLICKER...';
       result = null;
       videoPath = null;
       hcvPath = null;
@@ -169,6 +170,14 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
+      pendingLiveScreenProbe =
+          await HCVLiveScreenProbe().analyzePreview(controller!);
+
+      setState(() {
+        recording = true;
+        status = 'STARTING...';
+      });
+
       await controller!.startVideoRecording();
 
       try {
@@ -209,6 +218,13 @@ class _CameraPageState extends State<CameraPage> {
     if (controller == null) return;
 
     try {
+      setState(() {
+        status = 'CHECKING LIVE SCREEN FLICKER...';
+      });
+
+      final liveScreenProbe =
+          await HCVLiveScreenProbe().analyzePreview(controller!);
+
       setState(() {
         status = 'SCATTO FOTO...';
       });
@@ -264,7 +280,7 @@ class _CameraPageState extends State<CameraPage> {
       }
 
       final detectedScreenReplayRisk =
-          screenReplayAnalysis?["screenReplayRisk"]?.toString();
+          _strongestScreenReplayRisk([liveScreenProbe, screenReplayAnalysis]);
       final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
           detectedScreenReplayRisk == "MEDIUM";
 
@@ -283,17 +299,17 @@ class _CameraPageState extends State<CameraPage> {
         "liveCapture": true,
         "liveCaptureMode": "STILL_CAPTURE",
         "liveCaptureTrust": "PHOTO_CAPTURE",
-        "syntheticRisk": detectedScreenReplay
-            ? "POSSIBLE_SCREEN_REPLAY"
-            : "UNKNOWN",
+        "syntheticRisk":
+            detectedScreenReplay ? "POSSIBLE_SCREEN_REPLAY" : "UNKNOWN",
         "sceneAuthenticity": detectedScreenReplay
             ? "PHOTO_CAPTURE_WITH_SCREEN_REPLAY_RISK"
             : "PHOTO_CAPTURE",
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
+        "liveScreenProbe": liveScreenProbe,
         "screenReplayAnalysis": screenReplayAnalysis,
-        "screenReplayRisk":
-            screenReplayAnalysis?["screenReplayRisk"] ?? "UNKNOWN",
-        "screenReplayRiskScore": screenReplayAnalysis?["screenReplayRiskScore"],
+        "screenReplayRisk": detectedScreenReplayRisk ?? "UNKNOWN",
+        "screenReplayRiskScore": _strongestScreenReplayScore(
+            [liveScreenProbe, screenReplayAnalysis]),
         "watermark": "SIGILLUM_VISIBLE",
         "socialVerification": true,
         "socialFingerprintAlgorithm": socialFingerprint?["algorithm"],
@@ -481,7 +497,46 @@ class _CameraPageState extends State<CameraPage> {
     return moved.path;
   }
 
+  String? _strongestScreenReplayRisk(List<Map<String, dynamic>?> analyses) {
+    var score = -1;
+    String? risk;
+
+    for (final analysis in analyses) {
+      if (analysis == null) continue;
+
+      final currentRisk = analysis["screenReplayRisk"]?.toString();
+      final currentScore = (analysis["screenReplayRiskScore"] as num?)?.toInt();
+
+      if (currentScore != null && currentScore > score) {
+        score = currentScore;
+        risk = currentRisk;
+      }
+    }
+
+    return risk;
+  }
+
+  int? _strongestScreenReplayScore(List<Map<String, dynamic>?> analyses) {
+    int? score;
+
+    for (final analysis in analyses) {
+      if (analysis == null) continue;
+
+      final currentScore = (analysis["screenReplayRiskScore"] as num?)?.toInt();
+      if (currentScore == null) continue;
+
+      if (score == null || currentScore > score) {
+        score = currentScore;
+      }
+    }
+
+    return score;
+  }
+
   Future<void> processVideo(String path) async {
+    final liveScreenProbe = pendingLiveScreenProbe;
+    pendingLiveScreenProbe = null;
+
     setState(() {
       status = 'SAVING MP4 TO DOWNLOAD...';
       registryStatus = null;
@@ -563,7 +618,7 @@ class _CameraPageState extends State<CameraPage> {
       captureMode: captureMode,
     );
     final detectedScreenReplayRisk =
-        screenReplayAnalysis?["screenReplayRisk"]?.toString();
+        _strongestScreenReplayRisk([liveScreenProbe, screenReplayAnalysis]);
     final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
         detectedScreenReplayRisk == "MEDIUM";
 
@@ -576,9 +631,8 @@ class _CameraPageState extends State<CameraPage> {
       "audioCaptured": true,
       "audioIncludedInVideoContainer": true,
       "sensorIntegrity": lastLiveSignals == null ? "NOT_RECORDED" : "RECORDED",
-      "syntheticRisk": detectedScreenReplay
-          ? "POSSIBLE_SCREEN_REPLAY"
-          : "REDUCED",
+      "syntheticRisk":
+          detectedScreenReplay ? "POSSIBLE_SCREEN_REPLAY" : "REDUCED",
       "sceneAuthenticity": detectedScreenReplay
           ? "LIVE_CAPTURE_WITH_SCREEN_REPLAY_RISK"
           : "LIVE_CAPTURE",
@@ -587,10 +641,12 @@ class _CameraPageState extends State<CameraPage> {
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
       "passiveLiveProofScore": trustAnalysis["score"],
       "captureModeNote": trustAnalysis["note"],
+      "liveScreenProbe": liveScreenProbe,
       "screenReplayAnalysis": screenReplayAnalysis,
       "screenReplayRisk":
-          screenReplayAnalysis?["screenReplayRisk"] ?? trustAnalysis["screenReplayRisk"],
-      "screenReplayRiskScore": screenReplayAnalysis?["screenReplayRiskScore"],
+          detectedScreenReplayRisk ?? trustAnalysis["screenReplayRisk"],
+      "screenReplayRiskScore":
+          _strongestScreenReplayScore([liveScreenProbe, screenReplayAnalysis]),
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
       "publishedVideo": true,
