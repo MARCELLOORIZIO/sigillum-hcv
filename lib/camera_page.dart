@@ -265,6 +265,8 @@ class _CameraPageState extends State<CameraPage> {
 
       final detectedScreenReplayRisk =
           screenReplayAnalysis?["screenReplayRisk"]?.toString();
+      final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
+          detectedScreenReplayRisk == "MEDIUM";
 
       engine.setContent(
         type: 'photo',
@@ -281,10 +283,10 @@ class _CameraPageState extends State<CameraPage> {
         "liveCapture": true,
         "liveCaptureMode": "STILL_CAPTURE",
         "liveCaptureTrust": "PHOTO_CAPTURE",
-        "syntheticRisk": detectedScreenReplayRisk == "HIGH"
+        "syntheticRisk": detectedScreenReplay
             ? "POSSIBLE_SCREEN_REPLAY"
             : "UNKNOWN",
-        "sceneAuthenticity": detectedScreenReplayRisk == "HIGH"
+        "sceneAuthenticity": detectedScreenReplay
             ? "PHOTO_CAPTURE_WITH_SCREEN_REPLAY_RISK"
             : "PHOTO_CAPTURE",
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
@@ -562,6 +564,8 @@ class _CameraPageState extends State<CameraPage> {
     );
     final detectedScreenReplayRisk =
         screenReplayAnalysis?["screenReplayRisk"]?.toString();
+    final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
+        detectedScreenReplayRisk == "MEDIUM";
 
     engine.setClaims({
       "fileIntegrity": "VERIFIED",
@@ -572,10 +576,10 @@ class _CameraPageState extends State<CameraPage> {
       "audioCaptured": true,
       "audioIncludedInVideoContainer": true,
       "sensorIntegrity": lastLiveSignals == null ? "NOT_RECORDED" : "RECORDED",
-      "syntheticRisk": detectedScreenReplayRisk == "HIGH"
+      "syntheticRisk": detectedScreenReplay
           ? "POSSIBLE_SCREEN_REPLAY"
           : "REDUCED",
-      "sceneAuthenticity": detectedScreenReplayRisk == "HIGH"
+      "sceneAuthenticity": detectedScreenReplay
           ? "LIVE_CAPTURE_WITH_SCREEN_REPLAY_RISK"
           : "LIVE_CAPTURE",
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",

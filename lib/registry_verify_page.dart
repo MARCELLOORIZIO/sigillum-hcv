@@ -745,16 +745,30 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         certificate = cert;
 
+        void markVerified(String cleanStatus, String cleanResult) {
+          if (_isScreenReplayRisk(screenReplayRisk)) {
+            status = '$cleanStatus\n\n'
+                'ATTENZIONE: possibile ripresa di uno schermo rilevata '
+                '($screenReplayRisk). Il media è collegato al certificato, '
+                'ma la scena non va trattata come ripresa diretta della realtà.';
+
+            result = 'VERIFIED WITH SCREEN RISK ⚠️';
+          } else {
+            status = cleanStatus;
+            result = cleanResult;
+          }
+        }
+
         if (forensicVerified) {
-          status =
-              'FORENSIC VERIFIED ✔\nFile identico all’originale certificato. Hash SHA-256 corrispondente.';
-
-          result = 'FORENSIC VERIFIED ✔';
+          markVerified(
+            'FORENSIC VERIFIED ✔\nFile identico all’originale certificato. Hash SHA-256 corrispondente.',
+            'FORENSIC VERIFIED ✔',
+          );
         } else if (socialTextVerified) {
-          status =
-              'SOCIAL VERIFIED ✔\nTesto originale verificato. Il post contiene footer SIGILLUM/HCV-ID, quindi il file non è identico byte-per-byte ma il contenuto certificato corrisponde.';
-
-          result = 'SOCIAL VERIFIED ✔';
+          markVerified(
+            'SOCIAL VERIFIED ✔\nTesto originale verificato. Il post contiene footer SIGILLUM/HCV-ID, quindi il file non è identico byte-per-byte ma il contenuto certificato corrisponde.',
+            'SOCIAL VERIFIED ✔',
+          );
         } else {
           status =
               'SOCIAL VERIFIED ✔\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
@@ -764,17 +778,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           if (hcvIdWasDetectedInMedia &&
               contentType == 'video' &&
               videoFingerprintMatches == true) {
-            status =
-                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perché il file è stato ricompresso o rinominato.';
-
-            result = 'SOCIAL VERIFIED ✔';
+            markVerified(
+              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perché il file è stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED ✔',
+            );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'video' &&
               videoFingerprintMatches == null) {
-            status =
-                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.';
-
-            result = 'SOCIAL VERIFIED ✔';
+            markVerified(
+              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED ✔',
+            );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'video' &&
               videoFingerprintMatches == false) {
@@ -785,17 +799,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'photo' &&
               imageFingerprintMatches == true) {
-            status =
-                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perché il file è stato ricompresso o rinominato.';
-
-            result = 'SOCIAL VERIFIED ✔';
+            markVerified(
+              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perché il file è stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED ✔',
+            );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'photo' &&
               imageFingerprintMatches == null) {
-            status =
-                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.';
-
-            result = 'SOCIAL VERIFIED ✔';
+            markVerified(
+              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.',
+              'SOCIAL VERIFIED ✔',
+            );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'photo' &&
               imageFingerprintMatches == false) {
@@ -804,10 +818,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
             result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
           } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
-            status =
-                'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.';
-
-            result = 'SOCIAL VERIFIED ✔';
+            markVerified(
+              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED ✔',
+            );
           } else {
             status =
                 'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. Verifica social non conclusiva.';
@@ -832,6 +846,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       result == 'FORENSIC VERIFIED ✔' ||
       result == 'SOCIAL VERIFIED ✔';
 
+  bool get isScreenReplayWarning =>
+      result == 'VERIFIED WITH SCREEN RISK ⚠️';
+
+  bool _isScreenReplayRisk(String? risk) {
+    final value = risk?.toUpperCase();
+    return value == 'MEDIUM' || value == 'HIGH';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -849,13 +871,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                     ? Icons.cloud_sync
                     : isVerified
                         ? Icons.verified
-                        : Icons.error,
+                        : isScreenReplayWarning
+                            ? Icons.warning_amber
+                            : Icons.error,
                 size: 72,
                 color: result == null
                     ? Colors.grey
                     : isVerified
                         ? Colors.green
-                        : Colors.red,
+                        : isScreenReplayWarning
+                            ? Colors.orange
+                            : Colors.red,
               ),
               const SizedBox(height: 20),
               TextField(
@@ -909,7 +935,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isVerified ? Colors.green : Colors.red,
+                    color: isVerified
+                        ? Colors.green
+                        : isScreenReplayWarning
+                            ? Colors.orange
+                            : Colors.red,
                   ),
                 ),
               ],
