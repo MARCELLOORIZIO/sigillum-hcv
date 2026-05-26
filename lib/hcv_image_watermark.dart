@@ -37,7 +37,7 @@ class HCVImageWatermark {
 
     img.drawString(
       image,
-      'SIGILLUM',
+      'SIGILLUM CAPTURE',
       font: img.arial24,
       x: 28,
       y: topY + 12,
@@ -46,7 +46,7 @@ class HCVImageWatermark {
 
     img.drawString(
       image,
-      'HUMAN VERIFIED',
+      'VERIFY IN APP',
       font: img.arial14,
       x: 28,
       y: topY + 48,

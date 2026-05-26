@@ -153,7 +153,13 @@ class HCVScreenReplayAnalyzer {
       if (uniformityScore > 0.72) riskScore += 20;
       if (rectangleEdgeScore > 0.58) riskScore += 30;
       if (gridScore > 0.35) riskScore += 30;
-      if (bandScore > 0.12) riskScore += 20;
+      if (bandScore > 0.22) {
+        riskScore += 60;
+      } else if (bandScore > 0.16) {
+        riskScore += 40;
+      } else if (bandScore > 0.10) {
+        riskScore += 25;
+      }
       riskScore = riskScore.clamp(0, 100).toInt();
 
       return {
@@ -171,7 +177,7 @@ class HCVScreenReplayAnalyzer {
           'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
           'flatSceneUniformity': uniformityScore > 0.72,
           'pixelGridOrMoireHint': gridScore > 0.35,
-          'horizontalRefreshBands': bandScore > 0.12,
+          'horizontalRefreshBands': bandScore > 0.10,
           'temporalFrequencyUnavailable': true,
         },
         'note':

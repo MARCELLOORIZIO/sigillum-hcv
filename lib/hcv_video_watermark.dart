@@ -35,7 +35,7 @@ class HCVVideoWatermark {
 
     final outputPath = p.join(
       outputDir.path,
-      "${baseName}_SIGILLUM_VERIFIED.mp4",
+      "${baseName}_SIGILLUM_CAPTURE.mp4",
     );
 
     final outputFile = File(outputPath);
@@ -63,14 +63,14 @@ class HCVVideoWatermark {
       // inner square
       "drawbox=x=36:y=h-94:w=10:h=10:color=white@0.95:t=fill",
 
-      // SIGILLUM VERIFIED
-      "drawtext=fontfile=$fontFile:text='SIGILLUM VERIFIED':"
+      // SIGILLUM capture marker. Verification happens in the app/registry.
+      "drawtext=fontfile=$fontFile:text='SIGILLUM CAPTURE':"
           "x=62:y=h-104:"
           "fontsize=16:"
           "fontcolor=white@0.98",
 
-      // HUMAN VERIFIED
-      "drawtext=fontfile=$fontFile:text='HUMAN VERIFIED':"
+      // Visible reminder that the overlay alone is not proof.
+      "drawtext=fontfile=$fontFile:text='VERIFY IN APP':"
           "x=52:y=h-78:"
           "fontsize=11:"
           "fontcolor=white@0.85",
