@@ -211,14 +211,31 @@ class HCVScreenReplayAnalyzer {
     final localTemporalFlickerScore = _localTemporalFlickerScore(images);
     final refreshBandScore = _refreshBandScore(images);
 
+    final displayFlicker = flickerScore > 0.10;
+    final rectangularDisplayEdges = rectangleEdgeScore > 0.58;
+    final flatSceneUniformity = uniformityScore > 0.72;
+    final lowMicroVariation = microVariationScore < 0.035;
+    final pixelGridOrMoireHint = gridScore > 0.35;
+    final localRefreshFlicker = localTemporalFlickerScore > 0.16;
+    final horizontalRefreshBands = refreshBandScore > 0.12;
+    final pairedLocalRefresh =
+        localTemporalFlickerScore > 0.16 && refreshBandScore > 0.055;
+    final strongDisplayTrace = horizontalRefreshBands ||
+        pairedLocalRefresh ||
+        (pixelGridOrMoireHint && rectangularDisplayEdges);
+
     var riskScore = 0;
-    if (flickerScore > 0.10) riskScore += 25;
-    if (uniformityScore > 0.72) riskScore += 20;
-    if (rectangleEdgeScore > 0.58) riskScore += 25;
-    if (microVariationScore < 0.035) riskScore += 15;
-    if (gridScore > 0.35) riskScore += 15;
-    if (localTemporalFlickerScore > 0.16) riskScore += 25;
-    if (refreshBandScore > 0.12) riskScore += 25;
+    if (strongDisplayTrace) {
+      if (displayFlicker) riskScore += 20;
+      if (rectangularDisplayEdges) riskScore += 20;
+      if (flatSceneUniformity) riskScore += 10;
+      if (lowMicroVariation) riskScore += 5;
+      if (pixelGridOrMoireHint) riskScore += 20;
+      if (pairedLocalRefresh) riskScore += 45;
+      if (horizontalRefreshBands) riskScore += 35;
+    } else if (localRefreshFlicker || lowMicroVariation || flatSceneUniformity) {
+      riskScore = 20;
+    }
     riskScore = riskScore.clamp(0, 100).toInt();
 
     return {
@@ -233,13 +250,15 @@ class HCVScreenReplayAnalyzer {
       'localTemporalFlickerScore': _round(localTemporalFlickerScore),
       'refreshBandScore': _round(refreshBandScore),
       'signals': {
-        'displayFlicker': flickerScore > 0.10,
-        'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
-        'flatSceneUniformity': uniformityScore > 0.72,
-        'lowMicroVariation': microVariationScore < 0.035,
-        'pixelGridOrMoireHint': gridScore > 0.35,
-        'localRefreshFlicker': localTemporalFlickerScore > 0.16,
-        'horizontalRefreshBands': refreshBandScore > 0.12,
+        'displayFlicker': displayFlicker,
+        'rectangularDisplayEdges': rectangularDisplayEdges,
+        'flatSceneUniformity': flatSceneUniformity,
+        'lowMicroVariation': lowMicroVariation,
+        'pixelGridOrMoireHint': pixelGridOrMoireHint,
+        'localRefreshFlicker': localRefreshFlicker,
+        'horizontalRefreshBands': horizontalRefreshBands,
+        'pairedLocalRefresh': pairedLocalRefresh,
+        'strongDisplayTrace': strongDisplayTrace,
       },
     };
   }
