@@ -247,6 +247,7 @@ class _CameraPageState extends State<CameraPage> {
 
       final hash = sha256.convert(fileBytes).toString();
       Map<String, dynamic>? socialFingerprint;
+      Map<String, dynamic>? screenReplayAnalysis;
 
       try {
         socialFingerprint =
@@ -254,6 +255,16 @@ class _CameraPageState extends State<CameraPage> {
       } catch (_) {
         socialFingerprint = null;
       }
+
+      try {
+        screenReplayAnalysis =
+            await HCVScreenReplayAnalyzer().analyzeImage(publishedPhoto);
+      } catch (_) {
+        screenReplayAnalysis = null;
+      }
+
+      final detectedScreenReplayRisk =
+          screenReplayAnalysis?["screenReplayRisk"]?.toString();
 
       engine.setContent(
         type: 'photo',
@@ -270,11 +281,17 @@ class _CameraPageState extends State<CameraPage> {
         "liveCapture": true,
         "liveCaptureMode": "STILL_CAPTURE",
         "liveCaptureTrust": "PHOTO_CAPTURE",
-        "syntheticRisk": "UNKNOWN",
-        "sceneAuthenticity": "PHOTO_CAPTURE",
+        "syntheticRisk": detectedScreenReplayRisk == "HIGH"
+            ? "POSSIBLE_SCREEN_REPLAY"
+            : "UNKNOWN",
+        "sceneAuthenticity": detectedScreenReplayRisk == "HIGH"
+            ? "PHOTO_CAPTURE_WITH_SCREEN_REPLAY_RISK"
+            : "PHOTO_CAPTURE",
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
-        "screenReplayRisk": "NOT_ANALYZED_FOR_PHOTO",
-        "screenReplayRiskScore": null,
+        "screenReplayAnalysis": screenReplayAnalysis,
+        "screenReplayRisk":
+            screenReplayAnalysis?["screenReplayRisk"] ?? "UNKNOWN",
+        "screenReplayRiskScore": screenReplayAnalysis?["screenReplayRiskScore"],
         "watermark": "SIGILLUM_VISIBLE",
         "socialVerification": true,
         "socialFingerprintAlgorithm": socialFingerprint?["algorithm"],

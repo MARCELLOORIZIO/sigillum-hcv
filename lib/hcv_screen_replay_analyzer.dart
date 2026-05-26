@@ -24,91 +24,95 @@ class HCVScreenReplayAnalyzer {
 
     try {
       await workDir.create(recursive: true);
-      final framePattern = p.join(workDir.path, 'frame_%03d.jpg');
+      final segments = <Map<String, dynamic>>[];
 
-      final command = "-y -i '$videoPath' "
-          "-vf \"fps=30,scale=120:120:force_original_aspect_ratio=decrease,"
-          "pad=120:120:(ow-iw)/2:(oh-ih)/2,format=gray\" "
-          "-frames:v 60 '$framePattern'";
+      for (var second = 0; second <= 600; second += 15) {
+        final segmentDir = Directory(p.join(workDir.path, 'segment_$second'));
+        await segmentDir.create(recursive: true);
 
-      final session = await FFmpegKit.execute(command);
-      final code = await session.getReturnCode();
+        final framePattern = p.join(segmentDir.path, 'frame_%03d.jpg');
+        final command = "-y -ss $second -i '$videoPath' "
+            "-t 2 "
+            "-vf \"fps=30,scale=120:120:force_original_aspect_ratio=decrease,"
+            "pad=120:120:(ow-iw)/2:(oh-ih)/2,format=gray\" "
+            "-frames:v 60 '$framePattern'";
 
-      if (code == null || !ReturnCode.isSuccess(code)) {
-        return _unknown('FRAME_EXTRACTION_FAILED');
-      }
+        final session = await FFmpegKit.execute(command);
+        final code = await session.getReturnCode();
 
-      final frames = workDir
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.toLowerCase().endsWith('.jpg'))
-          .toList()
-        ..sort((a, b) => a.path.compareTo(b.path));
-
-      final images = <img.Image>[];
-      for (final frame in frames) {
-        final decoded = img.decodeImage(await frame.readAsBytes());
-        if (decoded != null) {
-          images.add(decoded);
+        if (code == null || !ReturnCode.isSuccess(code)) {
+          if (second == 0) {
+            return _unknown('FRAME_EXTRACTION_FAILED');
+          }
+          break;
         }
+
+        final frames = segmentDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.toLowerCase().endsWith('.jpg'))
+            .toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
+
+        if (frames.isEmpty) {
+          if (second == 0) {
+            return _unknown('NOT_ENOUGH_FRAMES');
+          }
+          break;
+        }
+
+        final images = <img.Image>[];
+        for (final frame in frames) {
+          final decoded = img.decodeImage(await frame.readAsBytes());
+          if (decoded != null) {
+            images.add(decoded);
+          }
+        }
+
+        if (images.length < 3) {
+          if (second == 0) {
+            return _unknown('NOT_ENOUGH_FRAMES');
+          }
+          break;
+        }
+
+        final analysis = _analyzeImages(images);
+        analysis['startSecond'] = second;
+        segments.add(analysis);
       }
 
-      if (images.length < 3) {
-        return _unknown('NOT_ENOUGH_FRAMES');
+      if (segments.isEmpty) {
+        return _unknown('NOT_ENOUGH_SEGMENTS');
       }
 
-      final brightness = images.map(_meanLuma).toList();
-      final flickerScore = _flickerScore(brightness);
-      final uniformityScore =
-          images.map(_uniformityScore).reduce((a, b) => a + b) / images.length;
-      final rectangleEdgeScore =
-          images.map(_rectangleEdgeScore).reduce((a, b) => a + b) /
-              images.length;
-      final microVariationScore = _microVariationScore(images);
-      final gridScore =
-          images.map(_gridLikeScore).reduce((a, b) => a + b) / images.length;
-      final localTemporalFlickerScore = _localTemporalFlickerScore(images);
-      final refreshBandScore = _refreshBandScore(images);
-
-      var riskScore = 0;
-      if (flickerScore > 0.10) riskScore += 25;
-      if (uniformityScore > 0.72) riskScore += 20;
-      if (rectangleEdgeScore > 0.58) riskScore += 25;
-      if (microVariationScore < 0.035) riskScore += 15;
-      if (gridScore > 0.35) riskScore += 15;
-      if (localTemporalFlickerScore > 0.16) riskScore += 25;
-      if (refreshBandScore > 0.12) riskScore += 25;
-      riskScore = riskScore.clamp(0, 100);
-
-      final risk = riskScore >= 60
-          ? 'HIGH'
-          : riskScore >= 35
-              ? 'MEDIUM'
-              : 'LOW';
+      segments.sort((a, b) => (b['screenReplayRiskScore'] as int)
+          .compareTo(a['screenReplayRiskScore'] as int));
+      final worst = segments.first;
+      final riskScore = worst['screenReplayRiskScore'] as int;
+      final risk = _riskLabel(riskScore);
 
       return {
         'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
-        'framesAnalyzed': images.length,
+        'scanMode': 'EVERY_15_SECONDS',
+        'segmentsAnalyzed': segments.length,
+        'worstSegmentSecond': worst['startSecond'],
+        'framesAnalyzed': segments.fold<int>(
+          0,
+          (total, segment) => total + (segment['framesAnalyzed'] as int),
+        ),
         'screenReplayRisk': risk,
         'screenReplayRiskScore': riskScore,
-        'flickerScore': _round(flickerScore),
-        'uniformityScore': _round(uniformityScore),
-        'rectangleEdgeScore': _round(rectangleEdgeScore),
-        'microVariationScore': _round(microVariationScore),
-        'gridLikeScore': _round(gridScore),
-        'localTemporalFlickerScore': _round(localTemporalFlickerScore),
-        'refreshBandScore': _round(refreshBandScore),
-        'signals': {
-          'displayFlicker': flickerScore > 0.10,
-          'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
-          'flatSceneUniformity': uniformityScore > 0.72,
-          'lowMicroVariation': microVariationScore < 0.035,
-          'pixelGridOrMoireHint': gridScore > 0.35,
-          'localRefreshFlicker': localTemporalFlickerScore > 0.16,
-          'horizontalRefreshBands': refreshBandScore > 0.12,
-        },
+        'flickerScore': worst['flickerScore'],
+        'uniformityScore': worst['uniformityScore'],
+        'rectangleEdgeScore': worst['rectangleEdgeScore'],
+        'microVariationScore': worst['microVariationScore'],
+        'gridLikeScore': worst['gridLikeScore'],
+        'localTemporalFlickerScore': worst['localTemporalFlickerScore'],
+        'refreshBandScore': worst['refreshBandScore'],
+        'signals': worst['signals'],
+        'segments': segments.take(12).toList(),
         'note':
-            'Passive screen replay analysis. This lowers or raises risk but is not absolute proof.',
+            'Passive screen replay analysis sampled every 15 seconds. This lowers or raises risk but is not absolute proof.',
       };
     } catch (e) {
       return _unknown('ANALYSIS_ERROR');
@@ -121,6 +125,63 @@ class HCVScreenReplayAnalyzer {
     }
   }
 
+  Future<Map<String, dynamic>> analyzeImage(String imagePath) async {
+    final file = File(imagePath);
+    if (!await file.exists()) {
+      return _unknown('IMAGE_NOT_FOUND');
+    }
+
+    try {
+      final decoded = img.decodeImage(await file.readAsBytes());
+      if (decoded == null) {
+        return _unknown('IMAGE_DECODE_FAILED');
+      }
+
+      final image = img.copyResize(
+        decoded,
+        width: 160,
+        height: 160,
+        interpolation: img.Interpolation.average,
+      );
+
+      final uniformityScore = _uniformityScore(image);
+      final rectangleEdgeScore = _rectangleEdgeScore(image);
+      final gridScore = _gridLikeScore(image);
+      final bandScore = _profileContrast(_horizontalBandProfile(image, 16));
+
+      var riskScore = 0;
+      if (uniformityScore > 0.72) riskScore += 20;
+      if (rectangleEdgeScore > 0.58) riskScore += 30;
+      if (gridScore > 0.35) riskScore += 30;
+      if (bandScore > 0.12) riskScore += 20;
+      riskScore = riskScore.clamp(0, 100).toInt();
+
+      return {
+        'type': 'SIGILLUM_SCREEN_REPLAY_IMAGE_ANALYSIS_V1',
+        'scanMode': 'STILL_IMAGE_STATIC_SCREEN_ANALYSIS',
+        'framesAnalyzed': 1,
+        'screenReplayRisk': _riskLabel(riskScore),
+        'screenReplayRiskScore': riskScore,
+        'uniformityScore': _round(uniformityScore),
+        'rectangleEdgeScore': _round(rectangleEdgeScore),
+        'gridLikeScore': _round(gridScore),
+        'refreshBandScore': _round(bandScore),
+        'localTemporalFlickerScore': null,
+        'signals': {
+          'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
+          'flatSceneUniformity': uniformityScore > 0.72,
+          'pixelGridOrMoireHint': gridScore > 0.35,
+          'horizontalRefreshBands': bandScore > 0.12,
+          'temporalFrequencyUnavailable': true,
+        },
+        'note':
+            'Still image screen analysis uses static traces only. Frequency can be measured only in video.',
+      };
+    } catch (_) {
+      return _unknown('IMAGE_ANALYSIS_ERROR');
+    }
+  }
+
   Map<String, dynamic> _unknown(String reason) {
     return {
       'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
@@ -128,6 +189,61 @@ class HCVScreenReplayAnalyzer {
       'screenReplayRiskScore': null,
       'reason': reason,
     };
+  }
+
+  Map<String, dynamic> _analyzeImages(List<img.Image> images) {
+    final brightness = images.map(_meanLuma).toList();
+    final flickerScore = _flickerScore(brightness);
+    final uniformityScore =
+        images.map(_uniformityScore).reduce((a, b) => a + b) / images.length;
+    final rectangleEdgeScore =
+        images.map(_rectangleEdgeScore).reduce((a, b) => a + b) /
+            images.length;
+    final microVariationScore = _microVariationScore(images);
+    final gridScore =
+        images.map(_gridLikeScore).reduce((a, b) => a + b) / images.length;
+    final localTemporalFlickerScore = _localTemporalFlickerScore(images);
+    final refreshBandScore = _refreshBandScore(images);
+
+    var riskScore = 0;
+    if (flickerScore > 0.10) riskScore += 25;
+    if (uniformityScore > 0.72) riskScore += 20;
+    if (rectangleEdgeScore > 0.58) riskScore += 25;
+    if (microVariationScore < 0.035) riskScore += 15;
+    if (gridScore > 0.35) riskScore += 15;
+    if (localTemporalFlickerScore > 0.16) riskScore += 25;
+    if (refreshBandScore > 0.12) riskScore += 25;
+    riskScore = riskScore.clamp(0, 100).toInt();
+
+    return {
+      'framesAnalyzed': images.length,
+      'screenReplayRisk': _riskLabel(riskScore),
+      'screenReplayRiskScore': riskScore,
+      'flickerScore': _round(flickerScore),
+      'uniformityScore': _round(uniformityScore),
+      'rectangleEdgeScore': _round(rectangleEdgeScore),
+      'microVariationScore': _round(microVariationScore),
+      'gridLikeScore': _round(gridScore),
+      'localTemporalFlickerScore': _round(localTemporalFlickerScore),
+      'refreshBandScore': _round(refreshBandScore),
+      'signals': {
+        'displayFlicker': flickerScore > 0.10,
+        'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
+        'flatSceneUniformity': uniformityScore > 0.72,
+        'lowMicroVariation': microVariationScore < 0.035,
+        'pixelGridOrMoireHint': gridScore > 0.35,
+        'localRefreshFlicker': localTemporalFlickerScore > 0.16,
+        'horizontalRefreshBands': refreshBandScore > 0.12,
+      },
+    };
+  }
+
+  String _riskLabel(int riskScore) {
+    return riskScore >= 60
+        ? 'HIGH'
+        : riskScore >= 35
+            ? 'MEDIUM'
+            : 'LOW';
   }
 
   double _meanLuma(img.Image image) {

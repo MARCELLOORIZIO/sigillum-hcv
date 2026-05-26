@@ -405,6 +405,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveCaptureTrust;
   String? screenReplayRisk;
   String? screenReplayRiskScore;
+  String? screenReplaySegmentsAnalyzed;
+  String? screenReplayWorstSecond;
   String? localTemporalFlickerScore;
   String? refreshBandScore;
   String? syntheticRisk;
@@ -606,6 +608,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveCaptureTrust = null;
       screenReplayRisk = null;
       screenReplayRiskScore = null;
+      screenReplaySegmentsAnalyzed = null;
+      screenReplayWorstSecond = null;
       localTemporalFlickerScore = null;
       refreshBandScore = null;
       syntheticRisk = null;
@@ -628,6 +632,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         screenReplayRiskScore = claims['screenReplayRiskScore']?.toString();
         final screenReplayAnalysis = claims['screenReplayAnalysis'];
         if (screenReplayAnalysis is Map) {
+          screenReplaySegmentsAnalyzed =
+              screenReplayAnalysis['segmentsAnalyzed']?.toString();
+          screenReplayWorstSecond =
+              screenReplayAnalysis['worstSegmentSecond']?.toString();
           localTemporalFlickerScore =
               screenReplayAnalysis['localTemporalFlickerScore']?.toString();
           refreshBandScore =
@@ -919,6 +927,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               if (hcvTrustLevel != null ||
                   liveCaptureTrust != null ||
                   screenReplayRisk != null ||
+                  screenReplaySegmentsAnalyzed != null ||
+                  screenReplayWorstSecond != null ||
                   localTemporalFlickerScore != null ||
                   refreshBandScore != null ||
                   syntheticRisk != null ||
@@ -939,6 +949,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Capture: ${liveCaptureTrust ?? '-'}\n'
                   'Screen Replay Risk: ${screenReplayRisk ?? '-'}\n'
                   'Screen Replay Score: ${screenReplayRiskScore ?? '-'}\n'
+                  'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'
+                  'Worst Replay Second: ${screenReplayWorstSecond ?? '-'}\n'
                   'Local Flicker Score: ${localTemporalFlickerScore ?? '-'}\n'
                   'Refresh Band Score: ${refreshBandScore ?? '-'}\n'
                   'Synthetic Risk: ${syntheticRisk ?? '-'}\n'
