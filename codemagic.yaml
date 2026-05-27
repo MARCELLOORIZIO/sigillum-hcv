@@ -6,8 +6,11 @@ workflows:
       flutter: stable
       xcode: latest
       ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.sigillum.hcv
+        certificates:
+          - "SIGILLUM Apple Distribution"
+        provisioning_profiles:
+          - "SIGILLUM HCV AdHoc"
+          - "SIGILLUM HCV Share AdHoc"
 
     integrations:
       app_store_connect: Codemagic-HCV
