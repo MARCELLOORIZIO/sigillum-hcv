@@ -17,9 +17,29 @@ workflows:
         script: |
           flutter pub get
 
-      - name: Set up iOS code signing
+      - name: Set up iOS export options
         script: |
-          xcode-project use-profiles
+          cat > /Users/builder/export_options.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>ad-hoc</string>
+            <key>teamID</key>
+            <string>DNB9W7Z3HC</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.sigillum.hcv</key>
+              <string>SIGILLUM HCV AdHoc</string>
+              <key>com.sigillum.hcv.share</key>
+              <string>SIGILLUM HCV Share AdHoc</string>
+            </dict>
+          </dict>
+          </plist>
+          PLIST
 
       - name: Build IPA
         script: |
