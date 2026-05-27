@@ -150,21 +150,40 @@ class HCVScreenReplayAnalyzer {
       final pixelGridUniformityScore = _pixelGridUniformityScore(image);
       final bandScore = _profileContrast(_horizontalBandProfile(image, 16));
 
+      final flatSceneUniformity = uniformityScore > 0.74;
+      final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
+      final strongRectangularDisplayEdges = rectangleEdgeScore > 0.70;
+      final pixelGridOrMoireHint = gridScore > 0.38;
+      final weakUniformPixelGrid = pixelGridUniformityScore > 0.18;
+      final uniformPixelGrid = pixelGridUniformityScore > 0.30;
+      final strongHorizontalBands = bandScore > 0.22;
+      final mediumHorizontalBands = bandScore > 0.16;
+      final structuralDisplayTrace = uniformPixelGrid ||
+          pixelGridOrMoireHint ||
+          strongRectangularDisplayEdges ||
+          (weakUniformPixelGrid && mediumHorizontalBands);
+
       var riskScore = 0;
-      if (uniformityScore > 0.72) riskScore += 20;
-      if (rectangleEdgeScore > 0.58) riskScore += 30;
-      if (gridScore > 0.35) riskScore += 30;
-      if (pixelGridUniformityScore > 0.36) {
-        riskScore += 45;
-      } else if (pixelGridUniformityScore > 0.26) {
-        riskScore += 25;
+      if (structuralDisplayTrace) {
+        if (flatSceneUniformity) riskScore += 10;
+        if (rectangularDisplayEdges) riskScore += 20;
+        if (pixelGridOrMoireHint) riskScore += 30;
+        if (uniformPixelGrid) {
+          riskScore += 40;
+        } else if (weakUniformPixelGrid) {
+          riskScore += 20;
+        }
+        if (strongHorizontalBands) {
+          riskScore += 30;
+        } else if (mediumHorizontalBands) {
+          riskScore += 15;
+        }
+      } else if (mediumHorizontalBands && rectangularDisplayEdges) {
+        riskScore = 25;
       }
-      if (bandScore > 0.22) {
-        riskScore += 60;
-      } else if (bandScore > 0.16) {
-        riskScore += 40;
-      } else if (bandScore > 0.10) {
-        riskScore += 25;
+
+      if (!structuralDisplayTrace && bandScore < 0.28) {
+        riskScore = min(riskScore, 30);
       }
       riskScore = riskScore.clamp(0, 100).toInt();
 
@@ -181,11 +200,12 @@ class HCVScreenReplayAnalyzer {
         'refreshBandScore': _round(bandScore),
         'localTemporalFlickerScore': null,
         'signals': {
-          'rectangularDisplayEdges': rectangleEdgeScore > 0.58,
-          'flatSceneUniformity': uniformityScore > 0.72,
-          'pixelGridOrMoireHint': gridScore > 0.35,
-          'uniformPixelGrid': pixelGridUniformityScore > 0.26,
-          'horizontalRefreshBands': bandScore > 0.10,
+          'rectangularDisplayEdges': rectangularDisplayEdges,
+          'flatSceneUniformity': flatSceneUniformity,
+          'pixelGridOrMoireHint': pixelGridOrMoireHint,
+          'uniformPixelGrid': uniformPixelGrid,
+          'horizontalRefreshBands': mediumHorizontalBands,
+          'structuralDisplayTrace': structuralDisplayTrace,
           'temporalFrequencyUnavailable': true,
         },
         'note':
@@ -221,35 +241,43 @@ class HCVScreenReplayAnalyzer {
     final localTemporalFlickerScore = _localTemporalFlickerScore(images);
     final refreshBandScore = _refreshBandScore(images);
 
-    final displayFlicker = flickerScore > 0.10;
-    final rectangularDisplayEdges = rectangleEdgeScore > 0.58;
-    final flatSceneUniformity = uniformityScore > 0.72;
+    final displayFlicker = flickerScore > 0.12;
+    final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
+    final strongRectangularDisplayEdges = rectangleEdgeScore > 0.70;
+    final flatSceneUniformity = uniformityScore > 0.74;
     final lowMicroVariation = microVariationScore < 0.035;
-    final pixelGridOrMoireHint = gridScore > 0.35;
-    final uniformPixelGrid = pixelGridUniformityScore > 0.26;
-    final localRefreshFlicker = localTemporalFlickerScore > 0.16;
-    final horizontalRefreshBands = refreshBandScore > 0.12;
+    final pixelGridOrMoireHint = gridScore > 0.38;
+    final uniformPixelGrid = pixelGridUniformityScore > 0.30;
+    final localRefreshFlicker = localTemporalFlickerScore > 0.24;
+    final horizontalRefreshBands = refreshBandScore > 0.16;
     final pairedLocalRefresh =
-        localTemporalFlickerScore > 0.16 && refreshBandScore > 0.055;
-    final strongDisplayTrace = horizontalRefreshBands ||
-        pairedLocalRefresh ||
-        uniformPixelGrid ||
+        localTemporalFlickerScore > 0.28 && refreshBandScore > 0.11;
+    final structuralDisplayTrace = uniformPixelGrid ||
+        pixelGridOrMoireHint ||
+        strongRectangularDisplayEdges ||
+        (rectangularDisplayEdges && refreshBandScore > 0.14);
+    final strongDisplayTrace = uniformPixelGrid ||
+        horizontalRefreshBands ||
+        (pairedLocalRefresh && structuralDisplayTrace) ||
         (pixelGridOrMoireHint && rectangularDisplayEdges);
 
     var riskScore = 0;
     if (strongDisplayTrace) {
-      if (displayFlicker) riskScore += 20;
+      if (displayFlicker) riskScore += 15;
       if (rectangularDisplayEdges) riskScore += 20;
       if (flatSceneUniformity) riskScore += 10;
       if (lowMicroVariation) riskScore += 5;
       if (pixelGridOrMoireHint) riskScore += 20;
       if (uniformPixelGrid) riskScore += 35;
-      if (pairedLocalRefresh) riskScore += 45;
+      if (pairedLocalRefresh) riskScore += 30;
       if (horizontalRefreshBands) riskScore += 35;
-    } else if (localRefreshFlicker ||
+    } else if ((localRefreshFlicker && refreshBandScore > 0.08) ||
         lowMicroVariation ||
         flatSceneUniformity) {
       riskScore = 20;
+    }
+    if (!structuralDisplayTrace && refreshBandScore < 0.14) {
+      riskScore = min(riskScore, 30);
     }
     riskScore = riskScore.clamp(0, 100).toInt();
 
@@ -275,6 +303,7 @@ class HCVScreenReplayAnalyzer {
         'localRefreshFlicker': localRefreshFlicker,
         'horizontalRefreshBands': horizontalRefreshBands,
         'pairedLocalRefresh': pairedLocalRefresh,
+        'structuralDisplayTrace': structuralDisplayTrace,
         'strongDisplayTrace': strongDisplayTrace,
       },
     };
