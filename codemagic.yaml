@@ -30,7 +30,7 @@ workflows:
             <key>method</key>
             <string>ad-hoc</string>
             <key>teamID</key>
-            <string>DNB9W7Z3HC</string>
+            <string>DN9W7Z3HCZ</string>
             <key>signingStyle</key>
             <string>manual</string>
             <key>provisioningProfiles</key>
