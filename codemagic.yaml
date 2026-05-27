@@ -7,10 +7,10 @@ workflows:
       xcode: latest
       ios_signing:
         certificates:
-          - "SIGILLUM Apple Distribution"
+          - "com.sigillum.hcv"
         provisioning_profiles:
-          - "SIGILLUM HCV AdHoc"
-          - "SIGILLUM HCV Share AdHoc"
+          - "SIGILLUM HCV Development"
+          - "SIGILLUM HCV Share Development"
 
     integrations:
       app_store_connect: Codemagic-HCV
@@ -28,7 +28,7 @@ workflows:
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>ad-hoc</string>
+            <string>development</string>
             <key>teamID</key>
             <string>DN9W7Z3HCZ</string>
             <key>signingStyle</key>
@@ -36,9 +36,9 @@ workflows:
             <key>provisioningProfiles</key>
             <dict>
               <key>com.sigillum.hcv</key>
-              <string>SIGILLUM HCV AdHoc</string>
+              <string>SIGILLUM HCV Development</string>
               <key>com.sigillum.hcv.share</key>
-              <string>SIGILLUM HCV Share AdHoc</string>
+              <string>SIGILLUM HCV Share Development</string>
             </dict>
           </dict>
           </plist>
