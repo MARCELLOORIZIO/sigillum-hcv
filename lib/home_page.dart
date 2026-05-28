@@ -9,6 +9,7 @@ import 'identity_page.dart';
 import 'text_cert_page.dart';
 import 'registry_verify_page.dart';
 import 'screen_replay_diagnostics_page.dart';
+import 'screen_replay_calibration_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -261,6 +262,15 @@ class _HomePageState extends State<HomePage> {
                 title: "DIAGNOSTICA SCHERMO",
                 subtitle: "Leggi i valori tecnici di foto e video",
                 onPressed: () => _open(const ScreenReplayDiagnosticsPage()),
+              ),
+
+              const SizedBox(height: 14),
+
+              _mainButton(
+                icon: Icons.sensors,
+                title: "CALIBRAZIONE SCHERMO",
+                subtitle: "Raccogli campioni live schermo/realtÃ ",
+                onPressed: () => _open(const ScreenReplayCalibrationPage()),
               ),
 
               const SizedBox(height: 14),
