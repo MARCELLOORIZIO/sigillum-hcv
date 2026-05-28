@@ -26,16 +26,20 @@ class HCVScreenReplayAnalyzer {
       await workDir.create(recursive: true);
       final segments = <Map<String, dynamic>>[];
 
-      for (var second = 0; second <= 600; second += 15) {
+      const maxSegmentsToAnalyze = 8;
+
+      for (var second = 0;
+          second <= 600 && segments.length < maxSegmentsToAnalyze;
+          second += 15) {
         final segmentDir = Directory(p.join(workDir.path, 'segment_$second'));
         await segmentDir.create(recursive: true);
 
-        final framePattern = p.join(segmentDir.path, 'frame_%03d.png');
+        final framePattern = p.join(segmentDir.path, 'frame_%03d.jpg');
         final command = "-y -ss $second -i '$videoPath' "
-            "-t 2 "
-            "-vf \"fps=15,scale=1080:1080:force_original_aspect_ratio=decrease,"
-            "pad=1080:1080:(ow-iw)/2:(oh-ih)/2\" "
-            "-frames:v 30 '$framePattern'";
+            "-t 1.5 "
+            "-vf \"fps=10,scale=720:720:force_original_aspect_ratio=decrease,"
+            "pad=720:720:(ow-iw)/2:(oh-ih)/2\" "
+            "-frames:v 15 '$framePattern'";
 
         final session = await FFmpegKit.execute(command);
         final code = await session.getReturnCode();
@@ -50,7 +54,7 @@ class HCVScreenReplayAnalyzer {
         final frames = segmentDir
             .listSync()
             .whereType<File>()
-            .where((f) => f.path.toLowerCase().endsWith('.png'))
+            .where((f) => f.path.toLowerCase().endsWith('.jpg'))
             .toList()
           ..sort((a, b) => a.path.compareTo(b.path));
 
@@ -93,7 +97,7 @@ class HCVScreenReplayAnalyzer {
 
       return {
         'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
-        'scanMode': 'EVERY_15_SECONDS',
+        'scanMode': 'EVERY_15_SECONDS_FAST_SAMPLE',
         'segmentsAnalyzed': segments.length,
         'worstSegmentSecond': worst['startSecond'],
         'framesAnalyzed': segments.fold<int>(
@@ -235,7 +239,7 @@ class HCVScreenReplayAnalyzer {
     final microVariationScore = _microVariationScore(images);
     final gridScore =
         images.map(_gridLikeScore).reduce((a, b) => a + b) / images.length;
-    final pixelGridImages = _sampleImages(images, maxSamples: 6);
+    final pixelGridImages = _sampleImages(images, maxSamples: 3);
     final pixelGridUniformityScore =
         pixelGridImages.map(_pixelGridUniformityScore).reduce((a, b) => a + b) /
             pixelGridImages.length;
@@ -604,16 +608,15 @@ class HCVScreenReplayAnalyzer {
     final cropScores = <double>[];
     final minSide = min(image.width, image.height);
     final cropSizes = <int>{
-      min(420, max(96, (minSide * 0.36).round())),
-      min(300, max(80, (minSide * 0.26).round())),
-      min(220, max(64, (minSide * 0.18).round())),
-      min(144, max(48, (minSide * 0.12).round())),
-      min(96, max(40, (minSide * 0.08).round())),
+      min(360, max(96, (minSide * 0.34).round())),
+      min(240, max(80, (minSide * 0.24).round())),
+      min(160, max(64, (minSide * 0.16).round())),
+      min(96, max(48, (minSide * 0.10).round())),
     }.where((size) => size < image.width && size < image.height).toList();
 
     final centers = <Point<double>>[
-      for (final y in [0.18, 0.34, 0.50, 0.66, 0.82])
-        for (final x in [0.18, 0.34, 0.50, 0.66, 0.82]) Point(x, y),
+      for (final y in [0.25, 0.50, 0.75])
+        for (final x in [0.25, 0.50, 0.75]) Point(x, y),
     ];
 
     for (final cropSize in cropSizes) {
@@ -635,8 +638,8 @@ class HCVScreenReplayAnalyzer {
         );
         final zoomed = img.copyResize(
           crop,
-          width: 960,
-          height: 960,
+          width: 640,
+          height: 640,
           interpolation: img.Interpolation.nearest,
         );
 
