@@ -55,8 +55,7 @@ final class ShareViewController: UIViewController {
     let defaults = UserDefaults(suiteName: appGroupId)
     defaults?.set(destination.path, forKey: sharedPathKey)
     defaults?.synchronize()
-    openHostApp()
-    finish()
+    openHostAppAndFinish()
   }
 
   private func copyToSharedContainer(
@@ -128,9 +127,17 @@ final class ShareViewController: UIViewController {
     return "bin"
   }
 
-  private func openHostApp() {
-    guard let url = URL(string: "sigillum://shared") else { return }
-    extensionContext?.open(url)
+  private func openHostAppAndFinish() {
+    DispatchQueue.main.async {
+      guard let url = URL(string: "sigillum://shared") else {
+        self.finish()
+        return
+      }
+
+      self.extensionContext?.open(url) { _ in
+        self.finish()
+      }
+    }
   }
 
   private func finish() {
