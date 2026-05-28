@@ -30,11 +30,11 @@ class HCVScreenReplayAnalyzer {
         final segmentDir = Directory(p.join(workDir.path, 'segment_$second'));
         await segmentDir.create(recursive: true);
 
-        final framePattern = p.join(segmentDir.path, 'frame_%03d.jpg');
+        final framePattern = p.join(segmentDir.path, 'frame_%03d.png');
         final command = "-y -ss $second -i '$videoPath' "
             "-t 2 "
-            "-vf \"fps=15,scale=720:720:force_original_aspect_ratio=decrease,"
-            "pad=720:720:(ow-iw)/2:(oh-ih)/2\" "
+            "-vf \"fps=15,scale=1080:1080:force_original_aspect_ratio=decrease,"
+            "pad=1080:1080:(ow-iw)/2:(oh-ih)/2\" "
             "-frames:v 30 '$framePattern'";
 
         final session = await FFmpegKit.execute(command);
@@ -50,7 +50,7 @@ class HCVScreenReplayAnalyzer {
         final frames = segmentDir
             .listSync()
             .whereType<File>()
-            .where((f) => f.path.toLowerCase().endsWith('.jpg'))
+            .where((f) => f.path.toLowerCase().endsWith('.png'))
             .toList()
           ..sort((a, b) => a.path.compareTo(b.path));
 
@@ -154,8 +154,8 @@ class HCVScreenReplayAnalyzer {
       final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
       final strongRectangularDisplayEdges = rectangleEdgeScore > 0.70;
       final pixelGridOrMoireHint = gridScore > 0.34;
-      final weakUniformPixelGrid = pixelGridUniformityScore > 0.12;
-      final uniformPixelGrid = pixelGridUniformityScore > 0.20;
+      final weakUniformPixelGrid = pixelGridUniformityScore > 0.10;
+      final uniformPixelGrid = pixelGridUniformityScore > 0.16;
       final strongHorizontalBands = bandScore > 0.22;
       final mediumHorizontalBands = bandScore > 0.16;
       final structuralDisplayTrace = uniformPixelGrid ||
@@ -248,13 +248,13 @@ class HCVScreenReplayAnalyzer {
     final flatSceneUniformity = uniformityScore > 0.74;
     final lowMicroVariation = microVariationScore < 0.035;
     final pixelGridOrMoireHint = gridScore > 0.34;
-    final uniformPixelGrid = pixelGridUniformityScore > 0.20;
+    final uniformPixelGrid = pixelGridUniformityScore > 0.16;
     final localRefreshFlicker = localTemporalFlickerScore > 0.24;
     final horizontalRefreshBands = refreshBandScore > 0.16;
     final pairedLocalRefresh =
-        localTemporalFlickerScore > 0.28 && refreshBandScore > 0.11;
+        localTemporalFlickerScore > 0.26 && refreshBandScore > 0.09;
     final temporalScreenPulse =
-        localTemporalFlickerScore > 0.36 && refreshBandScore > 0.10;
+        localTemporalFlickerScore > 0.32 && refreshBandScore > 0.09;
     final structuralDisplayTrace = uniformPixelGrid ||
         pixelGridOrMoireHint ||
         strongRectangularDisplayEdges ||
@@ -604,9 +604,11 @@ class HCVScreenReplayAnalyzer {
     final cropScores = <double>[];
     final minSide = min(image.width, image.height);
     final cropSizes = <int>{
-      min(360, max(96, (minSide * 0.32).round())),
-      min(240, max(80, (minSide * 0.22).round())),
-      min(160, max(72, (minSide * 0.16).round())),
+      min(420, max(96, (minSide * 0.36).round())),
+      min(300, max(80, (minSide * 0.26).round())),
+      min(220, max(64, (minSide * 0.18).round())),
+      min(144, max(48, (minSide * 0.12).round())),
+      min(96, max(40, (minSide * 0.08).round())),
     }.where((size) => size < image.width && size < image.height).toList();
 
     final centers = <Point<double>>[
@@ -633,8 +635,8 @@ class HCVScreenReplayAnalyzer {
         );
         final zoomed = img.copyResize(
           crop,
-          width: 320,
-          height: 320,
+          width: 960,
+          height: 960,
           interpolation: img.Interpolation.nearest,
         );
 
