@@ -33,8 +33,8 @@ class HCVScreenReplayAnalyzer {
         final framePattern = p.join(segmentDir.path, 'frame_%03d.jpg');
         final command = "-y -ss $second -i '$videoPath' "
             "-t 2 "
-            "-vf \"fps=15,scale=480:480:force_original_aspect_ratio=decrease,"
-            "pad=480:480:(ow-iw)/2:(oh-ih)/2\" "
+            "-vf \"fps=15,scale=720:720:force_original_aspect_ratio=decrease,"
+            "pad=720:720:(ow-iw)/2:(oh-ih)/2\" "
             "-frames:v 30 '$framePattern'";
 
         final session = await FFmpegKit.execute(command);
@@ -154,8 +154,8 @@ class HCVScreenReplayAnalyzer {
       final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
       final strongRectangularDisplayEdges = rectangleEdgeScore > 0.70;
       final pixelGridOrMoireHint = gridScore > 0.34;
-      final weakUniformPixelGrid = pixelGridUniformityScore > 0.14;
-      final uniformPixelGrid = pixelGridUniformityScore > 0.24;
+      final weakUniformPixelGrid = pixelGridUniformityScore > 0.12;
+      final uniformPixelGrid = pixelGridUniformityScore > 0.20;
       final strongHorizontalBands = bandScore > 0.22;
       final mediumHorizontalBands = bandScore > 0.16;
       final structuralDisplayTrace = uniformPixelGrid ||
@@ -248,7 +248,7 @@ class HCVScreenReplayAnalyzer {
     final flatSceneUniformity = uniformityScore > 0.74;
     final lowMicroVariation = microVariationScore < 0.035;
     final pixelGridOrMoireHint = gridScore > 0.34;
-    final uniformPixelGrid = pixelGridUniformityScore > 0.24;
+    final uniformPixelGrid = pixelGridUniformityScore > 0.20;
     final localRefreshFlicker = localTemporalFlickerScore > 0.24;
     final horizontalRefreshBands = refreshBandScore > 0.16;
     final pairedLocalRefresh =
@@ -605,11 +605,8 @@ class HCVScreenReplayAnalyzer {
     }.where((size) => size < image.width && size < image.height).toList();
 
     final centers = <Point<double>>[
-      const Point(0.50, 0.50),
-      const Point(0.32, 0.32),
-      const Point(0.68, 0.32),
-      const Point(0.32, 0.68),
-      const Point(0.68, 0.68),
+      for (final y in [0.18, 0.34, 0.50, 0.66, 0.82])
+        for (final x in [0.18, 0.34, 0.50, 0.66, 0.82]) Point(x, y),
     ];
 
     for (final cropSize in cropSizes) {
@@ -638,7 +635,8 @@ class HCVScreenReplayAnalyzer {
 
         final horizontal = _axisPeriodicityScore(zoomed, horizontal: true);
         final vertical = _axisPeriodicityScore(zoomed, horizontal: false);
-        final pairedScore = sqrt(horizontal * vertical);
+        final colorGrid = _colorSubpixelPeriodicityScore(zoomed);
+        final pairedScore = max(sqrt(horizontal * vertical), colorGrid);
         if (pairedScore > 0) {
           cropScores.add(pairedScore);
         }
@@ -648,11 +646,11 @@ class HCVScreenReplayAnalyzer {
     if (cropScores.isEmpty) return 0;
 
     cropScores.sort();
-    final topCount = min(5, cropScores.length);
+    final topCount = min(8, cropScores.length);
     final top = cropScores.sublist(cropScores.length - topCount);
     final topMean = top.reduce((a, b) => a + b) / top.length;
     final repeatedStrongCrops =
-        cropScores.where((score) => score > 0.22).length / cropScores.length;
+        cropScores.where((score) => score > 0.16).length / cropScores.length;
 
     return ((topMean * 0.75) + (repeatedStrongCrops * 0.25))
         .clamp(0.0, 1.0)
@@ -691,6 +689,59 @@ class HCVScreenReplayAnalyzer {
     final top = values.sublist(values.length - topCount);
 
     return top.reduce((a, b) => a + b) / top.length;
+  }
+
+  double _colorSubpixelPeriodicityScore(img.Image image) {
+    final horizontal = _axisColorPeriodicityScore(image, horizontal: true);
+    final vertical = _axisColorPeriodicityScore(image, horizontal: false);
+
+    return max(horizontal, vertical).clamp(0.0, 1.0).toDouble();
+  }
+
+  double _axisColorPeriodicityScore(
+    img.Image image, {
+    required bool horizontal,
+  }) {
+    final values = <double>[];
+    final outerLimit = horizontal ? image.height : image.width;
+    final innerLimit = horizontal ? image.width : image.height;
+
+    for (var outer = 12; outer < outerLimit - 12; outer += 8) {
+      final diffs = <double>[];
+
+      for (var inner = 2; inner < innerLimit - 2; inner++) {
+        final current = horizontal
+            ? image.getPixel(inner, outer)
+            : image.getPixel(outer, inner);
+        final previous = horizontal
+            ? image.getPixel(inner - 1, outer)
+            : image.getPixel(outer, inner - 1);
+
+        final currentChroma = _pixelChroma(current);
+        final previousChroma = _pixelChroma(previous);
+        diffs.add((currentChroma - previousChroma).abs());
+      }
+
+      values.add(_periodicEdgeScore(diffs));
+    }
+
+    if (values.isEmpty) return 0;
+
+    values.sort();
+    final topCount = max(1, (values.length * 0.20).ceil());
+    final top = values.sublist(values.length - topCount);
+
+    return top.reduce((a, b) => a + b) / top.length;
+  }
+
+  double _pixelChroma(img.Pixel pixel) {
+    final r = pixel.r.toDouble();
+    final g = pixel.g.toDouble();
+    final b = pixel.b.toDouble();
+    final maxChannel = max(r, max(g, b));
+    final minChannel = min(r, min(g, b));
+
+    return (maxChannel - minChannel) / 255.0;
   }
 
   double _periodicEdgeScore(List<double> diffs) {

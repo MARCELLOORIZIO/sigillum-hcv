@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,7 +28,11 @@ class HCVIdentity {
 
     creatorId ??= const Uuid().v4();
     deviceId ??= const Uuid().v4();
-    creatorName ??= defaultCreatorName;
+    final platformDefaultCreatorName =
+        Platform.isIOS ? "Local iPhone Creator" : defaultCreatorName;
+    if (creatorName == null || creatorName == "Local Android Creator") {
+      creatorName = platformDefaultCreatorName;
+    }
 
     await prefs.setString(_creatorIdKey, creatorId);
     await prefs.setString(_deviceIdKey, deviceId);
@@ -59,10 +64,14 @@ class HCVIdentity {
       "devicePublicKeyFingerprint": keyFingerprint,
       "issuer": "LOCAL_DEVICE",
       "trustLevel": "LOCAL_KEY_VERIFIED",
-      "identityVersion": 2,
+      "identityAssuranceLevel": "DEVICE_KEY_BOUND",
+      "legalIdentityStatus": "NOT_VERIFIED",
+      "creatorKeyBinding": "PUBLIC_KEY_FINGERPRINT_REQUIRED",
+      "identityVersion": 3,
       "identityFingerprint": fingerprint,
       "privacyMode": "MINIMIZED",
       "hardwareSerialCollected": false,
+      "phoneSerialCollected": false,
       "publicKeyIncludedInCertificate": publicKey != null,
     };
   }

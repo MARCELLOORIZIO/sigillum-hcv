@@ -14,6 +14,9 @@ class _IdentityPageState extends State<IdentityPage> {
 
   String creatorId = "";
   String keyFingerprint = "";
+  String identityFingerprint = "";
+  String identityAssuranceLevel = "";
+  String legalIdentityStatus = "";
   String privacyMode = "";
   String trustLevel = "LOCAL_KEY_VERIFIED";
   String status = "Caricamento identita...";
@@ -31,6 +34,10 @@ class _IdentityPageState extends State<IdentityPage> {
       creatorId = identity["creatorId"]?.toString() ?? "";
       keyFingerprint =
           identity["devicePublicKeyFingerprint"]?.toString() ?? "";
+      identityFingerprint = identity["identityFingerprint"]?.toString() ?? "";
+      identityAssuranceLevel =
+          identity["identityAssuranceLevel"]?.toString() ?? "";
+      legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
       privacyMode = identity["privacyMode"]?.toString() ?? "";
       nameController.text =
           identity["creatorName"]?.toString() ?? "Local Creator";
@@ -57,6 +64,10 @@ class _IdentityPageState extends State<IdentityPage> {
       creatorId = identity["creatorId"]?.toString() ?? "";
       keyFingerprint =
           identity["devicePublicKeyFingerprint"]?.toString() ?? "";
+      identityFingerprint = identity["identityFingerprint"]?.toString() ?? "";
+      identityAssuranceLevel =
+          identity["identityAssuranceLevel"]?.toString() ?? "";
+      legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
       privacyMode = identity["privacyMode"]?.toString() ?? "";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
       status = "Identita salvata";
@@ -142,6 +153,9 @@ class _IdentityPageState extends State<IdentityPage> {
               const SizedBox(height: 24),
               infoRow("Creator ID", creatorId),
               infoRow("Device Key Fingerprint", keyFingerprint),
+              infoRow("Identity Fingerprint", identityFingerprint),
+              infoRow("Identity Assurance", identityAssuranceLevel),
+              infoRow("Legal Identity", legalIdentityStatus),
               infoRow("Privacy Mode", privacyMode),
               infoRow("Trust Level", trustLevel),
             ],

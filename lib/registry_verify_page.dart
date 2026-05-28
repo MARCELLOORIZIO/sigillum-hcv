@@ -401,6 +401,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String? creatorName;
   String? trustLevel;
+  String? identityAssuranceLevel;
+  String? legalIdentityStatus;
+  String? identityFingerprint;
+  String? creatorKeyFingerprint;
   String? contentType;
   String? hcvTrustLevel;
   String? liveCaptureTrust;
@@ -609,6 +613,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       creatorName = null;
       trustLevel = null;
+      identityAssuranceLevel = null;
+      legalIdentityStatus = null;
+      identityFingerprint = null;
+      creatorKeyFingerprint = null;
       contentType = null;
       hcvTrustLevel = null;
       liveCaptureTrust = null;
@@ -752,6 +760,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         creatorName = identity['creatorName']?.toString();
 
         trustLevel = identity['trustLevel']?.toString();
+        identityAssuranceLevel =
+            identity['identityAssuranceLevel']?.toString();
+        legalIdentityStatus = identity['legalIdentityStatus']?.toString();
+        identityFingerprint = identity['identityFingerprint']?.toString();
+        creatorKeyFingerprint =
+            identity['devicePublicKeyFingerprint']?.toString();
       }
 
       contentType = contentTypeForVerification;
@@ -875,6 +889,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return value == 'MEDIUM' || value == 'HIGH';
   }
 
+  String _shortFingerprint(String? value) {
+    if (value == null || value.isEmpty) return '-';
+    if (value.length <= 18) return value;
+    return '${value.substring(0, 10)}...${value.substring(value.length - 8)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -966,11 +986,19 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               ],
               if (creatorName != null ||
                   trustLevel != null ||
+                  identityAssuranceLevel != null ||
+                  legalIdentityStatus != null ||
+                  identityFingerprint != null ||
+                  creatorKeyFingerprint != null ||
                   contentType != null) ...[
                 const SizedBox(height: 16),
                 Text(
                   'Creator: ${creatorName ?? '-'}\n'
                   'Trust: ${trustLevel ?? '-'}\n'
+                  'Identity: ${identityAssuranceLevel ?? '-'}\n'
+                  'Legal Identity: ${legalIdentityStatus ?? '-'}\n'
+                  'Identity Fingerprint: ${_shortFingerprint(identityFingerprint)}\n'
+                  'Creator Key: ${_shortFingerprint(creatorKeyFingerprint)}\n'
                   'Type: ${contentType ?? '-'}',
                   textAlign: TextAlign.center,
                 ),

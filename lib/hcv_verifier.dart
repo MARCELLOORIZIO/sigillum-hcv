@@ -75,6 +75,7 @@ class HCVVerifier {
 
     if (signature is! String) return false;
     if (publicKey is! Map<String, dynamic>) return false;
+    if (!_verifyIdentityBinding(data, publicKey)) return false;
 
     return _verifyRsaSignature(
       data: canonical,
@@ -114,6 +115,43 @@ class HCVVerifier {
       signatureBase64: signature,
       publicKeyData: publicKeyData,
     );
+  }
+
+  bool _verifyIdentityBinding(
+    Map<String, dynamic> data,
+    Map<String, dynamic> publicKey,
+  ) {
+    final meta = data["meta"];
+    if (meta is! Map) return false;
+
+    final identity = meta["identity"];
+    if (identity is! Map) return false;
+
+    final declaredKeyFingerprint = identity["devicePublicKeyFingerprint"];
+    final identityFingerprint = identity["identityFingerprint"];
+    final creatorId = identity["creatorId"];
+    final creatorName = identity["creatorName"];
+
+    if (declaredKeyFingerprint is! String || declaredKeyFingerprint.isEmpty) {
+      return false;
+    }
+    if (identityFingerprint is! String || identityFingerprint.isEmpty) {
+      return false;
+    }
+    if (creatorId is! String || creatorId.isEmpty) return false;
+    if (creatorName is! String || creatorName.isEmpty) return false;
+
+    final actualKeyFingerprint = sha256.convert(
+      utf8.encode(jsonEncode(publicKey)),
+    ).toString();
+
+    if (declaredKeyFingerprint != actualKeyFingerprint) return false;
+
+    final expectedIdentityFingerprint = sha256.convert(
+      utf8.encode("$creatorId|$creatorName|$declaredKeyFingerprint"),
+    ).toString();
+
+    return identityFingerprint == expectedIdentityFingerprint;
   }
 
   bool _verifyChain(List chain) {
