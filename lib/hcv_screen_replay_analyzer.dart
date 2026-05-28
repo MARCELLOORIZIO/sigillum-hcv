@@ -33,9 +33,9 @@ class HCVScreenReplayAnalyzer {
         final framePattern = p.join(segmentDir.path, 'frame_%03d.jpg');
         final command = "-y -ss $second -i '$videoPath' "
             "-t 2 "
-            "-vf \"fps=30,scale=120:120:force_original_aspect_ratio=decrease,"
-            "pad=120:120:(ow-iw)/2:(oh-ih)/2,format=gray\" "
-            "-frames:v 60 '$framePattern'";
+            "-vf \"fps=15,scale=480:480:force_original_aspect_ratio=decrease,"
+            "pad=480:480:(ow-iw)/2:(oh-ih)/2\" "
+            "-frames:v 30 '$framePattern'";
 
         final session = await FFmpegKit.execute(command);
         final code = await session.getReturnCode();
@@ -147,15 +147,15 @@ class HCVScreenReplayAnalyzer {
       final uniformityScore = _uniformityScore(image);
       final rectangleEdgeScore = _rectangleEdgeScore(image);
       final gridScore = _gridLikeScore(image);
-      final pixelGridUniformityScore = _pixelGridUniformityScore(image);
+      final pixelGridUniformityScore = _pixelGridUniformityScore(decoded);
       final bandScore = _profileContrast(_horizontalBandProfile(image, 16));
 
       final flatSceneUniformity = uniformityScore > 0.74;
       final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
       final strongRectangularDisplayEdges = rectangleEdgeScore > 0.70;
-      final pixelGridOrMoireHint = gridScore > 0.38;
-      final weakUniformPixelGrid = pixelGridUniformityScore > 0.18;
-      final uniformPixelGrid = pixelGridUniformityScore > 0.30;
+      final pixelGridOrMoireHint = gridScore > 0.34;
+      final weakUniformPixelGrid = pixelGridUniformityScore > 0.14;
+      final uniformPixelGrid = pixelGridUniformityScore > 0.24;
       final strongHorizontalBands = bandScore > 0.22;
       final mediumHorizontalBands = bandScore > 0.16;
       final structuralDisplayTrace = uniformPixelGrid ||
@@ -235,9 +235,10 @@ class HCVScreenReplayAnalyzer {
     final microVariationScore = _microVariationScore(images);
     final gridScore =
         images.map(_gridLikeScore).reduce((a, b) => a + b) / images.length;
+    final pixelGridImages = _sampleImages(images, maxSamples: 6);
     final pixelGridUniformityScore =
-        images.map(_pixelGridUniformityScore).reduce((a, b) => a + b) /
-            images.length;
+        pixelGridImages.map(_pixelGridUniformityScore).reduce((a, b) => a + b) /
+            pixelGridImages.length;
     final localTemporalFlickerScore = _localTemporalFlickerScore(images);
     final refreshBandScore = _refreshBandScore(images);
 
@@ -246,8 +247,8 @@ class HCVScreenReplayAnalyzer {
     final strongRectangularDisplayEdges = rectangleEdgeScore > 0.70;
     final flatSceneUniformity = uniformityScore > 0.74;
     final lowMicroVariation = microVariationScore < 0.035;
-    final pixelGridOrMoireHint = gridScore > 0.38;
-    final uniformPixelGrid = pixelGridUniformityScore > 0.30;
+    final pixelGridOrMoireHint = gridScore > 0.34;
+    final uniformPixelGrid = pixelGridUniformityScore > 0.24;
     final localRefreshFlicker = localTemporalFlickerScore > 0.24;
     final horizontalRefreshBands = refreshBandScore > 0.16;
     final pairedLocalRefresh =
@@ -593,17 +594,69 @@ class HCVScreenReplayAnalyzer {
   }
 
   double _pixelGridUniformityScore(img.Image image) {
-    final sample = img.copyResize(
-      image,
-      width: 240,
-      height: 240,
-      interpolation: img.Interpolation.nearest,
-    );
+    if (image.width < 80 || image.height < 80) return 0;
 
-    final horizontal = _axisPeriodicityScore(sample, horizontal: true);
-    final vertical = _axisPeriodicityScore(sample, horizontal: false);
+    final cropScores = <double>[];
+    final minSide = min(image.width, image.height);
+    final cropSizes = <int>{
+      min(360, max(96, (minSide * 0.32).round())),
+      min(240, max(80, (minSide * 0.22).round())),
+      min(160, max(72, (minSide * 0.16).round())),
+    }.where((size) => size < image.width && size < image.height).toList();
 
-    return ((horizontal + vertical) / 2).clamp(0.0, 1.0).toDouble();
+    final centers = <Point<double>>[
+      const Point(0.50, 0.50),
+      const Point(0.32, 0.32),
+      const Point(0.68, 0.32),
+      const Point(0.32, 0.68),
+      const Point(0.68, 0.68),
+    ];
+
+    for (final cropSize in cropSizes) {
+      for (final center in centers) {
+        final x = (image.width * center.x - cropSize / 2)
+            .round()
+            .clamp(0, image.width - cropSize)
+            .toInt();
+        final y = (image.height * center.y - cropSize / 2)
+            .round()
+            .clamp(0, image.height - cropSize)
+            .toInt();
+        final crop = img.copyCrop(
+          image,
+          x: x,
+          y: y,
+          width: cropSize,
+          height: cropSize,
+        );
+        final zoomed = img.copyResize(
+          crop,
+          width: 320,
+          height: 320,
+          interpolation: img.Interpolation.nearest,
+        );
+
+        final horizontal = _axisPeriodicityScore(zoomed, horizontal: true);
+        final vertical = _axisPeriodicityScore(zoomed, horizontal: false);
+        final pairedScore = sqrt(horizontal * vertical);
+        if (pairedScore > 0) {
+          cropScores.add(pairedScore);
+        }
+      }
+    }
+
+    if (cropScores.isEmpty) return 0;
+
+    cropScores.sort();
+    final topCount = min(5, cropScores.length);
+    final top = cropScores.sublist(cropScores.length - topCount);
+    final topMean = top.reduce((a, b) => a + b) / top.length;
+    final repeatedStrongCrops =
+        cropScores.where((score) => score > 0.22).length / cropScores.length;
+
+    return ((topMean * 0.75) + (repeatedStrongCrops * 0.25))
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   double _axisPeriodicityScore(
@@ -667,6 +720,20 @@ class HCVScreenReplayAnalyzer {
     }
 
     return best.clamp(0.0, 1.0).toDouble();
+  }
+
+  List<img.Image> _sampleImages(
+    List<img.Image> images, {
+    required int maxSamples,
+  }) {
+    if (images.length <= maxSamples) return images;
+
+    final sampled = <img.Image>[];
+    final step = (images.length - 1) / (maxSamples - 1);
+    for (var i = 0; i < maxSamples; i++) {
+      sampled.add(images[(i * step).round()]);
+    }
+    return sampled;
   }
 
   double _round(double value) => double.parse(value.toStringAsFixed(4));
