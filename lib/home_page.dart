@@ -8,6 +8,7 @@ import 'import_page.dart';
 import 'identity_page.dart';
 import 'text_cert_page.dart';
 import 'registry_verify_page.dart';
+import 'screen_replay_diagnostics_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -251,6 +252,15 @@ class _HomePageState extends State<HomePage> {
                 title: "IDENTITÀ CREATOR",
                 subtitle: "Imposta nome e identità del creatore",
                 onPressed: () => _open(const IdentityPage()),
+              ),
+
+              const SizedBox(height: 14),
+
+              _mainButton(
+                icon: Icons.analytics,
+                title: "DIAGNOSTICA SCHERMO",
+                subtitle: "Leggi i valori tecnici di foto e video",
+                onPressed: () => _open(const ScreenReplayDiagnosticsPage()),
               ),
 
               const SizedBox(height: 14),
