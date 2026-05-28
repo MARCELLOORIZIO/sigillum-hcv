@@ -253,12 +253,15 @@ class HCVScreenReplayAnalyzer {
     final horizontalRefreshBands = refreshBandScore > 0.16;
     final pairedLocalRefresh =
         localTemporalFlickerScore > 0.28 && refreshBandScore > 0.11;
+    final temporalScreenPulse =
+        localTemporalFlickerScore > 0.36 && refreshBandScore > 0.10;
     final structuralDisplayTrace = uniformPixelGrid ||
         pixelGridOrMoireHint ||
         strongRectangularDisplayEdges ||
         (rectangularDisplayEdges && refreshBandScore > 0.14);
     final strongDisplayTrace = uniformPixelGrid ||
         horizontalRefreshBands ||
+        temporalScreenPulse ||
         (pairedLocalRefresh && structuralDisplayTrace) ||
         (pixelGridOrMoireHint && rectangularDisplayEdges);
 
@@ -270,6 +273,7 @@ class HCVScreenReplayAnalyzer {
       if (lowMicroVariation) riskScore += 5;
       if (pixelGridOrMoireHint) riskScore += 20;
       if (uniformPixelGrid) riskScore += 35;
+      if (temporalScreenPulse) riskScore += 45;
       if (pairedLocalRefresh) riskScore += 30;
       if (horizontalRefreshBands) riskScore += 35;
     } else if ((localRefreshFlicker && refreshBandScore > 0.08) ||
@@ -304,6 +308,7 @@ class HCVScreenReplayAnalyzer {
         'localRefreshFlicker': localRefreshFlicker,
         'horizontalRefreshBands': horizontalRefreshBands,
         'pairedLocalRefresh': pairedLocalRefresh,
+        'temporalScreenPulse': temporalScreenPulse,
         'structuralDisplayTrace': structuralDisplayTrace,
         'strongDisplayTrace': strongDisplayTrace,
       },
