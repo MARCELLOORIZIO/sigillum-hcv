@@ -58,26 +58,26 @@ class HCVVideoWatermark {
       //"drawbox=x=18:y=h-92:w=300:h=72:color=black@0.42:t=fill",
 
       // outer square
-      "drawbox=x=30:y=h-100:w=22:h=22:color=white@0.95:t=2",
+      "drawbox=x=30:y=34:w=22:h=22:color=white@0.95:t=2",
 
       // inner square
-      "drawbox=x=36:y=h-94:w=10:h=10:color=white@0.95:t=fill",
+      "drawbox=x=36:y=40:w=10:h=10:color=white@0.95:t=fill",
 
       // SIGILLUM capture marker. Verification happens in the app/registry.
       "drawtext=fontfile=$fontFile:text='SIGILLUM CAPTURE':"
-          "x=62:y=h-104:"
+          "x=62:y=30:"
           "fontsize=16:"
           "fontcolor=white@0.98",
 
       // Visible reminder that the overlay alone is not proof.
       "drawtext=fontfile=$fontFile:text='VERIFY IN APP':"
-          "x=52:y=h-78:"
+          "x=52:y=56:"
           "fontsize=11:"
           "fontcolor=white@0.85",
 
       // HCV-ID visible for social reposts
       "drawtext=fontfile=$fontFile:text='HCV-ID\\: $safeHcvId':"
-          "x=40:y=h-72:"
+          "x=40:y=82:"
           "fontsize=18:"
           "fontcolor=yellow:"
           "box=1:"
@@ -86,7 +86,7 @@ class HCVVideoWatermark {
 
       // Verify URL visible
       "drawtext=fontfile=$fontFile:text='VERIFY\\: $safeVerify':"
-          "x=52:y=h-38:"
+          "x=52:y=116:"
           "fontsize=8:"
           "fontcolor=white@0.70",
     ].join(",");

@@ -24,14 +24,14 @@ class HCVImageWatermark {
 
     final overlayHeight = 124;
 
-    final topY = image.height - overlayHeight - 28;
+    const topY = 28;
 
     img.fillRect(
       image,
       x1: 0,
       y1: topY,
       x2: image.width,
-      y2: image.height,
+      y2: topY + overlayHeight,
       color: img.ColorRgba8(0, 0, 0, 140),
     );
 
