@@ -165,6 +165,7 @@ class HCVScreenReplayAnalyzer {
       final structuralDisplayTrace = uniformPixelGrid ||
           pixelGridOrMoireHint ||
           strongRectangularDisplayEdges ||
+          bandScore > 0.24 ||
           (weakUniformPixelGrid && mediumHorizontalBands);
 
       var riskScore = 0;
@@ -177,7 +178,9 @@ class HCVScreenReplayAnalyzer {
         } else if (weakUniformPixelGrid) {
           riskScore += 20;
         }
-        if (strongHorizontalBands) {
+        if (bandScore > 0.24) {
+          riskScore = max(riskScore, 45);
+        } else if (strongHorizontalBands) {
           riskScore += 30;
         } else if (mediumHorizontalBands) {
           riskScore += 15;
@@ -280,6 +283,7 @@ class HCVScreenReplayAnalyzer {
       if (temporalScreenPulse) riskScore += 45;
       if (pairedLocalRefresh) riskScore += 30;
       if (horizontalRefreshBands) riskScore += 35;
+      if (temporalScreenPulse) riskScore = max(riskScore, 65);
     } else if ((localRefreshFlicker && refreshBandScore > 0.08) ||
         lowMicroVariation ||
         flatSceneUniformity) {

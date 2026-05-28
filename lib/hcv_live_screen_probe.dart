@@ -80,12 +80,12 @@ class HCVLiveScreenProbe {
     final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
 
     final strongRefreshTrace =
-        refreshBandScore > 0.12 || bandTemporalScore > 0.10;
+        refreshBandScore > 0.18 || bandTemporalScore > 0.10;
     final pairedFlickerTrace = localFlickerScore > 0.18 &&
-        (refreshBandScore > 0.06 || bandTemporalScore > 0.06);
+        (refreshBandScore > 0.08 || bandTemporalScore > 0.06);
 
     var riskScore = 0;
-    if (strongRefreshTrace) riskScore += 45;
+    if (strongRefreshTrace) riskScore += 35;
     if (pairedFlickerTrace) riskScore += 45;
     if (globalFlickerScore > 0.16 && strongRefreshTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && pairedFlickerTrace) riskScore += 5;
