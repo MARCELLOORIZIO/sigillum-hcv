@@ -289,7 +289,9 @@ class HCVScreenReplayAnalyzer {
         flatSceneUniformity) {
       riskScore = 20;
     }
-    if (!structuralDisplayTrace && refreshBandScore < 0.14) {
+    if (!strongDisplayTrace &&
+        !structuralDisplayTrace &&
+        refreshBandScore < 0.14) {
       riskScore = min(riskScore, 30);
     }
     riskScore = riskScore.clamp(0, 100).toInt();
