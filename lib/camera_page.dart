@@ -171,7 +171,10 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       pendingLiveScreenProbe =
-          await HCVLiveScreenProbe().analyzePreview(controller!);
+          await HCVLiveScreenProbe().analyzePreview(
+        controller!,
+        restoreZoomLevel: currentZoom,
+      );
 
       setState(() {
         recording = true;
@@ -223,7 +226,10 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       final liveScreenProbe =
-          await HCVLiveScreenProbe().analyzePreview(controller!);
+          await HCVLiveScreenProbe().analyzePreview(
+        controller!,
+        restoreZoomLevel: currentZoom,
+      );
 
       setState(() {
         status = 'SCATTO FOTO...';

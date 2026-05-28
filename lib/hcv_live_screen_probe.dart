@@ -8,6 +8,8 @@ class HCVLiveScreenProbe {
     CameraController controller, {
     Duration duration = const Duration(milliseconds: 1600),
     int maxFrames = 45,
+    double? restoreZoomLevel,
+    bool useOpticalProbeZoom = true,
   }) async {
     if (!controller.value.isInitialized) {
       return _unknown('CAMERA_NOT_READY');
@@ -23,8 +25,21 @@ class HCVLiveScreenProbe {
 
     final frameStats = <_FrameStats>[];
     final done = Completer<void>();
+    double? zoomToRestore = restoreZoomLevel;
 
     try {
+      if (useOpticalProbeZoom) {
+        final minZoom = await controller.getMinZoomLevel();
+        final maxZoom = await controller.getMaxZoomLevel();
+        zoomToRestore ??= minZoom;
+        final probeZoom = min(maxZoom, max(minZoom, 3.0));
+
+        if (probeZoom > minZoom + 0.1) {
+          await controller.setZoomLevel(probeZoom);
+          await Future.delayed(const Duration(milliseconds: 180));
+        }
+      }
+
       await controller.startImageStream((image) {
         if (frameStats.length >= maxFrames) {
           if (!done.isCompleted) done.complete();
@@ -53,6 +68,12 @@ class HCVLiveScreenProbe {
           await controller.stopImageStream();
         }
       } catch (_) {}
+
+      try {
+        if (zoomToRestore != null && controller.value.isInitialized) {
+          await controller.setZoomLevel(zoomToRestore);
+        }
+      } catch (_) {}
     }
 
     if (frameStats.length < 8) {
@@ -76,19 +97,37 @@ class HCVLiveScreenProbe {
     final refreshBandScore =
         frames.map((f) => f.bandContrast).reduce((a, b) => a + b) /
             frames.length;
+    final fineStripeScore =
+        frames.map((f) => f.fineStripeScore).reduce((a, b) => a + b) /
+            frames.length;
+    final fineGridScore =
+        frames.map((f) => f.fineGridScore).reduce((a, b) => a + b) /
+            frames.length;
     final bandTemporalScore = _bandTemporalScore(frames);
     final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
 
     final strongRefreshTrace =
         refreshBandScore > 0.18 || bandTemporalScore > 0.10;
+    final displayBandTrace =
+        localFlickerScore > 0.24 && refreshBandScore > 0.15;
+    final opticalStripeTrace = fineStripeScore > 0.16 || fineGridScore > 0.12;
+    final globalDisplayPulse = globalFlickerScore > 0.16 &&
+        (refreshBandScore > 0.10 || localFlickerScore > 0.38);
     final pairedFlickerTrace = localFlickerScore > 0.18 &&
         (refreshBandScore > 0.08 || bandTemporalScore > 0.06);
+    final confirmedDisplayTrace =
+        strongRefreshTrace ||
+        displayBandTrace ||
+        opticalStripeTrace ||
+        globalDisplayPulse;
 
     var riskScore = 0;
-    if (strongRefreshTrace) riskScore += 35;
-    if (pairedFlickerTrace) riskScore += 45;
-    if (globalFlickerScore > 0.16 && strongRefreshTrace) riskScore += 10;
-    if (stableExposureScore > 0.94 && pairedFlickerTrace) riskScore += 5;
+    if (confirmedDisplayTrace) riskScore += 50;
+    if (strongRefreshTrace) riskScore += 15;
+    if (opticalStripeTrace) riskScore += 20;
+    if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
+    if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
+    if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
     riskScore = riskScore.clamp(0, 100).toInt();
 
     return {
@@ -99,11 +138,17 @@ class HCVLiveScreenProbe {
       'globalFlickerScore': _round(globalFlickerScore),
       'localTemporalFlickerScore': _round(localFlickerScore.toDouble()),
       'refreshBandScore': _round(refreshBandScore),
+      'fineStripeScore': _round(fineStripeScore),
+      'fineGridScore': _round(fineGridScore),
       'bandTemporalScore': _round(bandTemporalScore),
       'stableExposureScore': _round(stableExposureScore),
       'signals': {
         'livePreviewAnalyzed': true,
         'strongRefreshTrace': strongRefreshTrace,
+        'displayBandTrace': displayBandTrace,
+        'opticalStripeTrace': opticalStripeTrace,
+        'globalDisplayPulse': globalDisplayPulse,
+        'confirmedDisplayTrace': confirmedDisplayTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
         'globalFlicker': globalFlickerScore > 0.16,
         'localRefreshFlicker': localFlickerScore > 0.18,
@@ -136,8 +181,14 @@ class HCVLiveScreenProbe {
     final tileCounts = List<int>.filled(tiles * tiles, 0);
     final bandTotals = List<double>.filled(bands, 0);
     final bandCounts = List<int>.filled(bands, 0);
+    final fineRows = <double>[];
+    final fineCols = <double>[];
     var total = 0.0;
     var count = 0;
+    final centerLeft = (width * 0.18).floor();
+    final centerRight = (width * 0.82).floor();
+    final centerTop = (height * 0.18).floor();
+    final centerBottom = (height * 0.82).floor();
 
     for (var y = 0; y < height; y += 6) {
       final row = y * rowStride;
@@ -168,6 +219,43 @@ class HCVLiveScreenProbe {
       }
     }
 
+    for (var y = centerTop; y < centerBottom; y += 2) {
+      final row = y * rowStride;
+      if (row >= bytes.length) break;
+
+      var rowTotal = 0.0;
+      var rowCount = 0;
+
+      for (var x = centerLeft; x < centerRight; x += 2) {
+        final index = row + (x * pixelStride);
+        if (index >= bytes.length) break;
+
+        rowTotal += _readLuma(bytes, index, isBgra);
+        rowCount++;
+      }
+
+      if (rowCount > 0) {
+        fineRows.add(rowTotal / rowCount);
+      }
+    }
+
+    for (var x = centerLeft; x < centerRight; x += 2) {
+      var colTotal = 0.0;
+      var colCount = 0;
+
+      for (var y = centerTop; y < centerBottom; y += 2) {
+        final index = (y * rowStride) + (x * pixelStride);
+        if (index >= bytes.length) break;
+
+        colTotal += _readLuma(bytes, index, isBgra);
+        colCount++;
+      }
+
+      if (colCount > 0) {
+        fineCols.add(colTotal / colCount);
+      }
+    }
+
     if (count == 0) return null;
 
     final tileMeans = <double>[];
@@ -185,7 +273,20 @@ class HCVLiveScreenProbe {
       tileMeans: tileMeans,
       bandMeans: bandMeans,
       bandContrast: _profileContrast(bandMeans),
+      fineStripeScore: _fineStripeScore(fineRows),
+      fineGridScore: max(_fineStripeScore(fineRows), _fineStripeScore(fineCols)),
     );
+  }
+
+  double _readLuma(List<int> bytes, int index, bool isBgra) {
+    if (isBgra && index + 2 < bytes.length) {
+      return ((0.114 * bytes[index]) +
+              (0.587 * bytes[index + 1]) +
+              (0.299 * bytes[index + 2])) /
+          255.0;
+    }
+
+    return bytes[index] / 255.0;
   }
 
   double _bandTemporalScore(List<_FrameStats> frames) {
@@ -209,6 +310,49 @@ class HCVLiveScreenProbe {
     }
 
     return total / max(pairs, 1);
+  }
+
+  double _fineStripeScore(List<double> profile) {
+    if (profile.length < 12) return 0;
+
+    final mean = profile.reduce((a, b) => a + b) / profile.length;
+    final centered = profile.map((value) => value - mean).toList();
+    final contrast =
+        centered.map((value) => value.abs()).reduce((a, b) => a + b) /
+            centered.length;
+
+    if (contrast < 0.004) return 0;
+
+    var alternating = 0.0;
+    var transitions = 0;
+    var gradientTotal = 0.0;
+
+    for (var i = 1; i < centered.length; i++) {
+      final gradient = centered[i] - centered[i - 1];
+      gradientTotal += gradient.abs();
+
+      if (centered[i].sign != centered[i - 1].sign) {
+        transitions++;
+      }
+
+      if (i > 1) {
+        final previousGradient = centered[i - 1] - centered[i - 2];
+        if (gradient.sign != previousGradient.sign) {
+          alternating++;
+        }
+      }
+    }
+
+    final transitionRatio = transitions / (centered.length - 1);
+    final alternatingRatio = alternating / max(centered.length - 2, 1);
+    final gradientStrength = gradientTotal / (centered.length - 1);
+
+    return ((contrast * 2.8) +
+            (gradientStrength * 1.8) +
+            (transitionRatio * 0.12) +
+            (alternatingRatio * 0.10))
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   double _temporalPulseScore(List<double> series) {
@@ -290,11 +434,15 @@ class _FrameStats {
   final List<double> tileMeans;
   final List<double> bandMeans;
   final double bandContrast;
+  final double fineStripeScore;
+  final double fineGridScore;
 
   _FrameStats({
     required this.meanLuma,
     required this.tileMeans,
     required this.bandMeans,
     required this.bandContrast,
+    required this.fineStripeScore,
+    required this.fineGridScore,
   });
 }

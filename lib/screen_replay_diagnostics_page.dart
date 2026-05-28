@@ -142,6 +142,13 @@ class _ScreenReplayDiagnosticsPageState
                 status,
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 8),
+              const Text(
+                'Questa schermata analizza il file gia salvato. '
+                'Il controllo live prima dello scatto si vede nel certificato.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
               if (selectedPath != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -168,6 +175,12 @@ class _ScreenReplayDiagnosticsPageState
                   ),
                 ),
                 const SizedBox(height: 24),
+                const Text(
+                  'ANALISI FILE DOPO LO SCATTO',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
                 _metric('Local Flicker', 'localTemporalFlickerScore'),
                 _metric('Refresh Band', 'refreshBandScore'),
                 _metric('Pixel Grid', 'pixelGridUniformityScore'),

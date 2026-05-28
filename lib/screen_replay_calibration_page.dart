@@ -83,6 +83,7 @@ class _ScreenReplayCalibrationPageState
         current,
         duration: const Duration(seconds: 10),
         maxFrames: 180,
+        useOpticalProbeZoom: true,
       );
 
       final sample = {
@@ -175,6 +176,13 @@ class _ScreenReplayCalibrationPageState
                 ),
               ),
               const SizedBox(height: 18),
+              const Text(
+                'Misura il LIVE PROBE: il controllo che SIGILLUM fa prima '
+                'di scattare una foto o iniziare un video.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   _choiceButton('SCREEN', 'SCHERMO'),
@@ -214,7 +222,9 @@ class _ScreenReplayCalibrationPageState
                     '${sample['analysis']['screenReplayRisk']} / '
                     '${sample['analysis']['screenReplayRiskScore']} - '
                     'local ${sample['analysis']['localTemporalFlickerScore']} - '
-                    'band ${sample['analysis']['refreshBandScore']}',
+                    'band ${sample['analysis']['refreshBandScore']} - '
+                    'stripe ${sample['analysis']['fineStripeScore']} - '
+                    'grid ${sample['analysis']['fineGridScore']}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 12),
                   ),

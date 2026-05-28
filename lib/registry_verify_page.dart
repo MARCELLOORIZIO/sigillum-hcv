@@ -419,6 +419,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? pixelGridUniformityScore;
   String? liveProbeLocalFlickerScore;
   String? liveProbeRefreshBandScore;
+  String? liveProbeFineStripeScore;
+  String? liveProbeFineGridScore;
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
@@ -631,6 +633,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       pixelGridUniformityScore = null;
       liveProbeLocalFlickerScore = null;
       liveProbeRefreshBandScore = null;
+      liveProbeFineStripeScore = null;
+      liveProbeFineGridScore = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
       aiProofLevel = null;
@@ -670,6 +674,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               liveScreenProbe['localTemporalFlickerScore']?.toString();
           liveProbeRefreshBandScore =
               liveScreenProbe['refreshBandScore']?.toString();
+          liveProbeFineStripeScore =
+              liveScreenProbe['fineStripeScore']?.toString();
+          liveProbeFineGridScore =
+              liveScreenProbe['fineGridScore']?.toString();
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
@@ -1015,6 +1023,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   pixelGridUniformityScore != null ||
                   liveProbeLocalFlickerScore != null ||
                   liveProbeRefreshBandScore != null ||
+                  liveProbeFineStripeScore != null ||
+                  liveProbeFineGridScore != null ||
                   syntheticRisk != null ||
                   sceneAuthenticity != null ||
                   aiProofLevel != null) ...[
@@ -1031,17 +1041,26 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 Text(
                   'Trust Level: ${hcvTrustLevel ?? '-'}\n'
                   'Live Capture: ${liveCaptureTrust ?? '-'}\n'
-                  'Screen Replay Risk: ${screenReplayRisk ?? '-'}\n'
-                  'Screen Replay Score: ${screenReplayRiskScore ?? '-'}\n'
+                  '\n'
+                  'RISULTATO COMBINATO\n'
+                  'Rischio schermo: ${screenReplayRisk ?? '-'}\n'
+                  'Punteggio schermo: ${screenReplayRiskScore ?? '-'}\n'
+                  '\n'
+                  'LIVE PROBE PRIMA DELLO SCATTO\n'
                   'Live Probe Risk: ${liveProbeRisk ?? '-'}\n'
                   'Live Probe Frames: ${liveProbeFrames ?? '-'}\n'
-                  'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'
-                  'Worst Replay Second: ${screenReplayWorstSecond ?? '-'}\n'
                   'Live Probe Local Flicker: ${liveProbeLocalFlickerScore ?? '-'}\n'
                   'Live Probe Refresh Band: ${liveProbeRefreshBandScore ?? '-'}\n'
+                  'Live Probe Fine Stripe: ${liveProbeFineStripeScore ?? '-'}\n'
+                  'Live Probe Fine Grid: ${liveProbeFineGridScore ?? '-'}\n'
+                  '\n'
+                  'ANALISI FILE DOPO LO SCATTO\n'
+                  'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'
+                  'Worst Replay Second: ${screenReplayWorstSecond ?? '-'}\n'
                   'Local Flicker Score: ${localTemporalFlickerScore ?? '-'}\n'
                   'Refresh Band Score: ${refreshBandScore ?? '-'}\n'
                   'Pixel Grid Uniformity: ${pixelGridUniformityScore ?? '-'}\n'
+                  '\n'
                   'Synthetic Risk: ${syntheticRisk ?? '-'}\n'
                   'Scene Authenticity: ${sceneAuthenticity ?? '-'}\n'
                   'AI Proof Level: ${aiProofLevel ?? '-'}',
