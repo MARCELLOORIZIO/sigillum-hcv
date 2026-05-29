@@ -421,6 +421,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveProbeRefreshBandScore;
   String? liveProbeFineStripeScore;
   String? liveProbeFineGridScore;
+  String? liveProbeOpticalCorroboratedTrace;
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
@@ -635,6 +636,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveProbeRefreshBandScore = null;
       liveProbeFineStripeScore = null;
       liveProbeFineGridScore = null;
+      liveProbeOpticalCorroboratedTrace = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
       aiProofLevel = null;
@@ -678,6 +680,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               liveScreenProbe['fineStripeScore']?.toString();
           liveProbeFineGridScore =
               liveScreenProbe['fineGridScore']?.toString();
+          final liveProbeSignals = liveScreenProbe['signals'];
+          if (liveProbeSignals is Map) {
+            liveProbeOpticalCorroboratedTrace =
+                liveProbeSignals['opticalCorroboratedTrace']?.toString();
+          }
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
@@ -1025,6 +1032,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   liveProbeRefreshBandScore != null ||
                   liveProbeFineStripeScore != null ||
                   liveProbeFineGridScore != null ||
+                  liveProbeOpticalCorroboratedTrace != null ||
                   syntheticRisk != null ||
                   sceneAuthenticity != null ||
                   aiProofLevel != null) ...[
@@ -1053,6 +1061,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Probe Refresh Band: ${liveProbeRefreshBandScore ?? '-'}\n'
                   'Live Probe Fine Stripe: ${liveProbeFineStripeScore ?? '-'}\n'
                   'Live Probe Fine Grid: ${liveProbeFineGridScore ?? '-'}\n'
+                  'Live Probe Optical Confirmed: ${liveProbeOpticalCorroboratedTrace ?? '-'}\n'
                   '\n'
                   'ANALISI FILE DOPO LO SCATTO\n'
                   'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'
