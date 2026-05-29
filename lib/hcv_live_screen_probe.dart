@@ -110,7 +110,9 @@ class HCVLiveScreenProbe {
         refreshBandScore > 0.18 || bandTemporalScore > 0.10;
     final displayBandTrace =
         localFlickerScore > 0.24 && refreshBandScore > 0.15;
-    final opticalStripeTrace = fineStripeScore > 0.16 || fineGridScore > 0.12;
+    final opticalStripeTrace = fineStripeScore > 0.30 &&
+        fineGridScore > 0.24 &&
+        (refreshBandScore > 0.14 || localFlickerScore > 0.34);
     final globalDisplayPulse = globalFlickerScore > 0.16 &&
         (refreshBandScore > 0.10 || localFlickerScore > 0.38);
     final pairedFlickerTrace = localFlickerScore > 0.18 &&
@@ -118,13 +120,14 @@ class HCVLiveScreenProbe {
     final confirmedDisplayTrace =
         strongRefreshTrace ||
         displayBandTrace ||
-        opticalStripeTrace ||
         globalDisplayPulse;
+    final opticalCorroboratedTrace =
+        opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
 
     var riskScore = 0;
     if (confirmedDisplayTrace) riskScore += 50;
     if (strongRefreshTrace) riskScore += 15;
-    if (opticalStripeTrace) riskScore += 20;
+    if (opticalCorroboratedTrace) riskScore += 15;
     if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
@@ -147,6 +150,7 @@ class HCVLiveScreenProbe {
         'strongRefreshTrace': strongRefreshTrace,
         'displayBandTrace': displayBandTrace,
         'opticalStripeTrace': opticalStripeTrace,
+        'opticalCorroboratedTrace': opticalCorroboratedTrace,
         'globalDisplayPulse': globalDisplayPulse,
         'confirmedDisplayTrace': confirmedDisplayTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
