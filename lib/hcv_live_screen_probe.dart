@@ -24,7 +24,6 @@ class HCVLiveScreenProbe {
     }
 
     final frameStats = <_FrameStats>[];
-    final done = Completer<void>();
     double? zoomToRestore = restoreZoomLevel;
 
     try {
@@ -32,34 +31,44 @@ class HCVLiveScreenProbe {
         final minZoom = await controller.getMinZoomLevel();
         final maxZoom = await controller.getMaxZoomLevel();
         zoomToRestore ??= minZoom;
-        final probeZoom = min(maxZoom, max(minZoom, 3.0));
+        final baselineFrames = max(8, maxFrames ~/ 2);
+        final probeFrames = max(8, maxFrames - baselineFrames);
+        final phaseDuration = Duration(
+          milliseconds: max(450, duration.inMilliseconds ~/ 2),
+        );
 
-        if (probeZoom > minZoom + 0.1) {
+        await _collectFrameStats(
+          controller,
+          frameStats,
+          maxFrames: baselineFrames,
+          duration: phaseDuration,
+          phase: 0,
+        );
+
+        final baselineZoom = zoomToRestore ?? minZoom;
+        final probeZoom = min(maxZoom, max(minZoom, baselineZoom + 0.55));
+
+        if (probeZoom > baselineZoom + 0.1) {
           await controller.setZoomLevel(probeZoom);
           await Future.delayed(const Duration(milliseconds: 180));
         }
+
+        await _collectFrameStats(
+          controller,
+          frameStats,
+          maxFrames: probeFrames,
+          duration: phaseDuration,
+          phase: 1,
+        );
+      } else {
+        await _collectFrameStats(
+          controller,
+          frameStats,
+          maxFrames: maxFrames,
+          duration: duration,
+          phase: 0,
+        );
       }
-
-      await controller.startImageStream((image) {
-        if (frameStats.length >= maxFrames) {
-          if (!done.isCompleted) done.complete();
-          return;
-        }
-
-        final stats = _readFrameStats(image);
-        if (stats != null) {
-          frameStats.add(stats);
-        }
-
-        if (frameStats.length >= maxFrames && !done.isCompleted) {
-          done.complete();
-        }
-      });
-
-      await Future.any([
-        done.future,
-        Future.delayed(duration),
-      ]);
     } catch (_) {
       return _unknown('LIVE_PROBE_FAILED');
     } finally {
@@ -81,6 +90,45 @@ class HCVLiveScreenProbe {
     }
 
     return _analyze(frameStats);
+  }
+
+  Future<void> _collectFrameStats(
+    CameraController controller,
+    List<_FrameStats> output, {
+    required int maxFrames,
+    required Duration duration,
+    required int phase,
+  }) async {
+    final done = Completer<void>();
+    var collected = 0;
+
+    await controller.startImageStream((image) {
+      if (collected >= maxFrames) {
+        if (!done.isCompleted) done.complete();
+        return;
+      }
+
+      final stats = _readFrameStats(image, phase);
+      if (stats != null) {
+        output.add(stats);
+        collected++;
+      }
+
+      if (collected >= maxFrames && !done.isCompleted) {
+        done.complete();
+      }
+    });
+
+    try {
+      await Future.any([
+        done.future,
+        Future.delayed(duration),
+      ]);
+    } finally {
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
+    }
   }
 
   Map<String, dynamic> _analyze(List<_FrameStats> frames) {
@@ -106,6 +154,9 @@ class HCVLiveScreenProbe {
     final moireFrequencyScore =
         frames.map((f) => f.moireFrequencyScore).reduce((a, b) => a + b) /
             frames.length;
+    final challenge = _dynamicChallenge(frames);
+    final dynamicChallengeScore = challenge['dynamicChallengeScore'] as double;
+    final persistentPatternScore = challenge['persistentPatternScore'] as double;
     final bandTemporalScore = _bandTemporalScore(frames);
     final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
 
@@ -132,6 +183,9 @@ class HCVLiveScreenProbe {
                 fineGridScore > 0.70 ||
                 moireFrequencyScore > 0.28 ||
                 (globalFlickerScore > 0.22 && localFlickerScore > 0.38));
+    final dynamicScreenChallengeTrace = persistentPatternScore > 0.58 &&
+        dynamicChallengeScore < 0.18 &&
+        (moireFrequencyScore > 0.30 || fineGridScore > 0.70);
     final confirmedDisplayTrace =
         strongRefreshTrace ||
         displayBandTrace ||
@@ -146,6 +200,9 @@ class HCVLiveScreenProbe {
     if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
     if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
     if (!confirmedDisplayTrace && uncorroboratedDisplayPattern) riskScore += 20;
+    if (!confirmedDisplayTrace && dynamicScreenChallengeTrace) {
+      riskScore += 15;
+    }
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
     riskScore = riskScore.clamp(0, 100).toInt();
@@ -161,6 +218,8 @@ class HCVLiveScreenProbe {
       'fineStripeScore': _round(fineStripeScore),
       'fineGridScore': _round(fineGridScore),
       'moireFrequencyScore': _round(moireFrequencyScore),
+      'dynamicChallengeScore': _round(dynamicChallengeScore),
+      'persistentPatternScore': _round(persistentPatternScore),
       'bandTemporalScore': _round(bandTemporalScore),
       'stableExposureScore': _round(stableExposureScore),
       'signals': {
@@ -174,6 +233,7 @@ class HCVLiveScreenProbe {
         'confirmedDisplayTrace': confirmedDisplayTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
         'uncorroboratedDisplayPattern': uncorroboratedDisplayPattern,
+        'dynamicScreenChallengeTrace': dynamicScreenChallengeTrace,
         'globalFlicker': globalFlickerScore > 0.16,
         'localRefreshFlicker': localFlickerScore > 0.18,
         'horizontalRefreshBands': refreshBandScore > 0.12,
@@ -184,7 +244,53 @@ class HCVLiveScreenProbe {
     };
   }
 
-  _FrameStats? _readFrameStats(CameraImage image) {
+  Map<String, double> _dynamicChallenge(List<_FrameStats> frames) {
+    final baseline = frames.where((f) => f.phase == 0).toList();
+    final challenged = frames.where((f) => f.phase == 1).toList();
+
+    if (baseline.length < 4 || challenged.length < 4) {
+      return {
+        'dynamicChallengeScore': 0,
+        'persistentPatternScore': 0,
+      };
+    }
+
+    final before = _phaseAverages(baseline);
+    final after = _phaseAverages(challenged);
+    final response = ((before.meanLuma - after.meanLuma).abs() * 1.4) +
+        ((before.fineGridScore - after.fineGridScore).abs() * 0.7) +
+        ((before.moireFrequencyScore - after.moireFrequencyScore).abs() * 0.9) +
+        ((before.bandContrast - after.bandContrast).abs() * 0.7);
+    final moireShift =
+        (before.moireFrequencyScore - after.moireFrequencyScore).abs();
+    final persistentPattern =
+        min(before.fineGridScore, after.fineGridScore) *
+            (1.0 - min(1.0, moireShift));
+
+    return {
+      'dynamicChallengeScore': response.clamp(0.0, 1.0).toDouble(),
+      'persistentPatternScore': persistentPattern.clamp(0.0, 1.0).toDouble(),
+    };
+  }
+
+  _FrameStats _phaseAverages(List<_FrameStats> frames) {
+    double average(double Function(_FrameStats frame) read) {
+      return frames.map(read).reduce((a, b) => a + b) / frames.length;
+    }
+
+    return _FrameStats(
+      phase: frames.first.phase,
+      meanLuma: average((frame) => frame.meanLuma),
+      tileMeans: frames.first.tileMeans,
+      bandMeans: frames.first.bandMeans,
+      bandContrast: average((frame) => frame.bandContrast),
+      fineStripeScore: average((frame) => frame.fineStripeScore),
+      fineGridScore: average((frame) => frame.fineGridScore),
+      moireFrequencyScore: average((frame) => frame.moireFrequencyScore),
+    );
+  }
+
+  _FrameStats? _readFrameStats(CameraImage image, int phase) {
     if (image.planes.isEmpty) return null;
 
     final plane = image.planes.first;
@@ -293,6 +399,7 @@ class HCVLiveScreenProbe {
     }
 
     return _FrameStats(
+      phase: phase,
       meanLuma: total / count,
       tileMeans: tileMeans,
       bandMeans: bandMeans,
@@ -493,6 +600,7 @@ class HCVLiveScreenProbe {
 }
 
 class _FrameStats {
+  final int phase;
   final double meanLuma;
   final List<double> tileMeans;
   final List<double> bandMeans;
@@ -502,6 +610,7 @@ class _FrameStats {
   final double moireFrequencyScore;
 
   _FrameStats({
+    required this.phase,
     required this.meanLuma,
     required this.tileMeans,
     required this.bandMeans,

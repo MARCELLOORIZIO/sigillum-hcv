@@ -224,7 +224,9 @@ class _ScreenReplayCalibrationPageState
                     'local ${sample['analysis']['localTemporalFlickerScore']} - '
                     'band ${sample['analysis']['refreshBandScore']} - '
                     'stripe ${sample['analysis']['fineStripeScore']} - '
-                    'grid ${sample['analysis']['fineGridScore']}',
+                    'grid ${sample['analysis']['fineGridScore']} - '
+                    'dyn ${sample['analysis']['dynamicChallengeScore']} - '
+                    'persist ${sample['analysis']['persistentPatternScore']}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 12),
                   ),

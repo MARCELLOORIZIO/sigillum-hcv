@@ -422,8 +422,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveProbeFineStripeScore;
   String? liveProbeFineGridScore;
   String? liveProbeMoireFrequencyScore;
+  String? liveProbeDynamicChallengeScore;
+  String? liveProbePersistentPatternScore;
   String? liveProbeOpticalCorroboratedTrace;
   String? liveProbeMoireFrequencyTrace;
+  String? liveProbeDynamicScreenChallengeTrace;
   String? liveProbeUncorroboratedDisplayPattern;
   String? syntheticRisk;
   String? sceneAuthenticity;
@@ -640,8 +643,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveProbeFineStripeScore = null;
       liveProbeFineGridScore = null;
       liveProbeMoireFrequencyScore = null;
+      liveProbeDynamicChallengeScore = null;
+      liveProbePersistentPatternScore = null;
       liveProbeOpticalCorroboratedTrace = null;
       liveProbeMoireFrequencyTrace = null;
+      liveProbeDynamicScreenChallengeTrace = null;
       liveProbeUncorroboratedDisplayPattern = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
@@ -688,12 +694,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               liveScreenProbe['fineGridScore']?.toString();
           liveProbeMoireFrequencyScore =
               liveScreenProbe['moireFrequencyScore']?.toString();
+          liveProbeDynamicChallengeScore =
+              liveScreenProbe['dynamicChallengeScore']?.toString();
+          liveProbePersistentPatternScore =
+              liveScreenProbe['persistentPatternScore']?.toString();
           final liveProbeSignals = liveScreenProbe['signals'];
           if (liveProbeSignals is Map) {
             liveProbeOpticalCorroboratedTrace =
                 liveProbeSignals['opticalCorroboratedTrace']?.toString();
             liveProbeMoireFrequencyTrace =
                 liveProbeSignals['moireFrequencyTrace']?.toString();
+            liveProbeDynamicScreenChallengeTrace =
+                liveProbeSignals['dynamicScreenChallengeTrace']?.toString();
             liveProbeUncorroboratedDisplayPattern =
                 liveProbeSignals['uncorroboratedDisplayPattern']?.toString();
           }
@@ -1045,8 +1057,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   liveProbeFineStripeScore != null ||
                   liveProbeFineGridScore != null ||
                   liveProbeMoireFrequencyScore != null ||
+                  liveProbeDynamicChallengeScore != null ||
+                  liveProbePersistentPatternScore != null ||
                   liveProbeOpticalCorroboratedTrace != null ||
                   liveProbeMoireFrequencyTrace != null ||
+                  liveProbeDynamicScreenChallengeTrace != null ||
                   liveProbeUncorroboratedDisplayPattern != null ||
                   syntheticRisk != null ||
                   sceneAuthenticity != null ||
@@ -1077,8 +1092,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Probe Fine Stripe: ${liveProbeFineStripeScore ?? '-'}\n'
                   'Live Probe Fine Grid: ${liveProbeFineGridScore ?? '-'}\n'
                   'Live Probe Moire Frequency: ${liveProbeMoireFrequencyScore ?? '-'}\n'
+                  'Live Probe Dynamic Challenge: ${liveProbeDynamicChallengeScore ?? '-'}\n'
+                  'Live Probe Persistent Pattern: ${liveProbePersistentPatternScore ?? '-'}\n'
                   'Live Probe Optical Confirmed: ${liveProbeOpticalCorroboratedTrace ?? '-'}\n'
                   'Live Probe Moire Trace: ${liveProbeMoireFrequencyTrace ?? '-'}\n'
+                  'Live Probe Dynamic Trace: ${liveProbeDynamicScreenChallengeTrace ?? '-'}\n'
                   'Live Probe Unconfirmed Pattern: ${liveProbeUncorroboratedDisplayPattern ?? '-'}\n'
                   '\n'
                   'ANALISI FILE DOPO LO SCATTO\n'
