@@ -109,25 +109,28 @@ class HCVLiveScreenProbe {
     final bandTemporalScore = _bandTemporalScore(frames);
     final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
 
+    final movingRefreshTrace = bandTemporalScore > 0.04;
     final strongRefreshTrace =
-        refreshBandScore > 0.18 || bandTemporalScore > 0.10;
-    final displayBandTrace =
-        localFlickerScore > 0.24 && refreshBandScore > 0.15;
+        refreshBandScore > 0.22 || bandTemporalScore > 0.10;
+    final displayBandTrace = localFlickerScore > 0.34 &&
+        refreshBandScore > 0.18 &&
+        movingRefreshTrace;
     final opticalStripeTrace = fineStripeScore > 0.30 &&
         fineGridScore > 0.24 &&
         (refreshBandScore > 0.14 || localFlickerScore > 0.34);
-    final refreshCorroboration =
-        refreshBandScore > 0.11 || bandTemporalScore > 0.04;
+    final refreshCorroboration = strongRefreshTrace || movingRefreshTrace;
     final moireFrequencyTrace =
         moireFrequencyScore > 0.42 && refreshCorroboration;
     final globalDisplayPulse = globalFlickerScore > 0.16 &&
         localFlickerScore > 0.38 &&
         refreshCorroboration;
     final pairedFlickerTrace = localFlickerScore > 0.18 &&
-        (refreshBandScore > 0.10 || bandTemporalScore > 0.06);
+        (refreshBandScore > 0.14 || bandTemporalScore > 0.06);
     final uncorroboratedDisplayPattern =
         !refreshCorroboration &&
-            (moireFrequencyScore > 0.34 ||
+            (refreshBandScore > 0.07 ||
+                fineGridScore > 0.70 ||
+                moireFrequencyScore > 0.28 ||
                 (globalFlickerScore > 0.22 && localFlickerScore > 0.38));
     final confirmedDisplayTrace =
         strongRefreshTrace ||
@@ -142,6 +145,7 @@ class HCVLiveScreenProbe {
     if (opticalCorroboratedTrace) riskScore += 15;
     if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
     if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
+    if (!confirmedDisplayTrace && uncorroboratedDisplayPattern) riskScore += 20;
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
     riskScore = riskScore.clamp(0, 100).toInt();
@@ -173,7 +177,7 @@ class HCVLiveScreenProbe {
         'globalFlicker': globalFlickerScore > 0.16,
         'localRefreshFlicker': localFlickerScore > 0.18,
         'horizontalRefreshBands': refreshBandScore > 0.12,
-        'movingRefreshBands': bandTemporalScore > 0.10,
+        'movingRefreshBands': movingRefreshTrace,
       },
       'note':
           'Live preview screen probe measured before capture. It is evidence of display flicker/bands, not absolute proof.',
