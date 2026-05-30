@@ -421,7 +421,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveProbeRefreshBandScore;
   String? liveProbeFineStripeScore;
   String? liveProbeFineGridScore;
+  String? liveProbeMoireFrequencyScore;
   String? liveProbeOpticalCorroboratedTrace;
+  String? liveProbeMoireFrequencyTrace;
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
@@ -636,7 +638,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveProbeRefreshBandScore = null;
       liveProbeFineStripeScore = null;
       liveProbeFineGridScore = null;
+      liveProbeMoireFrequencyScore = null;
       liveProbeOpticalCorroboratedTrace = null;
+      liveProbeMoireFrequencyTrace = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
       aiProofLevel = null;
@@ -680,10 +684,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               liveScreenProbe['fineStripeScore']?.toString();
           liveProbeFineGridScore =
               liveScreenProbe['fineGridScore']?.toString();
+          liveProbeMoireFrequencyScore =
+              liveScreenProbe['moireFrequencyScore']?.toString();
           final liveProbeSignals = liveScreenProbe['signals'];
           if (liveProbeSignals is Map) {
             liveProbeOpticalCorroboratedTrace =
                 liveProbeSignals['opticalCorroboratedTrace']?.toString();
+            liveProbeMoireFrequencyTrace =
+                liveProbeSignals['moireFrequencyTrace']?.toString();
           }
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
@@ -1032,7 +1040,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   liveProbeRefreshBandScore != null ||
                   liveProbeFineStripeScore != null ||
                   liveProbeFineGridScore != null ||
+                  liveProbeMoireFrequencyScore != null ||
                   liveProbeOpticalCorroboratedTrace != null ||
+                  liveProbeMoireFrequencyTrace != null ||
                   syntheticRisk != null ||
                   sceneAuthenticity != null ||
                   aiProofLevel != null) ...[
@@ -1061,7 +1071,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Probe Refresh Band: ${liveProbeRefreshBandScore ?? '-'}\n'
                   'Live Probe Fine Stripe: ${liveProbeFineStripeScore ?? '-'}\n'
                   'Live Probe Fine Grid: ${liveProbeFineGridScore ?? '-'}\n'
+                  'Live Probe Moire Frequency: ${liveProbeMoireFrequencyScore ?? '-'}\n'
                   'Live Probe Optical Confirmed: ${liveProbeOpticalCorroboratedTrace ?? '-'}\n'
+                  'Live Probe Moire Trace: ${liveProbeMoireFrequencyTrace ?? '-'}\n'
                   '\n'
                   'ANALISI FILE DOPO LO SCATTO\n'
                   'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'

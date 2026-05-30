@@ -103,6 +103,9 @@ class HCVLiveScreenProbe {
     final fineGridScore =
         frames.map((f) => f.fineGridScore).reduce((a, b) => a + b) /
             frames.length;
+    final moireFrequencyScore =
+        frames.map((f) => f.moireFrequencyScore).reduce((a, b) => a + b) /
+            frames.length;
     final bandTemporalScore = _bandTemporalScore(frames);
     final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
 
@@ -113,6 +116,10 @@ class HCVLiveScreenProbe {
     final opticalStripeTrace = fineStripeScore > 0.30 &&
         fineGridScore > 0.24 &&
         (refreshBandScore > 0.14 || localFlickerScore > 0.34);
+    final moireFrequencyTrace = moireFrequencyScore > 0.34 &&
+        (fineGridScore > 0.18 ||
+            refreshBandScore > 0.12 ||
+            localFlickerScore > 0.28);
     final globalDisplayPulse = globalFlickerScore > 0.16 &&
         (refreshBandScore > 0.10 || localFlickerScore > 0.38);
     final pairedFlickerTrace = localFlickerScore > 0.18 &&
@@ -128,6 +135,7 @@ class HCVLiveScreenProbe {
     if (confirmedDisplayTrace) riskScore += 50;
     if (strongRefreshTrace) riskScore += 15;
     if (opticalCorroboratedTrace) riskScore += 15;
+    if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
     if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
@@ -143,6 +151,7 @@ class HCVLiveScreenProbe {
       'refreshBandScore': _round(refreshBandScore),
       'fineStripeScore': _round(fineStripeScore),
       'fineGridScore': _round(fineGridScore),
+      'moireFrequencyScore': _round(moireFrequencyScore),
       'bandTemporalScore': _round(bandTemporalScore),
       'stableExposureScore': _round(stableExposureScore),
       'signals': {
@@ -151,6 +160,7 @@ class HCVLiveScreenProbe {
         'displayBandTrace': displayBandTrace,
         'opticalStripeTrace': opticalStripeTrace,
         'opticalCorroboratedTrace': opticalCorroboratedTrace,
+        'moireFrequencyTrace': moireFrequencyTrace,
         'globalDisplayPulse': globalDisplayPulse,
         'confirmedDisplayTrace': confirmedDisplayTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
@@ -279,6 +289,10 @@ class HCVLiveScreenProbe {
       bandContrast: _profileContrast(bandMeans),
       fineStripeScore: _fineStripeScore(fineRows),
       fineGridScore: max(_fineStripeScore(fineRows), _fineStripeScore(fineCols)),
+      moireFrequencyScore: max(
+        _periodicFrequencyScore(fineRows),
+        _periodicFrequencyScore(fineCols),
+      ),
     );
   }
 
@@ -355,6 +369,41 @@ class HCVLiveScreenProbe {
             (gradientStrength * 1.8) +
             (transitionRatio * 0.12) +
             (alternatingRatio * 0.10))
+        .clamp(0.0, 1.0)
+        .toDouble();
+  }
+
+  double _periodicFrequencyScore(List<double> profile) {
+    if (profile.length < 24) return 0;
+
+    final mean = profile.reduce((a, b) => a + b) / profile.length;
+    final centered = profile.map((value) => value - mean).toList();
+    final totalEnergy =
+        centered.map((value) => value * value).reduce((a, b) => a + b);
+
+    if (totalEnergy < 0.00008) return 0;
+
+    var strongest = 0.0;
+    final upperBin = min(profile.length ~/ 2, 18);
+
+    for (var bin = 3; bin <= upperBin; bin++) {
+      var real = 0.0;
+      var imaginary = 0.0;
+
+      for (var i = 0; i < centered.length; i++) {
+        final angle = 2 * pi * bin * i / centered.length;
+        real += centered[i] * cos(angle);
+        imaginary += centered[i] * sin(angle);
+      }
+
+      final energy = (real * real + imaginary * imaginary) / centered.length;
+      strongest = max(strongest, energy);
+    }
+
+    final dominance = strongest / totalEnergy;
+    final contrast = sqrt(totalEnergy / centered.length);
+
+    return ((dominance * 1.8) + (contrast * 2.4))
         .clamp(0.0, 1.0)
         .toDouble();
   }
@@ -440,6 +489,7 @@ class _FrameStats {
   final double bandContrast;
   final double fineStripeScore;
   final double fineGridScore;
+  final double moireFrequencyScore;
 
   _FrameStats({
     required this.meanLuma,
@@ -448,5 +498,6 @@ class _FrameStats {
     required this.bandContrast,
     required this.fineStripeScore,
     required this.fineGridScore,
+    required this.moireFrequencyScore,
   });
 }
