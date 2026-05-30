@@ -200,11 +200,11 @@ class HCVLiveScreenProbe {
     if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
     if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
     if (!confirmedDisplayTrace && uncorroboratedDisplayPattern) riskScore += 20;
-    if (!confirmedDisplayTrace && dynamicScreenChallengeTrace) {
-      riskScore += 15;
-    }
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
+    if (!confirmedDisplayTrace) {
+      riskScore = min(riskScore, 30);
+    }
     riskScore = riskScore.clamp(0, 100).toInt();
 
     return {
