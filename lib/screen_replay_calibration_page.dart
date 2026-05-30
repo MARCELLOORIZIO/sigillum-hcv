@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'hcv_live_screen_probe.dart';
 
@@ -20,9 +23,18 @@ class _ScreenReplayCalibrationPageState
   List<CameraDescription> cameras = [];
   bool ready = false;
   bool running = false;
-  String selectedLabel = 'SCREEN';
-  String status = 'Scegli il tipo di scena e avvia il test.';
+  String selectedLabel = 'SCREEN_MONITOR';
+  String status = 'Scegli la classe ML e avvia il test.';
   final samples = <Map<String, dynamic>>[];
+  final labels = const [
+    'SCREEN_MONITOR',
+    'SCREEN_PHONE',
+    'SCREEN_TABLET',
+    'REALITY_PAPER',
+    'REALITY_ROOM',
+    'REALITY_OBJECT',
+    'REALITY_OUTDOOR',
+  ];
 
   @override
   void initState() {
@@ -73,12 +85,11 @@ class _ScreenReplayCalibrationPageState
 
     setState(() {
       running = true;
-      status = selectedLabel == 'SCREEN'
-          ? 'Test SCHERMO in corso: muovi leggermente iPhone.'
-          : 'Test REALTA in corso: muovi leggermente iPhone.';
+      status = 'Raccolta campione ML: $selectedLabel';
     });
 
     try {
+      final capturedImages = await _captureMlImages(current);
       final analysis = await HCVLiveScreenProbe().analyzePreview(
         current,
         duration: const Duration(seconds: 10),
@@ -89,6 +100,8 @@ class _ScreenReplayCalibrationPageState
       final sample = {
         'label': selectedLabel,
         'createdAt': DateTime.now().toIso8601String(),
+        'captureDevice': current.description.name,
+        'imagePaths': capturedImages,
         'analysis': analysis,
       };
 
@@ -96,7 +109,7 @@ class _ScreenReplayCalibrationPageState
       setState(() {
         samples.add(sample);
         status =
-            'Campione salvato: $selectedLabel / ${analysis['screenReplayRisk']} / ${analysis['screenReplayRiskScore']}';
+            'Campione ML salvato: $selectedLabel / ${capturedImages.length} immagini / ${analysis['screenReplayRisk']}';
       });
     } catch (e) {
       if (!mounted) return;
@@ -113,7 +126,8 @@ class _ScreenReplayCalibrationPageState
 
     const encoder = JsonEncoder.withIndent('  ');
     final text = encoder.convert({
-      'type': 'SIGILLUM_SCREEN_REPLAY_CALIBRATION_DATASET_V1',
+      'type': 'SIGILLUM_SCREEN_REPLAY_ML_DATASET_V1',
+      'classes': labels,
       'samples': samples,
     });
 
@@ -124,27 +138,58 @@ class _ScreenReplayCalibrationPageState
     );
   }
 
+  Future<List<String>> _captureMlImages(CameraController current) async {
+    final dir = await _datasetDirectory(selectedLabel);
+    final paths = <String>[];
+
+    for (var i = 0; i < 3; i++) {
+      final photo = await current.takePicture();
+      final target = File(
+        p.join(
+          dir.path,
+          '${DateTime.now().millisecondsSinceEpoch}_${i + 1}.jpg',
+        ),
+      );
+      await File(photo.path).copy(target.path);
+      paths.add(target.path);
+      await Future.delayed(const Duration(milliseconds: 350));
+    }
+
+    return paths;
+  }
+
+  Future<Directory> _datasetDirectory(String label) async {
+    final root = await getApplicationDocumentsDirectory();
+    final dir = Directory(p.join(root.path, 'sigillum_ml_dataset', label));
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
+  }
+
   @override
   void dispose() {
     controller?.dispose();
     super.dispose();
   }
 
-  Widget _choiceButton(String label, String text) {
+  Widget _choiceButton(String label) {
     final selected = selectedLabel == label;
-    return Expanded(
-      child: OutlinedButton(
-        onPressed: running
-            ? null
-            : () {
-                setState(() => selectedLabel = label);
-              },
-        style: OutlinedButton.styleFrom(
-          backgroundColor: selected ? Colors.black : null,
-          foregroundColor: selected ? Colors.white : null,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        child: Text(text),
+    return OutlinedButton(
+      onPressed: running
+          ? null
+          : () {
+              setState(() => selectedLabel = label);
+            },
+      style: OutlinedButton.styleFrom(
+        backgroundColor: selected ? Colors.black : null,
+        foregroundColor: selected ? Colors.white : null,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11),
       ),
     );
   }
@@ -177,17 +222,18 @@ class _ScreenReplayCalibrationPageState
               ),
               const SizedBox(height: 18),
               const Text(
-                'Misura il LIVE PROBE: il controllo che SIGILLUM fa prima '
-                'di scattare una foto o iniziare un video.',
+                'Raccoglie immagini etichettate per il modello ML SIGILLUM '
+                'e misura anche il live probe fisico.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const SizedBox(height: 12),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
                 children: [
-                  _choiceButton('SCREEN', 'SCHERMO'),
-                  const SizedBox(width: 12),
-                  _choiceButton('REALITY', 'REALTA'),
+                  for (final label in labels) _choiceButton(label),
                 ],
               ),
               const SizedBox(height: 16),
