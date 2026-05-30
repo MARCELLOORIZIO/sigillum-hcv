@@ -116,14 +116,19 @@ class HCVLiveScreenProbe {
     final opticalStripeTrace = fineStripeScore > 0.30 &&
         fineGridScore > 0.24 &&
         (refreshBandScore > 0.14 || localFlickerScore > 0.34);
-    final moireFrequencyTrace = moireFrequencyScore > 0.34 &&
-        (fineGridScore > 0.18 ||
-            refreshBandScore > 0.12 ||
-            localFlickerScore > 0.28);
+    final refreshCorroboration =
+        refreshBandScore > 0.11 || bandTemporalScore > 0.04;
+    final moireFrequencyTrace =
+        moireFrequencyScore > 0.42 && refreshCorroboration;
     final globalDisplayPulse = globalFlickerScore > 0.16 &&
-        (refreshBandScore > 0.10 || localFlickerScore > 0.38);
+        localFlickerScore > 0.38 &&
+        refreshCorroboration;
     final pairedFlickerTrace = localFlickerScore > 0.18 &&
-        (refreshBandScore > 0.08 || bandTemporalScore > 0.06);
+        (refreshBandScore > 0.10 || bandTemporalScore > 0.06);
+    final uncorroboratedDisplayPattern =
+        !refreshCorroboration &&
+            (moireFrequencyScore > 0.34 ||
+                (globalFlickerScore > 0.22 && localFlickerScore > 0.38));
     final confirmedDisplayTrace =
         strongRefreshTrace ||
         displayBandTrace ||
@@ -164,6 +169,7 @@ class HCVLiveScreenProbe {
         'globalDisplayPulse': globalDisplayPulse,
         'confirmedDisplayTrace': confirmedDisplayTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
+        'uncorroboratedDisplayPattern': uncorroboratedDisplayPattern,
         'globalFlicker': globalFlickerScore > 0.16,
         'localRefreshFlicker': localFlickerScore > 0.18,
         'horizontalRefreshBands': refreshBandScore > 0.12,

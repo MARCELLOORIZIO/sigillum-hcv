@@ -424,6 +424,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveProbeMoireFrequencyScore;
   String? liveProbeOpticalCorroboratedTrace;
   String? liveProbeMoireFrequencyTrace;
+  String? liveProbeUncorroboratedDisplayPattern;
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
@@ -641,6 +642,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveProbeMoireFrequencyScore = null;
       liveProbeOpticalCorroboratedTrace = null;
       liveProbeMoireFrequencyTrace = null;
+      liveProbeUncorroboratedDisplayPattern = null;
       syntheticRisk = null;
       sceneAuthenticity = null;
       aiProofLevel = null;
@@ -692,6 +694,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 liveProbeSignals['opticalCorroboratedTrace']?.toString();
             liveProbeMoireFrequencyTrace =
                 liveProbeSignals['moireFrequencyTrace']?.toString();
+            liveProbeUncorroboratedDisplayPattern =
+                liveProbeSignals['uncorroboratedDisplayPattern']?.toString();
           }
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
@@ -1043,6 +1047,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   liveProbeMoireFrequencyScore != null ||
                   liveProbeOpticalCorroboratedTrace != null ||
                   liveProbeMoireFrequencyTrace != null ||
+                  liveProbeUncorroboratedDisplayPattern != null ||
                   syntheticRisk != null ||
                   sceneAuthenticity != null ||
                   aiProofLevel != null) ...[
@@ -1074,6 +1079,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Live Probe Moire Frequency: ${liveProbeMoireFrequencyScore ?? '-'}\n'
                   'Live Probe Optical Confirmed: ${liveProbeOpticalCorroboratedTrace ?? '-'}\n'
                   'Live Probe Moire Trace: ${liveProbeMoireFrequencyTrace ?? '-'}\n'
+                  'Live Probe Unconfirmed Pattern: ${liveProbeUncorroboratedDisplayPattern ?? '-'}\n'
                   '\n'
                   'ANALISI FILE DOPO LO SCATTO\n'
                   'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'
