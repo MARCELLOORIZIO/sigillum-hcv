@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'hcv_screen_replay_analyzer.dart';
+import 'hcv_ml_screen_replay_classifier.dart';
 
 class ScreenReplayDiagnosticsPage extends StatefulWidget {
   const ScreenReplayDiagnosticsPage({super.key});
@@ -41,9 +42,14 @@ class _ScreenReplayDiagnosticsPageState
 
     try {
       final analyzer = HCVScreenReplayAnalyzer();
-      final data = lower.endsWith('.mp4') || lower.endsWith('.mov')
+      final isVideo = lower.endsWith('.mp4') || lower.endsWith('.mov');
+      final staticData = isVideo
           ? await analyzer.analyzeVideo(path)
           : await analyzer.analyzeImage(path);
+      final mlData = isVideo
+          ? await HCVMLScreenReplayClassifier.instance.analyzeVideo(path)
+          : await HCVMLScreenReplayClassifier.instance.analyzeImage(path);
+      final data = _combine(staticData, mlData);
 
       if (!mounted) return;
       setState(() {
@@ -81,6 +87,44 @@ class _ScreenReplayDiagnosticsPageState
     return value == null ? '-' : value.toString();
   }
 
+  String _nestedValue(String parent, String key) {
+    final nested = analysis?[parent];
+    if (nested is! Map) return '-';
+    final value = nested[key];
+    return value == null ? '-' : value.toString();
+  }
+
+  Map<String, dynamic> _combine(
+    Map<String, dynamic> staticData,
+    Map<String, dynamic> mlData,
+  ) {
+    final staticScore = (staticData['screenReplayRiskScore'] as num?)?.toInt();
+    final mlScore = (mlData['screenReplayRiskScore'] as num?)?.toInt();
+    final score = [
+      if (staticScore != null) staticScore,
+      if (mlScore != null) mlScore,
+    ].fold<int?>(null, (best, value) {
+      if (best == null || value > best) return value;
+      return best;
+    });
+
+    return {
+      'type': 'SIGILLUM_SCREEN_REPLAY_DIAGNOSTIC_WITH_ML_V1',
+      'screenReplayRisk': score == null ? 'UNKNOWN' : _riskLabel(score),
+      'screenReplayRiskScore': score,
+      'staticScreenReplayAnalysis': staticData,
+      'mlScreenReplayAnalysis': mlData,
+    };
+  }
+
+  String _riskLabel(int riskScore) {
+    return riskScore >= 60
+        ? 'HIGH'
+        : riskScore >= 35
+            ? 'MEDIUM'
+            : 'LOW';
+  }
+
   String _reportText() {
     if (analysis == null) return '';
 
@@ -90,19 +134,22 @@ class _ScreenReplayDiagnosticsPageState
       'file: ${selectedPath ?? '-'}',
       'risk: ${_value('screenReplayRisk')}',
       'score: ${_value('screenReplayRiskScore')}',
-      'localTemporalFlickerScore: ${_value('localTemporalFlickerScore')}',
-      'refreshBandScore: ${_value('refreshBandScore')}',
-      'pixelGridUniformityScore: ${_value('pixelGridUniformityScore')}',
-      'gridLikeScore: ${_value('gridLikeScore')}',
-      'uniformityScore: ${_value('uniformityScore')}',
-      'rectangleEdgeScore: ${_value('rectangleEdgeScore')}',
-      'microVariationScore: ${_value('microVariationScore')}',
+      'mlPredictedClass: ${_nestedValue('mlScreenReplayAnalysis', 'predictedClass')}',
+      'mlScreenProbability: ${_nestedValue('mlScreenReplayAnalysis', 'screenProbability')}',
+      'mlReason: ${_nestedValue('mlScreenReplayAnalysis', 'reason')}',
+      'localTemporalFlickerScore: ${_nestedValue('staticScreenReplayAnalysis', 'localTemporalFlickerScore')}',
+      'refreshBandScore: ${_nestedValue('staticScreenReplayAnalysis', 'refreshBandScore')}',
+      'pixelGridUniformityScore: ${_nestedValue('staticScreenReplayAnalysis', 'pixelGridUniformityScore')}',
+      'gridLikeScore: ${_nestedValue('staticScreenReplayAnalysis', 'gridLikeScore')}',
+      'uniformityScore: ${_nestedValue('staticScreenReplayAnalysis', 'uniformityScore')}',
+      'rectangleEdgeScore: ${_nestedValue('staticScreenReplayAnalysis', 'rectangleEdgeScore')}',
+      'microVariationScore: ${_nestedValue('staticScreenReplayAnalysis', 'microVariationScore')}',
       'raw:',
       encoder.convert(analysis),
     ].join('\n');
   }
 
-  Widget _metric(String label, String key) {
+  Widget _nestedMetric(String label, String parent, String key) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -113,7 +160,12 @@ class _ScreenReplayDiagnosticsPageState
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          Text(_value(key)),
+          Flexible(
+            child: Text(
+              _nestedValue(parent, key),
+              textAlign: TextAlign.right,
+            ),
+          ),
         ],
       ),
     );
@@ -176,21 +228,47 @@ class _ScreenReplayDiagnosticsPageState
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'ANALISI FILE DOPO LO SCATTO',
+                  'ANALISI ML',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                _metric('Local Flicker', 'localTemporalFlickerScore'),
-                _metric('Refresh Band', 'refreshBandScore'),
-                _metric('Pixel Grid', 'pixelGridUniformityScore'),
-                _metric('Grid/Moire', 'gridLikeScore'),
-                _metric('Uniformity', 'uniformityScore'),
-                _metric('Rectangle Edge', 'rectangleEdgeScore'),
-                _metric('Micro Variation', 'microVariationScore'),
-                _metric('Frames', 'framesAnalyzed'),
-                _metric('Segments', 'segmentsAnalyzed'),
-                _metric('Worst Second', 'worstSegmentSecond'),
+                _nestedMetric(
+                    'Classe', 'mlScreenReplayAnalysis', 'predictedClass'),
+                _nestedMetric(
+                    'Prob. schermo', 'mlScreenReplayAnalysis', 'screenProbability'),
+                _nestedMetric('Score ML', 'mlScreenReplayAnalysis',
+                    'screenReplayRiskScore'),
+                _nestedMetric(
+                    'Reason', 'mlScreenReplayAnalysis', 'reason'),
+                _nestedMetric('Error', 'mlScreenReplayAnalysis', 'error'),
+                const SizedBox(height: 20),
+                const Text(
+                  'ANALISI CLASSICA',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                _nestedMetric('Local Flicker', 'staticScreenReplayAnalysis',
+                    'localTemporalFlickerScore'),
+                _nestedMetric('Refresh Band', 'staticScreenReplayAnalysis',
+                    'refreshBandScore'),
+                _nestedMetric('Pixel Grid', 'staticScreenReplayAnalysis',
+                    'pixelGridUniformityScore'),
+                _nestedMetric(
+                    'Grid/Moire', 'staticScreenReplayAnalysis', 'gridLikeScore'),
+                _nestedMetric(
+                    'Uniformity', 'staticScreenReplayAnalysis', 'uniformityScore'),
+                _nestedMetric('Rectangle Edge', 'staticScreenReplayAnalysis',
+                    'rectangleEdgeScore'),
+                _nestedMetric('Micro Variation', 'staticScreenReplayAnalysis',
+                    'microVariationScore'),
+                _nestedMetric(
+                    'Frames', 'staticScreenReplayAnalysis', 'framesAnalyzed'),
+                _nestedMetric(
+                    'Segments', 'staticScreenReplayAnalysis', 'segmentsAnalyzed'),
+                _nestedMetric('Worst Second', 'staticScreenReplayAnalysis',
+                    'worstSegmentSecond'),
                 const SizedBox(height: 20),
                 OutlinedButton.icon(
                   onPressed: copyReport,

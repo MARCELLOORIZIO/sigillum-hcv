@@ -16,11 +16,11 @@ import 'hcv_live_signals.dart';
 import 'hcv_trust_analyzer.dart';
 import 'hcv_video_watermark.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'hcv_social_fingerprint.dart';
 import 'hcv_image_watermark.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_live_screen_probe.dart';
+import 'hcv_ml_screen_replay_classifier.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -270,6 +270,7 @@ class _CameraPageState extends State<CameraPage> {
       final hash = sha256.convert(fileBytes).toString();
       Map<String, dynamic>? socialFingerprint;
       Map<String, dynamic>? screenReplayAnalysis;
+      Map<String, dynamic>? mlScreenReplayAnalysis;
 
       try {
         socialFingerprint =
@@ -285,8 +286,27 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis = null;
       }
 
+      try {
+        mlScreenReplayAnalysis =
+            await HCVMLScreenReplayClassifier.instance.analyzeImage(
+          publishedPhoto,
+        );
+      } catch (e) {
+        mlScreenReplayAnalysis = {
+          'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+          'screenReplayRisk': 'UNKNOWN',
+          'screenReplayRiskScore': null,
+          'reason': 'ML_ANALYSIS_EXCEPTION',
+          'error': e.toString(),
+        };
+      }
+
       final detectedScreenReplayRisk =
-          _strongestScreenReplayRisk([liveScreenProbe, screenReplayAnalysis]);
+          _strongestScreenReplayRisk([
+        liveScreenProbe,
+        screenReplayAnalysis,
+        mlScreenReplayAnalysis,
+      ]);
       final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
           detectedScreenReplayRisk == "MEDIUM";
 
@@ -313,9 +333,15 @@ class _CameraPageState extends State<CameraPage> {
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "liveScreenProbe": liveScreenProbe,
         "screenReplayAnalysis": screenReplayAnalysis,
+        "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
         "screenReplayRisk": detectedScreenReplayRisk ?? "UNKNOWN",
         "screenReplayRiskScore": _strongestScreenReplayScore(
-            [liveScreenProbe, screenReplayAnalysis]),
+          [
+            liveScreenProbe,
+            screenReplayAnalysis,
+            mlScreenReplayAnalysis,
+          ],
+        ),
         "watermark": "SIGILLUM_VISIBLE",
         "socialVerification": true,
         "socialFingerprintAlgorithm": socialFingerprint?["algorithm"],
@@ -337,12 +363,10 @@ class _CameraPageState extends State<CameraPage> {
           videoPath: publishedPhoto,
           hcvPath: hcv,
         );
-        if (pack != null) {
-          pack = await movePackageToUnifiedName(
-            currentPath: pack,
-            hcvId: preparedHcvId,
-          );
-        }
+        pack = await movePackageToUnifiedName(
+          currentPath: pack,
+          hcvId: preparedHcvId,
+        );
       }
 
       setState(() {
@@ -587,6 +611,7 @@ class _CameraPageState extends State<CameraPage> {
 
     Map<String, dynamic>? socialFingerprint;
     Map<String, dynamic>? screenReplayAnalysis;
+    Map<String, dynamic>? mlScreenReplayAnalysis;
 
     try {
       socialFingerprint =
@@ -600,6 +625,21 @@ class _CameraPageState extends State<CameraPage> {
           await HCVScreenReplayAnalyzer().analyzeVideo(savedVideoPath);
     } catch (_) {
       screenReplayAnalysis = null;
+    }
+
+    try {
+      mlScreenReplayAnalysis =
+          await HCVMLScreenReplayClassifier.instance.analyzeVideo(
+        savedVideoPath,
+      );
+    } catch (e) {
+      mlScreenReplayAnalysis = {
+        'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+        'screenReplayRisk': 'UNKNOWN',
+        'screenReplayRiskScore': null,
+        'reason': 'VIDEO_ML_ANALYSIS_EXCEPTION',
+        'error': e.toString(),
+      };
     }
 
     setState(() {
@@ -624,7 +664,11 @@ class _CameraPageState extends State<CameraPage> {
       captureMode: captureMode,
     );
     final detectedScreenReplayRisk =
-        _strongestScreenReplayRisk([liveScreenProbe, screenReplayAnalysis]);
+        _strongestScreenReplayRisk([
+      liveScreenProbe,
+      screenReplayAnalysis,
+      mlScreenReplayAnalysis,
+    ]);
     final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
         detectedScreenReplayRisk == "MEDIUM";
 
@@ -649,10 +693,14 @@ class _CameraPageState extends State<CameraPage> {
       "captureModeNote": trustAnalysis["note"],
       "liveScreenProbe": liveScreenProbe,
       "screenReplayAnalysis": screenReplayAnalysis,
+      "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
       "screenReplayRisk":
           detectedScreenReplayRisk ?? trustAnalysis["screenReplayRisk"],
-      "screenReplayRiskScore":
-          _strongestScreenReplayScore([liveScreenProbe, screenReplayAnalysis]),
+      "screenReplayRiskScore": _strongestScreenReplayScore([
+        liveScreenProbe,
+        screenReplayAnalysis,
+        mlScreenReplayAnalysis,
+      ]),
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
       "publishedVideo": true,
@@ -691,16 +739,16 @@ class _CameraPageState extends State<CameraPage> {
     detectedId ??= preparedHcvId;
     detectedUrl ??= preparedVerificationUrl;
 
-    if (detectedId != null && detectedId!.isNotEmpty) {
+    if (detectedId.isNotEmpty) {
       try {
         savedVideoPath = await renameVideoWithHcvId(
           currentPath: savedVideoPath,
-          hcvId: detectedId!,
+          hcvId: detectedId,
         );
 
         hcv = await moveHcvToUnifiedName(
           currentPath: hcv,
-          hcvId: detectedId!,
+          hcvId: detectedId,
         );
       } catch (e) {
         setState(() {
@@ -717,13 +765,13 @@ class _CameraPageState extends State<CameraPage> {
       );
       print("PACKAGE GENERATED:");
       print(pack);
-      print(pack != null ? await File(pack).exists() : false);
+      print(await File(pack).exists());
 
-      if (detectedId != null && detectedId!.isNotEmpty && pack != null) {
+      if (detectedId.isNotEmpty) {
         try {
           pack = await movePackageToUnifiedName(
             currentPath: pack,
-            hcvId: detectedId!,
+            hcvId: detectedId,
           );
         } catch (_) {}
       }
