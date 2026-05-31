@@ -203,7 +203,7 @@ class HCVMLScreenReplayClassifier {
   }
 
   Map<String, dynamic> _unknown(String reason, [Object? error]) {
-    final data = {
+    final Map<String, dynamic> data = {
       'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
       'screenReplayRisk': 'UNKNOWN',
       'screenReplayRiskScore': null,
