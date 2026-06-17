@@ -39,12 +39,13 @@ class HCVMLScreenReplayClassifier {
 
     try {
       await workDir.create(recursive: true);
-      final framePath = p.join(workDir.path, 'frame.jpg');
-      final command = "-y -ss 0 -i '$videoPath' "
-          "-frames:v 1 "
+      final framePattern = p.join(workDir.path, 'frame_%03d.jpg');
+      final command = "-y -i '$videoPath' "
           "-vf \"scale=720:720:force_original_aspect_ratio=decrease,"
-          "pad=720:720:(ow-iw)/2:(oh-ih)/2\" "
-          "'$framePath'";
+          "pad=720:720:(ow-iw)/2:(oh-ih)/2,"
+          "fps=1/3\" "
+          "-frames:v 8 "
+          "'$framePattern'";
 
       final session = await FFmpegKit.execute(command);
       final code = await session.getReturnCode();
@@ -52,10 +53,51 @@ class HCVMLScreenReplayClassifier {
         return _unknown('FRAME_EXTRACTION_FAILED');
       }
 
-      final analysis = await analyzeImage(framePath);
-      analysis['scanMode'] = 'VIDEO_FRAME_ML_CLASSIFIER';
-      analysis['videoFrameSecond'] = 0;
-      return analysis;
+      final frames = workDir
+          .listSync()
+          .whereType<File>()
+          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
+
+      if (frames.isEmpty) {
+        return _unknown('NOT_ENOUGH_VIDEO_FRAMES');
+      }
+
+      final analyses = <Map<String, dynamic>>[];
+      for (var i = 0; i < frames.length; i++) {
+        final analysis = await analyzeImage(frames[i].path);
+        analysis['videoFrameIndex'] = i;
+        analysis['approxVideoSecond'] = i * 3;
+        analyses.add(analysis);
+      }
+
+      analyses.sort((a, b) {
+        final bScore = (b['screenReplayRiskScore'] as num?)?.toInt() ?? -1;
+        final aScore = (a['screenReplayRiskScore'] as num?)?.toInt() ?? -1;
+        return bScore.compareTo(aScore);
+      });
+
+      final worst = Map<String, dynamic>.from(analyses.first);
+      final scores = analyses
+          .map((item) => (item['screenReplayRiskScore'] as num?)?.toInt())
+          .whereType<int>()
+          .toList();
+      final maxScore = scores.isEmpty ? null : scores.reduce(max);
+      final averageScore = scores.isEmpty
+          ? null
+          : scores.reduce((a, b) => a + b) / scores.length;
+
+      worst['scanMode'] = 'VIDEO_MULTI_FRAME_ML_CLASSIFIER';
+      worst['framesAnalyzed'] = analyses.length;
+      worst['screenReplayRiskScore'] = maxScore;
+      worst['screenReplayRisk'] =
+          maxScore == null ? 'UNKNOWN' : _riskLabel(maxScore);
+      worst['videoFrameSecond'] = worst['approxVideoSecond'];
+      worst['averageScreenReplayRiskScore'] =
+          averageScore == null ? null : _round(averageScore);
+      worst['videoFrameAnalyses'] = analyses.take(12).toList();
+      return worst;
     } catch (e) {
       return _unknown('VIDEO_ML_ANALYSIS_ERROR', e);
     } finally {
@@ -113,8 +155,8 @@ class HCVMLScreenReplayClassifier {
         },
         'signals': {
           'mlScreenClass': classes[topIndex].startsWith('SCREEN_'),
-          'mlScreenProbabilityHigh': screenProbability >= 0.60,
-          'mlScreenProbabilityMedium': screenProbability >= 0.35,
+          'mlScreenProbabilityHigh': screenProbability >= 0.80,
+          'mlScreenProbabilityMedium': screenProbability >= 0.55,
         },
         'note':
             'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',
@@ -127,7 +169,7 @@ class HCVMLScreenReplayClassifier {
   Future<void> _ensureLoaded() async {
     if (_interpreter != null && _classes != null) return;
 
-    _interpreter = await Interpreter.fromAsset(_modelPath);
+    _interpreter = Interpreter.fromFile(await _assetFile(_modelPath));
     final rawLabels = await rootBundle.loadString(_labelsPath);
     final decoded = jsonDecode(rawLabels);
     final classes = decoded is Map ? decoded['classes'] : null;
@@ -136,6 +178,17 @@ class HCVMLScreenReplayClassifier {
     } else {
       _classes = const [];
     }
+  }
+
+  Future<File> _assetFile(String assetPath) async {
+    final tempDir = await getTemporaryDirectory();
+    final file = File(p.join(tempDir.path, p.basename(assetPath)));
+    final asset = await rootBundle.load(assetPath);
+    await file.writeAsBytes(
+      asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes),
+      flush: true,
+    );
+    return file;
   }
 
   img.Image _letterbox(img.Image source) {
@@ -216,9 +269,9 @@ class HCVMLScreenReplayClassifier {
   }
 
   String _riskLabel(int riskScore) {
-    return riskScore >= 60
+    return riskScore >= 80
         ? 'HIGH'
-        : riskScore >= 35
+        : riskScore >= 55
             ? 'MEDIUM'
             : 'LOW';
   }

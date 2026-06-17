@@ -10,6 +10,7 @@ class HCVVideoWatermark {
     required String inputPath,
     required String hcvId,
     String? verificationUrl,
+    String? screenReplayLabel,
   }) async {
     final inputFile = File(inputPath);
 
@@ -48,6 +49,7 @@ class HCVVideoWatermark {
     final safeOutput = _escapePath(outputPath);
     final safeHcvId = _escapeText(hcvId);
     final safeVerify = _escapeText("VERIFY WITH HCV-ID");
+    final safeScreenReplayLabel = _escapeText(screenReplayLabel ?? "");
 
     final fontFile = Platform.isIOS
         ? "/System/Library/Fonts/Core/Avenir.ttc"
@@ -89,6 +91,15 @@ class HCVVideoWatermark {
           "x=52:y=116:"
           "fontsize=8:"
           "fontcolor=white@0.70",
+
+      if (safeScreenReplayLabel.isNotEmpty)
+        "drawtext=fontfile=$fontFile:text='$safeScreenReplayLabel':"
+            "x=52:y=138:"
+            "fontsize=10:"
+            "fontcolor=white@0.86:"
+            "box=1:"
+            "boxcolor=black@0.38:"
+            "boxborderw=5",
     ].join(",");
 
     final command = "-y "

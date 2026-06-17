@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -247,15 +248,61 @@ class _CameraPageState extends State<CameraPage> {
 
       final preparedVerificationUrl = "hcv://verify/$preparedHcvId";
 
+      Map<String, dynamic>? socialFingerprint;
+      Map<String, dynamic>? screenReplayAnalysis;
+      Map<String, dynamic>? mlScreenReplayAnalysis;
+
       setState(() {
         hcvId = preparedHcvId;
         verificationUrl = preparedVerificationUrl;
+        status = 'ANALYZING SCREEN REPLAY RISK...';
+      });
+
+      try {
+        screenReplayAnalysis =
+            await HCVScreenReplayAnalyzer().analyzeImage(savedPhotoPath);
+      } catch (_) {
+        screenReplayAnalysis = null;
+      }
+
+      try {
+        mlScreenReplayAnalysis =
+            await HCVMLScreenReplayClassifier.instance.analyzeImage(
+          savedPhotoPath,
+        );
+      } catch (e) {
+        mlScreenReplayAnalysis = {
+          'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+          'screenReplayRisk': 'UNKNOWN',
+          'screenReplayRiskScore': null,
+          'reason': 'ML_ANALYSIS_EXCEPTION',
+          'error': e.toString(),
+        };
+      }
+
+      final screenReplayAnalyses = [
+        liveScreenProbe,
+        screenReplayAnalysis,
+        mlScreenReplayAnalysis,
+      ];
+      final detectedScreenReplayRisk =
+          _combinedScreenReplayRisk(screenReplayAnalyses);
+      final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
+          detectedScreenReplayRisk == "MEDIUM";
+      final detectedScreenReplayScore =
+          _combinedScreenReplayScore(screenReplayAnalyses);
+
+      setState(() {
         status = 'ADDING SIGILLUM WATERMARK...';
       });
 
       final publishedPhoto = await HCVImageWatermark().createPublishedPhoto(
         inputPath: savedPhotoPath,
         hcvId: preparedHcvId,
+        screenReplayLabel: _screenReplayWatermarkLabel(
+          detectedScreenReplayRisk,
+          detectedScreenReplayScore,
+        ),
       );
 
       try {
@@ -268,9 +315,6 @@ class _CameraPageState extends State<CameraPage> {
       final fileBytes = await File(publishedPhoto).readAsBytes();
 
       final hash = sha256.convert(fileBytes).toString();
-      Map<String, dynamic>? socialFingerprint;
-      Map<String, dynamic>? screenReplayAnalysis;
-      Map<String, dynamic>? mlScreenReplayAnalysis;
 
       try {
         socialFingerprint =
@@ -278,37 +322,6 @@ class _CameraPageState extends State<CameraPage> {
       } catch (_) {
         socialFingerprint = null;
       }
-
-      try {
-        screenReplayAnalysis =
-            await HCVScreenReplayAnalyzer().analyzeImage(publishedPhoto);
-      } catch (_) {
-        screenReplayAnalysis = null;
-      }
-
-      try {
-        mlScreenReplayAnalysis =
-            await HCVMLScreenReplayClassifier.instance.analyzeImage(
-          publishedPhoto,
-        );
-      } catch (e) {
-        mlScreenReplayAnalysis = {
-          'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
-          'screenReplayRisk': 'UNKNOWN',
-          'screenReplayRiskScore': null,
-          'reason': 'ML_ANALYSIS_EXCEPTION',
-          'error': e.toString(),
-        };
-      }
-
-      final detectedScreenReplayRisk =
-          _strongestScreenReplayRisk([
-        liveScreenProbe,
-        screenReplayAnalysis,
-        mlScreenReplayAnalysis,
-      ]);
-      final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
-          detectedScreenReplayRisk == "MEDIUM";
 
       engine.setContent(
         type: 'photo',
@@ -335,13 +348,7 @@ class _CameraPageState extends State<CameraPage> {
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
         "screenReplayRisk": detectedScreenReplayRisk ?? "UNKNOWN",
-        "screenReplayRiskScore": _strongestScreenReplayScore(
-          [
-            liveScreenProbe,
-            screenReplayAnalysis,
-            mlScreenReplayAnalysis,
-          ],
-        ),
+        "screenReplayRiskScore": detectedScreenReplayScore,
         "watermark": "SIGILLUM_VISIBLE",
         "socialVerification": true,
         "socialFingerprintAlgorithm": socialFingerprint?["algorithm"],
@@ -563,6 +570,56 @@ class _CameraPageState extends State<CameraPage> {
     return score;
   }
 
+  String? _combinedScreenReplayRisk(List<Map<String, dynamic>?> analyses) {
+    final score = _combinedScreenReplayScore(analyses);
+    if (score == null) return null;
+
+    return score >= 80
+        ? "HIGH"
+        : score >= 55
+            ? "MEDIUM"
+            : "LOW";
+  }
+
+  int? _combinedScreenReplayScore(List<Map<String, dynamic>?> analyses) {
+    final strongestScore = _strongestScreenReplayScore(analyses);
+    Map<String, dynamic>? mlAnalysis;
+    for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
+      if (analysis["type"] == "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1") {
+        mlAnalysis = analysis;
+        break;
+      }
+    }
+
+    if (mlAnalysis == null) return strongestScore;
+
+    final mlScore = (mlAnalysis["screenReplayRiskScore"] as num?)?.toInt();
+    final mlClass = mlAnalysis["predictedClass"]?.toString();
+    final mlSaysReality =
+        mlClass != null && mlClass.startsWith("REALITY_") && mlScore != null;
+
+    if (mlSaysReality && mlScore <= 35 && strongestScore != null) {
+      return max(mlScore, min(strongestScore, 34));
+    }
+
+    return strongestScore;
+  }
+
+  String _screenReplayWatermarkLabel(String? risk, int? score) {
+    final normalizedRisk = risk?.toUpperCase();
+    if (normalizedRisk == "HIGH" || normalizedRisk == "MEDIUM") {
+      final suffix = score == null ? normalizedRisk : "$normalizedRisk / $score";
+      return "SCREEN RISK: $suffix";
+    }
+
+    if (normalizedRisk == "LOW") {
+      final suffix = score == null ? "OK" : "OK / $score";
+      return "REALITY CHECK: $suffix";
+    }
+
+    return "REALITY CHECK: NOT CONCLUSIVE";
+  }
+
   Future<void> processVideo(String path) async {
     final liveScreenProbe = pendingLiveScreenProbe;
     pendingLiveScreenProbe = null;
@@ -580,45 +637,16 @@ class _CameraPageState extends State<CameraPage> {
     final preparedHcvId = engine.hcvId;
     final preparedVerificationUrl = "hcv://verify/$preparedHcvId";
 
-    setState(() {
-      status = 'ADDING SIGILLUM LOGO...';
-      videoPath = savedVideoPath;
-      hcvId = preparedHcvId;
-      verificationUrl = preparedVerificationUrl;
-    });
-
-    final originalVideoBeforeWatermark = savedVideoPath;
-
-    try {
-      savedVideoPath = await HCVVideoWatermark().createPublishedVideo(
-        inputPath: savedVideoPath,
-        hcvId: preparedHcvId,
-        verificationUrl: preparedVerificationUrl,
-      );
-
-      try {
-        if (originalVideoBeforeWatermark != savedVideoPath &&
-            await File(originalVideoBeforeWatermark).exists()) {
-          await File(originalVideoBeforeWatermark).delete();
-        }
-      } catch (_) {}
-    } catch (e) {
-      setState(() {
-        status = 'WATERMARK ERROR: $e';
-      });
-      rethrow;
-    }
-
     Map<String, dynamic>? socialFingerprint;
     Map<String, dynamic>? screenReplayAnalysis;
     Map<String, dynamic>? mlScreenReplayAnalysis;
 
-    try {
-      socialFingerprint =
-          await HCVSocialFingerprint().buildFromVideo(savedVideoPath);
-    } catch (_) {
-      socialFingerprint = null;
-    }
+    setState(() {
+      status = 'ANALYZING SCREEN REPLAY RISK...';
+      videoPath = savedVideoPath;
+      hcvId = preparedHcvId;
+      verificationUrl = preparedVerificationUrl;
+    });
 
     try {
       screenReplayAnalysis =
@@ -642,6 +670,60 @@ class _CameraPageState extends State<CameraPage> {
       };
     }
 
+    final trustAnalysis = HCVTrustAnalyzer.analyze(
+      liveSignals: lastLiveSignals,
+      audioCaptured: true,
+      captureMode: captureMode,
+    );
+    final screenReplayAnalyses = [
+      liveScreenProbe,
+      screenReplayAnalysis,
+      mlScreenReplayAnalysis,
+    ];
+    final detectedScreenReplayRisk =
+        _combinedScreenReplayRisk(screenReplayAnalyses);
+    final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
+        detectedScreenReplayRisk == "MEDIUM";
+    final detectedScreenReplayScore =
+        _combinedScreenReplayScore(screenReplayAnalyses);
+
+    setState(() {
+      status = 'ADDING SIGILLUM LOGO...';
+    });
+
+    final originalVideoBeforeWatermark = savedVideoPath;
+
+    try {
+      savedVideoPath = await HCVVideoWatermark().createPublishedVideo(
+        inputPath: savedVideoPath,
+        hcvId: preparedHcvId,
+        verificationUrl: preparedVerificationUrl,
+        screenReplayLabel: _screenReplayWatermarkLabel(
+          detectedScreenReplayRisk,
+          detectedScreenReplayScore,
+        ),
+      );
+
+      try {
+        if (originalVideoBeforeWatermark != savedVideoPath &&
+            await File(originalVideoBeforeWatermark).exists()) {
+          await File(originalVideoBeforeWatermark).delete();
+        }
+      } catch (_) {}
+    } catch (e) {
+      setState(() {
+        status = 'WATERMARK ERROR: $e';
+      });
+      rethrow;
+    }
+
+    try {
+      socialFingerprint =
+          await HCVSocialFingerprint().buildFromVideo(savedVideoPath);
+    } catch (_) {
+      socialFingerprint = null;
+    }
+
     setState(() {
       status = 'CREATING HCV CERTIFICATE...';
       videoPath = savedVideoPath;
@@ -657,20 +739,6 @@ class _CameraPageState extends State<CameraPage> {
       size: videoBytes.length,
       name: p.basename(savedVideoPath),
     );
-
-    final trustAnalysis = HCVTrustAnalyzer.analyze(
-      liveSignals: lastLiveSignals,
-      audioCaptured: true,
-      captureMode: captureMode,
-    );
-    final detectedScreenReplayRisk =
-        _strongestScreenReplayRisk([
-      liveScreenProbe,
-      screenReplayAnalysis,
-      mlScreenReplayAnalysis,
-    ]);
-    final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
-        detectedScreenReplayRisk == "MEDIUM";
 
     engine.setClaims({
       "fileIntegrity": "VERIFIED",
@@ -696,11 +764,7 @@ class _CameraPageState extends State<CameraPage> {
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
       "screenReplayRisk":
           detectedScreenReplayRisk ?? trustAnalysis["screenReplayRisk"],
-      "screenReplayRiskScore": _strongestScreenReplayScore([
-        liveScreenProbe,
-        screenReplayAnalysis,
-        mlScreenReplayAnalysis,
-      ]),
+      "screenReplayRiskScore": detectedScreenReplayScore,
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
       "publishedVideo": true,

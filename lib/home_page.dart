@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'camera_page.dart';
-import 'hcvpack_player_page.dart';
 import 'hcv_import_router_page.dart';
-import 'import_page.dart';
+import 'hcvpack_player_page.dart';
 import 'identity_page.dart';
-import 'text_cert_page.dart';
+import 'import_page.dart';
 import 'registry_verify_page.dart';
-import 'screen_replay_diagnostics_page.dart';
 import 'screen_replay_calibration_page.dart';
+import 'screen_replay_diagnostics_page.dart';
+import 'text_cert_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -53,8 +53,7 @@ class _HomePageState extends State<HomePage> {
 
     final lower = path.toLowerCase();
 
-    final isMedia =
-        lower.endsWith('.mp4') ||
+    final isMedia = lower.endsWith('.mp4') ||
         lower.endsWith('.mov') ||
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
@@ -148,14 +147,14 @@ class _HomePageState extends State<HomePage> {
             child: SingleChildScrollView(
               child: Text(
                 "HCV crea una prova digitale per un contenuto.\n\n"
-                "Quando crei un video, l'app genera:\n\n"
-                "• un file MP4 standard\n"
-                "• un HCV-ID\n"
-                "• un certificato firmato\n"
-                "• un pacchetto HCVPACK opzionale\n\n"
-                "Per verificare online, l'app usa l'HCV-ID per recuperare il certificato dal Registry e confronta l'hash del file.\n\n"
-                "Se il contenuto è identico all'originale, appare HUMAN VERIFIED.\n\n"
-                "Se il file è stato modificato, appare NOT VERIFIED.",
+                "Quando crei una foto, un video o un testo, l'app genera:\n\n"
+                "- un contenuto standard condivisibile\n"
+                "- un HCV-ID\n"
+                "- un certificato firmato\n"
+                "- un pacchetto HCVPACK opzionale\n\n"
+                "Il controllo non riguarda solo i monitor. Sigillum combina piu prove: integrita del file, cattura live, watermark visibile, certificato firmato, Registry, fingerprint per file ricompressi dai social e analisi del rischio di replay da schermo.\n\n"
+                "Se il contenuto corrisponde al certificato appare HUMAN VERIFIED.\n\n"
+                "Se il file non corrisponde o il controllo non e conclusivo, l'app lo segnala.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, height: 1.4),
               ),
@@ -196,85 +195,68 @@ class _HomePageState extends State<HomePage> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
-                  "Crea video verificabili e controlla se un contenuto è originale.",
+                  "Crea contenuti verificabili con controlli su integrita, cattura live, Registry, social fingerprint e rischio schermo.",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14),
                 ),
               ),
               const SizedBox(height: 32),
-
               _mainButton(
                 icon: Icons.videocam,
                 title: "CREA VIDEO VERIFICABILE",
                 subtitle: "Registra un video e genera HCV-ID",
                 onPressed: () => _open(const CameraPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.cloud_done,
                 title: "VERIFICA VIDEO CON HCV-ID",
                 subtitle: "Seleziona un MP4 e verifica dal Registry",
                 onPressed: () => _open(const RegistryVerifyPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.file_open,
                 title: "IMPORTA FILE HCV",
                 subtitle: "Apri .hcv, .hcvpack o file ricevuti",
                 onPressed: () => _open(const ImportPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.play_circle_fill,
                 title: "APRI HCVPACK",
                 subtitle: "Verifica un pacchetto completo offline",
                 onPressed: () => _open(const HCVPackPlayerPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.text_fields,
                 title: "CERTIFICA TESTO",
                 subtitle: "Crea un testo verificabile con HCV",
                 onPressed: () => _open(const TextCertPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.badge,
-                title: "IDENTITÀ CREATOR",
-                subtitle: "Imposta nome e identità del creatore",
+                title: "IDENTITA CREATOR",
+                subtitle: "Imposta nome e identita del creatore",
                 onPressed: () => _open(const IdentityPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.analytics,
                 title: "DIAGNOSTICA SCHERMO",
-                subtitle: "Leggi i valori tecnici di foto e video",
+                subtitle: "Raccogli sessioni test e leggi i valori tecnici",
                 onPressed: () => _open(const ScreenReplayDiagnosticsPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.sensors,
                 title: "CALIBRAZIONE SCHERMO",
-                subtitle: "Raccogli campioni live schermo/realtÃ ",
+                subtitle: "Raccogli campioni live schermo/realta",
                 onPressed: () => _open(const ScreenReplayCalibrationPage()),
               ),
-
               const SizedBox(height: 14),
-
               _mainButton(
                 icon: Icons.info_outline,
                 title: "COME FUNZIONA",

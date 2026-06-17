@@ -7,6 +7,7 @@ class HCVImageWatermark {
   Future<String> createPublishedPhoto({
     required String inputPath,
     required String hcvId,
+    String? screenReplayLabel,
   }) async {
     final inputFile = File(inputPath);
 
@@ -22,7 +23,7 @@ class HCVImageWatermark {
       throw Exception('Invalid image');
     }
 
-    final overlayHeight = 124;
+    final overlayHeight = screenReplayLabel == null ? 124 : 154;
 
     const topY = 28;
 
@@ -61,6 +62,17 @@ class HCVImageWatermark {
       y: topY + 74,
       color: img.ColorRgb8(255, 215, 0),
     );
+
+    if (screenReplayLabel != null && screenReplayLabel.isNotEmpty) {
+      img.drawString(
+        image,
+        screenReplayLabel,
+        font: img.arial14,
+        x: 28,
+        y: topY + 110,
+        color: img.ColorRgb8(230, 230, 230),
+      );
+    }
 
     final outputPath = p.join(
       inputFile.parent.path,
