@@ -10,18 +10,28 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import 'hcv_ml_model_store.dart';
+
 class HCVMLScreenReplayClassifier {
   HCVMLScreenReplayClassifier._();
 
   static final HCVMLScreenReplayClassifier instance =
       HCVMLScreenReplayClassifier._();
 
-  static const _modelPath = 'assets/ml/sigillum_screen_replay_v1.tflite';
-  static const _labelsPath = 'assets/ml/sigillum_screen_replay_v1_labels.json';
   static const _imageSize = 224;
 
   Interpreter? _interpreter;
   List<String>? _classes;
+  String _modelSource = 'UNKNOWN';
+
+  void resetLoadedModel() {
+    try {
+      _interpreter?.close();
+    } catch (_) {}
+    _interpreter = null;
+    _classes = null;
+    _modelSource = 'UNKNOWN';
+  }
 
   Future<Map<String, dynamic>> analyzeVideo(String videoPath) async {
     final file = File(videoPath);
@@ -141,7 +151,8 @@ class HCVMLScreenReplayClassifier {
 
       return {
         'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
-        'model': 'sigillum_screen_replay_v1',
+        'model': 'sigillum_screen_replay',
+        'modelSource': _modelSource,
         'scanMode': 'STILL_IMAGE_ML_CLASSIFIER',
         'framesAnalyzed': 1,
         'screenReplayRisk': _riskLabel(riskScore),
@@ -169,26 +180,10 @@ class HCVMLScreenReplayClassifier {
   Future<void> _ensureLoaded() async {
     if (_interpreter != null && _classes != null) return;
 
-    _interpreter = Interpreter.fromFile(await _assetFile(_modelPath));
-    final rawLabels = await rootBundle.loadString(_labelsPath);
-    final decoded = jsonDecode(rawLabels);
-    final classes = decoded is Map ? decoded['classes'] : null;
-    if (classes is List) {
-      _classes = classes.map((value) => value.toString()).toList();
-    } else {
-      _classes = const [];
-    }
-  }
-
-  Future<File> _assetFile(String assetPath) async {
-    final tempDir = await getTemporaryDirectory();
-    final file = File(p.join(tempDir.path, p.basename(assetPath)));
-    final asset = await rootBundle.load(assetPath);
-    await file.writeAsBytes(
-      asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes),
-      flush: true,
-    );
-    return file;
+    final bundle = await HCVMLModelStore.instance.loadCurrentBundle();
+    _interpreter = Interpreter.fromFile(bundle.modelFile);
+    _classes = bundle.labels;
+    _modelSource = bundle.source;
   }
 
   img.Image _letterbox(img.Image source) {

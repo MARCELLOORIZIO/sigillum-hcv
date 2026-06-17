@@ -4,13 +4,16 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:camera/camera.dart';
 import 'package:crypto/crypto.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'hcv_ai_training_service.dart';
 import 'hcv_live_screen_probe.dart';
+import 'hcv_ml_model_store.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 
 class ScreenReplayCalibrationPage extends StatefulWidget {
@@ -31,6 +34,8 @@ class _ScreenReplayCalibrationPageState
   String selectedLabel = 'SCREEN_MONITOR';
   int autoSampleCount = 5;
   String status = 'Scegli la classe ML e avvia il test.';
+  String? aiTrainerEndpoint;
+  String modelStatus = 'Modello locale: asset app';
   final samples = <Map<String, dynamic>>[];
   final labels = const [
     'SCREEN_MONITOR',
@@ -45,7 +50,20 @@ class _ScreenReplayCalibrationPageState
   @override
   void initState() {
     super.initState();
+    loadTrainerSettings();
     initCamera();
+  }
+
+  Future<void> loadTrainerSettings() async {
+    final endpoint = await HCVAiTrainingService.instance.endpoint();
+    final manifest = await HCVMLModelStore.instance.currentManifest();
+    if (!mounted) return;
+    setState(() {
+      aiTrainerEndpoint = endpoint;
+      modelStatus = manifest == null
+          ? 'Modello locale: asset app'
+          : 'Modello locale: aggiornato ${manifest['installedAt'] ?? ''}';
+    });
   }
 
   Future<void> initCamera() async {
@@ -123,6 +141,7 @@ class _ScreenReplayCalibrationPageState
         'proposedLabel': mlProposal['label'],
         'proposalConfidence': mlProposal['confidence'],
         'proposalSource': mlProposal['source'],
+        'aiTrainerReview': mlProposal['aiTrainerReview'],
         'labelConfirmedByUser': true,
         'createdAt': DateTime.now().toIso8601String(),
         'captureDevice': current.description.name,
@@ -233,6 +252,76 @@ class _ScreenReplayCalibrationPageState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Manifest salvato: ${file.path}')),
     );
+  }
+
+  Future<void> configureAiTrainer() async {
+    final controller = TextEditingController(text: aiTrainerEndpoint ?? '');
+    final endpoint = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Server AI Trainer'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Endpoint',
+              hintText: 'https://tuo-server.example',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.url,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, ''),
+              child: const Text('DISATTIVA'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text('SALVA'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (endpoint == null) return;
+    await HCVAiTrainingService.instance.setEndpoint(endpoint);
+    await loadTrainerSettings();
+    if (!mounted) return;
+    setState(() {
+      status = endpoint.trim().isEmpty
+          ? 'AI Trainer disattivato.'
+          : 'AI Trainer configurato.';
+    });
+  }
+
+  Future<void> importLocalModelZip() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['zip'],
+    );
+    final path = result?.files.single.path;
+    if (path == null) return;
+
+    setState(() => status = 'Installazione modello locale...');
+    try {
+      final installedPath = await HCVMLModelStore.instance.installModelZip(path);
+      HCVMLScreenReplayClassifier.instance.resetLoadedModel();
+      await loadTrainerSettings();
+      if (!mounted) return;
+      setState(() => status = 'Modello locale aggiornato: $installedPath');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => status = 'Errore modello locale: $e');
+    }
+  }
+
+  Future<void> clearLocalModel() async {
+    await HCVMLModelStore.instance.clearLocalModel();
+    HCVMLScreenReplayClassifier.instance.resetLoadedModel();
+    await loadTrainerSettings();
+    if (!mounted) return;
+    setState(() => status = 'Ripristinato modello incluso nell’app.');
   }
 
   Future<File> _writeDatasetFile() async {
@@ -373,6 +462,7 @@ class _ScreenReplayCalibrationPageState
         'proposedLabel': sample['proposedLabel'],
         'proposalConfidence': sample['proposalConfidence'],
         'proposalSource': sample['proposalSource'],
+        'aiTrainerReview': sample['aiTrainerReview'],
         'labelConfirmedByUser': sample['labelConfirmedByUser'] == true,
         'createdAt': sample['createdAt'],
         'captureDevice': sample['captureDevice'],
@@ -481,7 +571,7 @@ class _ScreenReplayCalibrationPageState
 
     final confidence =
         imagePaths.isEmpty ? 0.0 : (bestScore / imagePaths.length).clamp(0, 1);
-    return {
+    final localProposal = {
       'label': bestScore <= 0 ? selectedLabel : bestLabel,
       'confidence': double.parse(confidence.toStringAsFixed(4)),
       'source': bestScore <= 0
@@ -490,12 +580,51 @@ class _ScreenReplayCalibrationPageState
       'scores': scores,
       'analyses': analyses,
     };
+
+    try {
+      final aiReview = await HCVAiTrainingService.instance.analyzeSample(
+        imagePaths: imagePaths,
+        userSelectedLabel: selectedLabel,
+        classes: labels,
+        localProposal: localProposal,
+      );
+      if (aiReview != null) {
+        final aiLabel = aiReview['suggestedLabel']?.toString();
+        final aiConfidence = (aiReview['confidence'] as num?)?.toDouble();
+        if (aiLabel != null && labels.contains(aiLabel)) {
+          return {
+            ...localProposal,
+            'label': aiLabel,
+            'confidence': double.parse(
+              (aiConfidence ?? confidence).clamp(0.0, 1.0).toStringAsFixed(4),
+            ),
+            'source': 'SIGILLUM_AI_TRAINER_CLOUD',
+            'aiTrainerReview': aiReview,
+          };
+        }
+      }
+    } catch (e) {
+      return {
+        ...localProposal,
+        'aiTrainerReview': {
+          'error': e.toString(),
+          'fallback': 'LOCAL_TFLITE_PROPOSAL',
+        },
+      };
+    }
+
+    return localProposal;
   }
 
   Future<String?> _confirmSampleLabel(Map<String, dynamic> proposal) async {
     var value = proposal['label']?.toString() ?? selectedLabel;
     if (!labels.contains(value)) value = selectedLabel;
     final confidence = ((proposal['confidence'] as num?)?.toDouble() ?? 0) * 100;
+    final aiReview = proposal['aiTrainerReview'];
+    final aiReason = aiReview is Map ? aiReview['reason']?.toString() : null;
+    final aiQuality = aiReview is Map ? aiReview['quality']?.toString() : null;
+    final nextInstruction =
+        aiReview is Map ? aiReview['nextInstruction']?.toString() : null;
 
     return showDialog<String>(
       context: context,
@@ -511,9 +640,30 @@ class _ScreenReplayCalibrationPageState
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Proposta: $value (${confidence.toStringAsFixed(1)}%)',
+                    'Proposta: $value (${confidence.toStringAsFixed(1)}%)\n'
+                    'Fonte: ${proposal['source']}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
+                  if (aiQuality != null || aiReason != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      [
+                        if (aiQuality != null) 'Qualita: $aiQuality',
+                        if (aiReason != null) aiReason,
+                      ].join('\n'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                  if (nextInstruction != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      nextInstruction,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: dialogValue,
@@ -629,7 +779,7 @@ class _ScreenReplayCalibrationPageState
     final busy = running || autoRunning;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Calibrazione schermo')),
+      appBar: AppBar(title: const Text('Auto Training ML')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -652,10 +802,62 @@ class _ScreenReplayCalibrationPageState
               ),
               const SizedBox(height: 18),
               const Text(
-                'Raccoglie immagini etichettate per il modello ML SIGILLUM '
-                'e misura anche il live probe fisico.',
+                'Scegli la label iniziale del campione. Dopo la cattura '
+                'SIGILLUM propone una label ML da confermare o correggere.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                aiTrainerEndpoint == null
+                    ? 'AI Trainer cloud: non configurato'
+                    : 'AI Trainer cloud: attivo',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: aiTrainerEndpoint == null
+                      ? Colors.orange.shade800
+                      : Colors.green.shade700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                modelStatus,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: busy ? null : configureAiTrainer,
+                      icon: const Icon(Icons.cloud_sync),
+                      label: const Text('AI SERVER'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: busy ? null : importLocalModelZip,
+                      icon: const Icon(Icons.system_update_alt),
+                      label: const Text('MODELLO ZIP'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: busy ? null : clearLocalModel,
+                icon: const Icon(Icons.restore),
+                label: const Text("USA MODELLO INCLUSO NELL'APP"),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Label dataset',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -671,7 +873,7 @@ class _ScreenReplayCalibrationPageState
                 children: [
                   const Expanded(
                     child: Text(
-                      'Campioni automatici',
+                      'Campioni assistiti',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -695,8 +897,12 @@ class _ScreenReplayCalibrationPageState
               const SizedBox(height: 8),
               ElevatedButton.icon(
                 onPressed: ready && !busy ? runCalibration : null,
-                icon: const Icon(Icons.sensors),
-                label: Text(running ? 'TEST IN CORSO...' : 'AVVIA TEST 10 SEC'),
+                icon: const Icon(Icons.model_training),
+                label: Text(
+                  running
+                      ? 'RACCOLTA IN CORSO...'
+                      : 'RACCOGLI E CONFERMA LABEL',
+                ),
               ),
               const SizedBox(height: 8),
               ElevatedButton.icon(

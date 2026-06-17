@@ -1,2 +1,2 @@
-tensorflow>=2.16,<2.18
+tensorflow>=2.20,<2.22
 pillow>=10

@@ -251,9 +251,9 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 14),
               _mainButton(
-                icon: Icons.sensors,
-                title: "CALIBRAZIONE SCHERMO",
-                subtitle: "Raccogli campioni live schermo/realta",
+                icon: Icons.model_training,
+                title: "AUTO TRAINING ML",
+                subtitle: "Raccogli campioni, conferma label ed esporta ZIP",
                 onPressed: () => _open(const ScreenReplayCalibrationPage()),
               ),
               const SizedBox(height: 14),

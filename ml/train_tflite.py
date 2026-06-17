@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import zipfile
 
 
 def main() -> None:
@@ -18,8 +19,8 @@ def main() -> None:
         import tensorflow as tf
     except ImportError as exc:
         raise SystemExit(
-            "TensorFlow non e' installato. Usa Python 3.11/3.12 e installa "
-            "i pacchetti in ml/requirements.txt."
+            "TensorFlow non e' installato. Installa i pacchetti con "
+            "python -m pip install -r ml/requirements.txt."
         ) from exc
 
     dataset = Path(args.dataset)
@@ -113,11 +114,31 @@ def main() -> None:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(tflite_model)
-    (out.parent / "sigillum_screen_replay_v1_labels.json").write_text(
+    labels_file = out.parent / "sigillum_screen_replay_v1_labels.json"
+    labels_file.write_text(
         json.dumps({"classes": class_names}, indent=2),
         encoding="utf-8",
     )
+    bundle_manifest = {
+        "type": "SIGILLUM_TFLITE_MODEL_BUNDLE_V1",
+        "modelFile": "model.tflite",
+        "labelsFile": "labels.json",
+        "classes": class_names,
+        "imageSize": args.image_size,
+        "sourceDataset": str(dataset),
+        "epochs": args.epochs,
+        "batchSize": args.batch_size,
+    }
+    bundle = out.parent / "sigillum_screen_replay_model_update.zip"
+    with zipfile.ZipFile(bundle, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.write(out, "model.tflite")
+        archive.write(labels_file, "labels.json")
+        archive.writestr(
+            "manifest.json",
+            json.dumps(bundle_manifest, indent=2),
+        )
     print(f"TFLite scritto in {out}")
+    print(f"ZIP aggiornamento app scritto in {bundle}")
 
 
 if __name__ == "__main__":
