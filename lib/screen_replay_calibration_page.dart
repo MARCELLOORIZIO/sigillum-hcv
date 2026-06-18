@@ -220,16 +220,23 @@ class _ScreenReplayCalibrationPageState
     );
   }
 
-  Future<void> shareDatasetByEmail() async {
+  Future<void> shareDatasetZip() async {
     if (samples.isEmpty) return;
 
-    final file = await _writeDatasetZip();
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/zip')],
-      subject: 'SIGILLUM ML training dataset',
-      text:
-          'ZIP dataset SIGILLUM: contiene immagini reali e manifest JSON. Dopo unzip usa ml/prepare_dataset.py --source sigillum_ml_dataset.',
-    );
+    try {
+      final file = await _writeDatasetZip();
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/zip')],
+        subject: 'SIGILLUM ML training dataset',
+        text:
+            'ZIP dataset SIGILLUM: contiene immagini reali e manifest JSON. Dopo unzip usa ml/prepare_dataset.py --source sigillum_ml_dataset.',
+      );
+      if (!mounted) return;
+      setState(() => status = 'Condivisione ZIP aperta.');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => status = 'Errore condivisione ZIP: $e');
+    }
   }
 
   Future<void> saveDatasetFile() async {
@@ -259,22 +266,22 @@ class _ScreenReplayCalibrationPageState
     final endpoint = await showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Server AI Trainer'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'Endpoint',
-              hintText: 'https://tuo-server.example',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.url,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, ''),
-              child: const Text('DISATTIVA'),
-            ),
+                return AlertDialog(
+                  title: const Text('Server AI Trainer'),
+                  content: TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                      labelText: 'Endpoint',
+                      hintText: HCVAiTrainingService.defaultEndpoint,
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.url,
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, ''),
+                      child: const Text('PREDEFINITO'),
+                    ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, controller.text),
               child: const Text('SALVA'),
@@ -602,6 +609,16 @@ class _ScreenReplayCalibrationPageState
             'aiTrainerReview': aiReview,
           };
         }
+
+        return {
+          ...localProposal,
+          'aiTrainerReview': {
+            'error': 'AI_LABEL_NOT_VALID',
+            'receivedLabel': aiLabel,
+            'fallback': 'LOCAL_TFLITE_PROPOSAL',
+            'rawReview': aiReview,
+          },
+        };
       }
     } catch (e) {
       return {
@@ -623,6 +640,10 @@ class _ScreenReplayCalibrationPageState
     final aiReview = proposal['aiTrainerReview'];
     final aiReason = aiReview is Map ? aiReview['reason']?.toString() : null;
     final aiQuality = aiReview is Map ? aiReview['quality']?.toString() : null;
+    final aiRisk =
+        aiReview is Map ? aiReview['screenReplayRisk']?.toString() : null;
+    final aiError = aiReview is Map ? aiReview['error']?.toString() : null;
+    final aiFallback = aiReview is Map ? aiReview['fallback']?.toString() : null;
     final nextInstruction =
         aiReview is Map ? aiReview['nextInstruction']?.toString() : null;
 
@@ -649,15 +670,27 @@ class _ScreenReplayCalibrationPageState
                     Text(
                       [
                         if (aiQuality != null) 'Qualita: $aiQuality',
-                        if (aiReason != null) aiReason,
+                        if (aiRisk != null) 'Rischio: $aiRisk',
+                        if (aiReason != null) 'Motivo: $aiReason',
                       ].join('\n'),
                       style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                  if (aiError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'AI non disponibile: $aiError'
+                      '${aiFallback == null ? '' : '\nUso: $aiFallback'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade800,
+                      ),
                     ),
                   ],
                   if (nextInstruction != null) ...[
                     const SizedBox(height: 8),
                     Text(
-                      nextInstruction,
+                      'Istruzione: $nextInstruction',
                       style: const TextStyle(
                         fontSize: 12,
                         fontStyle: FontStyle.italic,
@@ -944,9 +977,9 @@ class _ScreenReplayCalibrationPageState
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: samples.isEmpty ? null : shareDatasetByEmail,
-                      icon: const Icon(Icons.mail_outline),
-                      label: const Text('EMAIL'),
+                      onPressed: samples.isEmpty ? null : shareDatasetZip,
+                      icon: const Icon(Icons.ios_share),
+                      label: const Text('CONDIVIDI ZIP'),
                     ),
                   ),
                 ],

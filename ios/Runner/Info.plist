@@ -14,6 +14,15 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>SIGILLUM salva video verificati nella libreria.</string>
 
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>SIGILLUM usa la rete locale per collegarsi al server AI Trainer durante i test.</string>
+
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

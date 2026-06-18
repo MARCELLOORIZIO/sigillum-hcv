@@ -10,11 +10,12 @@ class HCVAiTrainingService {
   static final HCVAiTrainingService instance = HCVAiTrainingService._();
 
   static const _endpointKey = 'sigillum_ai_trainer_endpoint';
+  static const defaultEndpoint = 'https://hcv-registry-server.onrender.com';
 
   Future<String?> endpoint() async {
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString(_endpointKey)?.trim();
-    return value == null || value.isEmpty ? null : value;
+    return value == null || value.isEmpty ? defaultEndpoint : value;
   }
 
   Future<void> setEndpoint(String value) async {
