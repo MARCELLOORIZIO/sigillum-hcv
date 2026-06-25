@@ -69,6 +69,7 @@ class _CameraPageState extends State<CameraPage> {
   String? hcvId;
   String? verificationUrl;
   String? registryStatus;
+  String? createdContentKind;
 
   @override
   void initState() {
@@ -99,7 +100,7 @@ class _CameraPageState extends State<CameraPage> {
 
       setState(() {
         ready = true;
-        status = 'READY ✔';
+        status = 'READY';
       });
     } catch (e) {
       setState(() => status = 'ERROR: $e');
@@ -385,13 +386,14 @@ class _CameraPageState extends State<CameraPage> {
       }
 
       setState(() {
-        result = ok ? 'VALID ✔' : 'INVALID ❌';
+        result = ok ? 'VALID' : 'INVALID';
 
-        status = ok ? 'PHOTO VERIFIED ✔' : 'PHOTO INVALID ❌';
+        status = ok ? 'PHOTO VERIFIED' : 'PHOTO INVALID';
 
         videoPath = publishedPhoto;
         hcvPath = hcv;
         packagePath = pack;
+        createdContentKind = 'photo';
 
         recording = false;
       });
@@ -900,7 +902,8 @@ class _CameraPageState extends State<CameraPage> {
       packagePath = pack;
       hcvId = detectedId;
       verificationUrl = detectedUrl;
-      result = ok ? 'VALID ✔' : 'INVALID ❌';
+      createdContentKind = 'video';
+      result = ok ? 'VALID' : 'INVALID';
       status = 'DONE';
     });
 
@@ -959,12 +962,12 @@ class _CameraPageState extends State<CameraPage> {
     try {
       await Share.shareXFiles(
         [
-          XFile(videoPath!, mimeType: 'video/mp4'),
+          XFile(videoPath!, mimeType: _contentMimeType(videoPath!)),
           XFile(hcvPath!, mimeType: 'application/json'),
         ],
         text: hcvId == null
-            ? 'HCV Human Verified ✔'
-            : 'HCV Human Verified ✔\nID: $hcvId\nVerify with SIGILLUM',
+            ? 'Contenuto verificato SIGILLUM'
+            : 'Contenuto verificato SIGILLUM\nID: $hcvId\nVerify with SIGILLUM',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
@@ -984,13 +987,34 @@ class _CameraPageState extends State<CameraPage> {
           XFile(packagePath!, mimeType: 'application/octet-stream'),
         ],
         text: hcvId == null
-            ? 'HCV Human Verified ✔'
-            : 'HCV Human Verified ✔\nID: $hcvId\nOffline package',
+            ? 'HCVPACK offline SIGILLUM'
+            : 'HCVPACK offline SIGILLUM\nID: $hcvId',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
       setState(() => status = 'SHARE PACK ERROR: $e');
     }
+  }
+
+  String get _createdContentLabel {
+    if (createdContentKind == 'photo') return 'foto';
+    if (createdContentKind == 'video') return 'video';
+    return 'contenuto';
+  }
+
+  String get _createdFileLabel {
+    if (createdContentKind == 'photo') return 'Foto';
+    if (createdContentKind == 'video') return 'Video';
+    return 'Contenuto';
+  }
+
+  String _contentMimeType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    if (lower.endsWith('.m4v')) return 'video/x-m4v';
+    return 'video/mp4';
   }
 
   @override
@@ -1008,7 +1032,7 @@ class _CameraPageState extends State<CameraPage> {
       );
     }
 
-    final verified = result == 'VALID ✔';
+    final verified = result == 'VALID';
 
     return Column(
       children: [
@@ -1019,7 +1043,7 @@ class _CameraPageState extends State<CameraPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          verified ? 'HUMAN VERIFIED ✔' : 'NOT VERIFIED ❌',
+          verified ? 'HUMAN VERIFIED' : 'NOT VERIFIED',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 24,
@@ -1042,10 +1066,10 @@ class _CameraPageState extends State<CameraPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              'Video verificabile creato',
+            Text(
+              '${_createdFileLabel} verificabile creato',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 17,
               ),
@@ -1057,11 +1081,11 @@ class _CameraPageState extends State<CameraPage> {
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'MP4, certificato HCV e HCVPACK usano lo stesso nome base. '
+            Text(
+              '${_createdFileLabel}, certificato HCV e HCVPACK sono collegati dallo stesso HCV-ID. '
               'La verifica online usa HCV-ID e Registry.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
@@ -1113,7 +1137,7 @@ class _CameraPageState extends State<CameraPage> {
             if (videoPath != null) ...[
               const SizedBox(height: 8),
               Text(
-                'MP4:\n$videoPath',
+                '$_createdFileLabel:\n$videoPath',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 11),
               ),
@@ -1149,7 +1173,8 @@ class _CameraPageState extends State<CameraPage> {
             child: ElevatedButton.icon(
               onPressed: shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label: const Text('CONDIVIDI VIDEO VERIFICABILE'),
+              label:
+                  Text('CONDIVIDI ${_createdContentLabel.toUpperCase()} + HCV'),
             ),
           ),
           const SizedBox(height: 10),
@@ -1160,7 +1185,7 @@ class _CameraPageState extends State<CameraPage> {
             child: ElevatedButton.icon(
               onPressed: sharePackage,
               icon: const Icon(Icons.inventory_2),
-              label: const Text('CONDIVIDI PACCHETTO OFFLINE'),
+              label: const Text('CONDIVIDI HCVPACK OFFLINE'),
             ),
           ),
           const SizedBox(height: 10),
@@ -1515,8 +1540,8 @@ class _CameraPageState extends State<CameraPage> {
                         recording
                             ? 'REGISTRAZIONE IN CORSO'
                             : photoMode
-                                ? 'MODALITÀ FOTO'
-                                : 'MODALITÀ VIDEO',
+                                ? 'MODALITA FOTO'
+                                : 'MODALITA VIDEO',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -1547,7 +1572,7 @@ class _CameraPageState extends State<CameraPage> {
                             ),
                             onPressed: () {
                               setState(() {
-                                status = 'READY ✔';
+                                status = 'READY';
                                 result = null;
                                 videoPath = null;
                                 hcvPath = null;
@@ -1576,7 +1601,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                           onPressed: () {
                             setState(() {
-                              status = 'READY ✔';
+                              status = 'READY';
                               result = null;
                               videoPath = null;
                               hcvPath = null;

@@ -92,7 +92,7 @@ class _TextCertPageState extends State<TextCertPage> {
     if (text.isEmpty) {
       setState(() {
         status = 'Inserisci un testo';
-        result = 'INVALID ❌';
+        result = 'INVALID';
       });
       return;
     }
@@ -185,7 +185,7 @@ class _TextCertPageState extends State<TextCertPage> {
         textPath = finalTextPath;
         hcvId = detectedId;
         verificationUrl = detectedUrl;
-        result = ok ? 'VALID ✔' : 'INVALID ❌';
+        result = ok ? 'VALID' : 'INVALID';
         status = ok
             ? 'Testo certificato e verificato'
             : 'Certificato creato ma NON valido';
@@ -211,7 +211,7 @@ class _TextCertPageState extends State<TextCertPage> {
       setState(() {
         loading = false;
         status = 'ERRORE: $e';
-        result = 'INVALID ❌';
+        result = 'INVALID';
       });
     }
   }
@@ -234,7 +234,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final socialText = hcvId == null
         ? originalText
-        : '$originalText\n\nHCV VERIFIED ✔\nID: $hcvId\nVerify with SIGILLUM';
+        : '$originalText\n\nHCV VERIFIED\nID: $hcvId\nVerify with SIGILLUM';
 
     await Clipboard.setData(ClipboardData(text: socialText));
 
@@ -250,7 +250,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final socialText = hcvId == null
         ? originalText
-        : '$originalText\n\nHCV VERIFIED ✔\nID: $hcvId\nVerify with SIGILLUM';
+        : '$originalText\n\nHCV VERIFIED\nID: $hcvId\nVerify with SIGILLUM';
 
     await Share.share(
       socialText,
@@ -262,8 +262,8 @@ class _TextCertPageState extends State<TextCertPage> {
     if (textPath == null || hcvPath == null) return;
 
     final shareText = hcvId == null
-        ? 'HCV Human Verified ✔'
-        : 'HCV Human Verified ✔\nID: $hcvId\nVerify with SIGILLUM';
+        ? 'Testo verificato SIGILLUM'
+        : 'Testo verificato SIGILLUM\nID: $hcvId\nVerify with SIGILLUM';
 
     await Share.shareXFiles(
       [XFile(textPath!), XFile(hcvPath!)],
@@ -278,7 +278,7 @@ class _TextCertPageState extends State<TextCertPage> {
     super.dispose();
   }
 
-  bool get isValid => result == 'VALID ✔';
+  bool get isValid => result == 'VALID';
 
   Widget _statusBadge() {
     if (result == null) {
@@ -307,7 +307,7 @@ class _TextCertPageState extends State<TextCertPage> {
     return Column(
       children: [
         Text(
-          isValid ? 'HUMAN VERIFIED ✔' : 'NOT VERIFIED ❌',
+          isValid ? 'HUMAN VERIFIED' : 'NOT VERIFIED',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
@@ -409,7 +409,7 @@ class _TextCertPageState extends State<TextCertPage> {
           child: ElevatedButton.icon(
             onPressed: shareSocialText,
             icon: const Icon(Icons.share),
-            label: const Text('CONDIVIDI COME POST'),
+            label: const Text('CONDIVIDI TESTO COME POST'),
           ),
         ),
         const SizedBox(height: 10),
@@ -419,7 +419,7 @@ class _TextCertPageState extends State<TextCertPage> {
             child: ElevatedButton.icon(
               onPressed: shareTextFileAndCertificate,
               icon: const Icon(Icons.attach_file),
-              label: const Text('CONDIVIDI TXT + HCV'),
+              label: const Text('CONDIVIDI TXT + CERTIFICATO HCV'),
             ),
           ),
       ],
