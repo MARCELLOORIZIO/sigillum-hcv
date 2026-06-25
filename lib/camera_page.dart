@@ -24,7 +24,12 @@ import 'hcv_live_screen_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 
 class CameraPage extends StatefulWidget {
-  const CameraPage({super.key});
+  const CameraPage({
+    super.key,
+    this.initialPhotoMode = false,
+  });
+
+  final bool initialPhotoMode;
 
   @override
   State<CameraPage> createState() => _CameraPageState();
@@ -68,6 +73,7 @@ class _CameraPageState extends State<CameraPage> {
   @override
   void initState() {
     super.initState();
+    photoMode = widget.initialPhotoMode;
     initCamera();
   }
 
