@@ -65,7 +65,7 @@ class HCVSocialFingerprint {
 
       if (decoded == null) continue;
 
-      hashes.add(_averageHash(decoded));
+      hashes.add(_averageHash(_normalizeVideoFrame(decoded)));
     }
 
     try {
@@ -103,7 +103,7 @@ class HCVSocialFingerprint {
       await workDir.create(recursive: true);
     }
 
-    const seconds = [0.5, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0];
+    const seconds = [0.0, 0.5, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0];
 
     for (var i = 0; i < seconds.length; i++) {
       try {
@@ -154,6 +154,15 @@ class HCVSocialFingerprint {
     }
 
     return workDir;
+  }
+
+  img.Image _normalizeVideoFrame(img.Image frame) {
+    return img.copyResize(
+      frame,
+      width: 16,
+      height: 16,
+      interpolation: img.Interpolation.average,
+    );
   }
 
   String _averageHash(img.Image image) {

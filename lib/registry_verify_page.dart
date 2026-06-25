@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
@@ -348,30 +349,48 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return false;
       }
 
-      final count = storedHashes.length < currentHashes.length
-          ? storedHashes.length
-          : currentHashes.length;
-
-      if (count == 0) {
-        return false;
-      }
-
-      var matched = 0;
-
-      for (var i = 0; i < count; i++) {
-        final expected = storedHashes[i].toString();
-        final actual = currentHashes[i].toString();
-        final distance = _hexDistance(expected, actual);
-
-        if (distance <= 72) {
-          matched++;
-        }
-      }
-
-      return matched >= (count / 2).ceil();
+      return _videoFrameHashesMatch(storedHashes, currentHashes);
     } catch (_) {
       return false;
     }
+  }
+
+  bool _videoFrameHashesMatch(List storedHashes, List currentHashes) {
+    final expected = storedHashes.map((value) => value.toString()).toList();
+    final current = currentHashes.map((value) => value.toString()).toList();
+
+    if (expected.isEmpty || current.isEmpty) {
+      return false;
+    }
+
+    final usedCurrentIndexes = <int>{};
+    var matched = 0;
+
+    for (final expectedHash in expected) {
+      var bestIndex = -1;
+      var bestDistance = 9999;
+
+      for (var i = 0; i < current.length; i++) {
+        if (usedCurrentIndexes.contains(i)) continue;
+
+        final distance = _hexDistance(expectedHash, current[i]);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = i;
+        }
+      }
+
+      if (bestIndex >= 0 && bestDistance <= 96) {
+        usedCurrentIndexes.add(bestIndex);
+        matched++;
+      }
+    }
+
+    final comparableCount =
+        expected.length < current.length ? expected.length : current.length;
+    final requiredMatches = max(2, (comparableCount * 0.35).ceil());
+
+    return matched >= requiredMatches;
   }
 
   Future<bool?> _matchesCertifiedImageFingerprint(
