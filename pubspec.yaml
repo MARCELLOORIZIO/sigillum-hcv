@@ -53,7 +53,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/ml/sigillum_screen_replay_v1.tflite
+    - assets/ml/sigillum_screen_replay_v2.tflite
     - assets/ml/sigillum_screen_replay_v1_labels.json
 flutter_launcher_icons:
   android: true

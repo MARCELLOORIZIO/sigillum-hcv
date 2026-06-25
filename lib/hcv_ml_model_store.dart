@@ -26,13 +26,17 @@ class HCVMLModelStore {
 
   static final HCVMLModelStore instance = HCVMLModelStore._();
 
-  static const assetModelPath = 'assets/ml/sigillum_screen_replay_v1.tflite';
+  static const assetModelPath = 'assets/ml/sigillum_screen_replay_v2.tflite';
   static const assetLabelsPath =
       'assets/ml/sigillum_screen_replay_v1_labels.json';
 
   Future<HCVMLModelBundle> loadCurrentBundle() async {
     final local = await _loadLocalBundle();
     if (local != null) return local;
+    return _loadAssetBundle();
+  }
+
+  Future<HCVMLModelBundle> loadBundledBundle() async {
     return _loadAssetBundle();
   }
 
@@ -87,7 +91,8 @@ class HCVMLModelStore {
       throw Exception('labels.json non contiene classi valide');
     }
 
-    final manifestEntry = _firstFile(archive, (name) => name == 'manifest.json');
+    final manifestEntry =
+        _firstFile(archive, (name) => name == 'manifest.json');
     final manifest = <String, dynamic>{
       'type': 'SIGILLUM_LOCAL_MODEL_BUNDLE_V1',
       'installedAt': DateTime.now().toIso8601String(),

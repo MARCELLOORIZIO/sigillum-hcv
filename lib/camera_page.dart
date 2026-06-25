@@ -171,8 +171,7 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      pendingLiveScreenProbe =
-          await HCVLiveScreenProbe().analyzePreview(
+      pendingLiveScreenProbe = await HCVLiveScreenProbe().analyzePreview(
         controller!,
         restoreZoomLevel: currentZoom,
       );
@@ -226,8 +225,7 @@ class _CameraPageState extends State<CameraPage> {
         status = 'CHECKING LIVE SCREEN FLICKER...';
       });
 
-      final liveScreenProbe =
-          await HCVLiveScreenProbe().analyzePreview(
+      final liveScreenProbe = await HCVLiveScreenProbe().analyzePreview(
         controller!,
         restoreZoomLevel: currentZoom,
       );
@@ -276,6 +274,7 @@ class _CameraPageState extends State<CameraPage> {
           'screenReplayRisk': 'UNKNOWN',
           'screenReplayRiskScore': null,
           'reason': 'ML_ANALYSIS_EXCEPTION',
+          'analysisStatus': 'NOT_ANALYZED',
           'error': e.toString(),
         };
       }
@@ -302,6 +301,7 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayLabel: _screenReplayWatermarkLabel(
           detectedScreenReplayRisk,
           detectedScreenReplayScore,
+          mlScreenReplayAnalysis,
         ),
       );
 
@@ -347,6 +347,8 @@ class _CameraPageState extends State<CameraPage> {
         "liveScreenProbe": liveScreenProbe,
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
+        "mlScreenReplayAnalysisStatus":
+            _mlAnalysisStatus(mlScreenReplayAnalysis),
         "screenReplayRisk": detectedScreenReplayRisk ?? "UNKNOWN",
         "screenReplayRiskScore": detectedScreenReplayScore,
         "watermark": "SIGILLUM_VISIBLE",
@@ -605,10 +607,32 @@ class _CameraPageState extends State<CameraPage> {
     return strongestScore;
   }
 
-  String _screenReplayWatermarkLabel(String? risk, int? score) {
+  String _mlAnalysisStatus(Map<String, dynamic>? analysis) {
+    if (analysis == null) return "NOT_ANALYZED";
+    final status = analysis["analysisStatus"]?.toString();
+    if (status != null && status.isNotEmpty) return status;
+    final score = analysis["screenReplayRiskScore"];
+    return score == null ? "NOT_ANALYZED" : "ANALYZED";
+  }
+
+  bool _mlNotAnalyzed(Map<String, dynamic>? analysis) {
+    return _mlAnalysisStatus(analysis) == "NOT_ANALYZED";
+  }
+
+  String _screenReplayWatermarkLabel(
+    String? risk,
+    int? score, [
+    Map<String, dynamic>? mlAnalysis,
+  ]) {
+    if (_mlNotAnalyzed(mlAnalysis)) {
+      final optical = score == null ? "UNKNOWN" : "OPTICAL / $score";
+      return "ML NOT ANALYZED: $optical";
+    }
+
     final normalizedRisk = risk?.toUpperCase();
     if (normalizedRisk == "HIGH" || normalizedRisk == "MEDIUM") {
-      final suffix = score == null ? normalizedRisk : "$normalizedRisk / $score";
+      final suffix =
+          score == null ? normalizedRisk : "$normalizedRisk / $score";
       return "SCREEN RISK: $suffix";
     }
 
@@ -666,6 +690,7 @@ class _CameraPageState extends State<CameraPage> {
         'screenReplayRisk': 'UNKNOWN',
         'screenReplayRiskScore': null,
         'reason': 'VIDEO_ML_ANALYSIS_EXCEPTION',
+        'analysisStatus': 'NOT_ANALYZED',
         'error': e.toString(),
       };
     }
@@ -701,6 +726,7 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayLabel: _screenReplayWatermarkLabel(
           detectedScreenReplayRisk,
           detectedScreenReplayScore,
+          mlScreenReplayAnalysis,
         ),
       );
 
@@ -762,6 +788,7 @@ class _CameraPageState extends State<CameraPage> {
       "liveScreenProbe": liveScreenProbe,
       "screenReplayAnalysis": screenReplayAnalysis,
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
+      "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(mlScreenReplayAnalysis),
       "screenReplayRisk":
           detectedScreenReplayRisk ?? trustAnalysis["screenReplayRisk"],
       "screenReplayRiskScore": detectedScreenReplayScore,

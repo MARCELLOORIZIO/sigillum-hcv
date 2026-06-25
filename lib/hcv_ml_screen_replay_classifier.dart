@@ -23,6 +23,7 @@ class HCVMLScreenReplayClassifier {
   Interpreter? _interpreter;
   List<String>? _classes;
   String _modelSource = 'UNKNOWN';
+  String? _modelLoadError;
 
   void resetLoadedModel() {
     try {
@@ -31,6 +32,7 @@ class HCVMLScreenReplayClassifier {
     _interpreter = null;
     _classes = null;
     _modelSource = 'UNKNOWN';
+    _modelLoadError = null;
   }
 
   Future<Map<String, dynamic>> analyzeVideo(String videoPath) async {
@@ -135,7 +137,7 @@ class HCVMLScreenReplayClassifier {
       final interpreter = _interpreter;
       final classes = _classes;
       if (interpreter == null || classes == null || classes.isEmpty) {
-        return _unknown('MODEL_NOT_LOADED');
+        return _unknown('MODEL_NOT_LOADED', _modelLoadError);
       }
 
       final inputImage = _letterbox(decoded);
@@ -154,6 +156,7 @@ class HCVMLScreenReplayClassifier {
         'model': 'sigillum_screen_replay',
         'modelSource': _modelSource,
         'scanMode': 'STILL_IMAGE_ML_CLASSIFIER',
+        'analysisStatus': 'ANALYZED',
         'framesAnalyzed': 1,
         'screenReplayRisk': _riskLabel(riskScore),
         'screenReplayRiskScore': riskScore,
@@ -181,9 +184,36 @@ class HCVMLScreenReplayClassifier {
     if (_interpreter != null && _classes != null) return;
 
     final bundle = await HCVMLModelStore.instance.loadCurrentBundle();
+    try {
+      _loadBundle(bundle);
+      return;
+    } catch (e) {
+      _modelLoadError = '${bundle.source}: $e';
+      resetLoadedModel();
+      _modelLoadError = '${bundle.source}: $e';
+    }
+
+    if (bundle.source == 'BUNDLED_ASSET_MODEL') {
+      throw Exception(_modelLoadError);
+    }
+
+    try {
+      final fallback = await HCVMLModelStore.instance.loadBundledBundle();
+      _loadBundle(fallback);
+    } catch (e) {
+      _modelLoadError = '${_modelLoadError ?? ''}; BUNDLED_ASSET_MODEL: $e';
+      resetLoadedModel();
+      _modelLoadError = '${bundle.source}: unable to load local model; '
+          'BUNDLED_ASSET_MODEL: $e';
+      throw Exception(_modelLoadError);
+    }
+  }
+
+  void _loadBundle(HCVMLModelBundle bundle) {
     _interpreter = Interpreter.fromFile(bundle.modelFile);
     _classes = bundle.labels;
     _modelSource = bundle.source;
+    _modelLoadError = null;
   }
 
   img.Image _letterbox(img.Image source) {
@@ -256,6 +286,8 @@ class HCVMLScreenReplayClassifier {
       'screenReplayRisk': 'UNKNOWN',
       'screenReplayRiskScore': null,
       'reason': reason,
+      'analysisStatus': 'NOT_ANALYZED',
+      'modelSource': _modelSource,
     };
     if (error != null) {
       data['error'] = error.toString();
