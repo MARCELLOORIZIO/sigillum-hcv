@@ -3,8 +3,15 @@ import UIKit
 import UniformTypeIdentifiers
 
 final class ShareViewController: UIViewController {
-  private let appGroupId = "group.com.sigillum.hcv"
   private let sharedPathKey = "hcv.share.path"
+  private var appGroupId: String {
+    Bundle.main.object(forInfoDictionaryKey: "SIGILLUMAppGroupId") as? String
+      ?? "group.com.sigillum.hcv"
+  }
+  private var urlScheme: String {
+    Bundle.main.object(forInfoDictionaryKey: "SIGILLUMURLScheme") as? String
+      ?? "sigillum"
+  }
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -129,7 +136,7 @@ final class ShareViewController: UIViewController {
 
   private func openHostAppAndFinish() {
     DispatchQueue.main.async {
-      guard let url = URL(string: "sigillum://shared") else {
+      guard let url = URL(string: "\(self.urlScheme)://shared") else {
         self.finish()
         return
       }

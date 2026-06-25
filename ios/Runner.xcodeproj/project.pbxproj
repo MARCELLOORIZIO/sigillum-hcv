@@ -461,11 +461,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sigillum.hcv;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SIGILLUM_BUNDLE_ID)";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = DN9W7Z3HCZ;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
-				PROVISIONING_PROFILE_SPECIFIER = "SIGILLUM HCV Development";
+				PROVISIONING_PROFILE_SPECIFIER = "$(SIGILLUM_APP_PROFILE)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRIP_STYLE = "non-global";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -646,11 +646,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sigillum.hcv;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SIGILLUM_BUNDLE_ID)";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = DN9W7Z3HCZ;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
-				PROVISIONING_PROFILE_SPECIFIER = "SIGILLUM HCV Development";
+				PROVISIONING_PROFILE_SPECIFIER = "$(SIGILLUM_APP_PROFILE)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -673,11 +673,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sigillum.hcv;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SIGILLUM_BUNDLE_ID)";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = DN9W7Z3HCZ;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
-				PROVISIONING_PROFILE_SPECIFIER = "SIGILLUM HCV Development";
+				PROVISIONING_PROFILE_SPECIFIER = "$(SIGILLUM_APP_PROFILE)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRIP_STYLE = "non-global";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -703,11 +703,11 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sigillum.hcv.share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SIGILLUM_SHARE_BUNDLE_ID)";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "SIGILLUM HCV Share Development";
+				PROVISIONING_PROFILE_SPECIFIER = "$(SIGILLUM_SHARE_PROFILE)";
 				SKIP_INSTALL = YES;
 				WRAPPER_EXTENSION = appex;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -733,11 +733,11 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sigillum.hcv.share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SIGILLUM_SHARE_BUNDLE_ID)";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "SIGILLUM HCV Share Development";
+				PROVISIONING_PROFILE_SPECIFIER = "$(SIGILLUM_SHARE_PROFILE)";
 				SKIP_INSTALL = YES;
 				WRAPPER_EXTENSION = appex;
 				SWIFT_VERSION = 5.0;
@@ -762,11 +762,11 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sigillum.hcv.share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SIGILLUM_SHARE_BUNDLE_ID)";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "SIGILLUM HCV Share Development";
+				PROVISIONING_PROFILE_SPECIFIER = "$(SIGILLUM_SHARE_PROFILE)";
 				SKIP_INSTALL = YES;
 				WRAPPER_EXTENSION = appex;
 				SWIFT_VERSION = 5.0;

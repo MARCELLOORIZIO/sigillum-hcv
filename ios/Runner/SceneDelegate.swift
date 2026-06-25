@@ -5,8 +5,15 @@ import UIKit
 class SceneDelegate: FlutterSceneDelegate {
   private var intentChannel: FlutterMethodChannel?
   private var keystoreChannel: FlutterMethodChannel?
-  private let appGroupId = "group.com.sigillum.hcv"
   private let sharedPathKey = "hcv.share.path"
+  private var appGroupId: String {
+    Bundle.main.object(forInfoDictionaryKey: "SIGILLUMAppGroupId") as? String
+      ?? "group.com.sigillum.hcv"
+  }
+  private var urlScheme: String {
+    Bundle.main.object(forInfoDictionaryKey: "SIGILLUMURLScheme") as? String
+      ?? "sigillum"
+  }
 
   override func scene(
     _ scene: UIScene,
@@ -108,7 +115,7 @@ class SceneDelegate: FlutterSceneDelegate {
   }
 
   private func handleSharedUrl(_ url: URL) {
-    if url.scheme == "sigillum" {
+    if url.scheme == urlScheme {
       handleSharedAppGroupFile()
       return
     }

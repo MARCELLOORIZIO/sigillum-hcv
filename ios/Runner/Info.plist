@@ -28,7 +28,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>SIGILLUM</string>
+	<string>$(SIGILLUM_APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -36,7 +36,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>SIGILLUM</string>
+	<string>$(SIGILLUM_APP_DISPLAY_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -47,13 +47,17 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.sigillum.hcv</string>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>sigillum</string>
+				<string>$(SIGILLUM_URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
+	<key>SIGILLUMAppGroupId</key>
+	<string>$(SIGILLUM_APP_GROUP_ID)</string>
+	<key>SIGILLUMURLScheme</key>
+	<string>$(SIGILLUM_URL_SCHEME)</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>

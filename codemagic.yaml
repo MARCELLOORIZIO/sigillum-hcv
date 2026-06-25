@@ -20,6 +20,18 @@ workflows:
         script: |
           flutter pub get
 
+      - name: Configure SIGILLUM User edition
+        script: |
+          cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
+          SIGILLUM_APP_DISPLAY_NAME=SIGILLUM
+          SIGILLUM_BUNDLE_ID=com.sigillum.hcv
+          SIGILLUM_SHARE_BUNDLE_ID=com.sigillum.hcv.share
+          SIGILLUM_APP_GROUP_ID=group.com.sigillum.hcv
+          SIGILLUM_URL_SCHEME=sigillum
+          SIGILLUM_APP_PROFILE=SIGILLUM HCV Development
+          SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share Development
+          XCCONFIG
+
       - name: Set up iOS export options
         script: |
           cat > /Users/builder/export_options.plist <<'PLIST'
@@ -63,8 +75,8 @@ workflows:
         certificates:
           - "com.sigillum.hcv"
         provisioning_profiles:
-          - "SIGILLUM HCV Development"
-          - "SIGILLUM HCV Share Development"
+          - "SIGILLUM HCV Lab Development"
+          - "SIGILLUM HCV Lab Share Development"
 
     integrations:
       app_store_connect: Codemagic-HCV
@@ -73,6 +85,18 @@ workflows:
       - name: Flutter pub get
         script: |
           flutter pub get
+
+      - name: Configure SIGILLUM Lab edition
+        script: |
+          cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
+          SIGILLUM_APP_DISPLAY_NAME=SIGILLUM Lab
+          SIGILLUM_BUNDLE_ID=com.sigillum.hcv.lab
+          SIGILLUM_SHARE_BUNDLE_ID=com.sigillum.hcv.lab.share
+          SIGILLUM_APP_GROUP_ID=group.com.sigillum.hcv.lab
+          SIGILLUM_URL_SCHEME=sigillum-lab
+          SIGILLUM_APP_PROFILE=SIGILLUM HCV Lab Development
+          SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Lab Share Development
+          XCCONFIG
 
       - name: Set up iOS export options
         script: |
@@ -89,10 +113,10 @@ workflows:
             <string>manual</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>com.sigillum.hcv</key>
-              <string>SIGILLUM HCV Development</string>
-              <key>com.sigillum.hcv.share</key>
-              <string>SIGILLUM HCV Share Development</string>
+              <key>com.sigillum.hcv.lab</key>
+              <string>SIGILLUM HCV Lab Development</string>
+              <key>com.sigillum.hcv.lab.share</key>
+              <string>SIGILLUM HCV Lab Share Development</string>
             </dict>
           </dict>
           </plist>
