@@ -2,6 +2,7 @@ enum HCVImportType {
   hcvpack,
   hcv,
   video,
+  media,
   unsupported,
 }
 
@@ -39,6 +40,19 @@ class HCVImportService {
         lower.endsWith('.avi')) {
       return HCVImportResult(
         type: HCVImportType.video,
+        path: path,
+      );
+    }
+
+    if (lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.txt') ||
+        lower.endsWith('.pdf') ||
+        lower.endsWith('.mp3') ||
+        lower.endsWith('.wav')) {
+      return HCVImportResult(
+        type: HCVImportType.media,
         path: path,
       );
     }

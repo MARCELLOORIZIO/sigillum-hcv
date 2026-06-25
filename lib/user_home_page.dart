@@ -7,6 +7,7 @@ import 'identity_page.dart';
 import 'import_page.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_theme.dart';
+import 'text_cert_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -84,7 +85,6 @@ class _UserHomePageState extends State<UserHomePage> {
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
                 child: _Header(
                   onIdentity: () => _open(const IdentityPage()),
-                  onInfo: _showServiceInfo,
                 ),
               ),
             ),
@@ -93,19 +93,17 @@ class _UserHomePageState extends State<UserHomePage> {
               sliver: SliverList.list(
                 children: [
                   _PrimaryAction(
-                    icon: Icons.videocam_rounded,
-                    title: 'Registra video',
-                    subtitle: 'Crea un contenuto con certificato verificabile.',
+                    icon: Icons.add_a_photo_rounded,
+                    title: 'Certifica foto o video',
+                    subtitle: 'Registra o scatta e crea il certificato.',
                     onPressed: () => _open(const CameraPage()),
                   ),
                   const SizedBox(height: 10),
                   _PrimaryAction(
-                    icon: Icons.photo_camera_rounded,
-                    title: 'Scatta foto',
-                    subtitle: 'Certifica una foto con identita e registro.',
-                    onPressed: () => _open(
-                      const CameraPage(initialPhotoMode: true),
-                    ),
+                    icon: Icons.article_rounded,
+                    title: 'Certifica testo',
+                    subtitle: 'Crea un testo verificabile con HCV-ID.',
+                    onPressed: () => _open(const TextCertPage()),
                   ),
                   const SizedBox(height: 10),
                   _PrimaryAction(
@@ -114,7 +112,6 @@ class _UserHomePageState extends State<UserHomePage> {
                     subtitle:
                         'Apri un file, un HCVPACK o verifica dal Registry.',
                     onPressed: () => _open(const ImportPage()),
-                    filled: false,
                   ),
                   const SizedBox(height: 22),
                   const _TrustChainCard(),
@@ -129,66 +126,14 @@ class _UserHomePageState extends State<UserHomePage> {
       ),
     );
   }
-
-  void _showServiceInfo() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: SigillumTheme.deep,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Cosa certifica SIGILLUM',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'SIGILLUM crea una catena di controllo tra contenuto, '
-                  'creatore, certificato e registro online. Se il file cambia, '
-                  'la verifica lo segnala.',
-                  style: TextStyle(
-                    height: 1.35,
-                    color: SigillumTheme.muted,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const _MiniCheck(text: 'File collegato a una impronta unica'),
-                const _MiniCheck(text: 'Certificato firmato e verificabile'),
-                const _MiniCheck(text: 'Identita tecnica del creatore'),
-                const _MiniCheck(text: 'Registro online per controllo futuro'),
-                const _MiniCheck(text: 'Analisi anti-ripresa da schermo'),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Chiudi'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _Header extends StatelessWidget {
   const _Header({
     required this.onIdentity,
-    required this.onInfo,
   });
 
   final VoidCallback onIdentity;
-  final VoidCallback onInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +162,7 @@ class _Header extends StatelessWidget {
                   Text(
                     'SIGILLUM',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0,
                     ),
@@ -226,7 +171,7 @@ class _Header extends StatelessWidget {
                     'Human Content Verification',
                     style: TextStyle(
                       color: SigillumTheme.muted,
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -238,11 +183,6 @@ class _Header extends StatelessWidget {
               onPressed: onIdentity,
               icon: const Icon(Icons.badge_outlined),
             ),
-            IconButton(
-              tooltip: 'Informazioni',
-              onPressed: onInfo,
-              icon: const Icon(Icons.info_outline_rounded),
-            ),
           ],
         ),
         const SizedBox(height: 28),
@@ -250,7 +190,7 @@ class _Header extends StatelessWidget {
           'Certifica contenuti con una prova tecnica verificabile.',
           style: TextStyle(
             color: SigillumTheme.ivory,
-            fontSize: 28,
+            fontSize: 30,
             height: 1.08,
             fontWeight: FontWeight.w900,
             letterSpacing: 0,
@@ -262,7 +202,7 @@ class _Header extends StatelessWidget {
           'certificato firmato e registro online.',
           style: TextStyle(
             color: SigillumTheme.muted,
-            fontSize: 14,
+            fontSize: 16,
             height: 1.35,
           ),
         ),
@@ -301,7 +241,7 @@ class _PrimaryAction extends StatelessWidget {
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   color: filled
                       ? SigillumTheme.ink.withValues(alpha: 0.72)
                       : SigillumTheme.muted,
@@ -390,7 +330,7 @@ class _Panel extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -447,7 +387,10 @@ class _ChainStep extends StatelessWidget {
                   ),
                   TextSpan(
                     text: text,
-                    style: const TextStyle(color: SigillumTheme.muted),
+                    style: const TextStyle(
+                      color: SigillumTheme.muted,
+                      fontSize: 15,
+                    ),
                   ),
                 ],
               ),
@@ -482,6 +425,7 @@ class _MiniCheck extends StatelessWidget {
               text,
               style: const TextStyle(
                 color: SigillumTheme.muted,
+                fontSize: 15,
                 height: 1.25,
               ),
             ),

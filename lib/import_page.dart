@@ -63,6 +63,10 @@ class _ImportPageState extends State<ImportPage> {
     return lower.endsWith(".hcvpack") ||
         lower.endsWith(".hcv") ||
         lower.endsWith(".txt") ||
+        lower.endsWith(".jpg") ||
+        lower.endsWith(".jpeg") ||
+        lower.endsWith(".png") ||
+        lower.endsWith(".pdf") ||
         lower.endsWith(".mp4") ||
         lower.endsWith(".mov") ||
         lower.endsWith(".m4v");
@@ -72,7 +76,7 @@ class _ImportPageState extends State<ImportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Import / Verify"),
+        title: const Text("Verifica contenuto"),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -89,40 +93,31 @@ class _ImportPageState extends State<ImportPage> {
                 size: 72,
                 color: Colors.green,
               ),
-
               const SizedBox(height: 20),
-
               const Text(
-                "Importa e verifica file HCV",
+                "Verifica contenuto",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 12),
-
               const Text(
-                "Supportati:\n.hcvpack, .hcv, .txt, .mp4, .mov, .m4v",
+                "Supportati:\n.hcvpack, .hcv, foto, video, testo, PDF",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14),
               ),
-
               const SizedBox(height: 30),
-
               Text(
                 status,
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 24),
-
               ElevatedButton(
                 onPressed: pickFile,
                 child: const Text("SELEZIONA FILE"),
               ),
-
               if (selectedPath != null) ...[
                 const SizedBox(height: 20),
                 Text(

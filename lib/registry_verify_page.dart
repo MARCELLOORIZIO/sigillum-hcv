@@ -449,32 +449,53 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   Future<void> _autoVerifySharedPath(String path) async {
     if (!mounted) return;
 
-    setState(() {
-      mediaPath = path;
-      result = null;
-      status = 'File ricevuto. Lettura HCV-ID e verifica automatica...';
-      hcvIdDetectedByOcr = false;
-    });
-
-    final detectedId = await detectHcvIdFromMediaPath(path);
-
-    if (!mounted) return;
-
-    if (detectedId == null || detectedId.isEmpty) {
+    try {
       setState(() {
-        status =
-            'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';
+        mediaPath = path;
+        result = null;
+        status = 'File ricevuto. Lettura HCV-ID e verifica automatica...';
+        hcvIdDetectedByOcr = false;
       });
-      return;
+
+      final file = File(path);
+      if (!await file.exists()) {
+        if (!mounted) return;
+        setState(() {
+          result = 'NOT ANALYZED';
+          status =
+              'File ricevuto ma non accessibile. Riprova da Verifica contenuto.';
+        });
+        return;
+      }
+
+      final detectedId = await detectHcvIdFromMediaPath(path);
+
+      if (!mounted) return;
+
+      if (detectedId == null || detectedId.isEmpty) {
+        setState(() {
+          result = 'NOT ANALYZED';
+          status =
+              'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';
+        });
+        return;
+      }
+
+      setState(() {
+        hcvIdDetectedByOcr = true;
+        idController.text = detectedId;
+        status = 'HCV-ID rilevato. Verifica Registry automatica...';
+      });
+
+      await verifyFromRegistry();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        result = 'NOT ANALYZED';
+        status =
+            'Verifica automatica non completata. Il file e arrivato con un formato non leggibile automaticamente: inserisci HCV-ID e premi VERIFICA DA REGISTRY.';
+      });
     }
-
-    setState(() {
-      hcvIdDetectedByOcr = true;
-      idController.text = detectedId;
-      status = 'HCV-ID rilevato. Verifica Registry automatica...';
-    });
-
-    await verifyFromRegistry();
   }
 
   @override
@@ -690,8 +711,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               liveScreenProbe['refreshBandScore']?.toString();
           liveProbeFineStripeScore =
               liveScreenProbe['fineStripeScore']?.toString();
-          liveProbeFineGridScore =
-              liveScreenProbe['fineGridScore']?.toString();
+          liveProbeFineGridScore = liveScreenProbe['fineGridScore']?.toString();
           liveProbeMoireFrequencyScore =
               liveScreenProbe['moireFrequencyScore']?.toString();
           liveProbeDynamicChallengeScore =
@@ -799,8 +819,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         creatorName = identity['creatorName']?.toString();
 
         trustLevel = identity['trustLevel']?.toString();
-        identityAssuranceLevel =
-            identity['identityAssuranceLevel']?.toString();
+        identityAssuranceLevel = identity['identityAssuranceLevel']?.toString();
         legalIdentityStatus = identity['legalIdentityStatus']?.toString();
         identityFingerprint = identity['identityFingerprint']?.toString();
         creatorKeyFingerprint =

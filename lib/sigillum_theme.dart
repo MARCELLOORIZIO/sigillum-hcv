@@ -34,20 +34,26 @@ class SigillumTheme {
         elevation: 0,
         titleTextStyle: TextStyle(
           color: ivory,
-          fontSize: 18,
+          fontSize: 21,
           fontWeight: FontWeight.w700,
         ),
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(fontSize: 17, height: 1.35),
+        bodyMedium: TextStyle(fontSize: 16, height: 1.35),
+        labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: ivory,
           foregroundColor: ink,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size.fromHeight(62),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
           textStyle: const TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -56,11 +62,11 @@ class SigillumTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: ivory,
           side: const BorderSide(color: Color(0x667E9189)),
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(58),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
     );
