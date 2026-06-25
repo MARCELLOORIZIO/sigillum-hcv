@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'hcv_registry_service.dart';
@@ -29,6 +30,8 @@ class RegistryVerifyPage extends StatefulWidget {
 }
 
 class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
+  static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
+
   String? extractHcvIdFromName(String fileName) {
     final patterns = [
       RegExp(r'hcv_video_(HCV-[A-Z0-9]+)', caseSensitive: false),
@@ -161,18 +164,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     for (final time in times) {
       try {
-        final tempDir = await getTemporaryDirectory();
-        final framePath =
-            '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final framePath = Platform.isIOS
+            ? await _extractNativeVideoFrame(
+                videoPath, double.parse(time.substring(6)))
+            : await _extractFfmpegVideoFrame(videoPath, time);
 
-        final command = "-y -ss $time -i '$videoPath' "
-            "-vf \"crop=iw:ih*0.35:0:ih*0.65,scale=iw*2:ih*2,eq=contrast=1.6:brightness=0.05:saturation=1.2\" "
-            "-frames:v 1 '$framePath'";
-
-        final session = await FFmpegKit.execute(command);
-        final code = await session.getReturnCode();
-
-        if (code != null && ReturnCode.isSuccess(code)) {
+        if (framePath != null) {
           final id = await extractHcvIdFromImage(framePath);
 
           try {
@@ -188,6 +185,40 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         }
       } catch (_) {}
     }
+
+    return null;
+  }
+
+  Future<String?> _extractNativeVideoFrame(
+      String videoPath, double seconds) async {
+    try {
+      return await _mediaChannel.invokeMethod<String>(
+        'extractVideoFrame',
+        {'path': videoPath, 'seconds': seconds},
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _extractFfmpegVideoFrame(
+      String videoPath, String time) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final framePath =
+          '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      final command = "-y -ss $time -i '$videoPath' "
+          "-vf \"crop=iw:ih*0.35:0:ih*0.65,scale=iw*2:ih*2,eq=contrast=1.6:brightness=0.05:saturation=1.2\" "
+          "-frames:v 1 '$framePath'";
+
+      final session = await FFmpegKit.execute(command);
+      final code = await session.getReturnCode();
+
+      if (code != null && ReturnCode.isSuccess(code)) {
+        return framePath;
+      }
+    } catch (_) {}
 
     return null;
   }

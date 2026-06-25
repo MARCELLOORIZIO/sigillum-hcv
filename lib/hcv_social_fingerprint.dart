@@ -4,11 +4,14 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
+import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 class HCVSocialFingerprint {
+  static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
+
   Future<Map<String, dynamic>> buildFromImage(String imagePath) async {
     final file = File(imagePath);
     if (!await file.exists()) {
@@ -43,36 +46,11 @@ class HCVSocialFingerprint {
       throw Exception('Video non trovato: $videoPath');
     }
 
-    final tempDir = await getTemporaryDirectory();
-    final workDir = Directory(
-      p.join(
-          tempDir.path, 'hcv_social_${DateTime.now().millisecondsSinceEpoch}'),
-    );
-
-    if (!await workDir.exists()) {
-      await workDir.create(recursive: true);
-    }
-
-    final framePattern = p.join(workDir.path, 'frame_%03d.png');
-
-    final command = "-y -i '$videoPath' "
-        "-vf \"fps=1/2,scale=16:16:force_original_aspect_ratio=decrease,"
-        "pad=16:16:(ow-iw)/2:(oh-ih)/2,format=gray\" "
-        "-frames:v 8 '$framePattern'";
-
-    final session = await FFmpegKit.execute(command);
-    final code = await session.getReturnCode();
-
-    if (code == null || !ReturnCode.isSuccess(code)) {
-      final logs = await session.getAllLogsAsString();
-      throw Exception('Social fingerprint failed:\n$logs');
-    }
-
-    final frames = workDir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.toLowerCase().endsWith('.png'))
-        .toList()
+    final workDir = await _extractVideoFrames(videoPath);
+    final frames = workDir.listSync().whereType<File>().where((f) {
+      final lower = f.path.toLowerCase();
+      return lower.endsWith('.png') || lower.endsWith('.jpg');
+    }).toList()
       ..sort((a, b) => a.path.compareTo(b.path));
 
     if (frames.isEmpty) {
@@ -102,6 +80,80 @@ class HCVSocialFingerprint {
       'frameHashes': hashes,
       'combinedHash': sha256.convert(combined.codeUnits).toString(),
     };
+  }
+
+  Future<Directory> _extractVideoFrames(String videoPath) async {
+    if (Platform.isIOS) {
+      return _extractVideoFramesNative(videoPath);
+    }
+
+    return _extractVideoFramesFfmpeg(videoPath);
+  }
+
+  Future<Directory> _extractVideoFramesNative(String videoPath) async {
+    final tempDir = await getTemporaryDirectory();
+    final workDir = Directory(
+      p.join(
+        tempDir.path,
+        'hcv_social_${DateTime.now().millisecondsSinceEpoch}',
+      ),
+    );
+
+    if (!await workDir.exists()) {
+      await workDir.create(recursive: true);
+    }
+
+    const seconds = [0.5, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0];
+
+    for (var i = 0; i < seconds.length; i++) {
+      try {
+        final framePath = await _mediaChannel.invokeMethod<String>(
+          'extractVideoFrame',
+          {'path': videoPath, 'seconds': seconds[i]},
+        );
+
+        if (framePath == null || framePath.isEmpty) continue;
+
+        final source = File(framePath);
+        if (!await source.exists()) continue;
+
+        await source.copy(
+            p.join(workDir.path, 'frame_${i.toString().padLeft(3, '0')}.jpg'));
+      } catch (_) {}
+    }
+
+    return workDir;
+  }
+
+  Future<Directory> _extractVideoFramesFfmpeg(String videoPath) async {
+    final tempDir = await getTemporaryDirectory();
+    final workDir = Directory(
+      p.join(
+        tempDir.path,
+        'hcv_social_${DateTime.now().millisecondsSinceEpoch}',
+      ),
+    );
+
+    if (!await workDir.exists()) {
+      await workDir.create(recursive: true);
+    }
+
+    final framePattern = p.join(workDir.path, 'frame_%03d.png');
+
+    final command = "-y -i '$videoPath' "
+        "-vf \"fps=1/2,scale=16:16:force_original_aspect_ratio=decrease,"
+        "pad=16:16:(ow-iw)/2:(oh-ih)/2,format=gray\" "
+        "-frames:v 8 '$framePattern'";
+
+    final session = await FFmpegKit.execute(command);
+    final code = await session.getReturnCode();
+
+    if (code == null || !ReturnCode.isSuccess(code)) {
+      final logs = await session.getAllLogsAsString();
+      throw Exception('Social fingerprint failed:\n$logs');
+    }
+
+    return workDir;
   }
 
   String _averageHash(img.Image image) {

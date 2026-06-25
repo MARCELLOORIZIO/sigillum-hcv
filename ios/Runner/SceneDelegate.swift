@@ -1,10 +1,13 @@
 import Flutter
+import AVFoundation
+import Photos
 import Security
 import UIKit
 
 class SceneDelegate: FlutterSceneDelegate {
   private var intentChannel: FlutterMethodChannel?
   private var keystoreChannel: FlutterMethodChannel?
+  private var mediaChannel: FlutterMethodChannel?
   private let sharedPathKey = "hcv.share.path"
   private var appGroupId: String {
     Bundle.main.object(forInfoDictionaryKey: "SIGILLUMAppGroupId") as? String
@@ -40,6 +43,7 @@ class SceneDelegate: FlutterSceneDelegate {
   private func installIntentChannel() {
     if intentChannel != nil {
       installKeystoreChannelIfNeeded()
+      installMediaChannelIfNeeded()
       return
     }
 
@@ -64,6 +68,132 @@ class SceneDelegate: FlutterSceneDelegate {
 
     intentChannel = channel
     installKeystoreChannelIfNeeded()
+    installMediaChannelIfNeeded()
+  }
+
+  private func installMediaChannelIfNeeded() {
+    if mediaChannel != nil {
+      return
+    }
+
+    guard let controller = window?.rootViewController as? FlutterViewController else {
+      return
+    }
+
+    let channel = FlutterMethodChannel(
+      name: "hcv.media",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    channel.setMethodCallHandler { call, result in
+      if call.method == "saveToPhotos" {
+        guard
+          let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String,
+          !path.isEmpty
+        else {
+          result(FlutterError(code: "INVALID_PATH", message: "Path is empty", details: nil))
+          return
+        }
+
+        self.saveToPhotos(path: path, result: result)
+      } else if call.method == "extractVideoFrame" {
+        guard
+          let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String,
+          !path.isEmpty
+        else {
+          result(FlutterError(code: "INVALID_PATH", message: "Path is empty", details: nil))
+          return
+        }
+
+        let seconds = args["seconds"] as? Double ?? 0.5
+        self.extractVideoFrame(path: path, seconds: seconds, result: result)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    mediaChannel = channel
+  }
+
+  private func saveToPhotos(path: String, result: @escaping FlutterResult) {
+    let url = URL(fileURLWithPath: path)
+    let lower = path.lowercased()
+
+    PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+      guard status == .authorized || status == .limited else {
+        DispatchQueue.main.async {
+          result(false)
+        }
+        return
+      }
+
+      PHPhotoLibrary.shared().performChanges({
+        if lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") || lower.hasSuffix(".png") {
+          PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
+        } else {
+          PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+        }
+      }, completionHandler: { success, error in
+        DispatchQueue.main.async {
+          if let error = error {
+            result(FlutterError(
+              code: "PHOTO_SAVE_ERROR",
+              message: error.localizedDescription,
+              details: nil
+            ))
+          } else {
+            result(success)
+          }
+        }
+      })
+    }
+  }
+
+  private func extractVideoFrame(
+    path: String,
+    seconds: Double,
+    result: @escaping FlutterResult
+  ) {
+    DispatchQueue.global(qos: .userInitiated).async {
+      do {
+        let url = URL(fileURLWithPath: path)
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+
+        let time = CMTime(seconds: seconds, preferredTimescale: 600)
+        let image = try generator.copyCGImage(at: time, actualTime: nil)
+        let uiImage = UIImage(cgImage: image)
+
+        guard let data = uiImage.jpegData(compressionQuality: 0.92) else {
+          throw NSError(
+            domain: "SIGILLUM",
+            code: 10,
+            userInfo: [NSLocalizedDescriptionKey: "Frame JPEG creation failed"]
+          )
+        }
+
+        let fileName = "hcv_frame_\(Int(Date().timeIntervalSince1970 * 1000)).jpg"
+        let output = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try data.write(to: output, options: .atomic)
+
+        DispatchQueue.main.async {
+          result(output.path)
+        }
+      } catch {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "FRAME_EXTRACTION_ERROR",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        }
+      }
+    }
   }
 
   private func installKeystoreChannelIfNeeded() {

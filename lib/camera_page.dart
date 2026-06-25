@@ -43,6 +43,7 @@ class _CameraPageState extends State<CameraPage> {
 
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
+  static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
   Map<String, dynamic>? lastLiveSignals;
@@ -399,6 +400,7 @@ class _CameraPageState extends State<CameraPage> {
       });
       if (ok) {
         await uploadCertificateToRegistry();
+        await saveContentToGallery(publishedPhoto);
       }
     } catch (e) {
       setState(() {
@@ -909,6 +911,7 @@ class _CameraPageState extends State<CameraPage> {
 
     if (ok) {
       await uploadCertificateToRegistry();
+      await saveContentToGallery(savedVideoPath);
     }
   }
 
@@ -963,7 +966,6 @@ class _CameraPageState extends State<CameraPage> {
       await Share.shareXFiles(
         [
           XFile(videoPath!, mimeType: _contentMimeType(videoPath!)),
-          XFile(hcvPath!, mimeType: 'application/json'),
         ],
         text: hcvId == null
             ? 'Contenuto verificato SIGILLUM'
@@ -972,6 +974,35 @@ class _CameraPageState extends State<CameraPage> {
       );
     } catch (e) {
       setState(() => status = 'SHARE ERROR: $e');
+    }
+  }
+
+  Future<void> saveContentToGallery(String path) async {
+    if (!Platform.isIOS) {
+      return;
+    }
+
+    try {
+      final saved = await _mediaChannel.invokeMethod<bool>(
+        'saveToPhotos',
+        {'path': path},
+      );
+
+      if (saved == true && mounted) {
+        setState(() {
+          registryStatus = registryStatus == null
+              ? 'Salvato anche in Foto'
+              : '$registryStatus\nSalvato anche in Foto';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          registryStatus = registryStatus == null
+              ? 'Non salvato in Foto: permesso non disponibile'
+              : '$registryStatus\nNon salvato in Foto: permesso non disponibile';
+        });
+      }
     }
   }
 
@@ -1173,8 +1204,7 @@ class _CameraPageState extends State<CameraPage> {
             child: ElevatedButton.icon(
               onPressed: shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label:
-                  Text('CONDIVIDI ${_createdContentLabel.toUpperCase()} + HCV'),
+              label: Text('CONDIVIDI ${_createdContentLabel.toUpperCase()}'),
             ),
           ),
           const SizedBox(height: 10),
