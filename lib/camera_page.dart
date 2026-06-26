@@ -399,8 +399,8 @@ class _CameraPageState extends State<CameraPage> {
         recording = false;
       });
       if (ok) {
-        await uploadCertificateToRegistry();
         await saveContentToGallery(publishedPhoto);
+        await uploadCertificateToRegistry();
       }
     } catch (e) {
       setState(() {
@@ -916,8 +916,8 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     if (ok) {
-      await uploadCertificateToRegistry();
       await saveContentToGallery(savedVideoPath);
+      await uploadCertificateToRegistry();
     }
   }
 
