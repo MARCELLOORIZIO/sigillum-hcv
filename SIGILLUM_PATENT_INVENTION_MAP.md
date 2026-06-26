@@ -61,6 +61,76 @@ This language is useful because:
 - "non-cooperative transformations" identifies the hard technical environment;
 - "multiple technical evidences" avoids reliance on a single fingerprint or identifier.
 
+## HCV Content Identity Layer
+
+For long-term patent and platform strategy, SIGILLUM can be described as an implementation of a broader proposed architecture:
+
+> HCV Content Identity Layer, or HCIL.
+
+This framing is intentionally cautious. It does not assert that a new paradigm has already been proven over the prior art. It proposes an architecture to be tested through prior-art search and technical implementation.
+
+The objective of HCIL is:
+
+> to provide a technical infrastructure for estimating, representing and explaining continuity of identity of digital content through non-cooperative transformations.
+
+Conventional provenance systems often operate through:
+
+```text
+Content
+  -> hash
+  -> signature
+  -> metadata
+  -> manifest
+  -> verification
+```
+
+HCIL instead proposes an additional layer:
+
+```text
+Content
+  -> identity
+  -> relationships
+  -> evidences
+  -> continuity estimate
+  -> decision and explanation
+```
+
+The key difference is that HCIL is not limited to asking whether a single file is unchanged. It aims to estimate whether multiple files, media instances or derivatives remain technically related to the same source content.
+
+### HCIL Modules
+
+| Module | Role |
+| --- | --- |
+| HCV Registry | Registry of certified content identities and certificates |
+| HCV Matching Engine | Compares transformed media with stored identity evidence |
+| HCV Evidence Engine | Collects and fuses heterogeneous technical signals |
+| HCV Identity Graph | Represents relationships between source and derived contents |
+| HCV Decision Engine | Classifies and explains the verification result |
+
+This modular framing has two advantages:
+
+1. each module can be assessed as a possible inventive nucleus;
+2. the platform is not limited to the SIGILLUM mobile app or to photo/video use cases.
+
+Possible future content domains:
+
+- images;
+- video;
+- audio;
+- PDF and documents;
+- 3D models;
+- CAD files;
+- medical files;
+- AI-generated content.
+
+### Counsel Question
+
+The main question for patent counsel should be framed at the problem level:
+
+> Is it patentable to provide a method that, in the absence of original metadata, manifest and attached signatures, reconstructs or estimates continuity of identity of digital content by integrating heterogeneous technical evidences and producing a structured representation of relationships between derived contents?
+
+This question forces analysis of the technical problem rather than isolated components such as HCV-ID, fingerprint or registry.
+
 ## Three Technical Levels
 
 ### Level 1 - Vision
@@ -627,6 +697,24 @@ Trust score and distributed ecosystem can follow once the implementation is more
 
 The following roadmap prioritizes engineering work that can strengthen future patent claims.
 
+### 0. Define HCIL Module Boundaries
+
+Goal:
+
+Separate the mobile app from the broader content identity infrastructure.
+
+Work items:
+
+- define interfaces between Registry, Matching Engine, Evidence Engine, Identity Graph and Decision Engine;
+- define which data each module receives and produces;
+- define the minimum evidence package needed to create a content identity;
+- define how HCIL can support media beyond photo and video;
+- document which parts are implemented today and which are future modules.
+
+Patent value:
+
+This makes it easier to identify whether the invention is a system, method, data structure, scoring engine, graph model or a combination of these.
+
 ### 1. Resilient Matching Engine
 
 Goal:
@@ -727,4 +815,4 @@ Public demos can describe the benefit, but the technical mechanism should remain
 
 ## Short Counsel Brief
 
-SIGILLUM / HCV is a mobile and server system for creating and verifying digital content provenance. It captures media, generates a persistent HCV-ID, creates a signed certificate bound to technical creator identity, records or retrieves the certificate through a registry, detects possible screen replay using optical and ML signals, and verifies content even after common file transformations such as social-media recompression or renaming. The desired patent strategy is to protect not merely a file hash, but a persistent, verifiable identity of content across capture, distribution and later validation.
+SIGILLUM / HCV is a mobile and server system that may be positioned as an implementation of a broader HCV Content Identity Layer. The system creates and verifies digital content identity evidence. It captures media, generates an HCV-ID, creates a signed certificate bound to technical creator identity, records or retrieves the certificate through a registry, detects possible screen replay using optical and ML signals, and attempts to verify content even after non-cooperative transformations such as social-media recompression, renaming, crop, screenshot or re-upload. The desired patent strategy is not to claim hash, signature or registry in isolation, but to evaluate whether a method or infrastructure for estimating, representing and explaining continuity of content identity across broken provenance chains can be protected.
