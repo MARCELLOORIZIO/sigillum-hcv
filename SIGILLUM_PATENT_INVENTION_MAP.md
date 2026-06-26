@@ -116,6 +116,146 @@ Patent relevance:
 
 This may be a separate future filing if the implementation becomes concrete. It should be investigated in prior art together with content provenance, perceptual hashing and media lineage systems.
 
+## Technical Problem / Solution / Effect Mapping
+
+Each candidate claim should be tied to a concrete technical problem and technical effect.
+
+| Technical problem | SIGILLUM solution | Technical effect |
+| --- | --- | --- |
+| Loss of identity after recompression, resize, rename or format conversion | HCV-ID combined with perceptual fingerprint and registry retrieval | Recognition of the same content after common transformations |
+| Exact file hash fails after social-media processing | Layered verification using cryptographic hash for exact match and perceptual fingerprint for tolerant match | Distinguishes unchanged files from transformed but related files |
+| HCV-ID may be copied onto unrelated media | Compare claimed HCV-ID certificate against transformed media fingerprint | Detects ID valid/media not verified or substitution states |
+| Metadata can be stripped or manipulated | Signed certificate and registry record independent from file metadata | Preserves verifiable technical claims even if metadata is removed |
+| Content provenance is uncertain | Device/creator key binding and certificate signature | Improves technical attribution of content origin |
+| Camera may capture a screen rather than a real scene | Optical, temporal and ML screen-replay analysis during or after capture | Reduces false treatment of screen replays as direct original captures |
+| Social platforms alter media containers and names | Verification by HCV-ID, HCVPACK, registry and fingerprint rather than file name | Enables verification after uncontrolled distribution |
+| Verification result may be opaque | Multi-signal explanation including hash, fingerprint, registry and risk signals | Produces an auditable technical reason for the decision |
+
+## Inventive Core Questions
+
+Before claim drafting, counsel should identify the element or combination that gives SIGILLUM its non-obvious technical character.
+
+Key question:
+
+> Which feature, if removed, would make SIGILLUM lose its distinctive technical identity?
+
+Candidates:
+
+- HCV-ID as the persistent anchor;
+- tolerant media matching against a signed certificate;
+- combined cryptographic hash plus perceptual fingerprint;
+- registry recovery by HCV-ID plus anti-substitution checks;
+- multi-signal trust score;
+- screen replay detection inside the certified capture flow;
+- the coordinated combination of all elements.
+
+Preliminary view:
+
+The strongest inventive core is likely not the HCV-ID alone. It is more likely the combination of:
+
+1. persistent HCV-ID;
+2. signed certificate;
+3. exact hash evidence;
+4. tolerant perceptual fingerprint evidence;
+5. registry retrieval;
+6. decision logic that separates exact match, transformed match, uncertain match and substitution.
+
+This should be treated as the primary claim candidate for the persistent-content-identity patent.
+
+## Essential And Optional Features
+
+This distinction helps build independent and dependent claims.
+
+| Component | Role | Claim relevance |
+| --- | --- | --- |
+| HCV-ID | Persistent retrieval and identity anchor | Essential for HCV identity claims |
+| Signed certificate | Binds claims to content identity | Essential |
+| Cryptographic hash | Exact integrity verification | Essential for exact-match branch |
+| Perceptual fingerprint | Tolerant identity matching after transformations | Essential for transformation-resilient claims |
+| Registry | Online certificate recovery and later validation | Essential if claim requires remote recovery; optional for offline HCVPACK claims |
+| HCVPACK | Offline package containing media and certificate | Optional or separate dependent claim |
+| Visible watermark/HCV mark | Human-facing reference and deterrence | Optional |
+| Creator/device identity | Attribution and technical origin binding | Essential for creator-attribution claims; optional for pure content-identity claims |
+| GPS | Contextual trust signal | Optional |
+| Accelerometer/gyroscope | Sensor coherence and liveness support | Optional |
+| ML screen replay classifier | Screen risk analysis | Optional for core identity; essential for screen-replay patent |
+| Optical screen replay analysis | Screen risk analysis | Optional for core identity; essential for screen-replay patent |
+| Trust score | Aggregated decision output | Optional for core identity; essential for trust-score patent |
+| Explanation report | Human-readable/auditable verification reason | Optional now; possible future claim family |
+
+## Transformation Genealogy Variants
+
+The genealogy concept should be separated into distinct technical levels.
+
+### Variant A - Derivation Recognition
+
+The system determines whether media B derives from certified media A.
+
+Example output:
+
+```text
+B derives from A with 98.7% fingerprint confidence.
+```
+
+This is the closest extension of the current verification flow.
+
+### Variant B - Transformation Sequence Reconstruction
+
+The system attempts to reconstruct a chain:
+
+```text
+A -> recompressed image -> screenshot -> crop -> video frame -> new compressed image
+```
+
+This is more ambitious and requires transformation classification.
+
+### Variant C - Probabilistic Lineage Graph
+
+The system does not assert a single certain sequence. It builds a graph of possible derivations with confidence levels.
+
+Example:
+
+```text
+Root HCV-ID
+  -> Derivative 1: WhatsApp recompression, confidence 0.94
+  -> Derivative 2: crop from Derivative 1, confidence 0.81
+  -> Derivative 3: frame extraction from video, confidence 0.76
+```
+
+Patent relevance:
+
+These variants should not be mixed too early. Variant A may be claimable sooner; Variants B and C likely require more implementation and prior-art search.
+
+## Verifiable Explanation Of Results
+
+A future module may produce not only a positive or negative result, but an auditable explanation.
+
+Example output:
+
+```text
+HCV-ID: present
+Certificate: recovered from registry
+Signature: valid
+Exact hash: not matching
+Perceptual fingerprint match: 98.7%
+Geometric consistency: high
+Screen replay risk: low
+Transformation hypothesis: social recompression
+Derivation probability: 99.2%
+Decision: verified transformed derivative
+```
+
+Technical value:
+
+- improves transparency of automated decisions;
+- supports forensic or evidentiary review;
+- separates exact integrity from transformed-content identity;
+- helps detect mismatched HCV-ID overlays or copied identifiers.
+
+Patent relevance:
+
+The explanation should be tied to computed technical signals, not merely presented as a user-interface summary.
+
 ## Possible Patent Family
 
 ### 1. Trusted Mobile Acquisition And Certification
