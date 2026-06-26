@@ -198,13 +198,13 @@ class HCVLiveScreenProbe {
     if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
     if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
     if (!confirmedDisplayTrace && uncorroboratedDisplayPattern) riskScore += 20;
-    if (dynamicScreenChallengeTrace) riskScore += 45;
-    if (persistentPatternScore > 0.85 && fineGridScore > 0.75) {
-      riskScore += 20;
+    if (dynamicScreenChallengeTrace && moireFrequencyScore > 0.42) {
+      riskScore += 35;
     }
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
-    if (!confirmedDisplayTrace && !dynamicScreenChallengeTrace) {
+    if (!confirmedDisplayTrace &&
+        !(dynamicScreenChallengeTrace && moireFrequencyScore > 0.42)) {
       riskScore = min(riskScore, 30);
     }
     riskScore = riskScore.clamp(0, 100).toInt();

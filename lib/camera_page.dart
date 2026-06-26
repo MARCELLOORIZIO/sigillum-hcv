@@ -672,10 +672,18 @@ class _CameraPageState extends State<CameraPage> {
     final patternTrace =
         signals is Map && signals["uncorroboratedDisplayPattern"] == true;
 
-    return dynamicTrace ||
-        (patternTrace && fineGrid >= 0.70 && persistent >= 0.58) ||
-        (fineGrid >= 0.85 && persistent >= 0.85 && dynamic < 0.22) ||
-        (fineGrid >= 0.75 && moire >= 0.40 && persistent >= 0.70);
+    return (dynamicTrace &&
+            fineGrid >= 0.70 &&
+            persistent >= 0.58 &&
+            moire >= 0.42) ||
+        (patternTrace &&
+            fineGrid >= 0.75 &&
+            persistent >= 0.70 &&
+            moire >= 0.42) ||
+        (fineGrid >= 0.85 &&
+            persistent >= 0.85 &&
+            dynamic < 0.22 &&
+            moire >= 0.42);
   }
 
   String _mlAnalysisStatus(Map<String, dynamic>? analysis) {

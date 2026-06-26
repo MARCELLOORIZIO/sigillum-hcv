@@ -789,19 +789,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 liveProbeSignals['uncorroboratedDisplayPattern']?.toString();
           }
 
-          final derivedLiveProbeScore =
-              _derivedLiveScreenProbeScore(liveScreenProbe);
-          final currentReplayScore = int.tryParse(screenReplayRiskScore ?? '');
-          if (derivedLiveProbeScore != null &&
-              (currentReplayScore == null ||
-                  derivedLiveProbeScore > currentReplayScore)) {
-            screenReplayRiskScore = derivedLiveProbeScore.toString();
-            screenReplayRisk = _screenReplayRiskLabel(derivedLiveProbeScore);
-          }
+          _normalizeScreenReplayRiskFromClaims(claims);
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
         aiProofLevel = claims['aiProofLevel']?.toString();
+        _normalizeScreenReplayRiskFromClaims(claims);
       }
 
       final tempDir = await getTemporaryDirectory();
@@ -1046,6 +1039,46 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             : 'LOW';
   }
 
+  void _normalizeScreenReplayRiskFromClaims(Map<dynamic, dynamic> claims) {
+    final liveProbe = claims['liveScreenProbe'];
+    if (liveProbe is! Map) return;
+
+    final derivedLiveProbeScore = _derivedLiveScreenProbeScore(liveProbe);
+    final currentReplayScore = int.tryParse(screenReplayRiskScore ?? '');
+    if (derivedLiveProbeScore != null &&
+        (currentReplayScore == null ||
+            derivedLiveProbeScore > currentReplayScore)) {
+      screenReplayRiskScore = derivedLiveProbeScore.toString();
+      screenReplayRisk = _screenReplayRiskLabel(derivedLiveProbeScore);
+      return;
+    }
+
+    final ml = claims['mlScreenReplayAnalysis'];
+    final passive = claims['screenReplayAnalysis'];
+    final mlClass = ml is Map ? ml['predictedClass']?.toString() : null;
+    final mlConfidence =
+        ml is Map ? _asDouble(ml['predictedClassConfidence']) : 0.0;
+    final mlScreenProbability =
+        ml is Map ? _asDouble(ml['screenProbability']) : 1.0;
+    final passiveScore = passive is Map
+        ? (passive['screenReplayRiskScore'] as num?)?.toInt()
+        : null;
+    final mlSaysReality = mlClass != null &&
+        mlClass.startsWith('REALITY_') &&
+        mlConfidence >= 0.60 &&
+        mlScreenProbability < 0.35;
+    final currentIsWarning = (currentReplayScore ?? 0) >= 55;
+
+    if (currentIsWarning &&
+        derivedLiveProbeScore == null &&
+        mlSaysReality &&
+        (passiveScore == null || passiveScore < 35)) {
+      final downgradedScore = passiveScore ?? 20;
+      screenReplayRiskScore = downgradedScore.toString();
+      screenReplayRisk = _screenReplayRiskLabel(downgradedScore);
+    }
+  }
+
   int? _derivedLiveScreenProbeScore(Map<dynamic, dynamic> liveProbe) {
     final signals = liveProbe['signals'];
     final dynamicTrace = signals is Map &&
@@ -1057,10 +1090,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final dynamic = _asDouble(liveProbe['dynamicChallengeScore']);
     final moire = _asDouble(liveProbe['moireFrequencyScore']);
 
-    if (dynamicTrace ||
-        (patternTrace && fineGrid >= 0.70 && persistent >= 0.58) ||
-        (fineGrid >= 0.85 && persistent >= 0.85 && dynamic < 0.22) ||
-        (fineGrid >= 0.75 && moire >= 0.40 && persistent >= 0.70)) {
+    if ((dynamicTrace &&
+            fineGrid >= 0.70 &&
+            persistent >= 0.58 &&
+            moire >= 0.42) ||
+        (patternTrace &&
+            fineGrid >= 0.75 &&
+            persistent >= 0.70 &&
+            moire >= 0.42) ||
+        (fineGrid >= 0.85 &&
+            persistent >= 0.85 &&
+            dynamic < 0.22 &&
+            moire >= 0.42)) {
       return 70;
     }
 
