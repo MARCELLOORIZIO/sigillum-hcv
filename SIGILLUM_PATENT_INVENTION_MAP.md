@@ -12,6 +12,55 @@ The stronger technical thesis is:
 
 This distinction matters because a conventional cryptographic hash proves that a specific file is unchanged. SIGILLUM also attempts to preserve verification when a file is renamed, recompressed, converted or shared through social platforms.
 
+## Market Gap Positioning
+
+SIGILLUM should be positioned around the gap left when standard provenance chains are interrupted.
+
+### Level 1 - Native Provenance Chain
+
+This is the environment where C2PA and similar systems are strongest:
+
+```text
+Compatible capture device
+  -> signature
+  -> metadata
+  -> manifest
+  -> verification
+```
+
+In this scenario, SIGILLUM should not claim that hash, signature, metadata, manifest or registry are new by themselves.
+
+### Level 2 - Degraded / Non-Cooperative Distribution
+
+This is the environment where SIGILLUM should focus:
+
+```text
+Original media
+  -> WhatsApp / Telegram / Instagram / TikTok
+  -> screenshot / crop / recompression / rename / re-upload
+  -> manifest lost
+  -> metadata lost
+  -> exact hash no longer useful
+  -> signature no longer directly attached to the media
+```
+
+The technical problem becomes different:
+
+> Estimate continuity of content identity after non-cooperative transformations using multiple technical evidences.
+
+This framing is stronger than saying that SIGILLUM replaces C2PA. It says that C2PA works well when the provenance chain remains intact, while SIGILLUM addresses cases where that chain has been broken.
+
+Suggested patent-style phrase:
+
+> Method for estimating continuity of identity of digital content across non-cooperative transformations by integrating multiple technical evidences.
+
+This language is useful because:
+
+- "estimating" reflects that the result may be probabilistic;
+- "continuity of identity" avoids claiming simple file equality;
+- "non-cooperative transformations" identifies the hard technical environment;
+- "multiple technical evidences" avoids reliance on a single fingerprint or identifier.
+
 ## Three Technical Levels
 
 ### Level 1 - Vision
@@ -80,7 +129,7 @@ Technical details to define before filing:
 
 This level is the likely heart of the claims. The phrase "persistent identity" should be treated as the result; the above mechanism is what must be claimed.
 
-## Transformation Genealogy
+## Content Identity Graph / Transformation Genealogy
 
 A possible later invention area is not only answering:
 
@@ -115,6 +164,62 @@ Possible technical approach:
 Patent relevance:
 
 This may be a separate future filing if the implementation becomes concrete. It should be investigated in prior art together with content provenance, perceptual hashing and media lineage systems.
+
+### Content Identity Graph As Technical Object
+
+The genealogy should be framed as a data structure, not merely a feature.
+
+Possible object name:
+
+> Content Identity Graph
+
+or:
+
+> Content Lineage Model
+
+Each node may represent a media instance or derivative:
+
+- cryptographic hash, if available;
+- perceptual fingerprint;
+- HCV-ID or linked source HCV-ID;
+- timestamp or observation time;
+- media type and container;
+- detected transformation type;
+- confidence value;
+- source certificate or registry reference;
+- screen-replay or authenticity risk indicators.
+
+Each edge may represent a derivation hypothesis:
+
+- exact copy;
+- social recompression;
+- crop;
+- resize;
+- screenshot;
+- frame extraction;
+- re-upload;
+- screen replay;
+- unknown transformation.
+
+This changes the core question from:
+
+> Is this file original?
+
+to:
+
+> Are these multiple files technically related to the same source content, and with what confidence?
+
+This is a stronger technical and commercial positioning than simple verification.
+
+Potential technical output:
+
+```text
+Source content HCV-12345678
+  -> derivative A: social recompression, confidence 0.97
+  -> derivative B: crop from A, confidence 0.83
+  -> derivative C: screenshot of source, confidence 0.72
+  -> derivative D: unrelated content with copied HCV-ID, confidence 0.08
+```
 
 ## Technical Problem / Solution / Effect Mapping
 
@@ -517,6 +622,95 @@ Recommended initial split:
 3. Screen replay detection inside certified capture.
 
 Trust score and distributed ecosystem can follow once the implementation is more mature.
+
+## Technical Roadmap To Increase Patent Value
+
+The following roadmap prioritizes engineering work that can strengthen future patent claims.
+
+### 1. Resilient Matching Engine
+
+Goal:
+
+Define which features remain stable across recompression, crop, resize, format conversion, screenshots and social-media distribution.
+
+Work items:
+
+- build test sets for WhatsApp, Telegram, Instagram, TikTok and screenshot transformations;
+- measure feature stability after each transformation;
+- compare frame-level, region-level, temporal and perceptual descriptors;
+- define distance metrics and tolerances;
+- separate exact match, transformed match, partial match and mismatch.
+
+Patent value:
+
+This creates concrete technical material for claims around non-cooperative transformation matching.
+
+### 2. Evidence Model
+
+Goal:
+
+Define how independent technical signals are combined into a decision.
+
+Signals:
+
+- exact hash;
+- perceptual fingerprint;
+- HCV-ID;
+- registry certificate;
+- watermark or visible ID;
+- screen-replay indicators;
+- device/creator identity;
+- metadata, when available;
+- timestamp and sensor coherence, when available.
+
+Outputs:
+
+- exact verified;
+- transformed derivative verified;
+- ID valid/media not verified;
+- uncertain;
+- tampered or substituted.
+
+Patent value:
+
+The invention becomes a technical decision system rather than a single fingerprint lookup.
+
+### 3. Content Identity Graph
+
+Goal:
+
+Represent relationships among multiple media instances derived from the same source.
+
+Work items:
+
+- define node schema;
+- define edge schema;
+- store derivation confidence;
+- classify transformation type;
+- maintain root HCV identity;
+- support multiple derivatives and branching paths;
+- produce an auditable graph or lineage report.
+
+Patent value:
+
+This may be the highest-value future patent direction because it frames SIGILLUM as reconstructing relationships between contents, not merely verifying one file.
+
+### 4. C2PA-Compatible Extension Strategy
+
+Goal:
+
+Position SIGILLUM as complementary to standard provenance systems.
+
+Work items:
+
+- map SIGILLUM certificate fields to C2PA concepts;
+- define how SIGILLUM behaves when a C2PA manifest exists;
+- define how SIGILLUM behaves when the manifest is missing;
+- use HCV identity and fingerprint matching as a recovery layer for broken provenance chains.
+
+Patent and market value:
+
+This avoids claiming to replace established standards and instead positions SIGILLUM as an extension for degraded, non-cooperative distribution environments.
 
 ## Important Caution
 
