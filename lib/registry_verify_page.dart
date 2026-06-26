@@ -135,8 +135,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           .replaceAll('HCV1D', 'HCV-')
           .replaceAll('HCV_LD', 'HCV-')
           .replaceAll('HCV_ID', 'HCV-')
-          .replaceAll('HCV—', 'HCV-')
-          .replaceAll('HCV—', 'HCV-')
+          .replaceAll('\u2014', '-')
+          .replaceAll('\u2013', '-')
           .replaceAll('HCV_', 'HCV-')
           .replaceAll('O', '0');
 
@@ -481,6 +481,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? syntheticRisk;
   String? sceneAuthenticity;
   String? aiProofLevel;
+  String? provenanceState;
+  String? provenanceDetail;
+  String? integrityState;
+  String? integrityDetail;
+  String? sceneState;
+  String? sceneDetail;
+  String? derivationState;
+  String? derivationDetail;
 
   bool loading = false;
   bool hcvIdDetectedByOcr = false;
@@ -597,7 +605,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (lowerPath.endsWith('.hcv') || lowerPath.endsWith('.hcvpack')) {
       setState(() {
         mediaPath = null;
-        result = 'INVALID ❌';
+        result = 'INVALID';
         status =
             'Qui devi selezionare il file ORIGINALE (mp4, jpg, pdf, txt, audio), NON .hcv o .hcvpack';
       });
@@ -634,7 +642,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         idController.text = ocrId;
 
         setState(() {
-          status = 'HCV-ID rilevato via OCR nel media ✔';
+          status = 'HCV-ID rilevato via OCR nel media';
         });
       }
 
@@ -642,7 +650,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         idController.text = ocrId;
 
         setState(() {
-          status = 'HCV-ID rilevato via OCR ✔';
+          status = 'HCV-ID rilevato via OCR';
         });
       }
     }
@@ -688,6 +696,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       result = null;
 
       status = 'Scaricamento certificato dal Registry HCV...';
+      _clearVerificationAxes();
 
       certificate = null;
 
@@ -801,7 +810,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
           status = 'Certificato scaricato ma firma crittografica NON valida';
 
-          result = 'INVALID ❌';
+          result = 'INVALID';
 
           certificate = cert;
         });
@@ -817,7 +826,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
           status = 'Certificato senza content binding';
 
-          result = 'INVALID ❌';
+          result = 'INVALID';
 
           certificate = cert;
         });
@@ -833,7 +842,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
           status = 'File media non trovato';
 
-          result = 'INVALID ❌';
+          result = 'INVALID';
         });
 
         return;
@@ -890,11 +899,31 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         certificate = cert;
 
         void markVerified(String cleanStatus, String cleanResult) {
-          if (_isScreenReplayRisk(screenReplayRisk)) {
+          final exactOriginal = cleanResult.startsWith('FORENSIC');
+          final sceneWarning = _isScreenReplayRisk(screenReplayRisk);
+          _setVerificationAxes(
+            provenance: 'Verificata',
+            provenanceDetail:
+                'Certificato Registry valido, identita tecnica e contenuto collegati.',
+            integrity:
+                exactOriginal ? 'Originale integro' : 'Derivato compatibile',
+            integrityDetail: exactOriginal
+                ? 'Hash SHA-256 identico all originale certificato.'
+                : 'Hash diverso, ma evidenze compatibili con il certificato.',
+            scene: sceneWarning ? 'Cautela scena' : 'Nessun rischio alto',
+            sceneDetail: sceneWarning
+                ? 'Possibile ripresa da schermo: $screenReplayRisk.'
+                : 'Nessun rischio schermo medio/alto nel certificato.',
+            derivation: exactOriginal ? 'Non necessaria' : 'Compatibile',
+            derivationDetail: exactOriginal
+                ? 'Il file corrisponde esattamente all originale.'
+                : 'Il file sembra un derivato o una versione ricompressa.',
+          );
+          if (sceneWarning) {
             status = '$cleanStatus\n\n'
                 'ATTENZIONE: possibile ripresa di uno schermo rilevata '
-                '($screenReplayRisk). Il media è collegato al certificato, '
-                'ma la scena non va trattata come ripresa diretta della realtà.';
+                '($screenReplayRisk). Il media e collegato al certificato, '
+                'ma la scena non va trattata come ripresa diretta della realta.';
 
             result = cleanResult;
           } else {
@@ -905,17 +934,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         if (forensicVerified) {
           markVerified(
-            'FORENSIC VERIFIED ✔\nFile identico all’originale certificato. Hash SHA-256 corrispondente.',
-            'FORENSIC VERIFIED ✔',
+            'FORENSIC VERIFIED OK\nFile identico all originale certificato. Hash SHA-256 corrispondente.',
+            'FORENSIC VERIFIED OK',
           );
         } else if (socialTextVerified) {
           markVerified(
-            'SOCIAL VERIFIED ✔\nTesto originale verificato. Il post contiene footer SIGILLUM/HCV-ID, quindi il file non è identico byte-per-byte ma il contenuto certificato corrisponde.',
-            'SOCIAL VERIFIED ✔',
+            'SOCIAL VERIFIED OK\nTesto originale verificato. Il post contiene footer SIGILLUM/HCV-ID, quindi il file non e identico byte-per-byte ma il contenuto certificato corrisponde.',
+            'SOCIAL VERIFIED OK',
           );
         } else {
           status =
-              'SOCIAL VERIFIED ✔\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
+              'SOCIAL VERIFIED OK\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
 
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
 
@@ -923,15 +952,15 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               contentType == 'video' &&
               videoFingerprintMatches == true) {
             markVerified(
-              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perché il file è stato ricompresso o rinominato.',
-              'SOCIAL VERIFIED ✔',
+              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED OK',
             );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'video' &&
               videoFingerprintMatches == null) {
             markVerified(
-              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.',
-              'SOCIAL VERIFIED ✔',
+              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED OK',
             );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'video' &&
@@ -939,20 +968,20 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             status =
                 'HCV-ID rilevato nel video, ma il fingerprint social non corrisponde al contenuto certificato. Possibile ID sovrapposto a un video diverso.';
 
-            result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
+            result = 'ID VALID / MEDIA NOT VERIFIED';
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'photo' &&
               imageFingerprintMatches == true) {
             markVerified(
-              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perché il file è stato ricompresso o rinominato.',
-              'SOCIAL VERIFIED ✔',
+              'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED OK',
             );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'photo' &&
               imageFingerprintMatches == null) {
             markVerified(
-              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.',
-              'SOCIAL VERIFIED ✔',
+              'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.',
+              'SOCIAL VERIFIED OK',
             );
           } else if (hcvIdWasDetectedInMedia &&
               contentType == 'photo' &&
@@ -960,17 +989,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             status =
                 'HCV-ID rilevato nella foto, ma il fingerprint immagine non corrisponde al contenuto certificato. Possibile ID sovrapposto a una foto diversa.';
 
-            result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
+            result = 'ID VALID / MEDIA NOT VERIFIED';
           } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
             markVerified(
-              'SOCIAL VERIFIED ✔\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perché il file è stato ricompresso o rinominato.',
-              'SOCIAL VERIFIED ✔',
+              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED OK',
             );
           } else {
             status =
                 'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. Verifica social non conclusiva.';
 
-            result = 'ID VALID / MEDIA NOT VERIFIED ⚠️';
+            result = 'ID VALID / MEDIA NOT VERIFIED';
           }
         }
       });
@@ -980,27 +1009,185 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         status = 'ERRORE REGISTRY: $e';
 
-        result = 'INVALID ❌';
+        result = 'INVALID';
       });
     }
   }
 
-  bool get isVerified =>
-      result == 'HUMAN VERIFIED ✔' ||
-      result == 'FORENSIC VERIFIED ✔' ||
-      result == 'SOCIAL VERIFIED ✔';
+  bool get isVerified {
+    final value = result ?? '';
+    return value.startsWith('HUMAN VERIFIED') ||
+        value.startsWith('FORENSIC VERIFIED') ||
+        value.startsWith('SOCIAL VERIFIED');
+  }
 
-  bool get isScreenReplayWarning => result == 'VERIFIED WITH SCREEN RISK ⚠️';
+  bool get isScreenReplayWarning => (result ?? '').contains('SCREEN RISK');
 
   bool _isScreenReplayRisk(String? risk) {
     final value = risk?.toUpperCase();
     return value == 'MEDIUM' || value == 'HIGH';
   }
 
+  void _clearVerificationAxes() {
+    provenanceState = null;
+    provenanceDetail = null;
+    integrityState = null;
+    integrityDetail = null;
+    sceneState = null;
+    sceneDetail = null;
+    derivationState = null;
+    derivationDetail = null;
+  }
+
+  void _setVerificationAxes({
+    required String provenance,
+    required String provenanceDetail,
+    required String integrity,
+    required String integrityDetail,
+    required String scene,
+    required String sceneDetail,
+    String? derivation,
+    String? derivationDetail,
+  }) {
+    provenanceState = provenance;
+    this.provenanceDetail = provenanceDetail;
+    integrityState = integrity;
+    this.integrityDetail = integrityDetail;
+    sceneState = scene;
+    this.sceneDetail = sceneDetail;
+    derivationState = derivation;
+    this.derivationDetail = derivationDetail;
+  }
+
+  bool get _hasVerificationAxes =>
+      provenanceState != null ||
+      integrityState != null ||
+      sceneState != null ||
+      derivationState != null ||
+      result != null;
+
+  bool get _isMediaNotVerified => (result ?? '').contains('MEDIA NOT VERIFIED');
+
+  bool get _isInvalidResult => (result ?? '').startsWith('INVALID');
+
+  bool get _isForensicResult => (result ?? '').startsWith('FORENSIC VERIFIED');
+
+  bool get _isSocialResult => (result ?? '').startsWith('SOCIAL VERIFIED');
+
+  String get _effectiveProvenanceState {
+    if (provenanceState != null) return provenanceState!;
+    if (_isMediaNotVerified) return 'HCV-ID valido';
+    if (_isInvalidResult) return 'Non verificata';
+    return '-';
+  }
+
+  String get _effectiveProvenanceDetail {
+    if (provenanceDetail != null) return provenanceDetail!;
+    if (_isMediaNotVerified) {
+      return 'Il certificato esiste nel Registry, ma il file selezionato non corrisponde al contenuto certificato.';
+    }
+    if (_isInvalidResult) {
+      return 'Non e stato possibile confermare certificato, firma o collegamento tecnico.';
+    }
+    return '-';
+  }
+
+  String get _effectiveIntegrityState {
+    if (integrityState != null) return integrityState!;
+    if (_isForensicResult) return 'Originale integro';
+    if (_isSocialResult) return 'Derivato compatibile';
+    if (_isMediaNotVerified) return 'Non originale';
+    if (_isInvalidResult) return 'Non verificata';
+    return '-';
+  }
+
+  String get _effectiveIntegrityDetail {
+    if (integrityDetail != null) return integrityDetail!;
+    if (_isForensicResult) {
+      return 'Hash SHA-256 identico all originale certificato.';
+    }
+    if (_isSocialResult) {
+      return 'Hash diverso, ma HCV-ID e fingerprint sono compatibili con il certificato.';
+    }
+    if (_isMediaNotVerified) {
+      return 'Il media selezionato non supera il controllo di corrispondenza con il contenuto certificato.';
+    }
+    if (_isInvalidResult) {
+      return 'Integrita non dimostrata.';
+    }
+    return '-';
+  }
+
+  String get _effectiveSceneState {
+    if (sceneState != null) return sceneState!;
+    if (_isScreenReplayRisk(screenReplayRisk)) return 'Cautela scena';
+    if (screenReplayRisk != null) return 'Nessun rischio alto';
+    if (_isInvalidResult || _isMediaNotVerified) return 'Non conclusiva';
+    return '-';
+  }
+
+  String get _effectiveSceneDetail {
+    if (sceneDetail != null) return sceneDetail!;
+    if (_isScreenReplayRisk(screenReplayRisk)) {
+      return 'Possibile ripresa da schermo: $screenReplayRisk.';
+    }
+    if (screenReplayRisk != null) {
+      return 'Nessun rischio schermo medio/alto nel certificato.';
+    }
+    if (_isInvalidResult || _isMediaNotVerified) {
+      return 'La scena non viene usata per dichiarare il contenuto originale.';
+    }
+    return '-';
+  }
+
+  String? get _effectiveDerivationState {
+    if (derivationState != null) return derivationState;
+    if (_isForensicResult) return 'Non necessaria';
+    if (_isSocialResult) return 'Compatibile';
+    if (_isMediaNotVerified) return 'Non verificata';
+    return null;
+  }
+
+  String get _effectiveDerivationDetail {
+    if (derivationDetail != null) return derivationDetail!;
+    if (_isForensicResult)
+      return 'Il file corrisponde esattamente all originale.';
+    if (_isSocialResult) {
+      return 'Il file sembra un derivato, una versione ricompressa o rinominata.';
+    }
+    if (_isMediaNotVerified) {
+      return 'Il file non puo essere trattato come derivato verificato del contenuto certificato.';
+    }
+    return '-';
+  }
+
   String _shortFingerprint(String? value) {
     if (value == null || value.isEmpty) return '-';
     if (value.length <= 18) return value;
     return '${value.substring(0, 10)}...${value.substring(value.length - 8)}';
+  }
+
+  Color _axisColor(String? value) {
+    final normalized = value?.toLowerCase() ?? '';
+    if (normalized.contains('non verificata') ||
+        normalized.contains('non originale') ||
+        normalized.contains('modificat') ||
+        normalized.contains('mismatch')) {
+      return Colors.red;
+    }
+    if (normalized.contains('cautela') ||
+        normalized.contains('compatibile') ||
+        normalized.contains('conclusiva') ||
+        normalized.contains('valido') ||
+        normalized.contains('derivato')) {
+      return Colors.orange;
+    }
+    if (normalized.contains('verificata') ||
+        normalized.contains('integro') ||
+        normalized.contains('nessun')) {
+      return Colors.green;
+    }
+    return Colors.grey;
   }
 
   @override
@@ -1076,6 +1263,42 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   color: Colors.grey,
                 ),
               ),
+              if (_hasVerificationAxes) ...[
+                const SizedBox(height: 18),
+                _VerificationAxisCard(
+                  icon: Icons.badge_outlined,
+                  title: 'Provenienza',
+                  value: _effectiveProvenanceState,
+                  detail: _effectiveProvenanceDetail,
+                  color: _axisColor(_effectiveProvenanceState),
+                ),
+                const SizedBox(height: 10),
+                _VerificationAxisCard(
+                  icon: Icons.verified_user_outlined,
+                  title: 'Integrita',
+                  value: _effectiveIntegrityState,
+                  detail: _effectiveIntegrityDetail,
+                  color: _axisColor(_effectiveIntegrityState),
+                ),
+                const SizedBox(height: 10),
+                _VerificationAxisCard(
+                  icon: Icons.visibility_outlined,
+                  title: 'Scena',
+                  value: _effectiveSceneState,
+                  detail: _effectiveSceneDetail,
+                  color: _axisColor(_effectiveSceneState),
+                ),
+                if (_effectiveDerivationState != null) ...[
+                  const SizedBox(height: 10),
+                  _VerificationAxisCard(
+                    icon: Icons.account_tree_outlined,
+                    title: 'Derivazione',
+                    value: _effectiveDerivationState!,
+                    detail: _effectiveDerivationDetail,
+                    color: _axisColor(_effectiveDerivationState),
+                  ),
+                ],
+              ],
               if (result != null) ...[
                 const SizedBox(height: 20),
                 Text(
@@ -1185,6 +1408,71 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VerificationAxisCard extends StatelessWidget {
+  const _VerificationAxisCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.detail,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final String detail;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111A17),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  detail,
+                  style: const TextStyle(fontSize: 14, height: 1.25),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
