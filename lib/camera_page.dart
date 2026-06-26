@@ -607,6 +607,8 @@ class _CameraPageState extends State<CameraPage> {
 
     final mlScore = (mlAnalysis["screenReplayRiskScore"] as num?)?.toInt();
     final mlClass = mlAnalysis["predictedClass"]?.toString();
+    final mlClassConfidence =
+        (mlAnalysis["predictedClassConfidence"] as num?)?.toDouble();
     final nonMlScores = analyses
         .whereType<Map<String, dynamic>>()
         .where((analysis) =>
@@ -631,6 +633,12 @@ class _CameraPageState extends State<CameraPage> {
       }
 
       return min(strongestScore ?? mlScore, 54);
+    }
+
+    if (mlSaysScreen &&
+        mlScore >= 70 &&
+        (mlClassConfidence == null || mlClassConfidence >= 0.60)) {
+      return max(strongestNonMl ?? 0, max(55, min(mlScore, 79)));
     }
 
     if (mlSaysScreen && mlScore < 80) {
