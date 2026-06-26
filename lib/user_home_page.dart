@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camera_page.dart';
 import 'hcv_import_router_page.dart';
 import 'identity_page.dart';
 import 'import_page.dart';
+import 'legal_info_page.dart';
 import 'registry_verify_page.dart';
+import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
 import 'text_cert_page.dart';
 
@@ -18,12 +21,35 @@ class UserHomePage extends StatefulWidget {
 
 class _UserHomePageState extends State<UserHomePage> {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
+  String languageCode = SigillumCopy.initialLanguageCode();
+
+  String _t(String key) => SigillumCopy.t(languageCode, key);
 
   @override
   void initState() {
     super.initState();
     _intentChannel.setMethodCallHandler(_handleNativeIntent);
+    Future.microtask(_loadLanguage);
     Future.microtask(_checkInitialIntent);
+  }
+
+  Future<void> _loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('sigillum_language');
+    if (saved == null || saved.isEmpty) return;
+    if (!mounted) return;
+    setState(() {
+      languageCode = SigillumCopy.language(saved).code;
+    });
+  }
+
+  Future<void> _setLanguage(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('sigillum_language', code);
+    if (!mounted) return;
+    setState(() {
+      languageCode = SigillumCopy.language(code).code;
+    });
   }
 
   Future<dynamic> _handleNativeIntent(MethodCall call) async {
@@ -84,6 +110,8 @@ class _UserHomePageState extends State<UserHomePage> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
                 child: _Header(
+                  languageCode: languageCode,
+                  onLanguageChanged: _setLanguage,
                   onIdentity: () => _open(const IdentityPage()),
                 ),
               ),
@@ -94,29 +122,38 @@ class _UserHomePageState extends State<UserHomePage> {
                 children: [
                   _PrimaryAction(
                     icon: Icons.add_a_photo_rounded,
-                    title: 'Certifica foto o video',
-                    subtitle: 'Registra o scatta e crea il certificato.',
+                    title: _t('certifyMediaTitle'),
+                    subtitle: _t('certifyMediaSubtitle'),
                     onPressed: () => _open(const CameraPage()),
                   ),
                   const SizedBox(height: 10),
                   _PrimaryAction(
                     icon: Icons.article_rounded,
-                    title: 'Certifica testo',
-                    subtitle: 'Crea un testo verificabile con HCV-ID.',
+                    title: _t('certifyTextTitle'),
+                    subtitle: _t('certifyTextSubtitle'),
                     onPressed: () => _open(const TextCertPage()),
                   ),
                   const SizedBox(height: 10),
                   _PrimaryAction(
                     icon: Icons.verified_rounded,
-                    title: 'Verifica contenuto',
-                    subtitle:
-                        'Apri un file, un HCVPACK o verifica dal Registry.',
+                    title: _t('verifyTitle'),
+                    subtitle: _t('verifySubtitle'),
                     onPressed: () => _open(const ImportPage()),
                   ),
+                  const SizedBox(height: 10),
+                  _PrimaryAction(
+                    icon: Icons.info_outline_rounded,
+                    title: _t('infoTitle'),
+                    subtitle: _t('infoSubtitle'),
+                    filled: false,
+                    onPressed: () => _open(
+                      LegalInfoPage(languageCode: languageCode),
+                    ),
+                  ),
                   const SizedBox(height: 22),
-                  const _TrustChainCard(),
+                  _TrustChainCard(languageCode: languageCode),
                   const SizedBox(height: 14),
-                  const _ControlsCard(),
+                  _ControlsCard(languageCode: languageCode),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -130,13 +167,21 @@ class _UserHomePageState extends State<UserHomePage> {
 
 class _Header extends StatelessWidget {
   const _Header({
+    required this.languageCode,
+    required this.onLanguageChanged,
     required this.onIdentity,
   });
 
+  final String languageCode;
+  final ValueChanged<String> onLanguageChanged;
   final VoidCallback onIdentity;
+
+  String _t(String key) => SigillumCopy.t(languageCode, key);
 
   @override
   Widget build(BuildContext context) {
+    final language = SigillumCopy.language(languageCode);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -179,16 +224,44 @@ class _Header extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Identita',
+              tooltip: _t('identity'),
               onPressed: onIdentity,
               icon: const Icon(Icons.badge_outlined),
+            ),
+            PopupMenuButton<String>(
+              tooltip: language.name,
+              initialValue: languageCode,
+              onSelected: onLanguageChanged,
+              itemBuilder: (context) => [
+                for (final item in SigillumCopy.languages)
+                  PopupMenuItem(
+                    value: item.code,
+                    child: Text(item.name),
+                  ),
+              ],
+              child: Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0x667E9189)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  language.shortName,
+                  style: const TextStyle(
+                    color: SigillumTheme.ivory,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 28),
-        const Text(
-          'Certifica contenuti con una prova tecnica verificabile.',
-          style: TextStyle(
+        Text(
+          _t('headline'),
+          style: const TextStyle(
             color: SigillumTheme.ivory,
             fontSize: 30,
             height: 1.08,
@@ -197,10 +270,9 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Foto e video vengono collegati a identita tecnica, impronta del file, '
-          'certificato firmato e registro online.',
-          style: TextStyle(
+        Text(
+          _t('subtitle'),
+          style: const TextStyle(
             color: SigillumTheme.muted,
             fontSize: 16,
             height: 1.35,
@@ -264,20 +336,40 @@ class _PrimaryAction extends StatelessWidget {
 }
 
 class _TrustChainCard extends StatelessWidget {
-  const _TrustChainCard();
+  const _TrustChainCard({required this.languageCode});
+
+  final String languageCode;
+
+  String _t(String key) => SigillumCopy.t(languageCode, key);
 
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: 'Catena di controllo',
+      title: _t('trustChain'),
       child: Column(
-        children: const [
-          _ChainStep(number: '1', title: 'Cattura', text: 'Creata in app'),
-          _ChainStep(number: '2', title: 'Impronta', text: 'Hash del file'),
+        children: [
           _ChainStep(
-              number: '3', title: 'Identita', text: 'Creatore collegato'),
-          _ChainStep(number: '4', title: 'Firma', text: 'Certificato protetto'),
-          _ChainStep(number: '5', title: 'Registro', text: 'Verifica online'),
+              number: '1', title: _t('capture'), text: _t('captureText')),
+          _ChainStep(
+            number: '2',
+            title: _t('fingerprint'),
+            text: _t('fingerprintText'),
+          ),
+          _ChainStep(
+            number: '3',
+            title: _t('identityStep'),
+            text: _t('identityText'),
+          ),
+          _ChainStep(
+            number: '4',
+            title: _t('signature'),
+            text: _t('signatureText'),
+          ),
+          _ChainStep(
+            number: '5',
+            title: _t('registry'),
+            text: _t('registryText'),
+          ),
         ],
       ),
     );
@@ -285,20 +377,24 @@ class _TrustChainCard extends StatelessWidget {
 }
 
 class _ControlsCard extends StatelessWidget {
-  const _ControlsCard();
+  const _ControlsCard({required this.languageCode});
+
+  final String languageCode;
+
+  String _t(String key) => SigillumCopy.t(languageCode, key);
 
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: 'Controlli SIGILLUM',
+      title: _t('controls'),
       child: Column(
-        children: const [
-          _MiniCheck(text: 'Integrita file e coerenza col certificato'),
-          _MiniCheck(text: 'Firma digitale del certificato'),
-          _MiniCheck(text: 'Watermark visibile nel contenuto pubblicato'),
-          _MiniCheck(text: 'Registro online per verifica futura'),
-          _MiniCheck(text: 'Controllo anti-ripresa da schermo'),
-          _MiniCheck(text: 'Fingerprint per file ricompressi dai social'),
+        children: [
+          _MiniCheck(text: _t('checkIntegrity')),
+          _MiniCheck(text: _t('checkSignature')),
+          _MiniCheck(text: _t('checkWatermark')),
+          _MiniCheck(text: _t('checkRegistry')),
+          _MiniCheck(text: _t('checkScreen')),
+          _MiniCheck(text: _t('checkSocial')),
         ],
       ),
     );
