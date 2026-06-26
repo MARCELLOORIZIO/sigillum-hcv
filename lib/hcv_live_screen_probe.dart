@@ -156,7 +156,8 @@ class HCVLiveScreenProbe {
             frames.length;
     final challenge = _dynamicChallenge(frames);
     final dynamicChallengeScore = challenge['dynamicChallengeScore'] as double;
-    final persistentPatternScore = challenge['persistentPatternScore'] as double;
+    final persistentPatternScore =
+        challenge['persistentPatternScore'] as double;
     final bandTemporalScore = _bandTemporalScore(frames);
     final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
 
@@ -177,19 +178,16 @@ class HCVLiveScreenProbe {
         refreshCorroboration;
     final pairedFlickerTrace = localFlickerScore > 0.18 &&
         (refreshBandScore > 0.14 || bandTemporalScore > 0.06);
-    final uncorroboratedDisplayPattern =
-        !refreshCorroboration &&
-            (refreshBandScore > 0.07 ||
-                fineGridScore > 0.70 ||
-                moireFrequencyScore > 0.28 ||
-                (globalFlickerScore > 0.22 && localFlickerScore > 0.38));
+    final uncorroboratedDisplayPattern = !refreshCorroboration &&
+        (refreshBandScore > 0.07 ||
+            fineGridScore > 0.70 ||
+            moireFrequencyScore > 0.28 ||
+            (globalFlickerScore > 0.22 && localFlickerScore > 0.38));
     final dynamicScreenChallengeTrace = persistentPatternScore > 0.58 &&
         dynamicChallengeScore < 0.18 &&
         (moireFrequencyScore > 0.30 || fineGridScore > 0.70);
     final confirmedDisplayTrace =
-        strongRefreshTrace ||
-        displayBandTrace ||
-        globalDisplayPulse;
+        strongRefreshTrace || displayBandTrace || globalDisplayPulse;
     final opticalCorroboratedTrace =
         opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
 
@@ -200,9 +198,13 @@ class HCVLiveScreenProbe {
     if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
     if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
     if (!confirmedDisplayTrace && uncorroboratedDisplayPattern) riskScore += 20;
+    if (dynamicScreenChallengeTrace) riskScore += 45;
+    if (persistentPatternScore > 0.85 && fineGridScore > 0.75) {
+      riskScore += 20;
+    }
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
-    if (!confirmedDisplayTrace) {
+    if (!confirmedDisplayTrace && !dynamicScreenChallengeTrace) {
       riskScore = min(riskScore, 30);
     }
     riskScore = riskScore.clamp(0, 100).toInt();
@@ -263,9 +265,8 @@ class HCVLiveScreenProbe {
         ((before.bandContrast - after.bandContrast).abs() * 0.7);
     final moireShift =
         (before.moireFrequencyScore - after.moireFrequencyScore).abs();
-    final persistentPattern =
-        min(before.fineGridScore, after.fineGridScore) *
-            (1.0 - min(1.0, moireShift));
+    final persistentPattern = min(before.fineGridScore, after.fineGridScore) *
+        (1.0 - min(1.0, moireShift));
 
     return {
       'dynamicChallengeScore': response.clamp(0.0, 1.0).toDouble(),
@@ -405,7 +406,8 @@ class HCVLiveScreenProbe {
       bandMeans: bandMeans,
       bandContrast: _profileContrast(bandMeans),
       fineStripeScore: _fineStripeScore(fineRows),
-      fineGridScore: max(_fineStripeScore(fineRows), _fineStripeScore(fineCols)),
+      fineGridScore:
+          max(_fineStripeScore(fineRows), _fineStripeScore(fineCols)),
       moireFrequencyScore: max(
         _periodicFrequencyScore(fineRows),
         _periodicFrequencyScore(fineCols),
@@ -520,9 +522,7 @@ class HCVLiveScreenProbe {
     final dominance = strongest / totalEnergy;
     final contrast = sqrt(totalEnergy / centered.length);
 
-    return ((dominance * 1.8) + (contrast * 2.4))
-        .clamp(0.0, 1.0)
-        .toDouble();
+    return ((dominance * 1.8) + (contrast * 2.4)).clamp(0.0, 1.0).toDouble();
   }
 
   double _temporalPulseScore(List<double> series) {

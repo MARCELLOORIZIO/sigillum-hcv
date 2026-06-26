@@ -595,6 +595,9 @@ class _CameraPageState extends State<CameraPage> {
 
   int? _combinedScreenReplayScore(List<Map<String, dynamic>?> analyses) {
     final strongestScore = _strongestScreenReplayScore(analyses);
+    final strongLiveEvidence = analyses
+        .whereType<Map<String, dynamic>>()
+        .any(_hasStrongLiveScreenEvidence);
     Map<String, dynamic>? mlAnalysis;
     for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
       if (analysis["type"] == "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1") {
@@ -628,6 +631,10 @@ class _CameraPageState extends State<CameraPage> {
     }
 
     if (mlSaysReality) {
+      if (strongLiveEvidence) {
+        return max(strongestNonMl ?? 0, 55);
+      }
+
       if (strongestNonMl == null || strongestNonMl < 80 || mlScore < 55) {
         return max(min(mlScore, 34), min(strongestNonMl ?? 0, 34));
       }
@@ -648,6 +655,27 @@ class _CameraPageState extends State<CameraPage> {
     }
 
     return strongestScore;
+  }
+
+  bool _hasStrongLiveScreenEvidence(Map<String, dynamic> analysis) {
+    if (analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1") return false;
+
+    final fineGrid = (analysis["fineGridScore"] as num?)?.toDouble() ?? 0;
+    final persistent =
+        (analysis["persistentPatternScore"] as num?)?.toDouble() ?? 0;
+    final dynamic =
+        (analysis["dynamicChallengeScore"] as num?)?.toDouble() ?? 1;
+    final moire = (analysis["moireFrequencyScore"] as num?)?.toDouble() ?? 0;
+    final signals = analysis["signals"];
+    final dynamicTrace =
+        signals is Map && signals["dynamicScreenChallengeTrace"] == true;
+    final patternTrace =
+        signals is Map && signals["uncorroboratedDisplayPattern"] == true;
+
+    return dynamicTrace ||
+        (patternTrace && fineGrid >= 0.70 && persistent >= 0.58) ||
+        (fineGrid >= 0.85 && persistent >= 0.85 && dynamic < 0.22) ||
+        (fineGrid >= 0.75 && moire >= 0.40 && persistent >= 0.70);
   }
 
   String _mlAnalysisStatus(Map<String, dynamic>? analysis) {

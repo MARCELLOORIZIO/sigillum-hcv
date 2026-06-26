@@ -788,6 +788,16 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             liveProbeUncorroboratedDisplayPattern =
                 liveProbeSignals['uncorroboratedDisplayPattern']?.toString();
           }
+
+          final derivedLiveProbeScore =
+              _derivedLiveScreenProbeScore(liveScreenProbe);
+          final currentReplayScore = int.tryParse(screenReplayRiskScore ?? '');
+          if (derivedLiveProbeScore != null &&
+              (currentReplayScore == null ||
+                  derivedLiveProbeScore > currentReplayScore)) {
+            screenReplayRiskScore = derivedLiveProbeScore.toString();
+            screenReplayRisk = _screenReplayRiskLabel(derivedLiveProbeScore);
+          }
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
@@ -1026,6 +1036,40 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   bool _isScreenReplayRisk(String? risk) {
     final value = risk?.toUpperCase();
     return value == 'MEDIUM' || value == 'HIGH';
+  }
+
+  String _screenReplayRiskLabel(int score) {
+    return score >= 80
+        ? 'HIGH'
+        : score >= 55
+            ? 'MEDIUM'
+            : 'LOW';
+  }
+
+  int? _derivedLiveScreenProbeScore(Map<dynamic, dynamic> liveProbe) {
+    final signals = liveProbe['signals'];
+    final dynamicTrace = signals is Map &&
+        signals['dynamicScreenChallengeTrace']?.toString() == 'true';
+    final patternTrace = signals is Map &&
+        signals['uncorroboratedDisplayPattern']?.toString() == 'true';
+    final fineGrid = _asDouble(liveProbe['fineGridScore']);
+    final persistent = _asDouble(liveProbe['persistentPatternScore']);
+    final dynamic = _asDouble(liveProbe['dynamicChallengeScore']);
+    final moire = _asDouble(liveProbe['moireFrequencyScore']);
+
+    if (dynamicTrace ||
+        (patternTrace && fineGrid >= 0.70 && persistent >= 0.58) ||
+        (fineGrid >= 0.85 && persistent >= 0.85 && dynamic < 0.22) ||
+        (fineGrid >= 0.75 && moire >= 0.40 && persistent >= 0.70)) {
+      return 70;
+    }
+
+    return null;
+  }
+
+  double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   void _clearVerificationAxes() {
