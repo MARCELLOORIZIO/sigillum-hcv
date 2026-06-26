@@ -9,7 +9,7 @@ import zipfile
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", default="ml_work/dataset")
-    parser.add_argument("--out", default="assets/ml/sigillum_screen_replay_v1.tflite")
+    parser.add_argument("--out", default="assets/ml/sigillum_screen_replay_v2.tflite")
     parser.add_argument("--epochs", type=int, default=18)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--image-size", type=int, default=224)

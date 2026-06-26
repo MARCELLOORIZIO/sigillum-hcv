@@ -896,7 +896,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 '($screenReplayRisk). Il media è collegato al certificato, '
                 'ma la scena non va trattata come ripresa diretta della realtà.';
 
-            result = 'VERIFIED WITH SCREEN RISK ⚠️';
+            result = cleanResult;
           } else {
             status = cleanStatus;
             result = cleanResult;

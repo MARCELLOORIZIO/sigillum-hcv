@@ -607,27 +607,33 @@ class _CameraPageState extends State<CameraPage> {
 
     final mlScore = (mlAnalysis["screenReplayRiskScore"] as num?)?.toInt();
     final mlClass = mlAnalysis["predictedClass"]?.toString();
+    final nonMlScores = analyses
+        .whereType<Map<String, dynamic>>()
+        .where((analysis) =>
+            analysis["type"] != "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1")
+        .map((analysis) => (analysis["screenReplayRiskScore"] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    final strongestNonMl =
+        nonMlScores.isEmpty ? null : nonMlScores.reduce((a, b) => max(a, b));
     final mlSaysScreen =
         mlClass != null && mlClass.startsWith("SCREEN_") && mlScore != null;
     final mlSaysReality =
         mlClass != null && mlClass.startsWith("REALITY_") && mlScore != null;
 
-    if (mlSaysReality && mlScore <= 35 && strongestScore != null) {
-      return max(mlScore, min(strongestScore, 34));
+    if (mlScore == null) {
+      return strongestScore == null ? null : min(strongestScore, 34);
+    }
+
+    if (mlSaysReality) {
+      if (strongestNonMl == null || strongestNonMl < 80 || mlScore < 55) {
+        return max(min(mlScore, 34), min(strongestNonMl ?? 0, 34));
+      }
+
+      return min(strongestScore ?? mlScore, 54);
     }
 
     if (mlSaysScreen && mlScore < 80) {
-      final nonMlScores = analyses
-          .whereType<Map<String, dynamic>>()
-          .where((analysis) =>
-              analysis["type"] != "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1")
-          .map((analysis) =>
-              (analysis["screenReplayRiskScore"] as num?)?.toInt())
-          .whereType<int>()
-          .toList();
-      final strongestNonMl =
-          nonMlScores.isEmpty ? null : nonMlScores.reduce((a, b) => max(a, b));
-
       if (strongestNonMl == null || strongestNonMl < 35) {
         return max(strongestNonMl ?? 0, min(mlScore, 34));
       }
