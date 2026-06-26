@@ -12,6 +12,110 @@ The stronger technical thesis is:
 
 This distinction matters because a conventional cryptographic hash proves that a specific file is unchanged. SIGILLUM also attempts to preserve verification when a file is renamed, recompressed, converted or shared through social platforms.
 
+## Three Technical Levels
+
+### Level 1 - Vision
+
+The identity of content should survive common transformations.
+
+This is the product vision, not by itself the patentable mechanism. A patent examiner will likely ask what technical process makes that persistence possible.
+
+### Level 2 - Architecture
+
+The persistent identity is produced by the interaction of multiple technical elements:
+
+```text
+HCV-ID
+  -> perceptual fingerprint
+  -> cryptographic hash
+  -> signed certificate
+  -> creator/device identity
+  -> registry record
+  -> trust score and verification decision
+```
+
+Each element has a different role:
+
+- the cryptographic hash verifies exact file integrity;
+- the perceptual fingerprint supports matching after transformations;
+- the HCV-ID anchors retrieval and human-facing verification;
+- the signed certificate binds claims to the content identity;
+- the registry enables recovery and later validation;
+- the trust score combines exact and tolerant evidence.
+
+### Level 3 - Technical Mechanism
+
+The core patent question is how SIGILLUM determines that a transformed media file still corresponds to the certified content.
+
+Candidate technical flow:
+
+```text
+Input media
+  -> normalization
+  -> feature extraction
+  -> perceptual fingerprint generation
+  -> cryptographic hash generation
+  -> certificate signing
+  -> registry storage
+  -> transformed media input
+  -> feature extraction on transformed media
+  -> candidate certificate retrieval by HCV-ID or search
+  -> exact hash comparison
+  -> tolerant fingerprint comparison
+  -> multi-signal scoring
+  -> verification decision
+```
+
+Technical details to define before filing:
+
+- which visual/audio/video features are extracted;
+- whether features are frame-based, region-based, temporal, structural or semantic;
+- how video frames are sampled;
+- how transformations such as crop, resize, recompression, format conversion, screenshot and metadata removal are normalized;
+- which distance metrics compare fingerprints;
+- which tolerance bands are used for social-media recompression;
+- how cryptographic hash evidence and perceptual evidence are weighted;
+- how mismatch, partial match, exact match and uncertain states are separated;
+- how copied HCV-IDs are detected when the media fingerprint does not support the claimed identity.
+
+This level is the likely heart of the claims. The phrase "persistent identity" should be treated as the result; the above mechanism is what must be claimed.
+
+## Transformation Genealogy
+
+A possible later invention area is not only answering:
+
+> Does this content derive from the certified original?
+
+but also:
+
+> What transformation path did this content follow?
+
+Example:
+
+```text
+Original capture
+  -> WhatsApp compression
+  -> screenshot
+  -> crop
+  -> TikTok video
+  -> extracted frame
+  -> second compression
+```
+
+If SIGILLUM can infer or record a chain of transformations, the system becomes a content genealogy engine rather than only a verification engine.
+
+Possible technical approach:
+
+- store a root HCV identity;
+- store derived fingerprints for transformed versions;
+- classify transformation types such as recompression, crop, resize, screenshot, frame extraction or container conversion;
+- link each derived media instance to a parent identity with a confidence score;
+- represent the result as a transformation graph rather than a single yes/no match.
+
+Patent relevance:
+
+This may be a separate future filing if the implementation becomes concrete. It should be investigated in prior art together with content provenance, perceptual hashing and media lineage systems.
+
 ## Possible Patent Family
 
 ### 1. Trusted Mobile Acquisition And Certification
@@ -229,6 +333,25 @@ Search topics:
 - liveness detection through camera sensors;
 - signed media certificate registry;
 - robust content identifier.
+
+Prior-art worksheet:
+
+| Nucleus | Known areas to compare | Possible differentiator to test |
+| --- | --- | --- |
+| Certified mobile capture | trusted camera apps, signed image capture, media provenance | combined HCV-ID, device identity, watermark, certificate and registry flow |
+| Screen replay detection | liveness detection, display detection, moire/flicker analysis, anti-spoofing | live preview plus captured-media analysis inside a signed capture certificate |
+| Persistent content identity | perceptual hashing, robust video fingerprinting, content ID systems | signed identity that combines exact hash and tolerant social fingerprint with registry retrieval |
+| HCV-ID | UUIDs, content IDs, watermarks, digital object identifiers | ID used as retrieval anchor plus anti-substitution verification against media fingerprint |
+| Trust score | fraud scoring, provenance scoring, liveness scores | score derived from cryptographic, sensor, ML, registry and social-fingerprint evidence |
+| Transformation genealogy | media lineage, provenance graphs, C2PA-like manifests | graph of derived media identities after uncontrolled social transformations |
+
+For each nucleus, counsel should identify:
+
+1. features already disclosed in prior art;
+2. features that are merely business or presentation logic;
+3. features that produce a technical effect;
+4. combinations that may be non-obvious;
+5. fallback claim positions if broad claims are rejected.
 
 ### Phase 2 - Provisional Technical Disclosure
 
