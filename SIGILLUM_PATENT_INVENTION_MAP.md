@@ -131,6 +131,136 @@ The main question for patent counsel should be framed at the problem level:
 
 This question forces analysis of the technical problem rather than isolated components such as HCV-ID, fingerprint or registry.
 
+## Media Trust Infrastructure
+
+SIGILLUM can also be described, cautiously, as a media trust infrastructure.
+
+Analogy:
+
+- internet PKI helps answer: "Can I trust this server?"
+- SIGILLUM aims to help answer: "Can I trust the origin and integrity of this media?"
+
+This should be presented as an analogy, not as a claim that SIGILLUM is already a complete public key infrastructure.
+
+Core evidence chain:
+
+```text
+Person / account
+  -> device
+  -> device key
+  -> controlled acquisition process
+  -> digital content
+  -> signed certificate
+  -> registry
+  -> verification
+```
+
+The primary value is not to prove that the real-world scene is true in an absolute sense. The primary value is to create a verifiable chain of evidence between:
+
+1. authenticated identity;
+2. authenticated device;
+3. controlled capture process;
+4. certified digital content;
+5. later verification of integrity or transformation.
+
+Suggested investor/product phrase:
+
+> SIGILLUM creates an evidence chain between identity, device, acquisition and digital content, allowing users to verify whether media comes from an authenticated capture, whether it remains intact, and whether the scene shows anomalies requiring caution.
+
+Suggested patent-oriented phrase:
+
+> SIGILLUM is an acquisition and verification infrastructure that creates a cryptographic evidence chain between identity, device, acquisition process and digital content, enabling verification of whether a media item still corresponds to the certified original and separation of technically demonstrable facts from probabilistic scene assessments.
+
+## Three Verification Axes
+
+SIGILLUM should separate verification into independent axes rather than compressing everything into a single "verified" or "not verified" result.
+
+### 1. Provenance
+
+Question:
+
+> Who or what created the certified content?
+
+Sub-levels:
+
+- device provenance: whether the authenticated device/camera was involved;
+- account provenance: which registered account or identity was associated;
+- content provenance: whether the selected media derives from the certified acquisition.
+
+### 2. Integrity
+
+Question:
+
+> Is this file bit-for-bit identical to the certified original?
+
+Possible outputs:
+
+- exact original;
+- transformed derivative;
+- modified or mismatched;
+- not enough evidence.
+
+### 3. Scene Credibility
+
+Question:
+
+> Does the captured scene present anomalies that reduce evidentiary value?
+
+Possible signals:
+
+- screen replay risk;
+- monitor/display detection;
+- sensor inconsistency;
+- motion inconsistency;
+- AI/deepfake risk, where available;
+- not analyzed.
+
+Important distinction:
+
+A video of a monitor may have verified provenance and verified file integrity, while still carrying a scene warning. It should not automatically be treated as "not verified" if it was genuinely captured and the file remains intact.
+
+## Four Independent Certifications
+
+The phrase "knowing whether a video was made by that camera, on that phone, belonging to that subject" implies four separable certifications:
+
+1. device certification;
+2. identity/account certification;
+3. acquisition-process certification;
+4. content-integrity certification.
+
+These may be signed and verified independently or combined inside one certificate.
+
+This separation is useful for courts, journalists, companies and platforms because different users may care about different questions:
+
+- who acquired the media;
+- which device acquired it;
+- whether the file is still intact;
+- whether the scene itself is credible.
+
+## Multi-Axis Trust Output
+
+Avoid relying primarily on a single trust score.
+
+Preferred structure:
+
+```text
+Provenance: 98
+Integrity: 100
+Scene credibility: 73
+Synthetic index: 91
+```
+
+The synthetic index can exist, but it should not hide the underlying reasons.
+
+Patent relevance:
+
+A possible invention area is a decision model that:
+
+- collects heterogeneous technical evidence;
+- assigns evidence to independent categories;
+- generates separate evaluations for provenance, integrity and scene credibility;
+- produces a coherent technical explanation.
+
 ## Three Technical Levels
 
 ### Level 1 - Vision
