@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
 import 'hcv_identity.dart';
+import 'sigillum_localization.dart';
 
 class IdentityPage extends StatefulWidget {
-  const IdentityPage({super.key});
+  const IdentityPage({
+    super.key,
+    this.languageCode = 'it',
+  });
+
+  final String languageCode;
 
   @override
   State<IdentityPage> createState() => _IdentityPageState();
@@ -19,11 +25,14 @@ class _IdentityPageState extends State<IdentityPage> {
   String legalIdentityStatus = "";
   String privacyMode = "";
   String trustLevel = "LOCAL_KEY_VERIFIED";
-  String status = "Caricamento identita tecnica...";
+  String status = "";
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
     super.initState();
+    status = _t('loadingTechnicalIdentity');
     loadIdentity();
   }
 
@@ -41,7 +50,7 @@ class _IdentityPageState extends State<IdentityPage> {
       nameController.text =
           identity["creatorName"]?.toString() ?? "Local Creator";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
-      status = "Identita tecnica caricata";
+      status = _t('technicalIdentityLoaded');
     });
   }
 
@@ -50,7 +59,7 @@ class _IdentityPageState extends State<IdentityPage> {
 
     if (name.isEmpty) {
       setState(() {
-        status = "Inserisci il nome dichiarato";
+        status = _t('enterDeclaredName');
       });
       return;
     }
@@ -68,7 +77,7 @@ class _IdentityPageState extends State<IdentityPage> {
       legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
       privacyMode = identity["privacyMode"]?.toString() ?? "";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
-      status = "Nome dichiarato salvato";
+      status = _t('declaredNameSaved');
     });
   }
 
@@ -92,7 +101,7 @@ class _IdentityPageState extends State<IdentityPage> {
           ),
           const SizedBox(height: 3),
           Text(
-            value.isEmpty ? "Non ancora generato" : value,
+            value.isEmpty ? _t('notGeneratedYet') : value,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13),
           ),
@@ -105,7 +114,7 @@ class _IdentityPageState extends State<IdentityPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Identita tecnica"),
+        title: Text(_t('technicalIdentityTitle')),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -118,30 +127,30 @@ class _IdentityPageState extends State<IdentityPage> {
                 color: Colors.green,
               ),
               const SizedBox(height: 20),
-              const Text(
-                "Identita tecnica SIGILLUM",
+              Text(
+                _t('technicalIdentityHeading'),
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                "SIGILLUM collega il contenuto a una chiave tecnica del dispositivo e a un nome dichiarato dall'utente. Non verifica ancora documento o identita legale.",
+              Text(
+                _t('technicalIdentityBody'),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: "Nome dichiarato",
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _t('declaredName'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: saveIdentity,
-                child: const Text("SALVA NOME"),
+                child: Text(_t('saveName')),
               ),
               const SizedBox(height: 24),
               Text(
@@ -149,13 +158,13 @@ class _IdentityPageState extends State<IdentityPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              infoRow("ID tecnico creator", creatorId),
-              infoRow("Impronta chiave dispositivo", keyFingerprint),
-              infoRow("Impronta identita tecnica", identityFingerprint),
-              infoRow("Garanzia identita", identityAssuranceLevel),
-              infoRow("Identita legale", legalIdentityStatus),
-              infoRow("Privacy", privacyMode),
-              infoRow("Prova tecnica", trustLevel),
+              infoRow(_t('technicalCreatorId'), creatorId),
+              infoRow(_t('deviceKeyFingerprint'), keyFingerprint),
+              infoRow(_t('technicalIdentityFingerprint'), identityFingerprint),
+              infoRow(_t('identityAssurance'), identityAssuranceLevel),
+              infoRow(_t('legalIdentity'), legalIdentityStatus),
+              infoRow(_t('privacy'), privacyMode),
+              infoRow(_t('technicalProof'), trustLevel),
             ],
           ),
         ),

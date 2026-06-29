@@ -17,13 +17,16 @@ import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import 'hcv_social_fingerprint.dart';
+import 'sigillum_localization.dart';
 
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
+  final String languageCode;
 
   const RegistryVerifyPage({
     super.key,
     this.initialMediaPath,
+    this.languageCode = 'it',
   });
 
   @override
@@ -32,6 +35,8 @@ class RegistryVerifyPage extends StatefulWidget {
 
 class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   String? extractHcvIdFromName(String fileName) {
     final patterns = [
@@ -1279,7 +1284,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Verify by HCV-ID'),
+        title: Text(_t('verifyContentHeading')),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -1317,7 +1322,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: loading ? null : pickMedia,
-                child: const Text('SELEZIONA MEDIA ORIGINALE'),
+                child: Text(_t('selectOriginalMedia')),
               ),
               if (mediaPath != null) ...[
                 const SizedBox(height: 8),
@@ -1331,7 +1336,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               ElevatedButton(
                 onPressed: loading ? null : verifyFromRegistry,
                 child: Text(
-                  loading ? 'VERIFICA...' : 'VERIFICA DA REGISTRY',
+                  loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
                 ),
               ),
               const SizedBox(height: 20),
@@ -1409,12 +1414,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   contentType != null) ...[
                 const SizedBox(height: 16),
                 Text(
-                  'Nome dichiarato: ${creatorName ?? '-'}\n'
-                  'Prova tecnica: ${trustLevel ?? '-'}\n'
-                  'Identita tecnica: ${identityAssuranceLevel ?? '-'}\n'
-                  'Identita legale: ${legalIdentityStatus ?? '-'}\n'
-                  'Impronta identita tecnica: ${_shortFingerprint(identityFingerprint)}\n'
-                  'Chiave dispositivo: ${_shortFingerprint(creatorKeyFingerprint)}\n'
+                  '${_t('declaredName')}: ${creatorName ?? '-'}\n'
+                  '${_t('technicalProof')}: ${trustLevel ?? '-'}\n'
+                  '${_t('identityAssurance')}: ${identityAssuranceLevel ?? '-'}\n'
+                  '${_t('legalIdentity')}: ${legalIdentityStatus ?? '-'}\n'
+                  '${_t('technicalIdentityFingerprint')}: ${_shortFingerprint(identityFingerprint)}\n'
+                  '${_t('deviceKeyFingerprint')}: ${_shortFingerprint(creatorKeyFingerprint)}\n'
                   'Type: ${contentType ?? '-'}',
                   textAlign: TextAlign.center,
                 ),
@@ -1454,11 +1459,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Trust Level: ${hcvTrustLevel ?? '-'}\n'
-                  'Live Capture: ${liveCaptureTrust ?? '-'}\n'
+                  '${_t('trustLevel')}: ${hcvTrustLevel ?? '-'}\n'
+                  '${_t('liveCapture')}: ${liveCaptureTrust ?? '-'}\n'
                   '\n'
                   'RISULTATO COMBINATO\n'
-                  'Rischio schermo: ${screenReplayRisk ?? '-'}\n'
+                  '${_t('screenReplayRisk')}: ${screenReplayRisk ?? '-'}\n'
                   'Punteggio schermo: ${screenReplayRiskScore ?? '-'}\n'
                   '\n'
                   'LIVE PROBE PRIMA DELLO SCATTO\n'

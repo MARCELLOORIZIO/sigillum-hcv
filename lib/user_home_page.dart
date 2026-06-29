@@ -90,8 +90,14 @@ class _UserHomePageState extends State<UserHomePage> {
       context,
       MaterialPageRoute(
         builder: (_) => isMedia
-            ? RegistryVerifyPage(initialMediaPath: path)
-            : HCVImportRouterPage(path: path),
+            ? RegistryVerifyPage(
+                initialMediaPath: path,
+                languageCode: languageCode,
+              )
+            : HCVImportRouterPage(
+                path: path,
+                languageCode: languageCode,
+              ),
       ),
     );
   }
@@ -112,7 +118,9 @@ class _UserHomePageState extends State<UserHomePage> {
                 child: _Header(
                   languageCode: languageCode,
                   onLanguageChanged: _setLanguage,
-                  onIdentity: () => _open(const IdentityPage()),
+                  onIdentity: () => _open(
+                    IdentityPage(languageCode: languageCode),
+                  ),
                 ),
               ),
             ),
@@ -124,21 +132,27 @@ class _UserHomePageState extends State<UserHomePage> {
                     icon: Icons.add_a_photo_rounded,
                     title: _t('certifyMediaTitle'),
                     subtitle: _t('certifyMediaSubtitle'),
-                    onPressed: () => _open(const CameraPage()),
+                    onPressed: () => _open(
+                      CameraPage(languageCode: languageCode),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _PrimaryAction(
                     icon: Icons.article_rounded,
                     title: _t('certifyTextTitle'),
                     subtitle: _t('certifyTextSubtitle'),
-                    onPressed: () => _open(const TextCertPage()),
+                    onPressed: () => _open(
+                      TextCertPage(languageCode: languageCode),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _PrimaryAction(
                     icon: Icons.verified_rounded,
                     title: _t('verifyTitle'),
                     subtitle: _t('verifySubtitle'),
-                    onPressed: () => _open(const ImportPage()),
+                    onPressed: () => _open(
+                      ImportPage(languageCode: languageCode),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _PrimaryAction(

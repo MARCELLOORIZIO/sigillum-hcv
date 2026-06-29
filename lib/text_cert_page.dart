@@ -10,9 +10,15 @@ import 'package:share_plus/share_plus.dart';
 import 'hcv_engine.dart';
 import 'hcv_verifier.dart';
 import 'hcv_registry_service.dart';
+import 'sigillum_localization.dart';
 
 class TextCertPage extends StatefulWidget {
-  const TextCertPage({super.key});
+  const TextCertPage({
+    super.key,
+    this.languageCode = 'it',
+  });
+
+  final String languageCode;
 
   @override
   State<TextCertPage> createState() => _TextCertPageState();
@@ -24,7 +30,7 @@ class _TextCertPageState extends State<TextCertPage> {
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
 
-  String status = 'Scrivi un testo da certificare';
+  String status = '';
   String? result;
   String? hcvPath;
   String? textPath;
@@ -33,6 +39,14 @@ class _TextCertPageState extends State<TextCertPage> {
   String? registryStatus;
 
   bool loading = false;
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+
+  @override
+  void initState() {
+    super.initState();
+    status = _t('textWritePrompt');
+  }
 
   Future<Directory> _outputDirectory() async {
     final outputDir = Platform.isAndroid
@@ -91,7 +105,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     if (text.isEmpty) {
       setState(() {
-        status = 'Inserisci un testo';
+        status = _t('enterText');
         result = 'INVALID';
       });
       return;
@@ -100,7 +114,7 @@ class _TextCertPageState extends State<TextCertPage> {
     try {
       setState(() {
         loading = true;
-        status = 'Creazione certificato testo...';
+        status = _t('creatingTextCertificate');
         result = null;
         hcvPath = null;
         textPath = null;
@@ -186,9 +200,7 @@ class _TextCertPageState extends State<TextCertPage> {
         hcvId = detectedId;
         verificationUrl = detectedUrl;
         result = ok ? 'VALID' : 'INVALID';
-        status = ok
-            ? 'Testo certificato e verificato'
-            : 'Certificato creato ma NON valido';
+        status = ok ? _t('textCertified') : _t('certificateCreatedInvalid');
       });
 
       if (ok) {
@@ -335,10 +347,10 @@ class _TextCertPageState extends State<TextCertPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              'Testo verificabile creato',
+            Text(
+              _t('verifiableTextCreated'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 17,
               ),
@@ -360,7 +372,7 @@ class _TextCertPageState extends State<TextCertPage> {
             ElevatedButton.icon(
               onPressed: copyHcvId,
               icon: const Icon(Icons.copy),
-              label: const Text('COPIA HCV-ID'),
+              label: Text(_t('copyHcvId')),
             ),
           ],
         ),
@@ -400,7 +412,7 @@ class _TextCertPageState extends State<TextCertPage> {
           child: ElevatedButton.icon(
             onPressed: copySocialText,
             icon: const Icon(Icons.copy),
-            label: const Text('COPIA TESTO SOCIAL'),
+            label: Text(_t('copySocialText')),
           ),
         ),
         const SizedBox(height: 10),
@@ -409,7 +421,7 @@ class _TextCertPageState extends State<TextCertPage> {
           child: ElevatedButton.icon(
             onPressed: shareSocialText,
             icon: const Icon(Icons.share),
-            label: const Text('CONDIVIDI TESTO COME POST'),
+            label: Text(_t('shareTextPost')),
           ),
         ),
         const SizedBox(height: 10),
@@ -419,7 +431,7 @@ class _TextCertPageState extends State<TextCertPage> {
             child: ElevatedButton.icon(
               onPressed: shareTextFileAndCertificate,
               icon: const Icon(Icons.attach_file),
-              label: const Text('CONDIVIDI TXT + CERTIFICATO HCV'),
+              label: Text(_t('shareTxtCertificate')),
             ),
           ),
       ],
@@ -452,7 +464,7 @@ class _TextCertPageState extends State<TextCertPage> {
             if (hcvPath != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Certificato:\n$hcvPath',
+                '${_t('certificate')}:\n$hcvPath',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 11),
               ),
@@ -466,7 +478,7 @@ class _TextCertPageState extends State<TextCertPage> {
   void resetPage() {
     setState(() {
       controller.clear();
-      status = 'Scrivi un testo da certificare';
+      status = _t('textWritePrompt');
       result = null;
       hcvPath = null;
       textPath = null;
@@ -481,7 +493,7 @@ class _TextCertPageState extends State<TextCertPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Certifica testo HCV'),
+        title: Text(_t('textCertificateTitle')),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -496,9 +508,9 @@ class _TextCertPageState extends State<TextCertPage> {
                   controller: controller,
                   minLines: 4,
                   maxLines: 8,
-                  decoration: const InputDecoration(
-                    labelText: 'Testo da certificare',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: _t('textToCertify'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               const SizedBox(height: 20),
@@ -509,7 +521,7 @@ class _TextCertPageState extends State<TextCertPage> {
                     onPressed: loading ? null : createTextCertificate,
                     icon: const Icon(Icons.verified),
                     label: Text(
-                      loading ? 'CREAZIONE...' : 'CERTIFICA TESTO',
+                      loading ? _t('creating') : _t('certifyTextButton'),
                     ),
                   ),
                 ),
@@ -526,7 +538,7 @@ class _TextCertPageState extends State<TextCertPage> {
                   child: OutlinedButton.icon(
                     onPressed: resetPage,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('CREA NUOVO TESTO'),
+                    label: Text(_t('newText')),
                   ),
                 ),
               ],

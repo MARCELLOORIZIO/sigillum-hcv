@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'hcv_verifier.dart';
+import 'sigillum_localization.dart';
 
 class VerifyPage extends StatefulWidget {
   final String? initialPath;
+  final String languageCode;
 
   const VerifyPage({
     super.key,
     this.initialPath,
+    this.languageCode = 'it',
   });
 
   @override
@@ -21,7 +24,7 @@ class VerifyPage extends StatefulWidget {
 class _VerifyPageState extends State<VerifyPage> {
   final verifier = HCVVerifier();
 
-  String status = "Seleziona file HCV";
+  String status = "";
   String? result;
   String? filePath;
 
@@ -29,9 +32,12 @@ class _VerifyPageState extends State<VerifyPage> {
   String? verifiedTrustLevel;
   String? verifiedIssuer;
 
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+
   @override
   void initState() {
     super.initState();
+    status = _t('selectHcvFile');
 
     if (widget.initialPath != null && widget.initialPath!.isNotEmpty) {
       filePath = widget.initialPath;
@@ -53,7 +59,7 @@ class _VerifyPageState extends State<VerifyPage> {
     if (!path.toLowerCase().endsWith(".hcv")) {
       setState(() {
         filePath = path;
-        status = "Seleziona un file .hcv";
+        status = _t('selectHcvExtension');
         result = "INVALID ❌";
         verifiedCreatorName = null;
         verifiedTrustLevel = null;
@@ -77,14 +83,14 @@ class _VerifyPageState extends State<VerifyPage> {
   Future<void> verifyCurrentFile() async {
     if (filePath == null) {
       setState(() {
-        status = "Seleziona prima un file HCV";
+        status = _t('selectHcvFirst');
       });
       return;
     }
 
     try {
       setState(() {
-        status = "Verifica in corso...";
+        status = _t('verifying');
         result = null;
         verifiedCreatorName = null;
         verifiedTrustLevel = null;
@@ -99,7 +105,7 @@ class _VerifyPageState extends State<VerifyPage> {
 
       setState(() {
         result = ok ? "VALID ✔" : "INVALID ❌";
-        status = ok ? "Certificato valido" : "Certificato non valido";
+        status = ok ? _t('certificateValid') : _t('certificateInvalid');
       });
     } catch (e) {
       setState(() {
@@ -162,9 +168,9 @@ class _VerifyPageState extends State<VerifyPage> {
     return Column(
       children: [
         const SizedBox(height: 14),
-        const Text(
-          "Nome dichiarato",
-          style: TextStyle(
+        Text(
+          _t('declaredName'),
+          style: const TextStyle(
             fontSize: 12,
             color: Colors.grey,
           ),
@@ -180,13 +186,13 @@ class _VerifyPageState extends State<VerifyPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          "Prova tecnica: ${verifiedTrustLevel ?? "UNKNOWN"}",
+          "${_t('technicalProof')}: ${verifiedTrustLevel ?? "UNKNOWN"}",
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
-          "Issuer: ${verifiedIssuer ?? "UNKNOWN"}",
+          "${_t('issuer')}: ${verifiedIssuer ?? "UNKNOWN"}",
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 12),
         ),
@@ -198,7 +204,7 @@ class _VerifyPageState extends State<VerifyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("HCV Certificate Verify"),
+        title: Text(_t('verifyContentHeading')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -227,7 +233,7 @@ class _VerifyPageState extends State<VerifyPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: pickFile,
-                child: const Text("SELEZIONA HCV"),
+                child: Text(_t('selectHcv')),
               ),
               const SizedBox(height: 20),
               if (result != null)

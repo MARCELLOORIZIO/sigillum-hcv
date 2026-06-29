@@ -9,13 +9,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import 'hcv_verifier.dart';
+import 'sigillum_localization.dart';
 
 class HCVPackPlayerPage extends StatefulWidget {
   final String? initialPath;
+  final String languageCode;
 
   const HCVPackPlayerPage({
     super.key,
     this.initialPath,
+    this.languageCode = 'it',
   });
 
   @override
@@ -25,7 +28,7 @@ class HCVPackPlayerPage extends StatefulWidget {
 class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   final verifier = HCVVerifier();
 
-  String status = "Seleziona file .hcvpack";
+  String status = "";
   String? result;
 
   String? verifiedCreatorName;
@@ -46,9 +49,12 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   File? extractedContentFile;
   bool loading = false;
 
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+
   @override
   void initState() {
     super.initState();
+    status = _t('hcvpackSelect');
 
     if (widget.initialPath != null && widget.initialPath!.isNotEmpty) {
       Future.microtask(() => loadPackage(widget.initialPath!));
@@ -73,7 +79,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       if (!path.toLowerCase().endsWith('.hcvpack')) {
         setState(() {
-          status = "Seleziona un file .hcvpack";
+          status = _t('hcvpackSelect');
           result = "ERROR";
         });
         return;
@@ -242,7 +248,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (certificate is! Map<String, dynamic>) {
         setState(() {
           loading = false;
-          status = "Certificato HCV non valido";
+          status = _t('hcvpackInvalid');
           result = "ERROR";
         });
         return;
@@ -342,7 +348,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (certificate is! Map<String, dynamic>) {
         setState(() {
           loading = false;
-          status = "Certificato HCV non valido";
+          status = _t('hcvpackInvalid');
           result = "ERROR";
         });
         return;
@@ -385,7 +391,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       setState(() {
         loading = false;
-        status = "Certificato HCV incompleto";
+        status = _t('hcvpackIncomplete');
         result = "INVALID";
       });
       return;
@@ -430,7 +436,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       setState(() {
         loading = false;
         result = "INVALID";
-        status = "Certificato non valido";
+        status = _t('certificateInvalid');
       });
       return;
     }
@@ -476,7 +482,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     setState(() {
       loading = false;
       result = "HUMAN VERIFIED";
-      status = "Verifica completata ($sourceLabel)";
+      status = "${_t('verificationComplete')} ($sourceLabel)";
 
       verifiedFileType = contentType;
 
@@ -496,7 +502,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         verifiedAudioTrust = audioTrust;
         verifiedAudioCaptured = audioCaptured;
       } else {
-        verifiedCreatorName = "Identity not available";
+        verifiedCreatorName = _t('identityUnavailable');
         verifiedTrustLevel = "UNKNOWN";
         verifiedIssuer = "UNKNOWN";
       }
@@ -598,44 +604,44 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              "Dettagli verifica HCVPACK",
+            Text(
+              _t('hcvpackDetails'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              "Nome dichiarato: ${verifiedCreatorName ?? '-'}",
+              "${_t('declaredName')}: ${verifiedCreatorName ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              "Prova tecnica: ${verifiedTrustLevel ?? '-'}",
+              "${_t('technicalProof')}: ${verifiedTrustLevel ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              "Issuer: ${verifiedIssuer ?? '-'}",
+              "${_t('issuer')}: ${verifiedIssuer ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              "File type: ${verifiedFileType ?? '-'}",
+              "${_t('fileType')}: ${verifiedFileType ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const Divider(height: 24),
             Text(
-              "Trust Level: ${verifiedHcvTrustLevel ?? '-'}\n"
-              "Live Capture: ${verifiedLiveCaptureTrust ?? '-'}\n"
-              "Screen Replay Risk: ${verifiedScreenReplayRisk ?? '-'}\n"
-              "Synthetic Risk: ${verifiedSyntheticRisk ?? '-'}\n"
-              "Scene Authenticity: ${verifiedSceneAuthenticity ?? '-'}\n"
-              "AI Proof Level: ${verifiedAiProofLevel ?? '-'}\n"
-              "Audio: ${verifiedAudioCaptured ?? '-'}\n"
-              "Audio Trust: ${verifiedAudioTrust ?? '-'}",
+              "${_t('trustLevel')}: ${verifiedHcvTrustLevel ?? '-'}\n"
+              "${_t('liveCapture')}: ${verifiedLiveCaptureTrust ?? '-'}\n"
+              "${_t('screenReplayRisk')}: ${verifiedScreenReplayRisk ?? '-'}\n"
+              "${_t('syntheticRisk')}: ${verifiedSyntheticRisk ?? '-'}\n"
+              "${_t('sceneAuthenticity')}: ${verifiedSceneAuthenticity ?? '-'}\n"
+              "${_t('aiProofLevel')}: ${verifiedAiProofLevel ?? '-'}\n"
+              "${_t('audio')}: ${verifiedAudioCaptured ?? '-'}\n"
+              "${_t('audioTrust')}: ${verifiedAudioTrust ?? '-'}",
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12),
             ),

@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import 'hcvpack_player_page.dart';
 import 'verify_page.dart';
 import 'registry_verify_page.dart';
+import 'sigillum_localization.dart';
 
 class HCVImportRouterPage extends StatefulWidget {
   final String path;
+  final String languageCode;
 
   const HCVImportRouterPage({
     super.key,
     required this.path,
+    this.languageCode = 'it',
   });
 
   @override
@@ -19,11 +22,14 @@ class HCVImportRouterPage extends StatefulWidget {
 }
 
 class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
-  String status = "Analisi file...";
+  String status = "";
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
     super.initState();
+    status = _t('analyzingFile');
     Future.microtask(processFile);
   }
 
@@ -33,7 +39,7 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
 
     if (!await File(path).exists()) {
       setState(() {
-        status = "File non trovato:\n$path";
+        status = "${_t('fileNotFound')}:\n$path";
       });
       return;
     }
@@ -46,6 +52,7 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
         MaterialPageRoute(
           builder: (_) => HCVPackPlayerPage(
             initialPath: path,
+            languageCode: widget.languageCode,
           ),
         ),
       );
@@ -60,6 +67,7 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
         MaterialPageRoute(
           builder: (_) => VerifyPage(
             initialPath: path,
+            languageCode: widget.languageCode,
           ),
         ),
       );
@@ -74,6 +82,7 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
         MaterialPageRoute(
           builder: (_) => RegistryVerifyPage(
             initialMediaPath: path,
+            languageCode: widget.languageCode,
           ),
         ),
       );
@@ -81,7 +90,7 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
     }
 
     setState(() {
-      status = "Formato non riconosciuto:\n$path";
+      status = "${_t('unknownFormat')}:\n$path";
     });
   }
 

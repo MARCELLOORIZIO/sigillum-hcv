@@ -22,14 +22,17 @@ import 'hcv_image_watermark.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_live_screen_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
+import 'sigillum_localization.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({
     super.key,
     this.initialPhotoMode = false,
+    this.languageCode = 'it',
   });
 
   final bool initialPhotoMode;
+  final String languageCode;
 
   @override
   State<CameraPage> createState() => _CameraPageState();
@@ -71,6 +74,8 @@ class _CameraPageState extends State<CameraPage> {
   String? verificationUrl;
   String? registryStatus;
   String? createdContentKind;
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
@@ -1211,8 +1216,8 @@ class _CameraPageState extends State<CameraPage> {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            const Text(
-              'File creati',
+            Text(
+              _t('createdFiles'),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             if (videoPath != null) ...[
@@ -1226,7 +1231,7 @@ class _CameraPageState extends State<CameraPage> {
             if (hcvPath != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Certificato:\n$hcvPath',
+                '${_t('certificate')}:\n$hcvPath',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 11),
               ),
@@ -1254,7 +1259,7 @@ class _CameraPageState extends State<CameraPage> {
             child: ElevatedButton.icon(
               onPressed: shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label: Text('CONDIVIDI ${_createdContentLabel.toUpperCase()}'),
+              label: Text(_t('shareContent')),
             ),
           ),
           const SizedBox(height: 10),
@@ -1265,7 +1270,7 @@ class _CameraPageState extends State<CameraPage> {
             child: ElevatedButton.icon(
               onPressed: sharePackage,
               icon: const Icon(Icons.inventory_2),
-              label: const Text('CONDIVIDI HCVPACK OFFLINE'),
+              label: Text(_t('shareOfflinePack')),
             ),
           ),
           const SizedBox(height: 10),
@@ -1308,7 +1313,7 @@ class _CameraPageState extends State<CameraPage> {
             Navigator.of(context).pop();
           },
         ),
-        title: const Text('SIGILLUM Camera'),
+        title: Text(_t('cameraTitle')),
         actions: [
           IconButton(
             icon: Icon(
@@ -1458,7 +1463,7 @@ class _CameraPageState extends State<CameraPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ChoiceChip(
-                            label: const Text('VIDEO'),
+                            label: Text(_t('video')),
                             selected: !photoMode,
                             showCheckmark: false,
                             selectedColor: Colors.white,
@@ -1476,7 +1481,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                           const SizedBox(width: 14),
                           ChoiceChip(
-                            label: const Text('FOTO'),
+                            label: Text(_t('photo')),
                             selected: photoMode,
                             showCheckmark: false,
                             selectedColor: Colors.white,
@@ -1618,10 +1623,10 @@ class _CameraPageState extends State<CameraPage> {
                       const SizedBox(height: 18),
                       Text(
                         recording
-                            ? 'REGISTRAZIONE IN CORSO'
+                            ? _t('recording')
                             : photoMode
-                                ? 'MODALITA FOTO'
-                                : 'MODALITA VIDEO',
+                                ? _t('photoMode')
+                                : _t('videoMode'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
