@@ -1032,9 +1032,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String _screenReplayRiskLabel(int score) {
-    return score >= 80
+    return score >= 85
         ? 'HIGH'
-        : score >= 55
+        : score >= 70
             ? 'MEDIUM'
             : 'LOW';
   }
@@ -1067,7 +1067,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         mlClass.startsWith('REALITY_') &&
         mlConfidence >= 0.60 &&
         mlScreenProbability < 0.35;
-    final currentIsWarning = (currentReplayScore ?? 0) >= 55;
+    final currentIsWarning = (currentReplayScore ?? 0) >= 70;
 
     if (currentIsWarning &&
         derivedLiveProbeScore == null &&
@@ -1409,12 +1409,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   contentType != null) ...[
                 const SizedBox(height: 16),
                 Text(
-                  'Creator: ${creatorName ?? '-'}\n'
-                  'Trust: ${trustLevel ?? '-'}\n'
-                  'Identity: ${identityAssuranceLevel ?? '-'}\n'
-                  'Legal Identity: ${legalIdentityStatus ?? '-'}\n'
-                  'Identity Fingerprint: ${_shortFingerprint(identityFingerprint)}\n'
-                  'Creator Key: ${_shortFingerprint(creatorKeyFingerprint)}\n'
+                  'Nome dichiarato: ${creatorName ?? '-'}\n'
+                  'Prova tecnica: ${trustLevel ?? '-'}\n'
+                  'Identita tecnica: ${identityAssuranceLevel ?? '-'}\n'
+                  'Identita legale: ${legalIdentityStatus ?? '-'}\n'
+                  'Impronta identita tecnica: ${_shortFingerprint(identityFingerprint)}\n'
+                  'Chiave dispositivo: ${_shortFingerprint(creatorKeyFingerprint)}\n'
                   'Type: ${contentType ?? '-'}',
                   textAlign: TextAlign.center,
                 ),

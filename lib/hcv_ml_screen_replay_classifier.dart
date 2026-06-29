@@ -169,8 +169,8 @@ class HCVMLScreenReplayClassifier {
         },
         'signals': {
           'mlScreenClass': classes[topIndex].startsWith('SCREEN_'),
-          'mlScreenProbabilityHigh': screenProbability >= 0.80,
-          'mlScreenProbabilityMedium': screenProbability >= 0.55,
+          'mlScreenProbabilityHigh': screenProbability >= 0.85,
+          'mlScreenProbabilityMedium': screenProbability >= 0.70,
         },
         'note':
             'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',
@@ -296,9 +296,9 @@ class HCVMLScreenReplayClassifier {
   }
 
   String _riskLabel(int riskScore) {
-    return riskScore >= 80
+    return riskScore >= 85
         ? 'HIGH'
-        : riskScore >= 55
+        : riskScore >= 70
             ? 'MEDIUM'
             : 'LOW';
   }

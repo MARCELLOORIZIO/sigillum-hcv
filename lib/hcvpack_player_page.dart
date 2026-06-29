@@ -608,12 +608,12 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              "Verified by: ${verifiedCreatorName ?? '-'}",
+              "Nome dichiarato: ${verifiedCreatorName ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              "Trust: ${verifiedTrustLevel ?? '-'}",
+              "Prova tecnica: ${verifiedTrustLevel ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),

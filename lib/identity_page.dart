@@ -19,7 +19,7 @@ class _IdentityPageState extends State<IdentityPage> {
   String legalIdentityStatus = "";
   String privacyMode = "";
   String trustLevel = "LOCAL_KEY_VERIFIED";
-  String status = "Caricamento identita...";
+  String status = "Caricamento identita tecnica...";
 
   @override
   void initState() {
@@ -32,8 +32,7 @@ class _IdentityPageState extends State<IdentityPage> {
 
     setState(() {
       creatorId = identity["creatorId"]?.toString() ?? "";
-      keyFingerprint =
-          identity["devicePublicKeyFingerprint"]?.toString() ?? "";
+      keyFingerprint = identity["devicePublicKeyFingerprint"]?.toString() ?? "";
       identityFingerprint = identity["identityFingerprint"]?.toString() ?? "";
       identityAssuranceLevel =
           identity["identityAssuranceLevel"]?.toString() ?? "";
@@ -42,7 +41,7 @@ class _IdentityPageState extends State<IdentityPage> {
       nameController.text =
           identity["creatorName"]?.toString() ?? "Local Creator";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
-      status = "Identita caricata";
+      status = "Identita tecnica caricata";
     });
   }
 
@@ -51,7 +50,7 @@ class _IdentityPageState extends State<IdentityPage> {
 
     if (name.isEmpty) {
       setState(() {
-        status = "Inserisci un nome creator";
+        status = "Inserisci il nome dichiarato";
       });
       return;
     }
@@ -62,15 +61,14 @@ class _IdentityPageState extends State<IdentityPage> {
 
     setState(() {
       creatorId = identity["creatorId"]?.toString() ?? "";
-      keyFingerprint =
-          identity["devicePublicKeyFingerprint"]?.toString() ?? "";
+      keyFingerprint = identity["devicePublicKeyFingerprint"]?.toString() ?? "";
       identityFingerprint = identity["identityFingerprint"]?.toString() ?? "";
       identityAssuranceLevel =
           identity["identityAssuranceLevel"]?.toString() ?? "";
       legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
       privacyMode = identity["privacyMode"]?.toString() ?? "";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
-      status = "Identita salvata";
+      status = "Nome dichiarato salvato";
     });
   }
 
@@ -107,7 +105,7 @@ class _IdentityPageState extends State<IdentityPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Identita Creator"),
+        title: const Text("Identita tecnica"),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -121,7 +119,7 @@ class _IdentityPageState extends State<IdentityPage> {
               ),
               const SizedBox(height: 20),
               const Text(
-                "Identita SIGILLUM",
+                "Identita tecnica SIGILLUM",
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -129,21 +127,21 @@ class _IdentityPageState extends State<IdentityPage> {
               ),
               const SizedBox(height: 12),
               const Text(
-                "Questa identita usa una chiave del dispositivo. SIGILLUM non raccoglie il numero di serie del telefono.",
+                "SIGILLUM collega il contenuto a una chiave tecnica del dispositivo e a un nome dichiarato dall'utente. Non verifica ancora documento o identita legale.",
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(
-                  labelText: "Nome creator",
+                  labelText: "Nome dichiarato",
                   border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: saveIdentity,
-                child: const Text("SALVA IDENTITA"),
+                child: const Text("SALVA NOME"),
               ),
               const SizedBox(height: 24),
               Text(
@@ -151,13 +149,13 @@ class _IdentityPageState extends State<IdentityPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              infoRow("Creator ID", creatorId),
-              infoRow("Device Key Fingerprint", keyFingerprint),
-              infoRow("Identity Fingerprint", identityFingerprint),
-              infoRow("Identity Assurance", identityAssuranceLevel),
-              infoRow("Legal Identity", legalIdentityStatus),
-              infoRow("Privacy Mode", privacyMode),
-              infoRow("Trust Level", trustLevel),
+              infoRow("ID tecnico creator", creatorId),
+              infoRow("Impronta chiave dispositivo", keyFingerprint),
+              infoRow("Impronta identita tecnica", identityFingerprint),
+              infoRow("Garanzia identita", identityAssuranceLevel),
+              infoRow("Identita legale", legalIdentityStatus),
+              infoRow("Privacy", privacyMode),
+              infoRow("Prova tecnica", trustLevel),
             ],
           ),
         ),

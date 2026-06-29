@@ -140,11 +140,9 @@ class _VerifyPageState extends State<VerifyPage> {
       verifiedCreatorName =
           (identity["creatorName"] ?? "Unknown Creator").toString();
 
-      verifiedTrustLevel =
-          (identity["trustLevel"] ?? "UNKNOWN").toString();
+      verifiedTrustLevel = (identity["trustLevel"] ?? "UNKNOWN").toString();
 
-      verifiedIssuer =
-          (identity["issuer"] ?? "UNKNOWN").toString();
+      verifiedIssuer = (identity["issuer"] ?? "UNKNOWN").toString();
     } catch (_) {
       verifiedCreatorName = null;
       verifiedTrustLevel = null;
@@ -164,17 +162,14 @@ class _VerifyPageState extends State<VerifyPage> {
     return Column(
       children: [
         const SizedBox(height: 14),
-
         const Text(
-          "Verified by",
+          "Nome dichiarato",
           style: TextStyle(
             fontSize: 12,
             color: Colors.grey,
           ),
         ),
-
         const SizedBox(height: 4),
-
         Text(
           verifiedCreatorName!,
           textAlign: TextAlign.center,
@@ -183,17 +178,13 @@ class _VerifyPageState extends State<VerifyPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-
         const SizedBox(height: 6),
-
         Text(
-          "Trust: ${verifiedTrustLevel ?? "UNKNOWN"}",
+          "Prova tecnica: ${verifiedTrustLevel ?? "UNKNOWN"}",
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 12),
         ),
-
         const SizedBox(height: 4),
-
         Text(
           "Issuer: ${verifiedIssuer ?? "UNKNOWN"}",
           textAlign: TextAlign.center,
@@ -228,23 +219,17 @@ class _VerifyPageState extends State<VerifyPage> {
                         ? Colors.green
                         : Colors.red,
               ),
-
               const SizedBox(height: 20),
-
               Text(
                 status,
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 20),
-
               ElevatedButton(
                 onPressed: pickFile,
                 child: const Text("SELEZIONA HCV"),
               ),
-
               const SizedBox(height: 20),
-
               if (result != null)
                 Text(
                   result!,
@@ -255,9 +240,7 @@ class _VerifyPageState extends State<VerifyPage> {
                     color: isValid ? Colors.green : Colors.red,
                   ),
                 ),
-
               buildIdentityBlock(),
-
               if (filePath != null) ...[
                 const SizedBox(height: 12),
                 Text(

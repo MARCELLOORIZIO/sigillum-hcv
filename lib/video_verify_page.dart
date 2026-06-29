@@ -362,8 +362,8 @@ class _VideoVerifyPageState extends State<VideoVerifyPage> {
               if (isVerified) ...[
                 const SizedBox(height: 14),
                 Text(
-                  "Creator: ${verifiedCreatorName ?? '-'}\n"
-                  "Trust: ${verifiedTrustLevel ?? '-'}\n"
+                  "Nome dichiarato: ${verifiedCreatorName ?? '-'}\n"
+                  "Prova tecnica: ${verifiedTrustLevel ?? '-'}\n"
                   "Issuer: ${verifiedIssuer ?? '-'}\n"
                   "HCV ID: ${verifiedHcvId ?? '-'}\n"
                   "Link: ${verifiedUrl ?? '-'}",
