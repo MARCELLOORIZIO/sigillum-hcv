@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 final class ShareViewController: UIViewController {
   private let sharedPathKey = "hcv.share.path"
   private var didComplete = false
+  private var statusLabel: UILabel?
+  private var openButton: UIButton?
+  private var pendingOpenUrl: URL?
   private var appGroupId: String {
     Bundle.main.object(forInfoDictionaryKey: "SIGILLUMAppGroupId") as? String
       ?? "group.com.sigillum.hcv"
@@ -19,9 +22,6 @@ final class ShareViewController: UIViewController {
     view.backgroundColor = UIColor.systemBackground
     showLoadingState()
     handleSharedItem()
-    DispatchQueue.main.asyncAfter(deadline: .now() + 45) { [weak self] in
-      self?.finish()
-    }
   }
 
   private func handleSharedItem() {
@@ -114,6 +114,8 @@ final class ShareViewController: UIViewController {
     let defaults = UserDefaults(suiteName: appGroupId)
     defaults?.set(destination.path, forKey: sharedPathKey)
     defaults?.synchronize()
+    UserDefaults.standard.set(destination.path, forKey: sharedPathKey)
+    UserDefaults.standard.synchronize()
     openHostAppAndFinish()
   }
 
@@ -237,30 +239,77 @@ final class ShareViewController: UIViewController {
   private func showLoadingState() {
     let label = UILabel()
     label.translatesAutoresizingMaskIntoConstraints = false
-    label.text = "Apertura in SIGILLUM..."
+    label.text = "Preparazione contenuto..."
     label.textAlignment = .center
     label.numberOfLines = 0
     label.font = .preferredFont(forTextStyle: .headline)
     view.addSubview(label)
+    statusLabel = label
+
+    let button = UIButton(type: .system)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.setTitle("APRI SIGILLUM", for: .normal)
+    button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+    button.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.16)
+    button.layer.cornerRadius = 18
+    button.contentEdgeInsets = UIEdgeInsets(top: 16, left: 22, bottom: 16, right: 22)
+    button.isHidden = true
+    button.addTarget(self, action: #selector(openButtonTapped), for: .touchUpInside)
+    view.addSubview(button)
+    openButton = button
 
     NSLayoutConstraint.activate([
       label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
       label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
-      label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+      label.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -36),
+      button.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 24),
+      button.centerXAnchor.constraint(equalTo: view.centerXAnchor),
     ])
   }
 
   private func openHostAppAndFinish() {
     DispatchQueue.main.async {
       guard let url = URL(string: "\(self.urlScheme)://shared") else {
-        self.finish()
+        self.showOpenFailed()
         return
       }
 
-      self.extensionContext?.open(url) { _ in
-        self.finish()
+      self.pendingOpenUrl = url
+      self.statusLabel?.text = "Contenuto pronto.\nTocca APRI SIGILLUM per verificare."
+      self.openButton?.isHidden = false
+
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+        self.openUrl(url, finishOnSuccess: true)
       }
     }
+  }
+
+  @objc private func openButtonTapped() {
+    guard let url = pendingOpenUrl else {
+      showOpenFailed()
+      return
+    }
+    openUrl(url, finishOnSuccess: true)
+  }
+
+  private func openUrl(_ url: URL, finishOnSuccess: Bool) {
+    extensionContext?.open(url) { success in
+      DispatchQueue.main.async {
+        if success {
+          if finishOnSuccess {
+            self.finish()
+          }
+        } else {
+          self.showOpenFailed()
+        }
+      }
+    }
+  }
+
+  private func showOpenFailed() {
+    statusLabel?.text =
+      "Contenuto salvato.\nSe SIGILLUM non si apre, chiudi questa finestra e apri SIGILLUM manualmente."
+    openButton?.isHidden = false
   }
 
   private func finish() {

@@ -58,9 +58,7 @@ class SceneDelegate: FlutterSceneDelegate {
 
     channel.setMethodCallHandler { call, result in
       if call.method == "getSharedPath" {
-        let path = UserDefaults.standard.string(forKey: "hcv.sharedPath")
-        UserDefaults.standard.removeObject(forKey: "hcv.sharedPath")
-        result(path)
+        result(self.consumeSharedPath())
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -69,6 +67,29 @@ class SceneDelegate: FlutterSceneDelegate {
     intentChannel = channel
     installKeystoreChannelIfNeeded()
     installMediaChannelIfNeeded()
+  }
+
+  private func consumeSharedPath() -> String? {
+    if let path = UserDefaults.standard.string(forKey: "hcv.sharedPath"), !path.isEmpty {
+      UserDefaults.standard.removeObject(forKey: "hcv.sharedPath")
+      return path
+    }
+
+    if let path = UserDefaults.standard.string(forKey: sharedPathKey), !path.isEmpty {
+      UserDefaults.standard.removeObject(forKey: sharedPathKey)
+      return path
+    }
+
+    guard
+      let defaults = UserDefaults(suiteName: appGroupId),
+      let path = defaults.string(forKey: sharedPathKey),
+      !path.isEmpty
+    else {
+      return nil
+    }
+
+    defaults.removeObject(forKey: sharedPathKey)
+    return path
   }
 
   private func installMediaChannelIfNeeded() {
