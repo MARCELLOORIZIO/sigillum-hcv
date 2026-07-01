@@ -27,7 +27,7 @@ final class ShareViewController: UIViewController {
   private func handleSharedItem() {
     guard
       let item = extensionContext?.inputItems.first as? NSExtensionItem,
-      let providers = item.attachments,
+      let providers = item.attachments
     else {
       finish()
       return
