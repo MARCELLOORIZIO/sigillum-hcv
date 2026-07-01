@@ -56,6 +56,16 @@ class LegalInfoPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _InfoPanel(
+            title: _t('socialVerifyTitle'),
+            children: [
+              _InfoBullet(_t('socialVerifyStep1')),
+              _InfoBullet(_t('socialVerifyStep2')),
+              _InfoBullet(_t('socialVerifyStep3')),
+              _InfoBullet(_t('socialVerifyStep4')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _InfoPanel(
             title: _t('legalData'),
             children: [
               _InfoBullet(_t('data1')),

@@ -70,6 +70,14 @@ class SigillumCopy {
       'checkRegistry': 'Registry online per verifica futura',
       'checkScreen': 'Controllo rischio ripresa da schermo',
       'checkSocial': 'Fingerprint per file ricompressi dai social',
+      'socialVerifyTitle': 'Verifica da social',
+      'socialVerifyStep1':
+          'Quando vedi un contenuto su Facebook, WhatsApp, Messenger o altri social, apri Condividi.',
+      'socialVerifyStep2': 'Scegli SIGILLUM tra le app disponibili.',
+      'socialVerifyStep3':
+          'SIGILLUM legge HCV-ID, watermark o fingerprint e recupera il certificato dal Registry.',
+      'socialVerifyStep4':
+          'Se il contenuto e certificato, vedi provenienza, integrita e identita del creatore.',
       'legalPageTitle': 'Informazioni',
       'legalIntro':
           'SIGILLUM crea una prova tecnica verificabile che collega contenuto, HCV-ID, identita tecnica del creatore, impronta del file e Registry online.',
@@ -203,6 +211,14 @@ class SigillumCopy {
       'checkRegistry': 'Online Registry for future verification',
       'checkScreen': 'Screen replay risk check',
       'checkSocial': 'Fingerprint for social-media recompressed files',
+      'socialVerifyTitle': 'Verify from social media',
+      'socialVerifyStep1':
+          'When you see content on Facebook, WhatsApp, Messenger or other social apps, open Share.',
+      'socialVerifyStep2': 'Choose SIGILLUM from the available apps.',
+      'socialVerifyStep3':
+          'SIGILLUM reads the HCV-ID, watermark or fingerprint and retrieves the certificate from the Registry.',
+      'socialVerifyStep4':
+          'If the content is certified, you see provenance, integrity and creator identity.',
       'legalPageTitle': 'Information',
       'legalIntro':
           'SIGILLUM creates verifiable technical proof linking content, HCV-ID, technical creator identity, file fingerprint and online Registry.',
@@ -334,6 +350,14 @@ class SigillumCopy {
       'checkRegistry': 'Registry online para verificacion futura',
       'checkScreen': 'Control de riesgo de regrabacion de pantalla',
       'checkSocial': 'Fingerprint para archivos recomprimidos por redes',
+      'socialVerifyTitle': 'Verificacion desde redes sociales',
+      'socialVerifyStep1':
+          'Cuando veas contenido en Facebook, WhatsApp, Messenger u otras redes, abre Compartir.',
+      'socialVerifyStep2': 'Elige SIGILLUM entre las apps disponibles.',
+      'socialVerifyStep3':
+          'SIGILLUM lee el HCV-ID, la marca visible o el fingerprint y recupera el certificado del Registry.',
+      'socialVerifyStep4':
+          'Si el contenido esta certificado, veras procedencia, integridad e identidad del creador.',
       'legalPageTitle': 'Informacion',
       'legalIntro':
           'SIGILLUM crea una prueba tecnica verificable que vincula contenido, HCV-ID, identidad tecnica del creador, huella del archivo y Registry online.',
@@ -467,6 +491,14 @@ class SigillumCopy {
       'checkRegistry': 'Онлайн Registry для будущей проверки',
       'checkScreen': 'Проверка риска пересъемки с экрана',
       'checkSocial': 'Fingerprint для файлов, сжатых соцсетями',
+      'socialVerifyTitle': 'Проверка из соцсетей',
+      'socialVerifyStep1':
+          'Когда вы видите контент в Facebook, WhatsApp, Messenger или другой соцсети, откройте Поделиться.',
+      'socialVerifyStep2': 'Выберите SIGILLUM среди доступных приложений.',
+      'socialVerifyStep3':
+          'SIGILLUM считывает HCV-ID, видимую метку или fingerprint и получает сертификат из Registry.',
+      'socialVerifyStep4':
+          'Если контент сертифицирован, вы увидите происхождение, целостность и идентичность автора.',
       'legalPageTitle': 'Информация',
       'legalIntro':
           'SIGILLUM создает проверяемое техническое доказательство, связывающее контент, HCV-ID, техническую идентичность автора, отпечаток файла и онлайн Registry.',
