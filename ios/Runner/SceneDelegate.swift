@@ -40,6 +40,16 @@ class SceneDelegate: FlutterSceneDelegate {
     }
   }
 
+  override func sceneDidBecomeActive(_ scene: UIScene) {
+    super.sceneDidBecomeActive(scene)
+    installIntentChannel()
+
+    if let path = consumeSharedPath() {
+      UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
+      intentChannel?.invokeMethod("onSharedPath", arguments: path)
+    }
+  }
+
   private func installIntentChannel() {
     if intentChannel != nil {
       installKeystoreChannelIfNeeded()

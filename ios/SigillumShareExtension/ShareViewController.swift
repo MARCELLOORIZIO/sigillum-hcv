@@ -295,7 +295,7 @@ final class ShareViewController: UIViewController {
   private func openUrl(_ url: URL, finishOnSuccess: Bool) {
     extensionContext?.open(url) { success in
       DispatchQueue.main.async {
-        if success {
+        if success || self.openUrlViaResponderChain(url) {
           if finishOnSuccess {
             self.finish()
           }
@@ -304,6 +304,21 @@ final class ShareViewController: UIViewController {
         }
       }
     }
+  }
+
+  private func openUrlViaResponderChain(_ url: URL) -> Bool {
+    let selector = NSSelectorFromString("openURL:")
+    var responder: UIResponder? = self
+
+    while responder != nil {
+      if responder?.responds(to: selector) == true {
+        responder?.perform(selector, with: url)
+        return true
+      }
+      responder = responder?.next
+    }
+
+    return false
   }
 
   private func showOpenFailed() {
