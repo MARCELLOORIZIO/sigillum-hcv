@@ -8,6 +8,7 @@ class SceneDelegate: FlutterSceneDelegate {
   private var intentChannel: FlutterMethodChannel?
   private var keystoreChannel: FlutterMethodChannel?
   private var mediaChannel: FlutterMethodChannel?
+  private var lastDeliveredSharedPath: String?
   private let sharedPathKey = "hcv.share.path"
   private var appGroupId: String {
     Bundle.main.object(forInfoDictionaryKey: "SIGILLUMAppGroupId") as? String
@@ -45,8 +46,7 @@ class SceneDelegate: FlutterSceneDelegate {
     installIntentChannel()
 
     if let path = consumeSharedPath() {
-      UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
-      intentChannel?.invokeMethod("onSharedPath", arguments: path)
+      deliverSharedPath(path)
     }
   }
 
@@ -68,7 +68,12 @@ class SceneDelegate: FlutterSceneDelegate {
 
     channel.setMethodCallHandler { call, result in
       if call.method == "getSharedPath" {
-        result(self.consumeSharedPath())
+        if let path = self.consumeSharedPath() {
+          self.lastDeliveredSharedPath = path
+          result(path)
+        } else {
+          result(nil)
+        }
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -77,6 +82,28 @@ class SceneDelegate: FlutterSceneDelegate {
     intentChannel = channel
     installKeystoreChannelIfNeeded()
     installMediaChannelIfNeeded()
+  }
+
+  private func deliverSharedPath(_ path: String) {
+    guard !path.isEmpty else {
+      return
+    }
+
+    UserDefaults.standard.removeObject(forKey: "hcv.sharedPath")
+    UserDefaults.standard.removeObject(forKey: sharedPathKey)
+
+    if lastDeliveredSharedPath == path {
+      return
+    }
+
+    lastDeliveredSharedPath = path
+
+    guard intentChannel != nil else {
+      UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
+      return
+    }
+
+    intentChannel?.invokeMethod("onSharedPath", arguments: path)
   }
 
   private func consumeSharedPath() -> String? {
@@ -285,8 +312,7 @@ class SceneDelegate: FlutterSceneDelegate {
       return
     }
 
-    UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
-    intentChannel?.invokeMethod("onSharedPath", arguments: path)
+    deliverSharedPath(path)
   }
 
   private func handleSharedAppGroupFile() {
@@ -298,8 +324,7 @@ class SceneDelegate: FlutterSceneDelegate {
     }
 
     defaults.removeObject(forKey: sharedPathKey)
-    UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
-    intentChannel?.invokeMethod("onSharedPath", arguments: path)
+    deliverSharedPath(path)
   }
 
   private func copySharedFileToCache(_ url: URL) -> String? {
