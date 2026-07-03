@@ -102,7 +102,7 @@ class SigillumCopy {
       'technicalIdentityTitle': 'Identita tecnica',
       'technicalIdentityHeading': 'Identita tecnica SIGILLUM',
       'technicalIdentityBody':
-          'SIGILLUM collega il contenuto a una chiave tecnica del dispositivo e a un nome dichiarato dall utente. Non verifica ancora documento o identita legale.',
+          'SIGILLUM collega il contenuto a una chiave tecnica del dispositivo, a un nome dichiarato e, se completata, a una verifica documentale KYC.',
       'declaredName': 'Nome dichiarato',
       'saveName': 'SALVA NOME',
       'loadingTechnicalIdentity': 'Caricamento identita tecnica...',
@@ -259,7 +259,7 @@ class SigillumCopy {
       'technicalIdentityTitle': 'Technical identity',
       'technicalIdentityHeading': 'SIGILLUM technical identity',
       'technicalIdentityBody':
-          'SIGILLUM links content to a device technical key and to a user-declared name. It does not yet verify a document or legal identity.',
+          'SIGILLUM links content to a device technical key, a user-declared name and, when completed, a document KYC verification.',
       'declaredName': 'Declared name',
       'saveName': 'SAVE NAME',
       'loadingTechnicalIdentity': 'Loading technical identity...',
@@ -416,7 +416,7 @@ class SigillumCopy {
       'technicalIdentityTitle': 'Identidad tecnica',
       'technicalIdentityHeading': 'Identidad tecnica SIGILLUM',
       'technicalIdentityBody':
-          'SIGILLUM vincula el contenido a una clave tecnica del dispositivo y a un nombre declarado por el usuario. Todavia no verifica documento ni identidad legal.',
+          'SIGILLUM vincula el contenido a una clave tecnica del dispositivo, a un nombre declarado y, si se completa, a una verificacion documental KYC.',
       'declaredName': 'Nombre declarado',
       'saveName': 'GUARDAR NOMBRE',
       'loadingTechnicalIdentity': 'Cargando identidad tecnica...',
@@ -573,7 +573,7 @@ class SigillumCopy {
       'technicalIdentityTitle': 'Техническая идентичность',
       'technicalIdentityHeading': 'Техническая идентичность SIGILLUM',
       'technicalIdentityBody':
-          'SIGILLUM связывает контент с техническим ключом устройства и именем, указанным пользователем. Документ или юридическая личность пока не проверяются.',
+          'SIGILLUM связывает контент с техническим ключом устройства, указанным именем и, если завершено, документальной проверкой KYC.',
       'declaredName': 'Указанное имя',
       'saveName': 'СОХРАНИТЬ ИМЯ',
       'loadingTechnicalIdentity': 'Загрузка технической идентичности...',
