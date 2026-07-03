@@ -10,9 +10,14 @@ class LegalInfoPage extends StatelessWidget {
     required this.languageCode,
   });
 
-  static const supportEmail = 'support@sigillum.app';
-  static const privacyUrl = 'https://sigillum.app/privacy';
-  static const termsUrl = 'https://sigillum.app/terms';
+  static const privacyUrl =
+      'https://marcelloorizio.github.io/sigillum-hcv/privacy/';
+  static const termsUrl =
+      'https://marcelloorizio.github.io/sigillum-hcv/terms/';
+  static const supportUrl =
+      'https://marcelloorizio.github.io/sigillum-hcv/support/';
+  static const deleteDataUrl =
+      'https://marcelloorizio.github.io/sigillum-hcv/delete-data/';
 
   final String languageCode;
 
@@ -101,8 +106,15 @@ class LegalInfoPage extends StatelessWidget {
           _LinkButton(
             icon: Icons.support_agent_rounded,
             title: _t('support'),
-            value: supportEmail,
-            onPressed: () => _copy(context, supportEmail),
+            value: supportUrl,
+            onPressed: () => _copy(context, supportUrl),
+          ),
+          const SizedBox(height: 10),
+          _LinkButton(
+            icon: Icons.delete_outline_rounded,
+            title: _t('deleteData'),
+            value: deleteDataUrl,
+            onPressed: () => _copy(context, deleteDataUrl),
           ),
         ],
       ),
