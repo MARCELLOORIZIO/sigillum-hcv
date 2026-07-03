@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'hcv_identity.dart';
 import 'hcv_registry_service.dart';
@@ -25,6 +26,8 @@ class _IdentityPageState extends State<IdentityPage> {
   String identityAssuranceLevel = "";
   String legalIdentityStatus = "";
   String privacyMode = "";
+  String kycSessionId = "";
+  String kycStatus = "";
   String trustLevel = "LOCAL_KEY_VERIFIED";
   String status = "";
 
@@ -48,6 +51,8 @@ class _IdentityPageState extends State<IdentityPage> {
           identity["identityAssuranceLevel"]?.toString() ?? "";
       legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
       privacyMode = identity["privacyMode"]?.toString() ?? "";
+      kycSessionId = identity["kycSessionId"]?.toString() ?? "";
+      kycStatus = identity["kycStatus"]?.toString() ?? "";
       nameController.text =
           identity["creatorName"]?.toString() ?? "Local Creator";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
@@ -77,6 +82,8 @@ class _IdentityPageState extends State<IdentityPage> {
           identity["identityAssuranceLevel"]?.toString() ?? "";
       legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
       privacyMode = identity["privacyMode"]?.toString() ?? "";
+      kycSessionId = identity["kycSessionId"]?.toString() ?? "";
+      kycStatus = identity["kycStatus"]?.toString() ?? "";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
       status = _t('declaredNameSaved');
     });
@@ -95,15 +102,75 @@ class _IdentityPageState extends State<IdentityPage> {
         creatorName: name.isEmpty ? 'Local Creator' : name,
       );
       final url = session['url']?.toString() ?? '';
+      final provider = session['provider']?.toString() ?? 'stripe_identity';
+      final sessionId = session['sessionId']?.toString() ?? '';
+      final remoteStatus = session['status']?.toString() ?? 'created';
+
+      if (sessionId.isNotEmpty) {
+        await HCVIdentity().saveKycSession(
+          sessionId: sessionId,
+          provider: provider,
+          status: remoteStatus,
+        );
+      }
 
       setState(() {
-        status = url.isEmpty
-            ? _t('kycConfiguredNoUrl')
-            : '${_t('kycLinkReady')}\n$url';
+        kycSessionId = sessionId;
+        kycStatus = remoteStatus;
+        status = url.isEmpty ? _t('kycConfiguredNoUrl') : _t('kycOpening');
       });
+
+      if (url.isNotEmpty) {
+        final opened = await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened) {
+          setState(() {
+            status = '${_t('kycLinkReady')}\n$url';
+          });
+        }
+      }
     } catch (err) {
       setState(() {
         status = '${_t('kycNotAvailable')}\n$err';
+      });
+    }
+  }
+
+  Future<void> refreshKycStatus() async {
+    if (kycSessionId.isEmpty) {
+      setState(() {
+        status = _t('kycNoSession');
+      });
+      return;
+    }
+
+    setState(() {
+      status = _t('kycRefreshing');
+    });
+
+    try {
+      final remote = await const HCVRegistryService().fetchKycSessionStatus(
+        sessionId: kycSessionId,
+      );
+      final remoteStatus = remote['status']?.toString() ?? 'unknown';
+      await HCVIdentity().saveKycStatus(remoteStatus);
+      final identity = await HCVIdentity().loadIdentity();
+
+      setState(() {
+        identityAssuranceLevel =
+            identity["identityAssuranceLevel"]?.toString() ?? "";
+        legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
+        trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
+        kycStatus = remoteStatus;
+        status = remoteStatus == 'verified'
+            ? _t('kycVerified')
+            : '${_t('kycStatus')}: $remoteStatus';
+      });
+    } catch (err) {
+      setState(() {
+        status = '${_t('kycStatusUnavailable')}\n$err';
       });
     }
   }
@@ -156,7 +223,7 @@ class _IdentityPageState extends State<IdentityPage> {
               const SizedBox(height: 20),
               Text(
                 _t('technicalIdentityHeading'),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
@@ -191,8 +258,14 @@ class _IdentityPageState extends State<IdentityPage> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: refreshKycStatus,
+                icon: const Icon(Icons.refresh),
+                label: Text(_t('refreshKyc')),
+              ),
               const SizedBox(height: 24),
-              Text(
+              SelectableText(
                 status,
                 textAlign: TextAlign.center,
               ),
@@ -202,6 +275,7 @@ class _IdentityPageState extends State<IdentityPage> {
               infoRow(_t('technicalIdentityFingerprint'), identityFingerprint),
               infoRow(_t('identityAssurance'), identityAssuranceLevel),
               infoRow(_t('legalIdentity'), legalIdentityStatus),
+              infoRow(_t('kycStatusLabel'), kycStatus),
               infoRow(_t('privacy'), privacyMode),
               infoRow(_t('technicalProof'), trustLevel),
             ],

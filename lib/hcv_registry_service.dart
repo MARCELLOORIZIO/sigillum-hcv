@@ -137,6 +137,41 @@ class HCVRegistryService {
     }
   }
 
+  Future<Map<String, dynamic>> fetchKycSessionStatus({
+    required String sessionId,
+  }) async {
+    final cleaned = sessionId.trim();
+    if (cleaned.isEmpty) {
+      throw Exception('Sessione KYC mancante');
+    }
+
+    final client = HttpClient();
+
+    try {
+      final uri = Uri.parse('$baseUrl/api/identity/kyc/status').replace(
+        queryParameters: {'sessionId': cleaned},
+      );
+      final req = await client.getUrl(uri);
+      final res = await req.close();
+      final body = await utf8.decoder.bind(res).join();
+      final decoded = jsonDecode(body);
+
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Risposta stato KYC non valida');
+      }
+
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw Exception(decoded['message'] ??
+            decoded['error'] ??
+            'Stato KYC non disponibile');
+      }
+
+      return decoded;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   String? extractHcvIdFromCertificate(Map<String, dynamic> cert) {
     return _extractHcvId(cert);
   }
