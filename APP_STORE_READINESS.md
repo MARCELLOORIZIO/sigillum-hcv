@@ -23,14 +23,15 @@ Use this language consistently in the App Store description, screenshots, privac
 
 ## Required before App Store submission
 
-- Public privacy policy URL: `https://marcelloorizio.github.io/sigillum-hcv/privacy/`
-- Public terms URL: `https://marcelloorizio.github.io/sigillum-hcv/terms/`
-- Public support URL: `https://marcelloorizio.github.io/sigillum-hcv/support/`
-- Data deletion URL: `https://marcelloorizio.github.io/sigillum-hcv/delete-data/`
+- Public privacy policy URL: `https://hcv-registry-server.onrender.com/privacy`
+- Public terms URL: `https://hcv-registry-server.onrender.com/terms`
+- Public support URL: `https://hcv-registry-server.onrender.com/support`
+- Data deletion URL: `https://hcv-registry-server.onrender.com/delete-data`
 - App Store screenshots for iPhone.
 - App Store description in Italian and English at minimum.
 - TestFlight build validated on a real iPhone.
-- Registry server online and health endpoint working.
+- Registry server online, health endpoint working and legal pages reachable.
+- KYC endpoint configured with provider key before claiming legal identity verification.
 - Camera, microphone, photos and file access permission texts reviewed.
 
 ## TestFlight smoke test

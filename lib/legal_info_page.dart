@@ -10,14 +10,11 @@ class LegalInfoPage extends StatelessWidget {
     required this.languageCode,
   });
 
-  static const privacyUrl =
-      'https://marcelloorizio.github.io/sigillum-hcv/privacy/';
-  static const termsUrl =
-      'https://marcelloorizio.github.io/sigillum-hcv/terms/';
-  static const supportUrl =
-      'https://marcelloorizio.github.io/sigillum-hcv/support/';
+  static const privacyUrl = 'https://hcv-registry-server.onrender.com/privacy';
+  static const termsUrl = 'https://hcv-registry-server.onrender.com/terms';
+  static const supportUrl = 'https://hcv-registry-server.onrender.com/support';
   static const deleteDataUrl =
-      'https://marcelloorizio.github.io/sigillum-hcv/delete-data/';
+      'https://hcv-registry-server.onrender.com/delete-data';
 
   final String languageCode;
 

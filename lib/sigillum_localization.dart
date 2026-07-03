@@ -114,6 +114,14 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Impronta identita tecnica',
       'identityAssurance': 'Garanzia identita',
       'legalIdentity': 'Identita legale',
+      'startKyc': 'Avvia verifica identita',
+      'kycExplanation':
+          'La verifica documentale KYC sara gestita da un provider esterno. SIGILLUM salvera solo lo stato minimo della verifica.',
+      'kycStarting': 'Avvio verifica identita...',
+      'kycLinkReady': 'Link KYC pronto. Aprilo nel browser:',
+      'kycConfiguredNoUrl':
+          'KYC configurato, ma il server non ha restituito un link.',
+      'kycNotAvailable': 'KYC non ancora disponibile',
       'privacy': 'Privacy',
       'technicalProof': 'Prova tecnica',
       'notGeneratedYet': 'Non ancora generato',
@@ -255,6 +263,14 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Technical identity fingerprint',
       'identityAssurance': 'Identity assurance',
       'legalIdentity': 'Legal identity',
+      'startKyc': 'Start identity verification',
+      'kycExplanation':
+          'Document KYC will be handled by an external provider. SIGILLUM will store only the minimum verification status.',
+      'kycStarting': 'Starting identity verification...',
+      'kycLinkReady': 'KYC link ready. Open it in your browser:',
+      'kycConfiguredNoUrl':
+          'KYC is configured, but the server did not return a link.',
+      'kycNotAvailable': 'KYC not available yet',
       'privacy': 'Privacy',
       'technicalProof': 'Technical proof',
       'notGeneratedYet': 'Not generated yet',
@@ -396,6 +412,14 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Huella de identidad tecnica',
       'identityAssurance': 'Garantia de identidad',
       'legalIdentity': 'Identidad legal',
+      'startKyc': 'Iniciar verificacion de identidad',
+      'kycExplanation':
+          'El KYC documental sera gestionado por un proveedor externo. SIGILLUM guardara solo el estado minimo de verificacion.',
+      'kycStarting': 'Iniciando verificacion de identidad...',
+      'kycLinkReady': 'Link KYC listo. Abrelo en el navegador:',
+      'kycConfiguredNoUrl':
+          'KYC configurado, pero el servidor no devolvio un link.',
+      'kycNotAvailable': 'KYC aun no disponible',
       'privacy': 'Privacidad',
       'technicalProof': 'Prueba tecnica',
       'notGeneratedYet': 'Aun no generado',
@@ -537,6 +561,13 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Отпечаток технической идентичности',
       'identityAssurance': 'Уровень идентичности',
       'legalIdentity': 'Юридическая идентичность',
+      'startKyc': 'Начать проверку личности',
+      'kycExplanation':
+          'Проверка документов KYC будет выполняться внешним провайдером. SIGILLUM сохранит только минимальный статус проверки.',
+      'kycStarting': 'Запуск проверки личности...',
+      'kycLinkReady': 'Ссылка KYC готова. Откройте ее в браузере:',
+      'kycConfiguredNoUrl': 'KYC настроен, но сервер не вернул ссылку.',
+      'kycNotAvailable': 'KYC пока недоступен',
       'privacy': 'Конфиденциальность',
       'technicalProof': 'Техническое доказательство',
       'notGeneratedYet': 'Еще не создано',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'hcv_identity.dart';
+import 'hcv_registry_service.dart';
 import 'sigillum_localization.dart';
 
 class IdentityPage extends StatefulWidget {
@@ -81,6 +82,32 @@ class _IdentityPageState extends State<IdentityPage> {
     });
   }
 
+  Future<void> startKyc() async {
+    final name = nameController.text.trim();
+
+    setState(() {
+      status = _t('kycStarting');
+    });
+
+    try {
+      final session = await const HCVRegistryService().startKycSession(
+        creatorId: creatorId,
+        creatorName: name.isEmpty ? 'Local Creator' : name,
+      );
+      final url = session['url']?.toString() ?? '';
+
+      setState(() {
+        status = url.isEmpty
+            ? _t('kycConfiguredNoUrl')
+            : '${_t('kycLinkReady')}\n$url';
+      });
+    } catch (err) {
+      setState(() {
+        status = '${_t('kycNotAvailable')}\n$err';
+      });
+    }
+  }
+
   @override
   void dispose() {
     nameController.dispose();
@@ -151,6 +178,18 @@ class _IdentityPageState extends State<IdentityPage> {
               ElevatedButton(
                 onPressed: saveIdentity,
                 child: Text(_t('saveName')),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: startKyc,
+                icon: const Icon(Icons.verified_user_outlined),
+                label: Text(_t('startKyc')),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _t('kycExplanation'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 24),
               Text(

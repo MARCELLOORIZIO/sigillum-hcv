@@ -103,6 +103,40 @@ class HCVRegistryService {
     }
   }
 
+  Future<Map<String, dynamic>> startKycSession({
+    required String creatorId,
+    required String creatorName,
+  }) async {
+    final client = HttpClient();
+
+    try {
+      final uri = Uri.parse('$baseUrl/api/identity/kyc/start');
+      final req = await client.postUrl(uri);
+      req.headers.contentType = ContentType.json;
+      req.write(jsonEncode({
+        'creatorId': creatorId,
+        'creatorName': creatorName,
+      }));
+
+      final res = await req.close();
+      final body = await utf8.decoder.bind(res).join();
+      final decoded = jsonDecode(body);
+
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Risposta KYC non valida');
+      }
+
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw Exception(
+            decoded['message'] ?? decoded['error'] ?? 'KYC non disponibile');
+      }
+
+      return decoded;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   String? extractHcvIdFromCertificate(Map<String, dynamic> cert) {
     return _extractHcvId(cert);
   }
