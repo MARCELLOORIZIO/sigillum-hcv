@@ -130,6 +130,8 @@ class SigillumCopy {
       'kycStatus': 'Stato KYC',
       'kycStatusLabel': 'Stato KYC',
       'kycStatusUnavailable': 'Stato KYC non disponibile',
+      'kycRequiresInputHint':
+          'Verifica incompleta: premi Avvia verifica identita per riprendere la stessa sessione Stripe.',
       'privacy': 'Privacy',
       'technicalProof': 'Prova tecnica',
       'notGeneratedYet': 'Non ancora generato',
@@ -287,6 +289,8 @@ class SigillumCopy {
       'kycStatus': 'KYC status',
       'kycStatusLabel': 'KYC status',
       'kycStatusUnavailable': 'KYC status unavailable',
+      'kycRequiresInputHint':
+          'Verification incomplete: tap Start identity verification to resume the same Stripe session.',
       'privacy': 'Privacy',
       'technicalProof': 'Technical proof',
       'notGeneratedYet': 'Not generated yet',
@@ -444,6 +448,8 @@ class SigillumCopy {
       'kycStatus': 'Estado KYC',
       'kycStatusLabel': 'Estado KYC',
       'kycStatusUnavailable': 'Estado KYC no disponible',
+      'kycRequiresInputHint':
+          'Verificacion incompleta: toca Iniciar verificacion de identidad para reanudar la misma sesion de Stripe.',
       'privacy': 'Privacidad',
       'technicalProof': 'Prueba tecnica',
       'notGeneratedYet': 'Aun no generado',
@@ -600,6 +606,8 @@ class SigillumCopy {
       'kycStatus': 'Статус KYC',
       'kycStatusLabel': 'Статус KYC',
       'kycStatusUnavailable': 'Статус KYC недоступен',
+      'kycRequiresInputHint':
+          'Verification incomplete: reopen identity verification to resume the same Stripe session.',
       'privacy': 'Конфиденциальность',
       'technicalProof': 'Техническое доказательство',
       'notGeneratedYet': 'Еще не создано',

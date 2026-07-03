@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -32,6 +34,45 @@ class _IdentityPageState extends State<IdentityPage> {
   String status = "";
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+
+  String _formatStripeLastError(dynamic lastError) {
+    if (lastError == null) {
+      return "";
+    }
+    if (lastError is Map) {
+      final reason = lastError["reason"]?.toString() ?? "";
+      final code = lastError["code"]?.toString() ?? "";
+      final message = lastError["message"]?.toString() ?? "";
+      final summary =
+          [reason, code, message].where((part) => part.isNotEmpty).join(" - ");
+      return summary.isEmpty ? jsonEncode(lastError) : summary;
+    }
+    return lastError.toString();
+  }
+
+  String _statusTextForRemote(Map<String, dynamic> remote) {
+    final remoteStatus = remote['status']?.toString() ?? 'unknown';
+    final lastError = _formatStripeLastError(remote['lastError']);
+    final url = remote['url']?.toString() ?? '';
+    final lines = <String>['${_t('kycStatus')}: $remoteStatus'];
+    if (lastError.isNotEmpty) {
+      lines.add('Stripe: $lastError');
+    }
+    if (remoteStatus == 'requires_input' && url.isNotEmpty) {
+      lines.add(_t('kycRequiresInputHint'));
+    }
+    return lines.join('\\n');
+  }
+
+  Future<bool> _openKycUrl(String url) async {
+    if (url.isEmpty) {
+      return false;
+    }
+    return launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+  }
 
   @override
   void initState() {
@@ -97,6 +138,30 @@ class _IdentityPageState extends State<IdentityPage> {
     });
 
     try {
+      if (kycSessionId.isNotEmpty && kycStatus == 'requires_input') {
+        final remote = await const HCVRegistryService().fetchKycSessionStatus(
+          sessionId: kycSessionId,
+        );
+        final remoteStatus = remote['status']?.toString() ?? 'unknown';
+        final url = remote['url']?.toString() ?? '';
+        await HCVIdentity().saveKycStatus(remoteStatus);
+        setState(() {
+          kycStatus = remoteStatus;
+          status = _statusTextForRemote(remote);
+        });
+        if (remoteStatus == 'requires_input' && url.isNotEmpty) {
+          await _openKycUrl(url);
+          return;
+        }
+        if (remoteStatus == 'verified') {
+          await loadIdentity();
+          setState(() {
+            status = _t('kycVerified');
+          });
+          return;
+        }
+      }
+
       final session = await const HCVRegistryService().startKycSession(
         creatorId: creatorId,
         creatorName: name.isEmpty ? 'Local Creator' : name,
@@ -121,10 +186,7 @@ class _IdentityPageState extends State<IdentityPage> {
       });
 
       if (url.isNotEmpty) {
-        final opened = await launchUrl(
-          Uri.parse(url),
-          mode: LaunchMode.externalApplication,
-        );
+        final opened = await _openKycUrl(url);
         if (!opened) {
           setState(() {
             status = '${_t('kycLinkReady')}\n$url';
@@ -166,7 +228,7 @@ class _IdentityPageState extends State<IdentityPage> {
         kycStatus = remoteStatus;
         status = remoteStatus == 'verified'
             ? _t('kycVerified')
-            : '${_t('kycStatus')}: $remoteStatus';
+            : _statusTextForRemote(remote);
       });
     } catch (err) {
       setState(() {
