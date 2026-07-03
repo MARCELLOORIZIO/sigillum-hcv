@@ -19,7 +19,8 @@ class IdentityPage extends StatefulWidget {
   State<IdentityPage> createState() => _IdentityPageState();
 }
 
-class _IdentityPageState extends State<IdentityPage> {
+class _IdentityPageState extends State<IdentityPage>
+    with WidgetsBindingObserver {
   final TextEditingController nameController = TextEditingController();
 
   String creatorId = "";
@@ -79,8 +80,16 @@ class _IdentityPageState extends State<IdentityPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     status = _t('loadingTechnicalIdentity');
     loadIdentity();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && kycSessionId.isNotEmpty) {
+      refreshKycStatus(silent: true);
+    }
   }
 
   Future<void> loadIdentity() async {
@@ -144,7 +153,7 @@ class _IdentityPageState extends State<IdentityPage> {
     });
 
     try {
-      if (kycSessionId.isNotEmpty && kycStatus == 'requires_input') {
+      if (kycSessionId.isNotEmpty) {
         final remote = await const HCVRegistryService().fetchKycSessionStatus(
           sessionId: kycSessionId,
         );
@@ -156,19 +165,32 @@ class _IdentityPageState extends State<IdentityPage> {
               ? Map<String, dynamic>.from(remote["verifiedOutputs"] as Map)
               : null,
         );
+        final identity = await HCVIdentity().loadIdentity();
         setState(() {
+          identityAssuranceLevel =
+              identity["identityAssuranceLevel"]?.toString() ?? "";
+          legalIdentityStatus =
+              identity["legalIdentityStatus"]?.toString() ?? "";
+          trustLevel =
+              identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
           kycStatus = remoteStatus;
-          status = _statusTextForRemote(remote);
+          verifiedLegalName = identity["verifiedLegalName"]?.toString() ?? "";
+          verifiedLegalCountry =
+              identity["verifiedLegalCountry"]?.toString() ?? "";
+          nameController.text =
+              identity["creatorName"]?.toString() ?? nameController.text;
+          status = remoteStatus == 'verified'
+              ? _t('kycVerified')
+              : _statusTextForRemote(remote);
         });
         if (remoteStatus == 'requires_input' && url.isNotEmpty) {
           await _openKycUrl(url);
           return;
         }
         if (remoteStatus == 'verified') {
-          await loadIdentity();
-          setState(() {
-            status = _t('kycVerified');
-          });
+          return;
+        }
+        if (remoteStatus == 'processing' || remoteStatus == 'requires_input') {
           return;
         }
       }
@@ -211,17 +233,22 @@ class _IdentityPageState extends State<IdentityPage> {
     }
   }
 
-  Future<void> refreshKycStatus() async {
+  Future<void> refreshKycStatus({bool silent = false}) async {
     if (kycSessionId.isEmpty) {
+      if (silent) {
+        return;
+      }
       setState(() {
         status = _t('kycNoSession');
       });
       return;
     }
 
-    setState(() {
-      status = _t('kycRefreshing');
-    });
+    if (!silent) {
+      setState(() {
+        status = _t('kycRefreshing');
+      });
+    }
 
     try {
       final remote = await const HCVRegistryService().fetchKycSessionStatus(
@@ -260,6 +287,7 @@ class _IdentityPageState extends State<IdentityPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     nameController.dispose();
     super.dispose();
   }
