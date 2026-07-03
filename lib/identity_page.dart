@@ -30,6 +30,8 @@ class _IdentityPageState extends State<IdentityPage> {
   String privacyMode = "";
   String kycSessionId = "";
   String kycStatus = "";
+  String verifiedLegalName = "";
+  String verifiedLegalCountry = "";
   String trustLevel = "LOCAL_KEY_VERIFIED";
   String status = "";
 
@@ -94,6 +96,8 @@ class _IdentityPageState extends State<IdentityPage> {
       privacyMode = identity["privacyMode"]?.toString() ?? "";
       kycSessionId = identity["kycSessionId"]?.toString() ?? "";
       kycStatus = identity["kycStatus"]?.toString() ?? "";
+      verifiedLegalName = identity["verifiedLegalName"]?.toString() ?? "";
+      verifiedLegalCountry = identity["verifiedLegalCountry"]?.toString() ?? "";
       nameController.text =
           identity["creatorName"]?.toString() ?? "Local Creator";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
@@ -125,6 +129,8 @@ class _IdentityPageState extends State<IdentityPage> {
       privacyMode = identity["privacyMode"]?.toString() ?? "";
       kycSessionId = identity["kycSessionId"]?.toString() ?? "";
       kycStatus = identity["kycStatus"]?.toString() ?? "";
+      verifiedLegalName = identity["verifiedLegalName"]?.toString() ?? "";
+      verifiedLegalCountry = identity["verifiedLegalCountry"]?.toString() ?? "";
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
       status = _t('declaredNameSaved');
     });
@@ -144,7 +150,12 @@ class _IdentityPageState extends State<IdentityPage> {
         );
         final remoteStatus = remote['status']?.toString() ?? 'unknown';
         final url = remote['url']?.toString() ?? '';
-        await HCVIdentity().saveKycStatus(remoteStatus);
+        await HCVIdentity().saveKycStatus(
+          remoteStatus,
+          verifiedOutputs: remote["verifiedOutputs"] is Map
+              ? Map<String, dynamic>.from(remote["verifiedOutputs"] as Map)
+              : null,
+        );
         setState(() {
           kycStatus = remoteStatus;
           status = _statusTextForRemote(remote);
@@ -217,7 +228,12 @@ class _IdentityPageState extends State<IdentityPage> {
         sessionId: kycSessionId,
       );
       final remoteStatus = remote['status']?.toString() ?? 'unknown';
-      await HCVIdentity().saveKycStatus(remoteStatus);
+      await HCVIdentity().saveKycStatus(
+        remoteStatus,
+        verifiedOutputs: remote["verifiedOutputs"] is Map
+            ? Map<String, dynamic>.from(remote["verifiedOutputs"] as Map)
+            : null,
+      );
       final identity = await HCVIdentity().loadIdentity();
 
       setState(() {
@@ -226,6 +242,11 @@ class _IdentityPageState extends State<IdentityPage> {
         legalIdentityStatus = identity["legalIdentityStatus"]?.toString() ?? "";
         trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
         kycStatus = remoteStatus;
+        verifiedLegalName = identity["verifiedLegalName"]?.toString() ?? "";
+        verifiedLegalCountry =
+            identity["verifiedLegalCountry"]?.toString() ?? "";
+        nameController.text =
+            identity["creatorName"]?.toString() ?? nameController.text;
         status = remoteStatus == 'verified'
             ? _t('kycVerified')
             : _statusTextForRemote(remote);
@@ -337,6 +358,8 @@ class _IdentityPageState extends State<IdentityPage> {
               infoRow(_t('technicalIdentityFingerprint'), identityFingerprint),
               infoRow(_t('identityAssurance'), identityAssuranceLevel),
               infoRow(_t('legalIdentity'), legalIdentityStatus),
+              infoRow(_t('verifiedLegalName'), verifiedLegalName),
+              infoRow(_t('verifiedLegalCountry'), verifiedLegalCountry),
               infoRow(_t('kycStatusLabel'), kycStatus),
               infoRow(_t('privacy'), privacyMode),
               infoRow(_t('technicalProof'), trustLevel),

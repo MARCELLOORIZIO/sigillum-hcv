@@ -14,6 +14,8 @@ class HCVIdentity {
   static const String _kycSessionIdKey = "hcv_kyc_session_id";
   static const String _kycProviderKey = "hcv_kyc_provider";
   static const String _kycStatusKey = "hcv_kyc_status";
+  static const String _kycLegalNameKey = "hcv_kyc_legal_name";
+  static const String _kycCountryKey = "hcv_kyc_country";
 
   Future<void> saveCreatorName(String creatorName) async {
     final prefs = await SharedPreferences.getInstance();
@@ -31,9 +33,23 @@ class HCVIdentity {
     await prefs.setString(_kycStatusKey, status);
   }
 
-  Future<void> saveKycStatus(String status) async {
+  Future<void> saveKycStatus(
+    String status, {
+    Map<String, dynamic>? verifiedOutputs,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kycStatusKey, status);
+
+    final legalName = verifiedOutputs?["legalName"]?.toString().trim() ?? "";
+    final country = verifiedOutputs?["country"]?.toString().trim() ?? "";
+
+    if (legalName.isNotEmpty) {
+      await prefs.setString(_kycLegalNameKey, legalName);
+      await prefs.setString(_creatorNameKey, legalName);
+    }
+    if (country.isNotEmpty) {
+      await prefs.setString(_kycCountryKey, country);
+    }
   }
 
   Future<Map<String, dynamic>> loadIdentity({
@@ -47,6 +63,8 @@ class HCVIdentity {
     final kycSessionId = prefs.getString(_kycSessionIdKey) ?? "";
     final kycProvider = prefs.getString(_kycProviderKey) ?? "";
     final kycStatus = prefs.getString(_kycStatusKey) ?? "not_started";
+    final verifiedLegalName = prefs.getString(_kycLegalNameKey) ?? "";
+    final verifiedLegalCountry = prefs.getString(_kycCountryKey) ?? "";
 
     creatorId ??= const Uuid().v4();
     deviceId ??= const Uuid().v4();
@@ -78,10 +96,15 @@ class HCVIdentity {
         )
         .toString();
 
+    final isKycVerified = kycStatus == "verified";
+    if (isKycVerified && verifiedLegalName.isNotEmpty) {
+      creatorName = verifiedLegalName;
+      await prefs.setString(_creatorNameKey, creatorName);
+    }
+
     final fingerprintSource = "$creatorId|$creatorName|$keyFingerprint";
     final fingerprint =
         sha256.convert(utf8.encode(fingerprintSource)).toString();
-    final isKycVerified = kycStatus == "verified";
 
     return {
       "creatorId": creatorId,
@@ -102,6 +125,8 @@ class HCVIdentity {
       "kycProvider": kycProvider,
       "kycSessionId": kycSessionId,
       "kycStatus": kycStatus,
+      "verifiedLegalName": verifiedLegalName,
+      "verifiedLegalCountry": verifiedLegalCountry,
       "hardwareSerialCollected": false,
       "phoneSerialCollected": false,
       "publicKeyIncludedInCertificate": publicKey != null,

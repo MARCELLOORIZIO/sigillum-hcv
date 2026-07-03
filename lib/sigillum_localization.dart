@@ -114,6 +114,8 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Impronta identita tecnica',
       'identityAssurance': 'Garanzia identita',
       'legalIdentity': 'Identita legale',
+      'verifiedLegalName': 'Nome legale verificato',
+      'verifiedLegalCountry': 'Paese documento',
       'startKyc': 'Avvia verifica identita',
       'kycExplanation':
           'La verifica documentale KYC sara gestita da un provider esterno. SIGILLUM salvera solo lo stato minimo della verifica.',
@@ -273,6 +275,8 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Technical identity fingerprint',
       'identityAssurance': 'Identity assurance',
       'legalIdentity': 'Legal identity',
+      'verifiedLegalName': 'Verified legal name',
+      'verifiedLegalCountry': 'Document country',
       'startKyc': 'Start identity verification',
       'kycExplanation':
           'Document KYC will be handled by an external provider. SIGILLUM will store only the minimum verification status.',
@@ -432,6 +436,8 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Huella de identidad tecnica',
       'identityAssurance': 'Garantia de identidad',
       'legalIdentity': 'Identidad legal',
+      'verifiedLegalName': 'Nombre legal verificado',
+      'verifiedLegalCountry': 'Pais del documento',
       'startKyc': 'Iniciar verificacion de identidad',
       'kycExplanation':
           'El KYC documental sera gestionado por un proveedor externo. SIGILLUM guardara solo el estado minimo de verificacion.',
@@ -591,6 +597,8 @@ class SigillumCopy {
       'technicalIdentityFingerprint': 'Отпечаток технической идентичности',
       'identityAssurance': 'Уровень идентичности',
       'legalIdentity': 'Юридическая идентичность',
+      'verifiedLegalName': 'Verified legal name',
+      'verifiedLegalCountry': 'Document country',
       'startKyc': 'Начать проверку личности',
       'kycExplanation':
           'Проверка документов KYC будет выполняться внешним провайдером. SIGILLUM сохранит только минимальный статус проверки.',
