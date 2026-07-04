@@ -183,7 +183,10 @@ class _IdentityPageState extends State<IdentityPage>
               ? _t('kycVerified')
               : _statusTextForRemote(remote);
         });
-        if (remoteStatus == 'requires_input' && url.isNotEmpty) {
+        final staleWebReturnUrl = url.contains('/support');
+        if (remoteStatus == 'requires_input' &&
+            url.isNotEmpty &&
+            !staleWebReturnUrl) {
           await _openKycUrl(url);
           return;
         }
