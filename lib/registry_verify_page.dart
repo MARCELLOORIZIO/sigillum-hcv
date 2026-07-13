@@ -1069,7 +1069,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         ? (passive['screenReplayRiskScore'] as num?)?.toInt()
         : null;
     final mlSaysReality = mlClass != null &&
-        mlClass.startsWith('REALITY_') &&
+        (mlClass.startsWith('REALITY_') || mlClass == 'REAL_SCENE') &&
         mlConfidence >= 0.60 &&
         mlScreenProbability < 0.35;
     final currentIsWarning = (currentReplayScore ?? 0) >= 70;

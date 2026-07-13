@@ -140,16 +140,18 @@ class HCVMLScreenReplayClassifier {
         return _unknown('MODEL_NOT_LOADED', _modelLoadError);
       }
 
-      final inputImage = _letterbox(decoded);
-      final input = _imageToInput(inputImage);
-      final output = [List<double>.filled(classes.length, 0.0)];
-
-      interpreter.run(input, output);
-
-      final probabilities = output.first;
-      final screenProbability = _screenProbability(classes, probabilities);
-      final topIndex = _topIndex(probabilities);
-      final riskScore = (screenProbability * 100).round().clamp(0, 100).toInt();
+      var result = _runImageAnalysis(interpreter, classes, decoded);
+      final cropped = _runImageAnalysis(
+        interpreter,
+        classes,
+        _cropTop(decoded, 0.24),
+      );
+      final fullScore = result.riskScore;
+      final croppedScore = cropped.riskScore;
+      final overlayCorrected = fullScore >= 70 && croppedScore <= 55;
+      if (overlayCorrected) {
+        result = cropped;
+      }
 
       return {
         'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
@@ -158,19 +160,23 @@ class HCVMLScreenReplayClassifier {
         'scanMode': 'STILL_IMAGE_ML_CLASSIFIER',
         'analysisStatus': 'ANALYZED',
         'framesAnalyzed': 1,
-        'screenReplayRisk': _riskLabel(riskScore),
-        'screenReplayRiskScore': riskScore,
-        'screenProbability': _round(screenProbability),
-        'predictedClass': classes[topIndex],
-        'predictedClassConfidence': _round(probabilities[topIndex]),
+        'screenReplayRisk': _riskLabel(result.riskScore),
+        'screenReplayRiskScore': result.riskScore,
+        'screenProbability': _round(result.screenProbability),
+        'predictedClass': classes[result.topIndex],
+        'predictedClassConfidence':
+            _round(result.probabilities[result.topIndex]),
         'classProbabilities': {
           for (var i = 0; i < classes.length; i++)
-            classes[i]: _round(probabilities[i]),
+            classes[i]: _round(result.probabilities[i]),
         },
         'signals': {
-          'mlScreenClass': classes[topIndex].startsWith('SCREEN_'),
-          'mlScreenProbabilityHigh': screenProbability >= 0.85,
-          'mlScreenProbabilityMedium': screenProbability >= 0.70,
+          'mlScreenClass': classes[result.topIndex].startsWith('SCREEN_'),
+          'mlScreenProbabilityHigh': result.screenProbability >= 0.85,
+          'mlScreenProbabilityMedium': result.screenProbability >= 0.70,
+          'sigillumOverlayCorrected': overlayCorrected,
+          'fullFrameRiskScore': fullScore,
+          'contentAreaRiskScore': croppedScore,
         },
         'note':
             'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',
@@ -214,6 +220,44 @@ class HCVMLScreenReplayClassifier {
     _classes = bundle.labels;
     _modelSource = bundle.source;
     _modelLoadError = null;
+  }
+
+  _MLImageResult _runImageAnalysis(
+    Interpreter interpreter,
+    List<String> classes,
+    img.Image image,
+  ) {
+    final inputImage = _letterbox(image);
+    final input = _imageToInput(inputImage);
+    final output = [List<double>.filled(classes.length, 0.0)];
+
+    interpreter.run(input, output);
+
+    final probabilities = output.first;
+    final screenProbability = _screenProbability(classes, probabilities);
+    final topIndex = _topIndex(probabilities);
+    final riskScore = (screenProbability * 100).round().clamp(0, 100).toInt();
+    return _MLImageResult(
+      probabilities: probabilities,
+      screenProbability: screenProbability,
+      topIndex: topIndex,
+      riskScore: riskScore,
+    );
+  }
+
+  img.Image _cropTop(img.Image source, double fraction) {
+    final oriented = img.bakeOrientation(source);
+    final top = (oriented.height * fraction).round().clamp(
+          0,
+          max(0, oriented.height - 1),
+        );
+    return img.copyCrop(
+      oriented,
+      x: 0,
+      y: top,
+      width: oriented.width,
+      height: oriented.height - top,
+    );
   }
 
   img.Image _letterbox(img.Image source) {
@@ -304,4 +348,18 @@ class HCVMLScreenReplayClassifier {
   }
 
   double _round(double value) => double.parse(value.toStringAsFixed(4));
+}
+
+class _MLImageResult {
+  const _MLImageResult({
+    required this.probabilities,
+    required this.screenProbability,
+    required this.topIndex,
+    required this.riskScore,
+  });
+
+  final List<double> probabilities;
+  final double screenProbability;
+  final int topIndex;
+  final int riskScore;
 }

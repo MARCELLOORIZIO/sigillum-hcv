@@ -628,8 +628,9 @@ class _CameraPageState extends State<CameraPage> {
         nonMlScores.isEmpty ? null : nonMlScores.reduce((a, b) => max(a, b));
     final mlSaysScreen =
         mlClass != null && mlClass.startsWith("SCREEN_") && mlScore != null;
-    final mlSaysReality =
-        mlClass != null && mlClass.startsWith("REALITY_") && mlScore != null;
+    final mlSaysReality = mlClass != null &&
+        (mlClass.startsWith("REALITY_") || mlClass == "REAL_SCENE") &&
+        mlScore != null;
 
     if (mlScore == null) {
       return strongestScore == null ? null : min(strongestScore, 34);
