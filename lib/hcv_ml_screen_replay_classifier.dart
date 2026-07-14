@@ -99,13 +99,30 @@ class HCVMLScreenReplayClassifier {
       final averageScore = scores.isEmpty
           ? null
           : scores.reduce((a, b) => a + b) / scores.length;
+      final strongFrameCount = scores.where((score) => score >= 92).length;
+      final mediumFrameCount = scores.where((score) => score >= 88).length;
+      final finalScore = _persistentVideoRiskScore(
+        maxScore: maxScore,
+        averageScore: averageScore,
+        strongFrameCount: strongFrameCount,
+        mediumFrameCount: mediumFrameCount,
+      );
 
       worst['scanMode'] = 'VIDEO_MULTI_FRAME_ML_CLASSIFIER';
       worst['framesAnalyzed'] = analyses.length;
-      worst['screenReplayRiskScore'] = maxScore;
+      worst['screenReplayRiskScore'] = finalScore;
       worst['screenReplayRisk'] =
-          maxScore == null ? 'UNKNOWN' : _riskLabel(maxScore);
+          finalScore == null ? 'UNKNOWN' : _riskLabel(finalScore);
       worst['videoFrameSecond'] = worst['approxVideoSecond'];
+      worst['maxFrameScreenReplayRiskScore'] = maxScore;
+      worst['strongScreenFrameCount'] = strongFrameCount;
+      worst['mediumScreenFrameCount'] = mediumFrameCount;
+      worst['displayRiskDecision'] = _displayRiskDecision(
+        finalScore: finalScore,
+        maxScore: maxScore,
+        strongFrameCount: strongFrameCount,
+        mediumFrameCount: mediumFrameCount,
+      );
       worst['averageScreenReplayRiskScore'] =
           averageScore == null ? null : _round(averageScore);
       worst['videoFrameAnalyses'] = analyses.take(12).toList();
@@ -220,6 +237,39 @@ class HCVMLScreenReplayClassifier {
     _classes = bundle.labels;
     _modelSource = bundle.source;
     _modelLoadError = null;
+  }
+
+  int? _persistentVideoRiskScore({
+    required int? maxScore,
+    required double? averageScore,
+    required int strongFrameCount,
+    required int mediumFrameCount,
+  }) {
+    if (maxScore == null) return null;
+
+    if (strongFrameCount >= 2) return maxScore;
+    if (mediumFrameCount >= 3 && averageScore != null && averageScore >= 88) {
+      return min(maxScore, 91);
+    }
+
+    if (maxScore >= 88) return 54;
+    return maxScore;
+  }
+
+  String _displayRiskDecision({
+    required int? finalScore,
+    required int? maxScore,
+    required int strongFrameCount,
+    required int mediumFrameCount,
+  }) {
+    if (finalScore == null) return 'NOT_ANALYZED';
+    if (finalScore >= 88) return 'STRONG_DISPLAY_RISK';
+    if ((maxScore ?? 0) >= 88 ||
+        strongFrameCount == 1 ||
+        mediumFrameCount > 0) {
+      return 'NON_CONCLUSIVE';
+    }
+    return 'NO_DISPLAY_EVIDENCE';
   }
 
   _MLImageResult _runImageAnalysis(
@@ -338,9 +388,9 @@ class HCVMLScreenReplayClassifier {
   }
 
   String _riskLabel(int riskScore) {
-    return riskScore >= 85
+    return riskScore >= 92
         ? 'HIGH'
-        : riskScore >= 70
+        : riskScore >= 88
             ? 'MEDIUM'
             : 'LOW';
   }
