@@ -1037,9 +1037,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String _screenReplayRiskLabel(int score) {
-    return score >= 85
+    return score >= 92
         ? 'HIGH'
-        : score >= 70
+        : score >= 88
             ? 'MEDIUM'
             : 'LOW';
   }

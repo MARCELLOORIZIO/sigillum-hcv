@@ -591,9 +591,9 @@ class _CameraPageState extends State<CameraPage> {
     final score = _combinedScreenReplayScore(analyses);
     if (score == null) return null;
 
-    return score >= 85
+    return score >= 92
         ? "HIGH"
-        : score >= 70
+        : score >= 88
             ? "MEDIUM"
             : "LOW";
   }
@@ -649,15 +649,20 @@ class _CameraPageState extends State<CameraPage> {
     }
 
     if (mlSaysScreen &&
-        mlScore >= 85 &&
-        (mlClassConfidence == null || mlClassConfidence >= 0.70)) {
-      return max(strongestNonMl ?? 0, max(70, min(mlScore, 84)));
+        mlScore >= 92 &&
+        (mlClassConfidence == null || mlClassConfidence >= 0.78)) {
+      return max(strongestNonMl ?? 0, mlScore);
     }
 
-    if (mlSaysScreen && mlScore < 85) {
-      if (strongestNonMl == null || strongestNonMl < 35) {
-        return max(strongestNonMl ?? 0, min(mlScore, 34));
-      }
+    if (mlSaysScreen &&
+        mlScore >= 88 &&
+        (mlClassConfidence == null || mlClassConfidence >= 0.70) &&
+        strongLiveEvidence) {
+      return max(strongestNonMl ?? 0, min(mlScore, 91));
+    }
+
+    if (mlSaysScreen) {
+      return max(min(mlScore, 34), min(strongestNonMl ?? 0, 34));
     }
 
     return strongestScore;
