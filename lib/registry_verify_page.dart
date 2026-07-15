@@ -465,6 +465,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? liveCaptureTrust;
   String? screenReplayRisk;
   String? screenReplayRiskScore;
+  String? displayRiskDecision;
   String? screenReplaySegmentsAnalyzed;
   String? screenReplayWorstSecond;
   String? liveProbeFrames;
@@ -716,6 +717,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       liveCaptureTrust = null;
       screenReplayRisk = null;
       screenReplayRiskScore = null;
+      displayRiskDecision = null;
       screenReplaySegmentsAnalyzed = null;
       screenReplayWorstSecond = null;
       liveProbeFrames = null;
@@ -752,6 +754,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         liveCaptureTrust = claims['liveCaptureTrust']?.toString();
         screenReplayRisk = claims['screenReplayRisk']?.toString();
         screenReplayRiskScore = claims['screenReplayRiskScore']?.toString();
+        displayRiskDecision = claims['displayRiskDecision']?.toString();
         final screenReplayAnalysis = claims['screenReplayAnalysis'];
         if (screenReplayAnalysis is Map) {
           screenReplaySegmentsAnalyzed =
@@ -908,7 +911,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         void markVerified(String cleanStatus, String cleanResult) {
           final exactOriginal = cleanResult.startsWith('FORENSIC');
-          final sceneWarning = _isScreenReplayRisk(screenReplayRisk);
+          final sceneWarning = _isStrongDisplayRisk;
+          final sceneUncertain = _isDisplayNonConclusive;
           _setVerificationAxes(
             provenance: 'Verificata',
             provenanceDetail:
@@ -918,10 +922,16 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             integrityDetail: exactOriginal
                 ? 'Hash SHA-256 identico all originale certificato.'
                 : 'Hash diverso, ma evidenze compatibili con il certificato.',
-            scene: sceneWarning ? 'Cautela scena' : 'Nessun rischio alto',
+            scene: sceneWarning
+                ? 'Forte rischio display'
+                : sceneUncertain
+                    ? 'Non conclusiva'
+                    : 'Nessun indizio display',
             sceneDetail: sceneWarning
-                ? 'Possibile ripresa da schermo: $screenReplayRisk.'
-                : 'Nessun rischio schermo medio/alto nel certificato.',
+                ? 'Piu segnali coerenti indicano una possibile ripresa da schermo.'
+                : sceneUncertain
+                    ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
+                    : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
             derivation: exactOriginal ? 'Non necessaria' : 'Compatibile',
             derivationDetail: exactOriginal
                 ? 'Il file corrisponde esattamente all originale.'
@@ -1035,6 +1045,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final value = risk?.toUpperCase();
     return value == 'MEDIUM' || value == 'HIGH';
   }
+
+  bool get _isStrongDisplayRisk =>
+      displayRiskDecision == 'STRONG_DISPLAY_RISK' ||
+      (displayRiskDecision == null && _isScreenReplayRisk(screenReplayRisk));
+
+  bool get _isDisplayNonConclusive => displayRiskDecision == 'NON_CONCLUSIVE';
 
   String _screenReplayRiskLabel(int score) {
     return score >= 92
@@ -1210,19 +1226,23 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _effectiveSceneState {
     if (sceneState != null) return sceneState!;
-    if (_isScreenReplayRisk(screenReplayRisk)) return 'Cautela scena';
-    if (screenReplayRisk != null) return 'Nessun rischio alto';
+    if (_isStrongDisplayRisk) return 'Forte rischio display';
+    if (_isDisplayNonConclusive) return 'Non conclusiva';
+    if (screenReplayRisk != null) return 'Nessun indizio display';
     if (_isInvalidResult || _isMediaNotVerified) return 'Non conclusiva';
     return '-';
   }
 
   String get _effectiveSceneDetail {
     if (sceneDetail != null) return sceneDetail!;
-    if (_isScreenReplayRisk(screenReplayRisk)) {
-      return 'Possibile ripresa da schermo: $screenReplayRisk.';
+    if (_isStrongDisplayRisk) {
+      return 'Piu segnali coerenti indicano una possibile ripresa da schermo.';
+    }
+    if (_isDisplayNonConclusive) {
+      return 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.';
     }
     if (screenReplayRisk != null) {
-      return 'Nessun rischio schermo medio/alto nel certificato.';
+      return 'Nessun indizio tecnico sufficiente di ripresa da schermo.';
     }
     if (_isInvalidResult || _isMediaNotVerified) {
       return 'La scena non viene usata per dichiarare il contenuto originale.';
@@ -1465,6 +1485,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'RISULTATO COMBINATO\n'
                   '${_t('screenReplayRisk')}: ${screenReplayRisk ?? '-'}\n'
                   'Punteggio schermo: ${screenReplayRiskScore ?? '-'}\n'
+                  'Decisione display: ${displayRiskDecision ?? '-'}\n'
                   '\n'
                   'LIVE PROBE PRIMA DELLO SCATTO\n'
                   'Live Probe Risk: ${liveProbeRisk ?? '-'}\n'

@@ -208,12 +208,21 @@ class HCVLiveScreenProbe {
       riskScore = min(riskScore, 30);
     }
     riskScore = riskScore.clamp(0, 100).toInt();
+    final displayRiskDecision = _displayRiskDecision(
+      riskScore: riskScore,
+      confirmedDisplayTrace: confirmedDisplayTrace,
+      opticalCorroboratedTrace: opticalCorroboratedTrace,
+      dynamicScreenChallengeTrace: dynamicScreenChallengeTrace,
+      uncorroboratedDisplayPattern: uncorroboratedDisplayPattern,
+      pairedFlickerTrace: pairedFlickerTrace,
+    );
 
     return {
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
       'framesAnalyzed': frames.length,
       'screenReplayRisk': _riskLabel(riskScore),
       'screenReplayRiskScore': riskScore,
+      'displayRiskDecision': displayRiskDecision,
       'globalFlickerScore': _round(globalFlickerScore),
       'localTemporalFlickerScore': _round(localFlickerScore.toDouble()),
       'refreshBandScore': _round(refreshBandScore),
@@ -589,11 +598,34 @@ class HCVLiveScreenProbe {
   }
 
   String _riskLabel(int riskScore) {
-    return riskScore >= 60
+    return riskScore >= 88
         ? 'HIGH'
-        : riskScore >= 35
+        : riskScore >= 55
             ? 'MEDIUM'
             : 'LOW';
+  }
+
+  String _displayRiskDecision({
+    required int riskScore,
+    required bool confirmedDisplayTrace,
+    required bool opticalCorroboratedTrace,
+    required bool dynamicScreenChallengeTrace,
+    required bool uncorroboratedDisplayPattern,
+    required bool pairedFlickerTrace,
+  }) {
+    final strongEvidence = confirmedDisplayTrace &&
+        (opticalCorroboratedTrace || dynamicScreenChallengeTrace) &&
+        riskScore >= 88;
+    if (strongEvidence) return 'STRONG_DISPLAY_RISK';
+
+    if (riskScore >= 55 ||
+        uncorroboratedDisplayPattern ||
+        pairedFlickerTrace ||
+        dynamicScreenChallengeTrace) {
+      return 'NON_CONCLUSIVE';
+    }
+
+    return 'NO_DISPLAY_EVIDENCE';
   }
 
   double _round(double value) => double.parse(value.toStringAsFixed(4));

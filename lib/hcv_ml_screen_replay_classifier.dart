@@ -298,7 +298,8 @@ class HCVMLScreenReplayClassifier {
   img.Image _cropTop(img.Image source, double fraction) {
     final oriented = img.bakeOrientation(source);
     final maxTop = max(0, oriented.height - 1);
-    final top = min(max((oriented.height * fraction).round(), 0), maxTop);
+    final top =
+        min(max((oriented.height * fraction).round(), 0), maxTop).toInt();
     return img.copyCrop(
       oriented,
       x: 0,

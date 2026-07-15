@@ -299,10 +299,11 @@ class _CameraPageState extends State<CameraPage> {
       ];
       final detectedScreenReplayRisk =
           _combinedScreenReplayRisk(screenReplayAnalyses);
-      final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
-          detectedScreenReplayRisk == "MEDIUM";
       final detectedScreenReplayScore =
           _combinedScreenReplayScore(screenReplayAnalyses);
+      final displayRiskDecision =
+          _combinedDisplayRiskDecision(screenReplayAnalyses);
+      final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
 
       setState(() {
         status = 'ADDING SIGILLUM WATERMARK...';
@@ -315,6 +316,7 @@ class _CameraPageState extends State<CameraPage> {
           detectedScreenReplayRisk,
           detectedScreenReplayScore,
           mlScreenReplayAnalysis,
+          displayRiskDecision,
         ),
       );
 
@@ -356,6 +358,8 @@ class _CameraPageState extends State<CameraPage> {
         "sceneAuthenticity": detectedScreenReplay
             ? "PHOTO_CAPTURE_WITH_SCREEN_REPLAY_RISK"
             : "PHOTO_CAPTURE",
+        "displayRiskDecision": displayRiskDecision,
+        "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "liveScreenProbe": liveScreenProbe,
         "screenReplayAnalysis": screenReplayAnalysis,
@@ -668,6 +672,38 @@ class _CameraPageState extends State<CameraPage> {
     return strongestScore;
   }
 
+  String _combinedDisplayRiskDecision(List<Map<String, dynamic>?> analyses) {
+    final score = _combinedScreenReplayScore(analyses);
+    final decisions = analyses
+        .whereType<Map<String, dynamic>>()
+        .map((analysis) => analysis["displayRiskDecision"]?.toString())
+        .whereType<String>()
+        .toList();
+
+    if (decisions.contains("STRONG_DISPLAY_RISK")) {
+      return "STRONG_DISPLAY_RISK";
+    }
+
+    final hasNonConclusive = decisions.contains("NON_CONCLUSIVE");
+    final maxScore = _strongestScreenReplayScore(analyses);
+    if (hasNonConclusive || (maxScore != null && maxScore >= 55)) {
+      return "NON_CONCLUSIVE";
+    }
+
+    return "NO_DISPLAY_EVIDENCE";
+  }
+
+  String _displayRiskMeaning(String decision) {
+    switch (decision) {
+      case "STRONG_DISPLAY_RISK":
+        return "Multiple consistent signals indicate possible display recapture.";
+      case "NON_CONCLUSIVE":
+        return "Ambiguous visual or optical signals were observed, but not enough for a display warning.";
+      default:
+        return "No sufficient display recapture evidence was observed.";
+    }
+  }
+
   bool _hasStrongLiveScreenEvidence(Map<String, dynamic> analysis) {
     if (analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1") return false;
 
@@ -713,10 +749,21 @@ class _CameraPageState extends State<CameraPage> {
     String? risk,
     int? score, [
     Map<String, dynamic>? mlAnalysis,
+    String? displayRiskDecision,
   ]) {
     if (_mlNotAnalyzed(mlAnalysis)) {
       final optical = score == null ? "UNKNOWN" : "OPTICAL / $score";
       return "ML NOT ANALYZED: $optical";
+    }
+
+    if (displayRiskDecision == "NON_CONCLUSIVE") {
+      final suffix = score == null ? "UNCERTAIN" : "UNCERTAIN / $score";
+      return "REALITY CHECK: NOT CONCLUSIVE / $suffix";
+    }
+
+    if (displayRiskDecision == "NO_DISPLAY_EVIDENCE") {
+      final suffix = score == null ? "OK" : "OK / $score";
+      return "REALITY CHECK: $suffix";
     }
 
     final normalizedRisk = risk?.toUpperCase();
@@ -797,10 +844,11 @@ class _CameraPageState extends State<CameraPage> {
     ];
     final detectedScreenReplayRisk =
         _combinedScreenReplayRisk(screenReplayAnalyses);
-    final detectedScreenReplay = detectedScreenReplayRisk == "HIGH" ||
-        detectedScreenReplayRisk == "MEDIUM";
     final detectedScreenReplayScore =
         _combinedScreenReplayScore(screenReplayAnalyses);
+    final displayRiskDecision =
+        _combinedDisplayRiskDecision(screenReplayAnalyses);
+    final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
 
     setState(() {
       status = 'ADDING SIGILLUM LOGO...';
@@ -817,6 +865,7 @@ class _CameraPageState extends State<CameraPage> {
           detectedScreenReplayRisk,
           detectedScreenReplayScore,
           mlScreenReplayAnalysis,
+          displayRiskDecision,
         ),
       );
 
@@ -870,6 +919,8 @@ class _CameraPageState extends State<CameraPage> {
       "sceneAuthenticity": detectedScreenReplay
           ? "LIVE_CAPTURE_WITH_SCREEN_REPLAY_RISK"
           : "LIVE_CAPTURE",
+      "displayRiskDecision": displayRiskDecision,
+      "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
