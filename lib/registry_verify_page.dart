@@ -1066,15 +1066,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final liveProbe = claims['liveScreenProbe'];
     if (liveProbe is! Map) return;
 
-    final derivedLiveProbeScore = _derivedLiveScreenProbeScore(liveProbe);
     final currentReplayScore = int.tryParse(screenReplayRiskScore ?? '');
-    if (derivedLiveProbeScore != null &&
-        (currentReplayScore == null ||
-            derivedLiveProbeScore > currentReplayScore)) {
-      screenReplayRiskScore = derivedLiveProbeScore.toString();
-      screenReplayRisk = _screenReplayRiskLabel(derivedLiveProbeScore);
-      return;
-    }
+    if (currentReplayScore == null) return;
 
     final ml = claims['mlScreenReplayAnalysis'];
     final passive = claims['screenReplayAnalysis'];
@@ -1093,42 +1086,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final currentIsWarning = (currentReplayScore ?? 0) >= 70;
 
     if (currentIsWarning &&
-        derivedLiveProbeScore == null &&
         mlSaysReality &&
         (passiveScore == null || passiveScore < 35)) {
       final downgradedScore = passiveScore ?? 20;
       screenReplayRiskScore = downgradedScore.toString();
       screenReplayRisk = _screenReplayRiskLabel(downgradedScore);
     }
-  }
-
-  int? _derivedLiveScreenProbeScore(Map<dynamic, dynamic> liveProbe) {
-    final signals = liveProbe['signals'];
-    final dynamicTrace = signals is Map &&
-        signals['dynamicScreenChallengeTrace']?.toString() == 'true';
-    final patternTrace = signals is Map &&
-        signals['uncorroboratedDisplayPattern']?.toString() == 'true';
-    final fineGrid = _asDouble(liveProbe['fineGridScore']);
-    final persistent = _asDouble(liveProbe['persistentPatternScore']);
-    final dynamic = _asDouble(liveProbe['dynamicChallengeScore']);
-    final moire = _asDouble(liveProbe['moireFrequencyScore']);
-
-    if ((dynamicTrace &&
-            fineGrid >= 0.70 &&
-            persistent >= 0.58 &&
-            moire >= 0.42) ||
-        (patternTrace &&
-            fineGrid >= 0.75 &&
-            persistent >= 0.70 &&
-            moire >= 0.42) ||
-        (fineGrid >= 0.85 &&
-            persistent >= 0.85 &&
-            dynamic < 0.22 &&
-            moire >= 0.42)) {
-      return 70;
-    }
-
-    return null;
   }
 
   double _asDouble(dynamic value) {
