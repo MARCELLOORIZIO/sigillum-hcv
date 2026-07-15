@@ -595,9 +595,9 @@ class _CameraPageState extends State<CameraPage> {
     final score = _combinedScreenReplayScore(analyses);
     if (score == null) return null;
 
-    return score >= 92
+    return score >= 70
         ? "HIGH"
-        : score >= 88
+        : score >= 45
             ? "MEDIUM"
             : "LOW";
   }
@@ -684,9 +684,15 @@ class _CameraPageState extends State<CameraPage> {
       return "STRONG_DISPLAY_RISK";
     }
 
+    if (score != null &&
+        score >= 70 &&
+        analyses.whereType<Map<String, dynamic>>().any(_hasDisplayEvidence)) {
+      return "STRONG_DISPLAY_RISK";
+    }
+
     final hasNonConclusive = decisions.contains("NON_CONCLUSIVE");
     final maxScore = _strongestScreenReplayScore(analyses);
-    if (hasNonConclusive || (maxScore != null && maxScore >= 55)) {
+    if (hasNonConclusive || (maxScore != null && maxScore >= 45)) {
       return "NON_CONCLUSIVE";
     }
 
@@ -731,6 +737,14 @@ class _CameraPageState extends State<CameraPage> {
             persistent >= 0.85 &&
             dynamic < 0.22 &&
             moire >= 0.42);
+  }
+
+  bool _hasDisplayEvidence(Map<String, dynamic> analysis) {
+    final signals = analysis["signals"];
+    if (signals is! Map) return false;
+    return signals["confirmedDisplayTrace"] == true ||
+        signals["structuralDisplayTrace"] == true ||
+        signals["dynamicScreenChallengeTrace"] == true;
   }
 
   String _mlAnalysisStatus(Map<String, dynamic>? analysis) {

@@ -326,9 +326,9 @@ class HCVScreenReplayAnalyzer {
   }
 
   String _riskLabel(int riskScore) {
-    return riskScore >= 60
+    return riskScore >= 70
         ? 'HIGH'
-        : riskScore >= 35
+        : riskScore >= 45
             ? 'MEDIUM'
             : 'LOW';
   }

@@ -598,9 +598,9 @@ class HCVLiveScreenProbe {
   }
 
   String _riskLabel(int riskScore) {
-    return riskScore >= 88
+    return riskScore >= 70
         ? 'HIGH'
-        : riskScore >= 55
+        : riskScore >= 45
             ? 'MEDIUM'
             : 'LOW';
   }
@@ -613,12 +613,10 @@ class HCVLiveScreenProbe {
     required bool uncorroboratedDisplayPattern,
     required bool pairedFlickerTrace,
   }) {
-    final strongEvidence = confirmedDisplayTrace &&
-        (opticalCorroboratedTrace || dynamicScreenChallengeTrace) &&
-        riskScore >= 88;
+    final strongEvidence = confirmedDisplayTrace && riskScore >= 70;
     if (strongEvidence) return 'STRONG_DISPLAY_RISK';
 
-    if (riskScore >= 55 ||
+    if (riskScore >= 45 ||
         uncorroboratedDisplayPattern ||
         pairedFlickerTrace ||
         dynamicScreenChallengeTrace) {
