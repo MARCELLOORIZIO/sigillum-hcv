@@ -680,7 +680,10 @@ class _CameraPageState extends State<CameraPage> {
         .whereType<String>()
         .toList();
 
-    if (decisions.contains("STRONG_DISPLAY_RISK")) {
+    if (decisions.contains("STRONG_DISPLAY_RISK") &&
+        score != null &&
+        score >= 70 &&
+        analyses.whereType<Map<String, dynamic>>().any(_hasDisplayEvidence)) {
       return "STRONG_DISPLAY_RISK";
     }
 
@@ -691,8 +694,7 @@ class _CameraPageState extends State<CameraPage> {
     }
 
     final hasNonConclusive = decisions.contains("NON_CONCLUSIVE");
-    final maxScore = _strongestScreenReplayScore(analyses);
-    if (maxScore != null && maxScore >= 45) {
+    if (score != null && score >= 45) {
       return "NON_CONCLUSIVE";
     }
 
