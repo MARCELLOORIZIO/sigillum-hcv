@@ -720,6 +720,7 @@ class _CameraPageState extends State<CameraPage> {
     if (analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1") return false;
 
     final fineGrid = (analysis["fineGridScore"] as num?)?.toDouble() ?? 0;
+    final fineStripe = (analysis["fineStripeScore"] as num?)?.toDouble() ?? 1;
     final persistent =
         (analysis["persistentPatternScore"] as num?)?.toDouble() ?? 0;
     final dynamic =
@@ -736,13 +737,18 @@ class _CameraPageState extends State<CameraPage> {
 
     return (dynamicTrace &&
             fineGrid >= 0.70 &&
+            fineStripe < 0.42 &&
             persistent >= 0.58 &&
             dynamic < 0.18) ||
         (patternTrace &&
             fineGrid >= 0.75 &&
+            fineStripe < 0.42 &&
             persistent >= 0.70 &&
             dynamic < 0.18) ||
-        (fineGrid >= 0.85 && persistent >= 0.85 && dynamic < 0.18);
+        (fineGrid >= 0.85 &&
+            fineStripe < 0.42 &&
+            persistent >= 0.85 &&
+            dynamic < 0.18);
   }
 
   bool _hasDisplayEvidence(Map<String, dynamic> analysis) {

@@ -188,6 +188,7 @@ class HCVLiveScreenProbe {
         (moireFrequencyScore > 0.30 || fineGridScore > 0.70);
     final closeDisplaySpatialTrace = dynamicScreenChallengeTrace &&
         fineGridScore > 0.85 &&
+        fineStripeScore < 0.42 &&
         persistentPatternScore > 0.85 &&
         dynamicChallengeScore < 0.18;
     final confirmedDisplayTrace = strongRefreshTrace ||

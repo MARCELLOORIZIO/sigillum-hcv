@@ -1086,6 +1086,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         : null;
     final liveSignals = liveProbe['signals'];
     final liveFineGrid = _asDouble(liveProbe['fineGridScore']);
+    final liveFineStripe = _asDouble(liveProbe['fineStripeScore']);
     final livePersistent = _asDouble(liveProbe['persistentPatternScore']);
     final liveDynamic = _asDouble(liveProbe['dynamicChallengeScore']);
     final closeDisplaySpatialTrace = (liveSignals is Map &&
@@ -1093,6 +1094,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         (liveSignals is Map &&
             liveSignals['dynamicScreenChallengeTrace'] == true &&
             liveFineGrid > 0.85 &&
+            liveFineStripe < 0.42 &&
             livePersistent > 0.85 &&
             liveDynamic < 0.18);
     final mlSaysReality = mlClass != null &&
