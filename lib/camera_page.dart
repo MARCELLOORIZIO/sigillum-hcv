@@ -692,7 +692,11 @@ class _CameraPageState extends State<CameraPage> {
 
     final hasNonConclusive = decisions.contains("NON_CONCLUSIVE");
     final maxScore = _strongestScreenReplayScore(analyses);
-    if (hasNonConclusive || (maxScore != null && maxScore >= 45)) {
+    if (maxScore != null && maxScore >= 45) {
+      return "NON_CONCLUSIVE";
+    }
+
+    if (hasNonConclusive && (score ?? 0) >= 45) {
       return "NON_CONCLUSIVE";
     }
 

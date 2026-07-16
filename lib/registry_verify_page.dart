@@ -1046,12 +1046,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return value == 'MEDIUM' || value == 'HIGH';
   }
 
+  int get _screenReplayScoreValue =>
+      int.tryParse(screenReplayRiskScore ?? '') ?? 0;
+
   bool get _isStrongDisplayRisk =>
-      displayRiskDecision == 'STRONG_DISPLAY_RISK' ||
+      (displayRiskDecision == 'STRONG_DISPLAY_RISK' &&
+          _screenReplayScoreValue >= 70) ||
       (displayRiskDecision == null && screenReplayRisk == 'HIGH');
 
   bool get _isDisplayNonConclusive =>
-      displayRiskDecision == 'NON_CONCLUSIVE' ||
+      (displayRiskDecision == 'NON_CONCLUSIVE' &&
+          _screenReplayScoreValue >= 45) ||
       (displayRiskDecision == null && screenReplayRisk == 'MEDIUM');
 
   String _screenReplayRiskLabel(int score) {

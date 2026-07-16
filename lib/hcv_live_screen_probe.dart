@@ -616,10 +616,12 @@ class HCVLiveScreenProbe {
     final strongEvidence = confirmedDisplayTrace && riskScore >= 70;
     if (strongEvidence) return 'STRONG_DISPLAY_RISK';
 
-    if (riskScore >= 45 ||
-        uncorroboratedDisplayPattern ||
+    if (riskScore < 45) return 'NO_DISPLAY_EVIDENCE';
+
+    if (uncorroboratedDisplayPattern ||
         pairedFlickerTrace ||
-        dynamicScreenChallengeTrace) {
+        dynamicScreenChallengeTrace ||
+        riskScore >= 45) {
       return 'NON_CONCLUSIVE';
     }
 
