@@ -724,31 +724,32 @@ class _CameraPageState extends State<CameraPage> {
         (analysis["persistentPatternScore"] as num?)?.toDouble() ?? 0;
     final dynamic =
         (analysis["dynamicChallengeScore"] as num?)?.toDouble() ?? 1;
-    final moire = (analysis["moireFrequencyScore"] as num?)?.toDouble() ?? 0;
     final signals = analysis["signals"];
     final dynamicTrace =
         signals is Map && signals["dynamicScreenChallengeTrace"] == true;
+    final closeSpatialTrace =
+        signals is Map && signals["closeDisplaySpatialTrace"] == true;
     final patternTrace =
         signals is Map && signals["uncorroboratedDisplayPattern"] == true;
+
+    if (closeSpatialTrace) return true;
 
     return (dynamicTrace &&
             fineGrid >= 0.70 &&
             persistent >= 0.58 &&
-            moire >= 0.42) ||
+            dynamic < 0.18) ||
         (patternTrace &&
             fineGrid >= 0.75 &&
             persistent >= 0.70 &&
-            moire >= 0.42) ||
-        (fineGrid >= 0.85 &&
-            persistent >= 0.85 &&
-            dynamic < 0.22 &&
-            moire >= 0.42);
+            dynamic < 0.18) ||
+        (fineGrid >= 0.85 && persistent >= 0.85 && dynamic < 0.18);
   }
 
   bool _hasDisplayEvidence(Map<String, dynamic> analysis) {
     final signals = analysis["signals"];
     if (signals is! Map) return false;
     return signals["confirmedDisplayTrace"] == true ||
+        signals["closeDisplaySpatialTrace"] == true ||
         signals["structuralDisplayTrace"] == true ||
         signals["dynamicScreenChallengeTrace"] == true;
   }

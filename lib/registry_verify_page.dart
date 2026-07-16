@@ -1084,11 +1084,29 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final passiveScore = passive is Map
         ? (passive['screenReplayRiskScore'] as num?)?.toInt()
         : null;
+    final liveSignals = liveProbe['signals'];
+    final liveFineGrid = _asDouble(liveProbe['fineGridScore']);
+    final livePersistent = _asDouble(liveProbe['persistentPatternScore']);
+    final liveDynamic = _asDouble(liveProbe['dynamicChallengeScore']);
+    final closeDisplaySpatialTrace = (liveSignals is Map &&
+            liveSignals['closeDisplaySpatialTrace'] == true) ||
+        (liveSignals is Map &&
+            liveSignals['dynamicScreenChallengeTrace'] == true &&
+            liveFineGrid > 0.85 &&
+            livePersistent > 0.85 &&
+            liveDynamic < 0.18);
     final mlSaysReality = mlClass != null &&
         (mlClass.startsWith('REALITY_') || mlClass == 'REAL_SCENE') &&
         mlConfidence >= 0.60 &&
         mlScreenProbability < 0.35;
     final currentIsWarning = (currentReplayScore ?? 0) >= 70;
+
+    if (closeDisplaySpatialTrace && currentReplayScore < 70) {
+      screenReplayRiskScore = '70';
+      screenReplayRisk = _screenReplayRiskLabel(70);
+      displayRiskDecision = 'STRONG_DISPLAY_RISK';
+      return;
+    }
 
     if (currentIsWarning &&
         mlSaysReality &&

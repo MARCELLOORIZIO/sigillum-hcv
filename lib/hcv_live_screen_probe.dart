@@ -186,13 +186,20 @@ class HCVLiveScreenProbe {
     final dynamicScreenChallengeTrace = persistentPatternScore > 0.58 &&
         dynamicChallengeScore < 0.18 &&
         (moireFrequencyScore > 0.30 || fineGridScore > 0.70);
-    final confirmedDisplayTrace =
-        strongRefreshTrace || displayBandTrace || globalDisplayPulse;
+    final closeDisplaySpatialTrace = dynamicScreenChallengeTrace &&
+        fineGridScore > 0.85 &&
+        persistentPatternScore > 0.85 &&
+        dynamicChallengeScore < 0.18;
+    final confirmedDisplayTrace = strongRefreshTrace ||
+        displayBandTrace ||
+        globalDisplayPulse ||
+        closeDisplaySpatialTrace;
     final opticalCorroboratedTrace =
         opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
 
     var riskScore = 0;
     if (confirmedDisplayTrace) riskScore += 50;
+    if (closeDisplaySpatialTrace) riskScore += 20;
     if (strongRefreshTrace) riskScore += 15;
     if (opticalCorroboratedTrace) riskScore += 15;
     if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
@@ -242,6 +249,7 @@ class HCVLiveScreenProbe {
         'moireFrequencyTrace': moireFrequencyTrace,
         'globalDisplayPulse': globalDisplayPulse,
         'confirmedDisplayTrace': confirmedDisplayTrace,
+        'closeDisplaySpatialTrace': closeDisplaySpatialTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
         'uncorroboratedDisplayPattern': uncorroboratedDisplayPattern,
         'dynamicScreenChallengeTrace': dynamicScreenChallengeTrace,
