@@ -76,11 +76,11 @@ class HCVVideoWatermark {
       // HCV-ID visible for social reposts
       "drawtext=fontfile=$fontFile:text='$safeHcvId':"
           "x=22:y=56:"
-          "fontsize=14:"
+          "fontsize=22:"
           "fontcolor=yellow:"
           "box=1:"
-          "boxcolor=black@0.42:"
-          "boxborderw=5",
+          "boxcolor=black@0.58:"
+          "boxborderw=7",
     ].join(",");
 
     final command = "-y "

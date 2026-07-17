@@ -965,47 +965,55 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               'SOCIAL VERIFIED OK\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
 
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
+          final hcvIdProvided = idController.text.trim().isNotEmpty;
 
-          if (hcvIdWasDetectedInMedia &&
-              contentType == 'video' &&
-              videoFingerprintMatches == true) {
+          if (contentType == 'video' && videoFingerprintMatches == true) {
             markVerified(
-              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
+              hcvIdWasDetectedInMedia
+                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perche il file e stato ricompresso o rinominato.'
+                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint video compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
               'SOCIAL VERIFIED OK',
             );
-          } else if (hcvIdWasDetectedInMedia &&
+          } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'video' &&
               videoFingerprintMatches == null) {
             markVerified(
-              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.',
+              hcvIdWasDetectedInMedia
+                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.'
+                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.',
               'SOCIAL VERIFIED OK',
             );
-          } else if (hcvIdWasDetectedInMedia &&
+          } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'video' &&
               videoFingerprintMatches == false) {
-            status =
-                'HCV-ID rilevato nel video, ma il fingerprint social non corrisponde al contenuto certificato. Possibile ID sovrapposto a un video diverso.';
+            status = hcvIdWasDetectedInMedia
+                ? 'HCV-ID rilevato nel video, ma il fingerprint social non corrisponde al contenuto certificato. Possibile ID sovrapposto a un video diverso.'
+                : 'HCV-ID inserito, ma il fingerprint social non corrisponde al contenuto certificato. Il video selezionato non risulta compatibile con quel certificato.';
 
             result = 'ID VALID / MEDIA NOT VERIFIED';
-          } else if (hcvIdWasDetectedInMedia &&
-              contentType == 'photo' &&
+          } else if (contentType == 'photo' &&
               imageFingerprintMatches == true) {
             markVerified(
-              'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
+              hcvIdWasDetectedInMedia
+                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perche il file e stato ricompresso o rinominato.'
+                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
               'SOCIAL VERIFIED OK',
             );
-          } else if (hcvIdWasDetectedInMedia &&
+          } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'photo' &&
               imageFingerprintMatches == null) {
             markVerified(
-              'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.',
+              hcvIdWasDetectedInMedia
+                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.'
+                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.',
               'SOCIAL VERIFIED OK',
             );
-          } else if (hcvIdWasDetectedInMedia &&
+          } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'photo' &&
               imageFingerprintMatches == false) {
-            status =
-                'HCV-ID rilevato nella foto, ma il fingerprint immagine non corrisponde al contenuto certificato. Possibile ID sovrapposto a una foto diversa.';
+            status = hcvIdWasDetectedInMedia
+                ? 'HCV-ID rilevato nella foto, ma il fingerprint immagine non corrisponde al contenuto certificato. Possibile ID sovrapposto a una foto diversa.'
+                : 'HCV-ID inserito, ma il fingerprint immagine non corrisponde al contenuto certificato. La foto selezionata non risulta compatibile con quel certificato.';
 
             result = 'ID VALID / MEDIA NOT VERIFIED';
           } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
