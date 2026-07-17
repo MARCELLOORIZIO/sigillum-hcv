@@ -141,8 +141,9 @@ class HCVScreenReplayAnalyzer {
         return _unknown('IMAGE_DECODE_FAILED');
       }
 
+      final contentImage = _cropTop(decoded, 0.24);
       final image = img.copyResize(
-        decoded,
+        contentImage,
         width: 160,
         height: 160,
         interpolation: img.Interpolation.average,
@@ -151,7 +152,7 @@ class HCVScreenReplayAnalyzer {
       final uniformityScore = _uniformityScore(image);
       final rectangleEdgeScore = _rectangleEdgeScore(image);
       final gridScore = _gridLikeScore(image);
-      final pixelGridUniformityScore = _pixelGridUniformityScore(decoded);
+      final pixelGridUniformityScore = _pixelGridUniformityScore(contentImage);
       final bandScore = _profileContrast(_horizontalBandProfile(image, 16));
 
       final flatSceneUniformity = uniformityScore > 0.74;
@@ -230,6 +231,17 @@ class HCVScreenReplayAnalyzer {
       'screenReplayRiskScore': null,
       'reason': reason,
     };
+  }
+
+  img.Image _cropTop(img.Image source, double ratio) {
+    final top = (source.height * ratio).round().clamp(0, source.height - 1);
+    return img.copyCrop(
+      source,
+      x: 0,
+      y: top,
+      width: source.width,
+      height: source.height - top,
+    );
   }
 
   Map<String, dynamic> _analyzeImages(List<img.Image> images) {

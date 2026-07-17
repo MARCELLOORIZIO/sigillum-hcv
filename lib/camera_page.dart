@@ -653,6 +653,17 @@ class _CameraPageState extends State<CameraPage> {
         .toList();
     final strongestNonMl =
         nonMlScores.isEmpty ? null : nonMlScores.reduce((a, b) => max(a, b));
+    final passiveContentScores = analyses
+        .whereType<Map<String, dynamic>>()
+        .where((analysis) =>
+            analysis["type"] != "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1" &&
+            analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1")
+        .map((analysis) => (analysis["screenReplayRiskScore"] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    final strongestPassiveContent = passiveContentScores.isEmpty
+        ? null
+        : passiveContentScores.reduce((a, b) => max(a, b));
     final mlSaysScreen =
         mlClass != null && mlClass.startsWith("SCREEN_") && mlScore != null;
     final mlSaysReality = mlClass != null &&
@@ -660,6 +671,9 @@ class _CameraPageState extends State<CameraPage> {
         mlScore != null;
 
     if (mlScore == null) {
+      if (strongLiveEvidence && (strongestPassiveContent ?? 0) >= 45) {
+        return max(strongestPassiveContent ?? 0, 70);
+      }
       return strongestScore == null ? null : min(strongestScore, 34);
     }
 
