@@ -341,12 +341,6 @@ class _CameraPageState extends State<CameraPage> {
       final publishedPhoto = await HCVImageWatermark().createPublishedPhoto(
         inputPath: savedPhotoPath,
         hcvId: preparedHcvId,
-        screenReplayLabel: _screenReplayWatermarkLabel(
-          detectedScreenReplayRisk,
-          detectedScreenReplayScore,
-          mlScreenReplayAnalysis,
-          displayRiskDecision,
-        ),
       );
 
       try {
@@ -797,46 +791,6 @@ class _CameraPageState extends State<CameraPage> {
     return score == null ? "NOT_ANALYZED" : "ANALYZED";
   }
 
-  bool _mlNotAnalyzed(Map<String, dynamic>? analysis) {
-    return _mlAnalysisStatus(analysis) == "NOT_ANALYZED";
-  }
-
-  String _screenReplayWatermarkLabel(
-    String? risk,
-    int? score, [
-    Map<String, dynamic>? mlAnalysis,
-    String? displayRiskDecision,
-  ]) {
-    if (_mlNotAnalyzed(mlAnalysis)) {
-      final optical = score == null ? "UNKNOWN" : "OPTICAL / $score";
-      return "ML NOT ANALYZED: $optical";
-    }
-
-    if (displayRiskDecision == "NON_CONCLUSIVE") {
-      final suffix = score == null ? "UNCERTAIN" : "UNCERTAIN / $score";
-      return "REALITY CHECK: NOT CONCLUSIVE / $suffix";
-    }
-
-    if (displayRiskDecision == "NO_DISPLAY_EVIDENCE") {
-      final suffix = score == null ? "OK" : "OK / $score";
-      return "REALITY CHECK: $suffix";
-    }
-
-    final normalizedRisk = risk?.toUpperCase();
-    if (normalizedRisk == "HIGH" || normalizedRisk == "MEDIUM") {
-      final suffix =
-          score == null ? normalizedRisk : "$normalizedRisk / $score";
-      return "SCREEN RISK: $suffix";
-    }
-
-    if (normalizedRisk == "LOW") {
-      final suffix = score == null ? "OK" : "OK / $score";
-      return "REALITY CHECK: $suffix";
-    }
-
-    return "REALITY CHECK: NOT CONCLUSIVE";
-  }
-
   Future<void> processVideo(String path) async {
     final liveScreenProbe = pendingLiveScreenProbe;
     pendingLiveScreenProbe = null;
@@ -916,13 +870,6 @@ class _CameraPageState extends State<CameraPage> {
       savedVideoPath = await HCVVideoWatermark().createPublishedVideo(
         inputPath: savedVideoPath,
         hcvId: preparedHcvId,
-        verificationUrl: preparedVerificationUrl,
-        screenReplayLabel: _screenReplayWatermarkLabel(
-          detectedScreenReplayRisk,
-          detectedScreenReplayScore,
-          mlScreenReplayAnalysis,
-          displayRiskDecision,
-        ),
       );
 
       try {

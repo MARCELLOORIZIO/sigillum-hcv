@@ -7,7 +7,6 @@ class HCVImageWatermark {
   Future<String> createPublishedPhoto({
     required String inputPath,
     required String hcvId,
-    String? screenReplayLabel,
   }) async {
     final inputFile = File(inputPath);
 
@@ -23,9 +22,9 @@ class HCVImageWatermark {
       throw Exception('Invalid image');
     }
 
-    final overlayHeight = screenReplayLabel == null ? 124 : 154;
+    const overlayHeight = 78;
 
-    const topY = 28;
+    const topY = 18;
 
     img.fillRect(
       image,
@@ -33,15 +32,15 @@ class HCVImageWatermark {
       y1: topY,
       x2: image.width,
       y2: topY + overlayHeight,
-      color: img.ColorRgba8(0, 0, 0, 140),
+      color: img.ColorRgba8(0, 0, 0, 118),
     );
 
     img.drawString(
       image,
       'SIGILLUM CAPTURE',
-      font: img.arial24,
-      x: 28,
-      y: topY + 12,
+      font: img.arial14,
+      x: 20,
+      y: topY + 10,
       color: img.ColorRgb8(255, 255, 255),
     );
 
@@ -49,8 +48,8 @@ class HCVImageWatermark {
       image,
       'VERIFY IN APP',
       font: img.arial14,
-      x: 28,
-      y: topY + 48,
+      x: 20,
+      y: topY + 30,
       color: img.ColorRgb8(220, 220, 220),
     );
 
@@ -58,21 +57,10 @@ class HCVImageWatermark {
       image,
       hcvId,
       font: img.arial24,
-      x: 28,
-      y: topY + 74,
+      x: 20,
+      y: topY + 48,
       color: img.ColorRgb8(255, 215, 0),
     );
-
-    if (screenReplayLabel != null && screenReplayLabel.isNotEmpty) {
-      img.drawString(
-        image,
-        screenReplayLabel,
-        font: img.arial14,
-        x: 28,
-        y: topY + 110,
-        color: img.ColorRgb8(230, 230, 230),
-      );
-    }
 
     final outputPath = p.join(
       inputFile.parent.path,

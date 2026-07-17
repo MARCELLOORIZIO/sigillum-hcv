@@ -9,8 +9,6 @@ class HCVVideoWatermark {
   Future<String> createPublishedVideo({
     required String inputPath,
     required String hcvId,
-    String? verificationUrl,
-    String? screenReplayLabel,
   }) async {
     final inputFile = File(inputPath);
 
@@ -48,8 +46,6 @@ class HCVVideoWatermark {
     final safeInput = _escapePath(inputPath);
     final safeOutput = _escapePath(outputPath);
     final safeHcvId = _escapeText(hcvId);
-    final safeVerify = _escapeText("VERIFY WITH HCV-ID");
-    final safeScreenReplayLabel = _escapeText(screenReplayLabel ?? "");
 
     final fontFile = Platform.isIOS
         ? "/System/Library/Fonts/Core/Avenir.ttc"
@@ -60,46 +56,31 @@ class HCVVideoWatermark {
       //"drawbox=x=18:y=h-92:w=300:h=72:color=black@0.42:t=fill",
 
       // outer square
-      "drawbox=x=30:y=34:w=22:h=22:color=white@0.95:t=2",
+      "drawbox=x=22:y=24:w=16:h=16:color=white@0.92:t=2",
 
       // inner square
-      "drawbox=x=36:y=40:w=10:h=10:color=white@0.95:t=fill",
+      "drawbox=x=27:y=29:w=7:h=7:color=white@0.92:t=fill",
 
       // SIGILLUM capture marker. Verification happens in the app/registry.
       "drawtext=fontfile=$fontFile:text='SIGILLUM CAPTURE':"
-          "x=62:y=30:"
-          "fontsize=16:"
-          "fontcolor=white@0.98",
+          "x=46:y=20:"
+          "fontsize=12:"
+          "fontcolor=white@0.94",
 
       // Visible reminder that the overlay alone is not proof.
       "drawtext=fontfile=$fontFile:text='VERIFY IN APP':"
-          "x=52:y=56:"
-          "fontsize=11:"
-          "fontcolor=white@0.85",
+          "x=46:y=38:"
+          "fontsize=8:"
+          "fontcolor=white@0.78",
 
       // HCV-ID visible for social reposts
-      "drawtext=fontfile=$fontFile:text='HCV-ID\\: $safeHcvId':"
-          "x=40:y=82:"
-          "fontsize=18:"
+      "drawtext=fontfile=$fontFile:text='$safeHcvId':"
+          "x=22:y=56:"
+          "fontsize=14:"
           "fontcolor=yellow:"
           "box=1:"
-          "boxcolor=black@0.55:"
-          "boxborderw=8",
-
-      // Verify URL visible
-      "drawtext=fontfile=$fontFile:text='VERIFY\\: $safeVerify':"
-          "x=52:y=116:"
-          "fontsize=8:"
-          "fontcolor=white@0.70",
-
-      if (safeScreenReplayLabel.isNotEmpty)
-        "drawtext=fontfile=$fontFile:text='$safeScreenReplayLabel':"
-            "x=52:y=138:"
-            "fontsize=10:"
-            "fontcolor=white@0.86:"
-            "box=1:"
-            "boxcolor=black@0.38:"
-            "boxborderw=5",
+          "boxcolor=black@0.42:"
+          "boxborderw=5",
     ].join(",");
 
     final command = "-y "
