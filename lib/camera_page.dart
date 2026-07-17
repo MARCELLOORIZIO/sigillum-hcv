@@ -150,6 +150,41 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
+  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash() async {
+    final camera = controller;
+    if (camera == null) {
+      return {
+        'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'reason': 'CAMERA_NOT_READY',
+      };
+    }
+
+    final flashToRestore = currentFlashMode;
+    final shouldSuppressFlash = flashToRestore != FlashMode.off;
+
+    try {
+      if (shouldSuppressFlash) {
+        await camera.setFlashMode(FlashMode.off);
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+
+      final analysis = await HCVLiveScreenProbe().analyzePreview(
+        camera,
+        restoreZoomLevel: currentZoom,
+      );
+      analysis['flashSuppressedDuringProbe'] = shouldSuppressFlash;
+      return analysis;
+    } finally {
+      if (shouldSuppressFlash && camera.value.isInitialized) {
+        try {
+          await camera.setFlashMode(flashToRestore);
+          await Future.delayed(const Duration(milliseconds: 150));
+        } catch (_) {}
+      }
+    }
+  }
+
   Future<void> setZoom(double zoom) async {
     if (controller == null || !controller!.value.isInitialized) return;
 
@@ -184,10 +219,7 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      pendingLiveScreenProbe = await HCVLiveScreenProbe().analyzePreview(
-        controller!,
-        restoreZoomLevel: currentZoom,
-      );
+      pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
 
       setState(() {
         recording = true;
@@ -238,10 +270,7 @@ class _CameraPageState extends State<CameraPage> {
         status = 'CHECKING LIVE SCREEN FLICKER...';
       });
 
-      final liveScreenProbe = await HCVLiveScreenProbe().analyzePreview(
-        controller!,
-        restoreZoomLevel: currentZoom,
-      );
+      final liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
 
       setState(() {
         status = 'SCATTO FOTO...';
