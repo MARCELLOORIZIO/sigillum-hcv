@@ -191,16 +191,14 @@ class HCVLiveScreenProbe {
         fineStripeScore < 0.42 &&
         persistentPatternScore > 0.85 &&
         dynamicChallengeScore < 0.18;
-    final confirmedDisplayTrace = strongRefreshTrace ||
-        displayBandTrace ||
-        globalDisplayPulse ||
-        closeDisplaySpatialTrace;
+    final confirmedDisplayTrace =
+        strongRefreshTrace || displayBandTrace || globalDisplayPulse;
     final opticalCorroboratedTrace =
         opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
 
     var riskScore = 0;
     if (confirmedDisplayTrace) riskScore += 50;
-    if (closeDisplaySpatialTrace) riskScore += 20;
+    if (!confirmedDisplayTrace && closeDisplaySpatialTrace) riskScore += 20;
     if (strongRefreshTrace) riskScore += 15;
     if (opticalCorroboratedTrace) riskScore += 15;
     if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;

@@ -1105,16 +1105,33 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             liveFineStripe < 0.42 &&
             livePersistent > 0.85 &&
             liveDynamic < 0.18);
+    final confirmedTemporalTrace =
+        liveSignals is Map && liveSignals['confirmedDisplayTrace'] == true;
     final mlSaysReality = mlClass != null &&
         (mlClass.startsWith('REALITY_') || mlClass == 'REAL_SCENE') &&
         mlConfidence >= 0.60 &&
         mlScreenProbability < 0.35;
     final currentIsWarning = (currentReplayScore ?? 0) >= 70;
 
-    if (closeDisplaySpatialTrace && currentReplayScore < 70) {
+    if (closeDisplaySpatialTrace &&
+        confirmedTemporalTrace &&
+        (passiveScore ?? 0) >= 45 &&
+        currentReplayScore < 70) {
       screenReplayRiskScore = '70';
       screenReplayRisk = _screenReplayRiskLabel(70);
       displayRiskDecision = 'STRONG_DISPLAY_RISK';
+      return;
+    }
+
+    if (currentIsWarning &&
+        closeDisplaySpatialTrace &&
+        !confirmedTemporalTrace &&
+        (passiveScore == null || passiveScore < 45)) {
+      final downgradedScore = passiveScore ?? 34;
+      screenReplayRiskScore = downgradedScore.toString();
+      screenReplayRisk = _screenReplayRiskLabel(downgradedScore);
+      displayRiskDecision =
+          downgradedScore >= 45 ? 'NON_CONCLUSIVE' : 'NO_DISPLAY_EVIDENCE';
       return;
     }
 

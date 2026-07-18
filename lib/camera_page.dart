@@ -164,16 +164,15 @@ class _CameraPageState extends State<CameraPage> {
     final shouldSuppressFlash = flashToRestore != FlashMode.off;
 
     try {
-      if (shouldSuppressFlash) {
-        await camera.setFlashMode(FlashMode.off);
-        await Future.delayed(const Duration(milliseconds: 250));
-      }
+      await camera.setFlashMode(FlashMode.off);
+      await Future.delayed(const Duration(milliseconds: 250));
 
       final analysis = await HCVLiveScreenProbe().analyzePreview(
         camera,
         restoreZoomLevel: currentZoom,
       );
       analysis['flashSuppressedDuringProbe'] = shouldSuppressFlash;
+      analysis['probeFlashMode'] = 'OFF';
       return analysis;
     } finally {
       if (shouldSuppressFlash && camera.value.isInitialized) {
