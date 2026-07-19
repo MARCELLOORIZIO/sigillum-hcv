@@ -154,6 +154,7 @@ class HCVScreenReplayAnalyzer {
       final gridScore = _gridLikeScore(image);
       final pixelGridUniformityScore = _pixelGridUniformityScore(contentImage);
       final bandScore = _profileContrast(_horizontalBandProfile(image, 16));
+      final brightUniformStripeScore = _brightUniformStripeScore(contentImage);
 
       final flatSceneUniformity = uniformityScore > 0.74;
       final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
@@ -163,8 +164,11 @@ class HCVScreenReplayAnalyzer {
       final uniformPixelGrid = pixelGridUniformityScore > 0.16;
       final strongHorizontalBands = bandScore > 0.22;
       final mediumHorizontalBands = bandScore > 0.16;
+      final brightUniformDisplayBands =
+          brightUniformStripeScore > 0.16 && bandScore > 0.12;
       final structuralDisplayTrace = uniformPixelGrid ||
           pixelGridOrMoireHint ||
+          brightUniformDisplayBands ||
           strongRectangularDisplayEdges ||
           bandScore > 0.24 ||
           (weakUniformPixelGrid && mediumHorizontalBands);
@@ -186,6 +190,9 @@ class HCVScreenReplayAnalyzer {
         } else if (mediumHorizontalBands) {
           riskScore += 15;
         }
+        if (brightUniformDisplayBands) {
+          riskScore = max(riskScore, 70);
+        }
       } else if (mediumHorizontalBands && rectangularDisplayEdges) {
         riskScore = 25;
       }
@@ -206,12 +213,14 @@ class HCVScreenReplayAnalyzer {
         'gridLikeScore': _round(gridScore),
         'pixelGridUniformityScore': _round(pixelGridUniformityScore),
         'refreshBandScore': _round(bandScore),
+        'brightUniformStripeScore': _round(brightUniformStripeScore),
         'localTemporalFlickerScore': null,
         'signals': {
           'rectangularDisplayEdges': rectangularDisplayEdges,
           'flatSceneUniformity': flatSceneUniformity,
           'pixelGridOrMoireHint': pixelGridOrMoireHint,
           'uniformPixelGrid': uniformPixelGrid,
+          'brightUniformDisplayBands': brightUniformDisplayBands,
           'horizontalRefreshBands': mediumHorizontalBands,
           'structuralDisplayTrace': structuralDisplayTrace,
           'temporalFrequencyUnavailable': true,
@@ -538,6 +547,63 @@ class HCVScreenReplayAnalyzer {
         profile.length;
 
     return sqrt(variance).clamp(0.0, 1.0).toDouble();
+  }
+
+  double _brightUniformStripeScore(img.Image source) {
+    final image = img.copyResize(
+      source,
+      width: 240,
+      height: 240,
+      interpolation: img.Interpolation.average,
+    );
+    final rowLumaTotals = List<double>.filled(image.height, 0);
+    final rowChromaTotals = List<double>.filled(image.height, 0);
+    final rowCounts = List<int>.filled(image.height, 0);
+    var uniformBrightPixels = 0;
+    var sampledPixels = 0;
+
+    for (var y = 1; y < image.height - 1; y += 2) {
+      for (var x = 1; x < image.width - 1; x += 2) {
+        final pixel = image.getPixel(x, y);
+        final luma = img.getLuminance(pixel) / 255.0;
+        final right = img.getLuminance(image.getPixel(x + 1, y)) / 255.0;
+        final down = img.getLuminance(image.getPixel(x, y + 1)) / 255.0;
+        final localEdge = max((luma - right).abs(), (luma - down).abs());
+        sampledPixels++;
+
+        if (luma < 0.55 || localEdge > 0.07) continue;
+
+        final chroma = _pixelChroma(pixel);
+        uniformBrightPixels++;
+        rowLumaTotals[y] += luma;
+        rowChromaTotals[y] += chroma;
+        rowCounts[y]++;
+      }
+    }
+
+    if (sampledPixels == 0) return 0;
+
+    final brightUniformRatio = uniformBrightPixels / sampledPixels;
+    if (brightUniformRatio < 0.32) return 0;
+
+    final lumaProfile = <double>[];
+    final chromaProfile = <double>[];
+    final minRowPixels = max(12, (image.width / 10).round());
+    for (var y = 0; y < image.height; y++) {
+      if (rowCounts[y] < minRowPixels) continue;
+      lumaProfile.add(rowLumaTotals[y] / rowCounts[y]);
+      chromaProfile.add(rowChromaTotals[y] / rowCounts[y]);
+    }
+
+    if (lumaProfile.length < 18) return 0;
+
+    final stripeContrast = max(
+      _profileContrast(lumaProfile),
+      _profileContrast(chromaProfile) * 1.8,
+    );
+    final coverage = min(1.0, brightUniformRatio * 1.6);
+
+    return (stripeContrast * coverage * 3.0).clamp(0.0, 1.0).toDouble();
   }
 
   double _regionMeanLuma(
