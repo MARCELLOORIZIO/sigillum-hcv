@@ -159,8 +159,10 @@ class HCVLiveScreenProbe {
     final persistentPatternScore =
         challenge['persistentPatternScore'] as double;
     final bandTemporalScore = _bandTemporalScore(frames);
+    final electronicLightScore = _electronicLightScore(frames);
     final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
 
+    final periodicLightTrace = electronicLightScore > 0.48;
     final movingRefreshTrace = bandTemporalScore > 0.04;
     final strongRefreshTrace =
         refreshBandScore > 0.22 || bandTemporalScore > 0.10;
@@ -170,7 +172,8 @@ class HCVLiveScreenProbe {
     final opticalStripeTrace = fineStripeScore > 0.30 &&
         fineGridScore > 0.24 &&
         (refreshBandScore > 0.14 || localFlickerScore > 0.34);
-    final refreshCorroboration = strongRefreshTrace || movingRefreshTrace;
+    final refreshCorroboration =
+        strongRefreshTrace || movingRefreshTrace || periodicLightTrace;
     final moireFrequencyTrace =
         moireFrequencyScore > 0.42 && refreshCorroboration;
     final globalDisplayPulse = globalFlickerScore > 0.16 &&
@@ -191,13 +194,16 @@ class HCVLiveScreenProbe {
         fineStripeScore < 0.42 &&
         persistentPatternScore > 0.85 &&
         dynamicChallengeScore < 0.18;
-    final confirmedDisplayTrace =
-        strongRefreshTrace || displayBandTrace || globalDisplayPulse;
+    final confirmedDisplayTrace = strongRefreshTrace ||
+        displayBandTrace ||
+        globalDisplayPulse ||
+        periodicLightTrace;
     final opticalCorroboratedTrace =
         opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
 
     var riskScore = 0;
     if (confirmedDisplayTrace) riskScore += 50;
+    if (periodicLightTrace) riskScore += 20;
     if (!confirmedDisplayTrace && closeDisplaySpatialTrace) riskScore += 20;
     if (strongRefreshTrace) riskScore += 15;
     if (opticalCorroboratedTrace) riskScore += 15;
@@ -238,6 +244,7 @@ class HCVLiveScreenProbe {
       'dynamicChallengeScore': _round(dynamicChallengeScore),
       'persistentPatternScore': _round(persistentPatternScore),
       'bandTemporalScore': _round(bandTemporalScore),
+      'electronicLightScore': _round(electronicLightScore),
       'stableExposureScore': _round(stableExposureScore),
       'signals': {
         'livePreviewAnalyzed': true,
@@ -248,6 +255,7 @@ class HCVLiveScreenProbe {
         'moireFrequencyTrace': moireFrequencyTrace,
         'globalDisplayPulse': globalDisplayPulse,
         'confirmedDisplayTrace': confirmedDisplayTrace,
+        'periodicLightTrace': periodicLightTrace,
         'closeDisplaySpatialTrace': closeDisplaySpatialTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
         'uncorroboratedDisplayPattern': uncorroboratedDisplayPattern,
@@ -463,6 +471,119 @@ class HCVLiveScreenProbe {
     }
 
     return total / max(pairs, 1);
+  }
+
+  double _electronicLightScore(List<_FrameStats> frames) {
+    if (frames.length < 12) return 0;
+
+    final series = <List<double>>[
+      frames.map((f) => f.meanLuma).toList(),
+    ];
+
+    for (var tile = 0; tile < frames.first.tileMeans.length; tile++) {
+      series.add(frames.map((f) => f.tileMeans[tile]).toList());
+    }
+
+    for (var band = 0; band < frames.first.bandMeans.length; band++) {
+      series.add(frames.map((f) => f.bandMeans[band]).toList());
+    }
+
+    return series.map(_periodicLightSeriesScore).reduce(max);
+  }
+
+  double _periodicLightSeriesScore(List<double> series) {
+    if (series.length < 12) return 0;
+
+    final mean = series.reduce((a, b) => a + b) / series.length;
+    final start = series.first;
+    final end = series.last;
+    final detrended = <double>[];
+
+    for (var i = 0; i < series.length; i++) {
+      final trend = start + ((end - start) * i / max(series.length - 1, 1));
+      detrended.add(series[i] - trend - mean + ((start + end) / 2));
+    }
+
+    final energy =
+        detrended.map((v) => v * v).reduce((a, b) => a + b) / detrended.length;
+    final rms = sqrt(energy);
+    if (rms < 0.0045) return 0;
+
+    var strongest = 0.0;
+    var secondStrongest = 0.0;
+    final upperBin = min(series.length ~/ 2, 12);
+
+    for (var bin = 2; bin <= upperBin; bin++) {
+      var real = 0.0;
+      var imaginary = 0.0;
+
+      for (var i = 0; i < detrended.length; i++) {
+        final angle = 2 * pi * bin * i / detrended.length;
+        real += detrended[i] * cos(angle);
+        imaginary += detrended[i] * sin(angle);
+      }
+
+      final binEnergy =
+          (real * real + imaginary * imaginary) / detrended.length;
+      if (binEnergy > strongest) {
+        secondStrongest = strongest;
+        strongest = binEnergy;
+      } else if (binEnergy > secondStrongest) {
+        secondStrongest = binEnergy;
+      }
+    }
+
+    final totalEnergy = energy * detrended.length;
+    if (totalEnergy <= 0) return 0;
+
+    final dominance = (strongest / totalEnergy).clamp(0.0, 1.0);
+    final separation = strongest <= 0
+        ? 0.0
+        : (1.0 - (secondStrongest / strongest)).clamp(0.0, 1.0);
+    final intervalRegularity = _zeroCrossingRegularity(detrended);
+    final amplitudeScore = (rms * 18).clamp(0.0, 1.0);
+
+    return ((dominance * 0.45) +
+            (separation * 0.15) +
+            (intervalRegularity * 0.25) +
+            (amplitudeScore * 0.15))
+        .clamp(0.0, 1.0)
+        .toDouble();
+  }
+
+  double _zeroCrossingRegularity(List<double> centered) {
+    if (centered.length < 12) return 0;
+
+    final crossings = <int>[];
+    var previous = centered.first;
+
+    for (var i = 1; i < centered.length; i++) {
+      final current = centered[i];
+      if ((previous < 0 && current >= 0) || (previous >= 0 && current < 0)) {
+        crossings.add(i);
+      }
+      previous = current;
+    }
+
+    if (crossings.length < 4) return 0;
+
+    final intervals = <double>[];
+    for (var i = 1; i < crossings.length; i++) {
+      intervals.add((crossings[i] - crossings[i - 1]).toDouble());
+    }
+
+    final mean = intervals.reduce((a, b) => a + b) / intervals.length;
+    if (mean <= 0) return 0;
+
+    final variance =
+        intervals.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) /
+            intervals.length;
+    final coefficient = sqrt(variance) / mean;
+    final crossingDensity =
+        (crossings.length / centered.length).clamp(0.0, 1.0);
+
+    return ((1.0 - coefficient).clamp(0.0, 1.0) * 0.75) +
+        (crossingDensity * 0.25);
   }
 
   double _fineStripeScore(List<double> profile) {

@@ -766,22 +766,31 @@ class _CameraPageState extends State<CameraPage> {
         signals is Map && signals["dynamicScreenChallengeTrace"] == true;
     final closeSpatialTrace =
         signals is Map && signals["closeDisplaySpatialTrace"] == true;
+    final confirmedTemporalTrace =
+        signals is Map && signals["confirmedDisplayTrace"] == true;
+    final periodicLightTrace =
+        signals is Map && signals["periodicLightTrace"] == true;
     final patternTrace =
         signals is Map && signals["uncorroboratedDisplayPattern"] == true;
 
-    if (closeSpatialTrace) return true;
+    if (closeSpatialTrace && (confirmedTemporalTrace || periodicLightTrace)) {
+      return true;
+    }
 
     return (dynamicTrace &&
+            (confirmedTemporalTrace || periodicLightTrace) &&
             fineGrid >= 0.70 &&
             fineStripe < 0.42 &&
             persistent >= 0.58 &&
             dynamic < 0.18) ||
         (patternTrace &&
+            (confirmedTemporalTrace || periodicLightTrace) &&
             fineGrid >= 0.75 &&
             fineStripe < 0.42 &&
             persistent >= 0.70 &&
             dynamic < 0.18) ||
         (fineGrid >= 0.85 &&
+            (confirmedTemporalTrace || periodicLightTrace) &&
             fineStripe < 0.42 &&
             persistent >= 0.85 &&
             dynamic < 0.18);
@@ -791,9 +800,8 @@ class _CameraPageState extends State<CameraPage> {
     final signals = analysis["signals"];
     if (signals is! Map) return false;
     return signals["confirmedDisplayTrace"] == true ||
-        signals["closeDisplaySpatialTrace"] == true ||
         signals["structuralDisplayTrace"] == true ||
-        signals["dynamicScreenChallengeTrace"] == true;
+        signals["periodicLightTrace"] == true;
   }
 
   String _mlAnalysisStatus(Map<String, dynamic>? analysis) {
