@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camera_page.dart';
 import 'hcv_import_router_page.dart';
+import 'hcv_registry_service.dart';
 import 'identity_page.dart';
 import 'import_page.dart';
 import 'legal_info_page.dart';
@@ -31,6 +32,15 @@ class _UserHomePageState extends State<UserHomePage> {
     _intentChannel.setMethodCallHandler(_handleNativeIntent);
     Future.microtask(_loadLanguage);
     Future.microtask(_checkInitialIntent);
+    Future.microtask(_retryRegistryOutbox);
+  }
+
+  Future<void> _retryRegistryOutbox() async {
+    try {
+      await const HCVRegistryService().retryPendingUploads();
+    } catch (_) {
+      // La coda resta disponibile per il tentativo successivo.
+    }
   }
 
   Future<void> _loadLanguage() async {

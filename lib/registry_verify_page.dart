@@ -470,6 +470,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? screenReplayWorstSecond;
   String? liveProbeFrames;
   String? liveProbeRisk;
+  String? liveProbeAnalysisStatus;
+  String? liveProbeReason;
+  String? liveProbeError;
   String? localTemporalFlickerScore;
   String? refreshBandScore;
   String? pixelGridUniformityScore;
@@ -722,6 +725,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       screenReplayWorstSecond = null;
       liveProbeFrames = null;
       liveProbeRisk = null;
+      liveProbeAnalysisStatus = null;
+      liveProbeReason = null;
+      liveProbeError = null;
       localTemporalFlickerScore = null;
       refreshBandScore = null;
       pixelGridUniformityScore = null;
@@ -772,6 +778,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (liveScreenProbe is Map) {
           liveProbeFrames = liveScreenProbe['framesAnalyzed']?.toString();
           liveProbeRisk = liveScreenProbe['screenReplayRisk']?.toString();
+          liveProbeAnalysisStatus =
+              liveScreenProbe['analysisStatus']?.toString();
+          liveProbeReason = liveScreenProbe['reason']?.toString();
+          liveProbeError = liveScreenProbe['error']?.toString();
           liveProbeLocalFlickerScore =
               liveScreenProbe['localTemporalFlickerScore']?.toString();
           liveProbeRefreshBandScore =
@@ -797,7 +807,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 liveProbeSignals['uncorroboratedDisplayPattern']?.toString();
           }
 
-          _normalizeScreenReplayRiskFromClaims(claims);
+          if (claims['displayRiskEvidence'] is! Map) {
+            _normalizeScreenReplayRiskFromClaims(claims);
+          }
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
@@ -1029,13 +1041,100 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           }
         }
       });
+    } on HCVRegistryException catch (e) {
+      setState(() {
+        loading = false;
+        certificate = null;
+
+        switch (e.kind) {
+          case HCVRegistryFailureKind.notFound:
+            status =
+                'Certificato non presente nel Registry. Questo non dimostra che il file sia stato modificato: la pubblicazione online potrebbe essere ancora in attesa.';
+            result = 'REGISTRY NOT FOUND';
+            _setVerificationAxes(
+              provenance: 'Non presente online',
+              provenanceDetail:
+                  'Il Registry non contiene ancora questo HCV-ID. Il file non viene dichiarato alterato.',
+              integrity: 'Non determinata',
+              integrityDetail:
+                  'Senza il certificato online non e possibile confrontare firma e contenuto.',
+              scene: 'Non analizzata',
+              sceneDetail:
+                  'Il controllo della scena non viene eseguito senza certificato.',
+              derivation: null,
+              derivationDetail: null,
+            );
+            break;
+          case HCVRegistryFailureKind.unavailable:
+          case HCVRegistryFailureKind.server:
+            status =
+                'Registry temporaneamente non raggiungibile. Il file locale non viene considerato invalido; riprova quando la connessione e disponibile.';
+            result = 'REGISTRY UNAVAILABLE';
+            _setVerificationAxes(
+              provenance: 'Registry non raggiungibile',
+              provenanceDetail:
+                  'La verifica online non e stata completata per un problema di rete o del server.',
+              integrity: 'Non determinata',
+              integrityDetail: 'Nessun verdetto di modifica e stato emesso.',
+              scene: 'Non analizzata',
+              sceneDetail:
+                  'Il controllo della scena non viene eseguito senza certificato.',
+              derivation: null,
+              derivationDetail: null,
+            );
+            break;
+          case HCVRegistryFailureKind.invalidResponse:
+            status = 'Risposta Registry non utilizzabile: ${e.message}';
+            result = 'REGISTRY ERROR';
+            _setVerificationAxes(
+              provenance: 'Verifica online incompleta',
+              provenanceDetail:
+                  'Il Registry ha risposto, ma la risposta non consente una verifica affidabile.',
+              integrity: 'Non determinata',
+              integrityDetail: 'Nessun verdetto di modifica e stato emesso.',
+              scene: 'Non analizzata',
+              sceneDetail:
+                  'Il controllo della scena non viene eseguito senza certificato valido.',
+              derivation: null,
+              derivationDetail: null,
+            );
+            break;
+          case HCVRegistryFailureKind.invalidCertificate:
+            status = 'Certificato locale non valido: ${e.message}';
+            result = 'INVALID';
+            _setVerificationAxes(
+              provenance: 'Non verificata',
+              provenanceDetail:
+                  'Il certificato locale non supera i controlli strutturali.',
+              integrity: 'Non verificata',
+              integrityDetail: 'Integrita non dimostrata.',
+              scene: 'Non analizzata',
+              sceneDetail:
+                  'Il controllo della scena non viene usato per questo verdetto.',
+              derivation: null,
+              derivationDetail: null,
+            );
+            break;
+        }
+      });
     } catch (e) {
       setState(() {
         loading = false;
-
-        status = 'ERRORE REGISTRY: $e';
-
-        result = 'INVALID';
+        certificate = null;
+        status = 'Errore imprevisto durante la verifica Registry: $e';
+        result = 'REGISTRY ERROR';
+        _setVerificationAxes(
+          provenance: 'Verifica online incompleta',
+          provenanceDetail:
+              'Non e stato possibile completare la verifica online.',
+          integrity: 'Non determinata',
+          integrityDetail: 'Nessun verdetto di modifica e stato emesso.',
+          scene: 'Non analizzata',
+          sceneDetail:
+              'Il controllo della scena non viene eseguito senza certificato.',
+          derivation: null,
+          derivationDetail: null,
+        );
       });
     }
   }
@@ -1111,7 +1210,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         (mlClass.startsWith('REALITY_') || mlClass == 'REAL_SCENE') &&
         mlConfidence >= 0.60 &&
         mlScreenProbability < 0.35;
-    final currentIsWarning = (currentReplayScore ?? 0) >= 70;
+    final currentIsWarning = currentReplayScore >= 70;
 
     if (closeDisplaySpatialTrace &&
         confirmedTemporalTrace &&
@@ -1190,6 +1289,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   bool get _isMediaNotVerified => (result ?? '').contains('MEDIA NOT VERIFIED');
 
   bool get _isInvalidResult => (result ?? '').startsWith('INVALID');
+
+  bool get _isRegistryWarningResult => (result ?? '').startsWith('REGISTRY ');
 
   bool get _isForensicResult => (result ?? '').startsWith('FORENSIC VERIFIED');
 
@@ -1303,6 +1404,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (normalized.contains('cautela') ||
         normalized.contains('compatibile') ||
         normalized.contains('conclusiva') ||
+        normalized.contains('non presente') ||
+        normalized.contains('non raggiungibile') ||
+        normalized.contains('non determinata') ||
+        normalized.contains('non analizzata') ||
+        normalized.contains('incompleta') ||
         normalized.contains('valido') ||
         normalized.contains('derivato')) {
       return Colors.orange;
@@ -1332,7 +1438,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                     ? Icons.cloud_sync
                     : isVerified
                         ? Icons.verified
-                        : isScreenReplayWarning
+                        : isScreenReplayWarning || _isRegistryWarningResult
                             ? Icons.warning_amber
                             : Icons.error,
                 size: 72,
@@ -1340,7 +1446,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                     ? Colors.grey
                     : isVerified
                         ? Colors.green
-                        : isScreenReplayWarning
+                        : isScreenReplayWarning || _isRegistryWarningResult
                             ? Colors.orange
                             : Colors.red,
               ),
@@ -1434,7 +1540,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                     fontWeight: FontWeight.bold,
                     color: isVerified
                         ? Colors.green
-                        : isScreenReplayWarning
+                        : isScreenReplayWarning || _isRegistryWarningResult
                             ? Colors.orange
                             : Colors.red,
                   ),
@@ -1503,6 +1609,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   'Decisione display: ${displayRiskDecision ?? '-'}\n'
                   '\n'
                   'LIVE PROBE PRIMA DELLO SCATTO\n'
+                  'Live Probe Status: ${liveProbeAnalysisStatus ?? '-'}\n'
+                  'Live Probe Reason: ${liveProbeReason ?? '-'}\n'
+                  'Live Probe Error: ${liveProbeError ?? '-'}\n'
                   'Live Probe Risk: ${liveProbeRisk ?? '-'}\n'
                   'Live Probe Frames: ${liveProbeFrames ?? '-'}\n'
                   'Live Probe Local Flicker: ${liveProbeLocalFlickerScore ?? '-'}\n'

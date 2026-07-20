@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +21,7 @@ import 'hcv_image_watermark.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_live_screen_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
+import 'hcv_display_risk_fusion.dart';
 import 'sigillum_localization.dart';
 
 class CameraPage extends StatefulWidget {
@@ -82,6 +82,7 @@ class _CameraPageState extends State<CameraPage> {
     super.initState();
     photoMode = widget.initialPhotoMode;
     initCamera();
+    Future.microtask(_retryPendingRegistryUploads);
   }
 
   Future<void> initCamera() async {
@@ -325,18 +326,10 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final detectedScreenReplayRisk = _combinedScreenReplayRisk(
-        screenReplayAnalyses,
-        liveProbePrimary: true,
-      );
-      final detectedScreenReplayScore = _combinedScreenReplayScore(
-        screenReplayAnalyses,
-        liveProbePrimary: true,
-      );
-      final displayRiskDecision = _combinedDisplayRiskDecision(
-        screenReplayAnalyses,
-        liveProbePrimary: true,
-      );
+      final displayRisk = HCVDisplayRiskFusion.combine(screenReplayAnalyses);
+      final detectedScreenReplayRisk = displayRisk.risk;
+      final detectedScreenReplayScore = displayRisk.score;
+      final displayRiskDecision = displayRisk.decision;
       final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
 
       setState(() {
@@ -388,13 +381,14 @@ class _CameraPageState extends State<CameraPage> {
             : "PHOTO_CAPTURE",
         "displayRiskDecision": displayRiskDecision,
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
+        "displayRiskEvidence": displayRisk.toJson(),
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "liveScreenProbe": liveScreenProbe,
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
         "mlScreenReplayAnalysisStatus":
             _mlAnalysisStatus(mlScreenReplayAnalysis),
-        "screenReplayRisk": detectedScreenReplayRisk ?? "UNKNOWN",
+        "screenReplayRisk": detectedScreenReplayRisk,
         "screenReplayRiskScore": detectedScreenReplayScore,
         "watermark": "SIGILLUM_VISIBLE",
         "socialVerification": true,
@@ -583,241 +577,6 @@ class _CameraPageState extends State<CameraPage> {
     return moved.path;
   }
 
-  String? _strongestScreenReplayRisk(List<Map<String, dynamic>?> analyses) {
-    var score = -1;
-    String? risk;
-
-    for (final analysis in analyses) {
-      if (analysis == null) continue;
-
-      final currentRisk = analysis["screenReplayRisk"]?.toString();
-      final currentScore = (analysis["screenReplayRiskScore"] as num?)?.toInt();
-
-      if (currentScore != null && currentScore > score) {
-        score = currentScore;
-        risk = currentRisk;
-      }
-    }
-
-    return risk;
-  }
-
-  int? _strongestScreenReplayScore(List<Map<String, dynamic>?> analyses) {
-    int? score;
-
-    for (final analysis in analyses) {
-      if (analysis == null) continue;
-
-      final currentScore = (analysis["screenReplayRiskScore"] as num?)?.toInt();
-      if (currentScore == null) continue;
-
-      if (score == null || currentScore > score) {
-        score = currentScore;
-      }
-    }
-
-    return score;
-  }
-
-  String? _combinedScreenReplayRisk(
-    List<Map<String, dynamic>?> analyses, {
-    bool liveProbePrimary = false,
-  }) {
-    final score = _combinedScreenReplayScore(
-      analyses,
-      liveProbePrimary: liveProbePrimary,
-    );
-    if (score == null) return null;
-
-    return score >= 70
-        ? "HIGH"
-        : score >= 45
-            ? "MEDIUM"
-            : "LOW";
-  }
-
-  int? _combinedScreenReplayScore(
-    List<Map<String, dynamic>?> analyses, {
-    bool liveProbePrimary = false,
-  }) {
-    final strongestScore = _strongestScreenReplayScore(analyses);
-    Map<String, dynamic>? liveAnalysis;
-    for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
-      if (analysis["type"] == "SIGILLUM_LIVE_SCREEN_PROBE_V1") {
-        liveAnalysis = analysis;
-        break;
-      }
-    }
-    final strongLiveEvidence = analyses
-        .whereType<Map<String, dynamic>>()
-        .any(_hasStrongLiveScreenEvidence);
-    Map<String, dynamic>? mlAnalysis;
-    for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
-      if (analysis["type"] == "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1") {
-        mlAnalysis = analysis;
-        break;
-      }
-    }
-
-    if (mlAnalysis == null) return strongestScore;
-
-    final mlScore = (mlAnalysis["screenReplayRiskScore"] as num?)?.toInt();
-    final mlClass = mlAnalysis["predictedClass"]?.toString();
-    final mlClassConfidence =
-        (mlAnalysis["predictedClassConfidence"] as num?)?.toDouble();
-    final nonMlScores = analyses
-        .whereType<Map<String, dynamic>>()
-        .where((analysis) =>
-            analysis["type"] != "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1")
-        .map((analysis) => (analysis["screenReplayRiskScore"] as num?)?.toInt())
-        .whereType<int>()
-        .toList();
-    final strongestNonMl =
-        nonMlScores.isEmpty ? null : nonMlScores.reduce((a, b) => max(a, b));
-    final passiveContentScores = analyses
-        .whereType<Map<String, dynamic>>()
-        .where((analysis) =>
-            analysis["type"] != "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1" &&
-            analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1")
-        .map((analysis) => (analysis["screenReplayRiskScore"] as num?)?.toInt())
-        .whereType<int>()
-        .toList();
-    final strongestPassiveContent = passiveContentScores.isEmpty
-        ? null
-        : passiveContentScores.reduce((a, b) => max(a, b));
-    final passiveHasDisplayEvidence = analyses
-        .whereType<Map<String, dynamic>>()
-        .where((analysis) =>
-            analysis["type"] != "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1" &&
-            analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1")
-        .any(_hasDisplayEvidence);
-    final liveScore = (liveAnalysis?["screenReplayRiskScore"] as num?)?.toInt();
-    final liveDecision = liveAnalysis?["displayRiskDecision"]?.toString();
-    final mlSaysScreen =
-        mlClass != null && mlClass.startsWith("SCREEN_") && mlScore != null;
-    final mlSaysReality = mlClass != null &&
-        (mlClass.startsWith("REALITY_") || mlClass == "REAL_SCENE") &&
-        mlScore != null;
-
-    if (liveProbePrimary && liveScore != null) {
-      if (strongLiveEvidence || liveDecision == "STRONG_DISPLAY_RISK") {
-        return max(liveScore, 70);
-      }
-
-      if (liveDecision == "NON_CONCLUSIVE" || liveScore >= 45) {
-        return max(liveScore, 45);
-      }
-
-      if (passiveHasDisplayEvidence && (strongestPassiveContent ?? 0) >= 70) {
-        return 45;
-      }
-
-      if (mlSaysScreen &&
-          mlScore >= 92 &&
-          (mlClassConfidence == null || mlClassConfidence >= 0.78)) {
-        return 45;
-      }
-
-      return min(max(liveScore, min(strongestPassiveContent ?? 0, 44)), 44);
-    }
-
-    if (mlScore == null) {
-      if (strongLiveEvidence && (strongestPassiveContent ?? 0) >= 45) {
-        return max(strongestPassiveContent ?? 0, 70);
-      }
-      return strongestScore;
-    }
-
-    if (mlSaysReality) {
-      if (strongLiveEvidence) {
-        return max(strongestNonMl ?? 0, 70);
-      }
-
-      if (strongestNonMl == null || strongestNonMl < 85 || mlScore < 70) {
-        return max(min(mlScore, 34), min(strongestNonMl ?? 0, 34));
-      }
-
-      return min(strongestScore ?? mlScore, 54);
-    }
-
-    if (mlSaysScreen &&
-        mlScore >= 92 &&
-        (mlClassConfidence == null || mlClassConfidence >= 0.78)) {
-      return max(strongestNonMl ?? 0, mlScore);
-    }
-
-    if (mlSaysScreen &&
-        mlScore >= 88 &&
-        (mlClassConfidence == null || mlClassConfidence >= 0.70) &&
-        strongLiveEvidence) {
-      return max(strongestNonMl ?? 0, min(mlScore, 91));
-    }
-
-    if (mlSaysScreen) {
-      return max(min(mlScore, 34), min(strongestNonMl ?? 0, 34));
-    }
-
-    return strongestScore;
-  }
-
-  String _combinedDisplayRiskDecision(
-    List<Map<String, dynamic>?> analyses, {
-    bool liveProbePrimary = false,
-  }) {
-    final score = _combinedScreenReplayScore(
-      analyses,
-      liveProbePrimary: liveProbePrimary,
-    );
-    final decisions = analyses
-        .whereType<Map<String, dynamic>>()
-        .map((analysis) => analysis["displayRiskDecision"]?.toString())
-        .whereType<String>()
-        .toList();
-
-    if (liveProbePrimary) {
-      final liveStrong = analyses.whereType<Map<String, dynamic>>().any(
-          (analysis) =>
-              analysis["type"] == "SIGILLUM_LIVE_SCREEN_PROBE_V1" &&
-              (analysis["displayRiskDecision"]?.toString() ==
-                      "STRONG_DISPLAY_RISK" ||
-                  _hasStrongLiveScreenEvidence(analysis)));
-
-      if (liveStrong && score != null && score >= 70) {
-        return "STRONG_DISPLAY_RISK";
-      }
-
-      if (score != null && score >= 45) {
-        return "NON_CONCLUSIVE";
-      }
-
-      return "NO_DISPLAY_EVIDENCE";
-    }
-
-    if (decisions.contains("STRONG_DISPLAY_RISK") &&
-        score != null &&
-        score >= 70 &&
-        analyses.whereType<Map<String, dynamic>>().any(_hasDisplayEvidence)) {
-      return "STRONG_DISPLAY_RISK";
-    }
-
-    if (score != null &&
-        score >= 70 &&
-        analyses.whereType<Map<String, dynamic>>().any(_hasDisplayEvidence)) {
-      return "STRONG_DISPLAY_RISK";
-    }
-
-    final hasNonConclusive = decisions.contains("NON_CONCLUSIVE");
-    if (score != null && score >= 45) {
-      return "NON_CONCLUSIVE";
-    }
-
-    if (hasNonConclusive && (score ?? 0) >= 45) {
-      return "NON_CONCLUSIVE";
-    }
-
-    return "NO_DISPLAY_EVIDENCE";
-  }
-
   String _displayRiskMeaning(String decision) {
     switch (decision) {
       case "STRONG_DISPLAY_RISK":
@@ -827,58 +586,6 @@ class _CameraPageState extends State<CameraPage> {
       default:
         return "No sufficient display recapture evidence was observed.";
     }
-  }
-
-  bool _hasStrongLiveScreenEvidence(Map<String, dynamic> analysis) {
-    if (analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1") return false;
-
-    final fineGrid = (analysis["fineGridScore"] as num?)?.toDouble() ?? 0;
-    final fineStripe = (analysis["fineStripeScore"] as num?)?.toDouble() ?? 1;
-    final persistent =
-        (analysis["persistentPatternScore"] as num?)?.toDouble() ?? 0;
-    final dynamic =
-        (analysis["dynamicChallengeScore"] as num?)?.toDouble() ?? 1;
-    final signals = analysis["signals"];
-    final dynamicTrace =
-        signals is Map && signals["dynamicScreenChallengeTrace"] == true;
-    final closeSpatialTrace =
-        signals is Map && signals["closeDisplaySpatialTrace"] == true;
-    final confirmedTemporalTrace =
-        signals is Map && signals["confirmedDisplayTrace"] == true;
-    final periodicLightTrace =
-        signals is Map && signals["periodicLightTrace"] == true;
-    final patternTrace =
-        signals is Map && signals["uncorroboratedDisplayPattern"] == true;
-
-    if (closeSpatialTrace && (confirmedTemporalTrace || periodicLightTrace)) {
-      return true;
-    }
-
-    return (dynamicTrace &&
-            (confirmedTemporalTrace || periodicLightTrace) &&
-            fineGrid >= 0.70 &&
-            fineStripe < 0.42 &&
-            persistent >= 0.58 &&
-            dynamic < 0.18) ||
-        (patternTrace &&
-            (confirmedTemporalTrace || periodicLightTrace) &&
-            fineGrid >= 0.75 &&
-            fineStripe < 0.42 &&
-            persistent >= 0.70 &&
-            dynamic < 0.18) ||
-        (fineGrid >= 0.85 &&
-            (confirmedTemporalTrace || periodicLightTrace) &&
-            fineStripe < 0.42 &&
-            persistent >= 0.85 &&
-            dynamic < 0.18);
-  }
-
-  bool _hasDisplayEvidence(Map<String, dynamic> analysis) {
-    final signals = analysis["signals"];
-    if (signals is! Map) return false;
-    return signals["confirmedDisplayTrace"] == true ||
-        signals["structuralDisplayTrace"] == true ||
-        signals["periodicLightTrace"] == true;
   }
 
   String _mlAnalysisStatus(Map<String, dynamic>? analysis) {
@@ -950,12 +657,10 @@ class _CameraPageState extends State<CameraPage> {
       screenReplayAnalysis,
       mlScreenReplayAnalysis,
     ];
-    final detectedScreenReplayRisk =
-        _combinedScreenReplayRisk(screenReplayAnalyses);
-    final detectedScreenReplayScore =
-        _combinedScreenReplayScore(screenReplayAnalyses);
-    final displayRiskDecision =
-        _combinedDisplayRiskDecision(screenReplayAnalyses);
+    final displayRisk = HCVDisplayRiskFusion.combine(screenReplayAnalyses);
+    final detectedScreenReplayRisk = displayRisk.risk;
+    final detectedScreenReplayScore = displayRisk.score;
+    final displayRiskDecision = displayRisk.decision;
     final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
 
     setState(() {
@@ -1022,6 +727,7 @@ class _CameraPageState extends State<CameraPage> {
           : "LIVE_CAPTURE",
       "displayRiskDecision": displayRiskDecision,
       "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
+      "displayRiskEvidence": displayRisk.toJson(),
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
@@ -1031,8 +737,7 @@ class _CameraPageState extends State<CameraPage> {
       "screenReplayAnalysis": screenReplayAnalysis,
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
       "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(mlScreenReplayAnalysis),
-      "screenReplayRisk":
-          detectedScreenReplayRisk ?? trustAnalysis["screenReplayRisk"],
+      "screenReplayRisk": detectedScreenReplayRisk,
       "screenReplayRiskScore": detectedScreenReplayScore,
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
@@ -1130,20 +835,40 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> uploadCertificateToRegistry() async {
     if (hcvPath == null) return;
+    final currentPath = File(hcvPath!).absolute.path;
 
     setState(() {
-      registryStatus = 'Uploading certificate to registry...';
+      registryStatus = 'Pubblicazione certificato nel Registry...';
     });
 
     try {
-      final res = await registry.uploadCertificateFile(hcvPath!);
+      await registry.enqueueCertificateFile(currentPath);
+      final report = await registry.retryPendingUploads();
+      final currentUploaded = report.uploadedPaths.contains(currentPath);
       setState(() {
-        registryStatus = 'Registry OK: ${res['hcvId'] ?? hcvId}';
+        registryStatus = currentUploaded
+            ? 'Registry OK: ${hcvId ?? 'certificato pubblicato'}'
+            : 'Certificato salvato: pubblicazione Registry in attesa';
       });
     } catch (e) {
       setState(() {
-        registryStatus = 'Registry offline/non raggiungibile: $e';
+        registryStatus =
+            'Certificato salvato localmente. Registry non raggiungibile: $e';
       });
+    }
+  }
+
+  Future<void> _retryPendingRegistryUploads() async {
+    try {
+      final report = await registry.retryPendingUploads();
+      if (!mounted || report.uploaded == 0) return;
+      setState(() {
+        registryStatus = report.pending == 0
+            ? 'Registry sincronizzato'
+            : 'Registry: ${report.uploaded} pubblicati, ${report.pending} in attesa';
+      });
+    } catch (_) {
+      // La certificazione locale resta valida; il retry avverra al prossimo avvio.
     }
   }
 

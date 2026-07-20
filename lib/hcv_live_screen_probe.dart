@@ -45,7 +45,7 @@ class HCVLiveScreenProbe {
           phase: 0,
         );
 
-        final baselineZoom = zoomToRestore ?? minZoom;
+        final baselineZoom = zoomToRestore;
         final probeZoom = min(maxZoom, max(minZoom, baselineZoom + 0.55));
 
         if (probeZoom > baselineZoom + 0.1) {
@@ -69,8 +69,12 @@ class HCVLiveScreenProbe {
           phase: 0,
         );
       }
-    } catch (_) {
-      return _unknown('LIVE_PROBE_FAILED');
+    } catch (e) {
+      return _unknown(
+        'LIVE_PROBE_FAILED',
+        framesAnalyzed: frameStats.length,
+        error: e.toString(),
+      );
     } finally {
       try {
         if (controller.value.isStreamingImages) {
@@ -86,7 +90,10 @@ class HCVLiveScreenProbe {
     }
 
     if (frameStats.length < 8) {
-      return _unknown('NOT_ENOUGH_PREVIEW_FRAMES');
+      return _unknown(
+        'NOT_ENOUGH_PREVIEW_FRAMES',
+        framesAnalyzed: frameStats.length,
+      );
     }
 
     return _analyze(frameStats);
@@ -231,6 +238,7 @@ class HCVLiveScreenProbe {
 
     return {
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+      'analysisStatus': 'ANALYZED',
       'framesAnalyzed': frames.length,
       'screenReplayRisk': _riskLabel(riskScore),
       'screenReplayRiskScore': riskScore,
@@ -716,12 +724,20 @@ class HCVLiveScreenProbe {
     return sqrt(variance).clamp(0.0, 1.0).toDouble();
   }
 
-  Map<String, dynamic> _unknown(String reason) {
-    return {
+  Map<String, dynamic> _unknown(
+    String reason, {
+    int framesAnalyzed = 0,
+    String? error,
+  }) {
+    return <String, dynamic>{
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+      'analysisStatus': 'NOT_ANALYZED',
+      'displayRiskDecision': 'NOT_ANALYZED',
+      'framesAnalyzed': framesAnalyzed,
       'screenReplayRisk': 'UNKNOWN',
       'screenReplayRiskScore': null,
       'reason': reason,
+      if (error != null && error.isNotEmpty) 'error': error,
     };
   }
 
