@@ -153,7 +153,11 @@ class HCVScreenReplayAnalyzer {
       final rectangleEdgeScore = _rectangleEdgeScore(image);
       final gridScore = _gridLikeScore(image);
       final pixelGridUniformityScore = _pixelGridUniformityScore(contentImage);
-      final bandScore = _profileContrast(_horizontalBandProfile(image, 16));
+      final horizontalBandScore =
+          _profileContrast(_horizontalBandProfile(image, 16));
+      final verticalBandScore =
+          _profileContrast(_verticalBandProfile(image, 16));
+      final bandScore = max(horizontalBandScore, verticalBandScore);
       final brightUniformStripeScore = _brightUniformStripeScore(contentImage);
 
       final flatSceneUniformity = uniformityScore > 0.74;
@@ -213,6 +217,8 @@ class HCVScreenReplayAnalyzer {
         'gridLikeScore': _round(gridScore),
         'pixelGridUniformityScore': _round(pixelGridUniformityScore),
         'refreshBandScore': _round(bandScore),
+        'horizontalBandScore': _round(horizontalBandScore),
+        'verticalBandScore': _round(verticalBandScore),
         'brightUniformStripeScore': _round(brightUniformStripeScore),
         'localTemporalFlickerScore': null,
         'signals': {
@@ -221,7 +227,8 @@ class HCVScreenReplayAnalyzer {
           'pixelGridOrMoireHint': pixelGridOrMoireHint,
           'uniformPixelGrid': uniformPixelGrid,
           'brightUniformDisplayBands': brightUniformDisplayBands,
-          'horizontalRefreshBands': mediumHorizontalBands,
+          'horizontalRefreshBands': horizontalBandScore > 0.16,
+          'verticalRefreshBands': verticalBandScore > 0.16,
           'structuralDisplayTrace': structuralDisplayTrace,
           'temporalFrequencyUnavailable': true,
         },
@@ -532,6 +539,19 @@ class HCVScreenReplayAnalyzer {
       final y0 = (band * h / bands).floor();
       final y1 = ((band + 1) * h / bands).floor();
       profile.add(_regionMeanLuma(image, 0, y0, image.width, y1));
+    }
+
+    return profile;
+  }
+
+  List<double> _verticalBandProfile(img.Image image, int bands) {
+    final profile = <double>[];
+    final w = image.width;
+
+    for (var band = 0; band < bands; band++) {
+      final x0 = (band * w / bands).floor();
+      final x1 = ((band + 1) * w / bands).floor();
+      profile.add(_regionMeanLuma(image, x0, 0, x1, image.height));
     }
 
     return profile;

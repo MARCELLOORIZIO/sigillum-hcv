@@ -325,12 +325,18 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final detectedScreenReplayRisk =
-          _combinedScreenReplayRisk(screenReplayAnalyses);
-      final detectedScreenReplayScore =
-          _combinedScreenReplayScore(screenReplayAnalyses);
-      final displayRiskDecision =
-          _combinedDisplayRiskDecision(screenReplayAnalyses);
+      final detectedScreenReplayRisk = _combinedScreenReplayRisk(
+        screenReplayAnalyses,
+        liveProbePrimary: true,
+      );
+      final detectedScreenReplayScore = _combinedScreenReplayScore(
+        screenReplayAnalyses,
+        liveProbePrimary: true,
+      );
+      final displayRiskDecision = _combinedDisplayRiskDecision(
+        screenReplayAnalyses,
+        liveProbePrimary: true,
+      );
       final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
 
       setState(() {
@@ -613,8 +619,14 @@ class _CameraPageState extends State<CameraPage> {
     return score;
   }
 
-  String? _combinedScreenReplayRisk(List<Map<String, dynamic>?> analyses) {
-    final score = _combinedScreenReplayScore(analyses);
+  String? _combinedScreenReplayRisk(
+    List<Map<String, dynamic>?> analyses, {
+    bool liveProbePrimary = false,
+  }) {
+    final score = _combinedScreenReplayScore(
+      analyses,
+      liveProbePrimary: liveProbePrimary,
+    );
     if (score == null) return null;
 
     return score >= 70
@@ -624,8 +636,18 @@ class _CameraPageState extends State<CameraPage> {
             : "LOW";
   }
 
-  int? _combinedScreenReplayScore(List<Map<String, dynamic>?> analyses) {
+  int? _combinedScreenReplayScore(
+    List<Map<String, dynamic>?> analyses, {
+    bool liveProbePrimary = false,
+  }) {
     final strongestScore = _strongestScreenReplayScore(analyses);
+    Map<String, dynamic>? liveAnalysis;
+    for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
+      if (analysis["type"] == "SIGILLUM_LIVE_SCREEN_PROBE_V1") {
+        liveAnalysis = analysis;
+        break;
+      }
+    }
     final strongLiveEvidence = analyses
         .whereType<Map<String, dynamic>>()
         .any(_hasStrongLiveScreenEvidence);
@@ -663,17 +685,47 @@ class _CameraPageState extends State<CameraPage> {
     final strongestPassiveContent = passiveContentScores.isEmpty
         ? null
         : passiveContentScores.reduce((a, b) => max(a, b));
+    final passiveHasDisplayEvidence = analyses
+        .whereType<Map<String, dynamic>>()
+        .where((analysis) =>
+            analysis["type"] != "SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1" &&
+            analysis["type"] != "SIGILLUM_LIVE_SCREEN_PROBE_V1")
+        .any(_hasDisplayEvidence);
+    final liveScore = (liveAnalysis?["screenReplayRiskScore"] as num?)?.toInt();
+    final liveDecision = liveAnalysis?["displayRiskDecision"]?.toString();
     final mlSaysScreen =
         mlClass != null && mlClass.startsWith("SCREEN_") && mlScore != null;
     final mlSaysReality = mlClass != null &&
         (mlClass.startsWith("REALITY_") || mlClass == "REAL_SCENE") &&
         mlScore != null;
 
+    if (liveProbePrimary && liveScore != null) {
+      if (strongLiveEvidence || liveDecision == "STRONG_DISPLAY_RISK") {
+        return max(liveScore, 70);
+      }
+
+      if (liveDecision == "NON_CONCLUSIVE" || liveScore >= 45) {
+        return max(liveScore, 45);
+      }
+
+      if (passiveHasDisplayEvidence && (strongestPassiveContent ?? 0) >= 70) {
+        return 45;
+      }
+
+      if (mlSaysScreen &&
+          mlScore >= 92 &&
+          (mlClassConfidence == null || mlClassConfidence >= 0.78)) {
+        return 45;
+      }
+
+      return min(max(liveScore, min(strongestPassiveContent ?? 0, 44)), 44);
+    }
+
     if (mlScore == null) {
       if (strongLiveEvidence && (strongestPassiveContent ?? 0) >= 45) {
         return max(strongestPassiveContent ?? 0, 70);
       }
-      return strongestScore == null ? null : min(strongestScore, 34);
+      return strongestScore;
     }
 
     if (mlSaysReality) {
@@ -708,13 +760,38 @@ class _CameraPageState extends State<CameraPage> {
     return strongestScore;
   }
 
-  String _combinedDisplayRiskDecision(List<Map<String, dynamic>?> analyses) {
-    final score = _combinedScreenReplayScore(analyses);
+  String _combinedDisplayRiskDecision(
+    List<Map<String, dynamic>?> analyses, {
+    bool liveProbePrimary = false,
+  }) {
+    final score = _combinedScreenReplayScore(
+      analyses,
+      liveProbePrimary: liveProbePrimary,
+    );
     final decisions = analyses
         .whereType<Map<String, dynamic>>()
         .map((analysis) => analysis["displayRiskDecision"]?.toString())
         .whereType<String>()
         .toList();
+
+    if (liveProbePrimary) {
+      final liveStrong = analyses.whereType<Map<String, dynamic>>().any(
+          (analysis) =>
+              analysis["type"] == "SIGILLUM_LIVE_SCREEN_PROBE_V1" &&
+              (analysis["displayRiskDecision"]?.toString() ==
+                      "STRONG_DISPLAY_RISK" ||
+                  _hasStrongLiveScreenEvidence(analysis)));
+
+      if (liveStrong && score != null && score >= 70) {
+        return "STRONG_DISPLAY_RISK";
+      }
+
+      if (score != null && score >= 45) {
+        return "NON_CONCLUSIVE";
+      }
+
+      return "NO_DISPLAY_EVIDENCE";
+    }
 
     if (decisions.contains("STRONG_DISPLAY_RISK") &&
         score != null &&
