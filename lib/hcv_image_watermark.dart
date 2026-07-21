@@ -3,10 +3,13 @@ import 'dart:io';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import 'hcv_capture_timestamp.dart';
+
 class HCVImageWatermark {
   Future<String> createPublishedPhoto({
     required String inputPath,
     required String hcvId,
+    required DateTime capturedAt,
   }) async {
     final inputFile = File(inputPath);
 
@@ -46,7 +49,7 @@ class HCVImageWatermark {
 
     img.drawString(
       image,
-      'VERIFY IN APP',
+      HCVCaptureTimestamp.format(capturedAt),
       font: img.arial14,
       x: 20,
       y: topY + 30,

@@ -22,6 +22,7 @@ import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_live_screen_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
+import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 
 class CameraPage extends StatefulWidget {
@@ -51,6 +52,7 @@ class _CameraPageState extends State<CameraPage> {
   final liveSignals = HCVLiveSignals();
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
+  DateTime? pendingVideoCapturedAt;
 
   bool ready = false;
   bool recording = false;
@@ -227,6 +229,7 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       await controller!.startVideoRecording();
+      pendingVideoCapturedAt = DateTime.now();
 
       try {
         await liveSignals.start();
@@ -236,6 +239,7 @@ class _CameraPageState extends State<CameraPage> {
 
       setState(() => status = 'RECORDING...');
     } catch (e) {
+      pendingVideoCapturedAt = null;
       setState(() {
         recording = false;
         status = 'ERROR START: $e';
@@ -248,13 +252,15 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final file = await controller!.stopVideoRecording();
+      final capturedAt = pendingVideoCapturedAt ?? DateTime.now();
+      pendingVideoCapturedAt = null;
 
       setState(() {
         recording = false;
         status = 'PROCESSING VIDEO...';
       });
 
-      await processVideo(file.path);
+      await processVideo(file.path, capturedAt: capturedAt);
     } catch (e) {
       setState(() {
         status = 'STOP ERROR: $e';
@@ -277,6 +283,7 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       final file = await controller!.takePicture();
+      final capturedAt = DateTime.now();
 
       final savedPhotoPath = await savePhotoToDocuments(file.path);
 
@@ -339,6 +346,7 @@ class _CameraPageState extends State<CameraPage> {
       final publishedPhoto = await HCVImageWatermark().createPublishedPhoto(
         inputPath: savedPhotoPath,
         hcvId: preparedHcvId,
+        capturedAt: capturedAt,
       );
 
       try {
@@ -383,6 +391,8 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
+        "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
+        "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
         "liveScreenProbe": liveScreenProbe,
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
@@ -596,9 +606,10 @@ class _CameraPageState extends State<CameraPage> {
     return score == null ? "NOT_ANALYZED" : "ANALYZED";
   }
 
-  Future<void> processVideo(String path) async {
+  Future<void> processVideo(String path, {DateTime? capturedAt}) async {
     final liveScreenProbe = pendingLiveScreenProbe;
     pendingLiveScreenProbe = null;
+    final effectiveCapturedAt = capturedAt ?? DateTime.now();
 
     setState(() {
       status = 'SAVING MP4 TO DOWNLOAD...';
@@ -673,6 +684,7 @@ class _CameraPageState extends State<CameraPage> {
       savedVideoPath = await HCVVideoWatermark().createPublishedVideo(
         inputPath: savedVideoPath,
         hcvId: preparedHcvId,
+        capturedAt: effectiveCapturedAt,
       );
 
       try {
@@ -733,6 +745,8 @@ class _CameraPageState extends State<CameraPage> {
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
       "passiveLiveProofScore": trustAnalysis["score"],
       "captureModeNote": trustAnalysis["note"],
+      "captureCreatedAt": effectiveCapturedAt.toUtc().toIso8601String(),
+      "captureCreatedAtLocal": HCVCaptureTimestamp.format(effectiveCapturedAt),
       "liveScreenProbe": liveScreenProbe,
       "screenReplayAnalysis": screenReplayAnalysis,
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,

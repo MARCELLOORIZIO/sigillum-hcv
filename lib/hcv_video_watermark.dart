@@ -5,10 +5,13 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hcv_capture_timestamp.dart';
+
 class HCVVideoWatermark {
   Future<String> createPublishedVideo({
     required String inputPath,
     required String hcvId,
+    required DateTime capturedAt,
   }) async {
     final inputFile = File(inputPath);
 
@@ -46,6 +49,9 @@ class HCVVideoWatermark {
     final safeInput = _escapePath(inputPath);
     final safeOutput = _escapePath(outputPath);
     final safeHcvId = _escapeText(hcvId);
+    final safeCapturedAt = _escapeText(
+      HCVCaptureTimestamp.format(capturedAt),
+    );
 
     final fontFile = Platform.isIOS
         ? "/System/Library/Fonts/Core/Avenir.ttc"
@@ -67,8 +73,8 @@ class HCVVideoWatermark {
           "fontsize=12:"
           "fontcolor=white@0.94",
 
-      // Visible reminder that the overlay alone is not proof.
-      "drawtext=fontfile=$fontFile:text='VERIFY IN APP':"
+      // Local capture time with an explicit UTC offset.
+      "drawtext=fontfile=$fontFile:text='$safeCapturedAt':"
           "x=46:y=38:"
           "fontsize=8:"
           "fontcolor=white@0.78",

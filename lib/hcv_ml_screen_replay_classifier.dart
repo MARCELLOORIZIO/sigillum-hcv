@@ -5,12 +5,14 @@ import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
+import 'package:crypto/crypto.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import 'hcv_ml_model_store.dart';
+import 'sigillum_edition.dart';
 
 class HCVMLScreenReplayClassifier {
   HCVMLScreenReplayClassifier._();
@@ -23,6 +25,9 @@ class HCVMLScreenReplayClassifier {
   Interpreter? _interpreter;
   List<String>? _classes;
   String _modelSource = 'UNKNOWN';
+  String _modelPolicy = 'UNKNOWN';
+  String? _modelVersion;
+  String? _modelSha256;
   String? _modelLoadError;
 
   void resetLoadedModel() {
@@ -32,6 +37,9 @@ class HCVMLScreenReplayClassifier {
     _interpreter = null;
     _classes = null;
     _modelSource = 'UNKNOWN';
+    _modelPolicy = 'UNKNOWN';
+    _modelVersion = null;
+    _modelSha256 = null;
     _modelLoadError = null;
   }
 
@@ -174,6 +182,9 @@ class HCVMLScreenReplayClassifier {
         'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
         'model': 'sigillum_screen_replay',
         'modelSource': _modelSource,
+        'modelPolicy': _modelPolicy,
+        'modelVersion': _modelVersion,
+        'modelSha256': _modelSha256,
         'scanMode': 'STILL_IMAGE_ML_CLASSIFIER',
         'analysisStatus': 'ANALYZED',
         'framesAnalyzed': 1,
@@ -206,13 +217,21 @@ class HCVMLScreenReplayClassifier {
   Future<void> _ensureLoaded() async {
     if (_interpreter != null && _classes != null) return;
 
-    final bundle = await HCVMLModelStore.instance.loadCurrentBundle();
+    final allowLocalModel = SigillumBuildConfig.isLab;
+    _modelPolicy =
+        allowLocalModel ? 'LAB_LOCAL_MODEL_ALLOWED' : 'USER_BUNDLED_MODEL_ONLY';
+    final bundle = allowLocalModel
+        ? await HCVMLModelStore.instance.loadCurrentBundle()
+        : await HCVMLModelStore.instance.loadBundledBundle();
     try {
-      _loadBundle(bundle);
+      await _loadBundle(bundle);
       return;
     } catch (e) {
       _modelLoadError = '${bundle.source}: $e';
       resetLoadedModel();
+      _modelPolicy = allowLocalModel
+          ? 'LAB_LOCAL_MODEL_ALLOWED'
+          : 'USER_BUNDLED_MODEL_ONLY';
       _modelLoadError = '${bundle.source}: $e';
     }
 
@@ -222,20 +241,27 @@ class HCVMLScreenReplayClassifier {
 
     try {
       final fallback = await HCVMLModelStore.instance.loadBundledBundle();
-      _loadBundle(fallback);
+      await _loadBundle(fallback);
     } catch (e) {
       _modelLoadError = '${_modelLoadError ?? ''}; BUNDLED_ASSET_MODEL: $e';
       resetLoadedModel();
+      _modelPolicy = allowLocalModel
+          ? 'LAB_LOCAL_MODEL_ALLOWED'
+          : 'USER_BUNDLED_MODEL_ONLY';
       _modelLoadError = '${bundle.source}: unable to load local model; '
           'BUNDLED_ASSET_MODEL: $e';
       throw Exception(_modelLoadError);
     }
   }
 
-  void _loadBundle(HCVMLModelBundle bundle) {
+  Future<void> _loadBundle(HCVMLModelBundle bundle) async {
     _interpreter = Interpreter.fromFile(bundle.modelFile);
     _classes = bundle.labels;
     _modelSource = bundle.source;
+    _modelVersion =
+        bundle.source == 'BUNDLED_ASSET_MODEL' ? 'v2' : 'local-update';
+    _modelSha256 =
+        (await sha256.bind(bundle.modelFile.openRead()).first).toString();
     _modelLoadError = null;
   }
 
@@ -381,6 +407,9 @@ class HCVMLScreenReplayClassifier {
       'reason': reason,
       'analysisStatus': 'NOT_ANALYZED',
       'modelSource': _modelSource,
+      'modelPolicy': _modelPolicy,
+      'modelVersion': _modelVersion,
+      'modelSha256': _modelSha256,
     };
     if (error != null) {
       data['error'] = error.toString();
