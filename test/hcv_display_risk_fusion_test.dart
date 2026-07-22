@@ -101,6 +101,7 @@ void main() {
             dynamic: 0.2015,
             persistent: 0.7538,
             signals: const {
+              'pairedFlickerTrace': true,
               'uncorroboratedDisplayPattern': true,
             },
           ),
@@ -136,7 +137,7 @@ void main() {
       final result = HCVDisplayRiskFusion.combine(
         [
           _liveProbe(
-            score: 45,
+            score: 30,
             frames: 45,
             localFlicker: 0.6672,
             refresh: 0.1600,
@@ -158,7 +159,7 @@ void main() {
     test('archive 13 monitor video remains non-conclusive', () {
       final result = HCVDisplayRiskFusion.combine([
         _liveProbe(
-          score: 69,
+          score: 30,
           frames: 45,
           localFlicker: 0.4922,
           refresh: 0.1962,
@@ -168,11 +169,16 @@ void main() {
           dynamic: 0.4869,
           persistent: 0.5611,
         ),
-        _staticOptical(score: 69, structural: true),
+        _staticOptical(score: 20),
       ]);
 
       expect(result.decision, 'NON_CONCLUSIVE');
-      expect(result.score, 69);
+      expect(result.score, 45);
+      expect(result.evidenceSources, contains('LIVE_PREVIEW'));
+      expect(
+        result.reasons,
+        contains('LIVE_CORROBORATED_TEMPORAL_PATTERN'),
+      );
     });
 
     test('archive 11 selfie photo does not become a display warning', () {

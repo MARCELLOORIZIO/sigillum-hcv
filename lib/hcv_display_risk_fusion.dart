@@ -77,9 +77,17 @@ class HCVDisplayRiskFusion {
                 _number(live, 'refreshBandScore') >= 0.12 &&
                 (_number(live, 'fineGridScore') >= 0.80 ||
                     _number(live, 'moireFrequencyScore') >= 0.45)));
+    final liveCorroboratedModerate = live != null &&
+        liveScore != null &&
+        ((liveSignals['corroboratedModerateTrace'] == true) ||
+            (((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
+                _number(live, 'localTemporalFlickerScore') >= 0.30 &&
+                _number(live, 'refreshBandScore') >= 0.15 &&
+                (_number(live, 'fineGridScore') >= 0.75 ||
+                    _number(live, 'moireFrequencyScore') >= 0.40)));
     final liveModerate = live != null &&
         liveScore != null &&
-        (liveTemporal || liveEmissiveTemporal);
+        (liveTemporal || liveEmissiveTemporal || liveCorroboratedModerate);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveTemporal) {
@@ -87,6 +95,8 @@ class HCVDisplayRiskFusion {
       reasons.add('LIVE_TEMPORAL_CONFIRMED');
     } else if (liveEmissiveTemporal) {
       reasons.add('LIVE_EMISSIVE_TEMPORAL_PATTERN');
+    } else if (liveCorroboratedModerate) {
+      reasons.add('LIVE_CORROBORATED_TEMPORAL_PATTERN');
     }
 
     var passiveStrong = false;
