@@ -33,8 +33,15 @@ class HCVDisplayRiskResult {
 class HCVDisplayRiskFusion {
   static HCVDisplayRiskResult combine(
     List<Map<String, dynamic>?> analyses,
+    {bool liveCaptureOnly = false}
   ) {
-    final available = analyses.whereType<Map<String, dynamic>>().toList();
+    final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
+    final available = liveCaptureOnly
+        ? allAvailable
+            .where((analysis) =>
+                analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1')
+            .toList()
+        : allAvailable;
     final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
     final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
     final passive = available
@@ -62,25 +69,24 @@ class HCVDisplayRiskFusion {
         (liveSignals['confirmedDisplayTrace'] == true ||
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
-    final liveSpatial = live != null &&
+    final liveEmissiveTemporal = live != null &&
         liveScore != null &&
-        (_number(live, 'fineGridScore') >= 0.70) &&
-        (_number(live, 'fineStripeScore', fallback: 1) < 0.42) &&
-        (_number(live, 'persistentPatternScore') >= 0.58) &&
-        (_number(live, 'dynamicChallengeScore', fallback: 1) < 0.18) &&
-        (liveSignals['closeDisplaySpatialTrace'] == true ||
-            liveSignals['uncorroboratedDisplayPattern'] == true ||
-            liveSignals['dynamicScreenChallengeTrace'] == true);
+        ((liveSignals['emissiveTemporalTrace'] == true) ||
+            (((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
+                _number(live, 'localTemporalFlickerScore') >= 0.55 &&
+                _number(live, 'refreshBandScore') >= 0.12 &&
+                (_number(live, 'fineGridScore') >= 0.80 ||
+                    _number(live, 'moireFrequencyScore') >= 0.45)));
     final liveModerate = live != null &&
         liveScore != null &&
-        (liveScore >= 45 || liveSpatial || liveTemporal);
+        (liveTemporal || liveEmissiveTemporal);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveTemporal) {
       strongSources.add('LIVE_TEMPORAL');
       reasons.add('LIVE_TEMPORAL_CONFIRMED');
-    } else if (liveSpatial) {
-      reasons.add('LIVE_SPATIAL_PATTERN');
+    } else if (liveEmissiveTemporal) {
+      reasons.add('LIVE_EMISSIVE_TEMPORAL_PATTERN');
     }
 
     var passiveStrong = false;
@@ -134,7 +140,7 @@ class HCVDisplayRiskFusion {
       score = max(45, min(rawScore, 69));
     } else {
       decision = 'NO_DISPLAY_EVIDENCE';
-      score = min(rawScore, 44);
+      score = min(rawScore, 30);
     }
 
     final missingReasons = <String>[];
@@ -143,11 +149,13 @@ class HCVDisplayRiskFusion {
       live,
       missingTypeReason: 'LIVE_PROBE_MISSING',
     );
-    _appendMissingReason(
-      missingReasons,
-      ml,
-      missingTypeReason: 'ML_ANALYSIS_MISSING',
-    );
+    if (!liveCaptureOnly) {
+      _appendMissingReason(
+        missingReasons,
+        ml,
+        missingTypeReason: 'ML_ANALYSIS_MISSING',
+      );
+    }
     reasons.addAll(missingReasons);
 
     final analysisStatus = missingReasons.isEmpty ? 'COMPLETE' : 'PARTIAL';

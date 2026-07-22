@@ -761,6 +761,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         screenReplayRisk = claims['screenReplayRisk']?.toString();
         screenReplayRiskScore = claims['screenReplayRiskScore']?.toString();
         displayRiskDecision = claims['displayRiskDecision']?.toString();
+        final displayRiskEvidence = claims['displayRiskEvidence'];
+        if (displayRiskEvidence is Map) {
+          screenReplayRisk = displayRiskEvidence['risk']?.toString();
+          screenReplayRiskScore = displayRiskEvidence['score']?.toString();
+          displayRiskDecision = displayRiskEvidence['decision']?.toString();
+        }
         final screenReplayAnalysis = claims['screenReplayAnalysis'];
         if (screenReplayAnalysis is Map) {
           screenReplaySegmentsAnalyzed =
@@ -807,14 +813,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 liveProbeSignals['uncorroboratedDisplayPattern']?.toString();
           }
 
-          if (claims['displayRiskEvidence'] is! Map) {
-            _normalizeScreenReplayRiskFromClaims(claims);
-          }
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
         aiProofLevel = claims['aiProofLevel']?.toString();
-        _normalizeScreenReplayRiskFromClaims(claims);
+        if (displayRiskEvidence is! Map) {
+          _normalizeScreenReplayRiskFromClaims(claims);
+        }
       }
 
       final tempDir = await getTemporaryDirectory();

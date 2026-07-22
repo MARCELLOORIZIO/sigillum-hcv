@@ -333,7 +333,10 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final displayRisk = HCVDisplayRiskFusion.combine(screenReplayAnalyses);
+      final displayRisk = HCVDisplayRiskFusion.combine(
+        screenReplayAnalyses,
+        liveCaptureOnly: true,
+      );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
       final displayRiskDecision = displayRisk.decision;

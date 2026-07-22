@@ -207,6 +207,10 @@ class HCVLiveScreenProbe {
         periodicLightTrace;
     final opticalCorroboratedTrace =
         opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
+    final emissiveTemporalTrace = frames.length >= 24 &&
+        localFlickerScore >= 0.55 &&
+        refreshBandScore >= 0.12 &&
+        (fineGridScore >= 0.80 || moireFrequencyScore >= 0.45);
 
     var riskScore = 0;
     if (confirmedDisplayTrace) riskScore += 50;
@@ -222,7 +226,11 @@ class HCVLiveScreenProbe {
     }
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
+    if (!confirmedDisplayTrace && emissiveTemporalTrace) {
+      riskScore = max(riskScore, 45);
+    }
     if (!confirmedDisplayTrace &&
+        !emissiveTemporalTrace &&
         !(dynamicScreenChallengeTrace && moireFrequencyScore > 0.42)) {
       riskScore = min(riskScore, 30);
     }
@@ -230,10 +238,7 @@ class HCVLiveScreenProbe {
     final displayRiskDecision = _displayRiskDecision(
       riskScore: riskScore,
       confirmedDisplayTrace: confirmedDisplayTrace,
-      opticalCorroboratedTrace: opticalCorroboratedTrace,
-      dynamicScreenChallengeTrace: dynamicScreenChallengeTrace,
-      uncorroboratedDisplayPattern: uncorroboratedDisplayPattern,
-      pairedFlickerTrace: pairedFlickerTrace,
+      emissiveTemporalTrace: emissiveTemporalTrace,
     );
 
     return {
@@ -263,6 +268,7 @@ class HCVLiveScreenProbe {
         'moireFrequencyTrace': moireFrequencyTrace,
         'globalDisplayPulse': globalDisplayPulse,
         'confirmedDisplayTrace': confirmedDisplayTrace,
+        'emissiveTemporalTrace': emissiveTemporalTrace,
         'periodicLightTrace': periodicLightTrace,
         'closeDisplaySpatialTrace': closeDisplaySpatialTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
@@ -752,20 +758,14 @@ class HCVLiveScreenProbe {
   String _displayRiskDecision({
     required int riskScore,
     required bool confirmedDisplayTrace,
-    required bool opticalCorroboratedTrace,
-    required bool dynamicScreenChallengeTrace,
-    required bool uncorroboratedDisplayPattern,
-    required bool pairedFlickerTrace,
+    required bool emissiveTemporalTrace,
   }) {
     final strongEvidence = confirmedDisplayTrace && riskScore >= 70;
     if (strongEvidence) return 'STRONG_DISPLAY_RISK';
 
     if (riskScore < 45) return 'NO_DISPLAY_EVIDENCE';
 
-    if (uncorroboratedDisplayPattern ||
-        pairedFlickerTrace ||
-        dynamicScreenChallengeTrace ||
-        riskScore >= 45) {
+    if (emissiveTemporalTrace && riskScore >= 45) {
       return 'NON_CONCLUSIVE';
     }
 
