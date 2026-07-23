@@ -39,6 +39,9 @@ class HCVPackage {
     final contentType = certificate['content'] is Map
         ? (certificate['content']['type']?.toString() ?? 'binary')
         : 'binary';
+    final hcvId = certificate['meta'] is Map
+        ? certificate['meta']['hcvId']?.toString() ?? ''
+        : '';
     final originalName = p.basename(contentPath);
     final safeName = originalName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final archiveContentPath = 'content/$safeName';
@@ -50,11 +53,13 @@ class HCVPackage {
         .convert(utf8.encode('$contentSha256|$certificateSha256|$createdAt'))
         .toString();
 
-    final meta = {
+    final isVideo = contentType == 'video';
+    final meta = <String, dynamic>{
       'type': 'HCV_PACKAGE',
       'version': 3,
       'packageId': packageId,
       'createdAt': createdAt,
+      'hcvId': hcvId,
       'contentType': contentType,
       'contentFile': archiveContentPath,
       'certificateFile': 'certificate.hcv',
@@ -64,7 +69,7 @@ class HCVPackage {
       'certificateSha256': certificateSha256,
       'hashAlgorithm': 'SHA256',
       'certificateFormat': 'HCV',
-      'legacyCompatibilityFile': 'video.mp4',
+      if (isVideo) 'legacyCompatibilityFile': 'video.mp4',
     };
 
     final archive = Archive()
@@ -74,15 +79,18 @@ class HCVPackage {
         contentBytes,
       ))
       ..addFile(ArchiveFile(
-        'video.mp4',
-        contentBytes.length,
-        contentBytes,
-      ))
-      ..addFile(ArchiveFile(
         'certificate.hcv',
         hcvBytes.length,
         hcvBytes,
       ));
+
+    if (isVideo && archiveContentPath != 'video.mp4') {
+      archive.addFile(ArchiveFile(
+        'video.mp4',
+        contentBytes.length,
+        contentBytes,
+      ));
+    }
 
     final metaBytes = utf8.encode(
       const JsonEncoder.withIndent('  ').convert(meta),
@@ -94,9 +102,12 @@ class HCVPackage {
 
     final outputDir = await _getOutputDirectory();
     if (!await outputDir.exists()) await outputDir.create(recursive: true);
+    final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '');
     final outputPath = p.join(
       outputDir.path,
-      'package_${DateTime.now().millisecondsSinceEpoch}.hcvpack',
+      safeId.isEmpty
+          ? 'package_${DateTime.now().millisecondsSinceEpoch}.hcvpack'
+          : 'hcvpack_$safeId.hcvpack',
     );
     await File(outputPath).writeAsBytes(zipBytes, flush: true);
     return outputPath;
