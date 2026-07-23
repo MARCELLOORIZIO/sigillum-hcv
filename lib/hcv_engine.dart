@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import 'hcv_id.dart';
 import 'hcv_identity.dart';
 import 'hcv_keystore_signer.dart';
 import 'hcv_local_certificate_store.dart';
@@ -16,13 +17,12 @@ class HCVEngine {
 
   final String sessionId = const Uuid().v4();
   final String createdAt = DateTime.now().toUtc().toIso8601String();
-  final String hcvId =
-      'HCV-${const Uuid().v4().split('-').first.toUpperCase()}';
+  final String hcvId = HCVID.generate();
 
   Map<String, dynamic> meta = {
     'app': 'sigillum_hcv',
     'format': 'HCV',
-    'version': '2.1.0',
+    'version': '2.2.0',
     'device': Platform.operatingSystem,
   };
 
@@ -133,9 +133,8 @@ class HCVEngine {
       'publicKey': await HCVKeystoreSigner.getPublicKey(),
     };
 
-    final file = File(
-      p.join(dir.path, 'hcv_${DateTime.now().millisecondsSinceEpoch}.hcv'),
-    );
+    final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '');
+    final file = File(p.join(dir.path, 'hcv_$safeId.hcv'));
     await file.writeAsString(
       const JsonEncoder.withIndent('  ').convert(payload),
       flush: true,
