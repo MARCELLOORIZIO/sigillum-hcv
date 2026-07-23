@@ -6,8 +6,8 @@ void main() {
     final public = publicHcvIdentity({
       'creatorId': 'ACC-ABC',
       'creatorName': 'Verified Creator',
-      'devicePublicKeyFingerprint': 'a' * 64,
-      'identityFingerprint': 'b' * 64,
+      'devicePublicKeyFingerprint': List.filled(64, 'a').join(),
+      'identityFingerprint': List.filled(64, 'b').join(),
       'trustLevel': 'LEGAL_IDENTITY_VERIFIED',
       'identityAssuranceLevel': 'KYC_DOCUMENT_VERIFIED',
       'legalIdentityStatus': 'VERIFIED',
