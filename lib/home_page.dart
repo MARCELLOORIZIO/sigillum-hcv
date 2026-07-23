@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'camera_page.dart';
 import 'hcv_identity.dart';
 import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
-import 'hcvpack_player_page.dart';
+import 'hcvpack_verifier_page.dart';
 import 'identity_page.dart';
 import 'import_page.dart';
+import 'production_camera_page.dart';
 import 'registry_verify_page.dart';
 import 'screen_replay_calibration_page.dart';
 import 'screen_replay_diagnostics_page.dart';
@@ -43,7 +43,7 @@ class _HomePageState extends State<HomePage> {
       if (report.pending > 0) {
         messages.add('${report.pending} pubblicazioni Registry ancora in attesa');
       }
-    } catch (error) {
+    } catch (_) {
       messages.add('Registry non raggiungibile: pubblicazioni conservate in coda');
     }
 
@@ -191,8 +191,7 @@ class _HomePageState extends State<HomePage> {
                 '- un certificato firmato\n'
                 '- un pacchetto HCVPACK opzionale\n\n'
                 'Il controllo non riguarda solo i monitor. Sigillum combina piu prove: integrita del file, cattura live, watermark visibile, certificato firmato, Registry, fingerprint per file ricompressi dai social e analisi del rischio di replay da schermo.\n\n'
-                'Se il contenuto corrisponde al certificato appare HUMAN VERIFIED.\n\n'
-                'Se il file non corrisponde o il controllo non e conclusivo, l\'app lo segnala.',
+                'La verifica locale continua a funzionare anche quando il Registry non e momentaneamente raggiungibile.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, height: 1.4),
               ),
@@ -252,15 +251,15 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 32),
               _mainButton(
                 icon: Icons.videocam,
-                title: 'CREA VIDEO VERIFICABILE',
-                subtitle: 'Registra un video e genera HCV-ID',
-                onPressed: () => _open(const CameraPage()),
+                title: 'CREA FOTO O VIDEO VERIFICABILE',
+                subtitle: 'Pipeline integrata con firma locale e coda Registry',
+                onPressed: () => _open(const ProductionCameraPage()),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.cloud_done,
-                title: 'VERIFICA VIDEO CON HCV-ID',
-                subtitle: 'Seleziona un MP4 e verifica dal Registry o dal certificato locale',
+                title: 'VERIFICA CONTENUTO CON HCV-ID',
+                subtitle: 'Verifica dal Registry o dal certificato locale',
                 onPressed: () => _open(const RegistryVerifyPage()),
               ),
               const SizedBox(height: 14),
@@ -274,8 +273,8 @@ class _HomePageState extends State<HomePage> {
               _mainButton(
                 icon: Icons.play_circle_fill,
                 title: 'APRI HCVPACK',
-                subtitle: 'Verifica un pacchetto completo offline',
-                onPressed: () => _open(const HCVPackPlayerPage()),
+                subtitle: 'Verifica offline pacchetti foto, video e documenti',
+                onPressed: () => _open(const HCVPackVerifierPage()),
               ),
               const SizedBox(height: 14),
               _mainButton(
