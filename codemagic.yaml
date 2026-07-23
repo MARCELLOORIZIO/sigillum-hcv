@@ -16,9 +16,27 @@ workflows:
       app_store_connect: Codemagic-HCV
 
     scripts:
+      - name: Resolve build identity
+        script: |
+          export BUILD_GIT_COMMIT="$(git rev-parse HEAD)"
+          export BUILD_GIT_BRANCH="${CM_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+          export BUILD_TIME_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "SIGILLUM BUILD COMMIT: $BUILD_GIT_COMMIT"
+          echo "SIGILLUM BUILD BRANCH: $BUILD_GIT_BRANCH"
+          echo "SIGILLUM BUILD TIME: $BUILD_TIME_UTC"
+          test -n "$BUILD_GIT_COMMIT"
+          echo "BUILD_GIT_COMMIT=$BUILD_GIT_COMMIT" >> "$CM_ENV"
+          echo "BUILD_GIT_BRANCH=$BUILD_GIT_BRANCH" >> "$CM_ENV"
+          echo "BUILD_TIME_UTC=$BUILD_TIME_UTC" >> "$CM_ENV"
+
       - name: Flutter pub get
         script: |
           flutter pub get
+
+      - name: Run production tests
+        script: |
+          flutter analyze --no-fatal-warnings --no-fatal-infos
+          flutter test
 
       - name: Configure SIGILLUM User edition
         script: |
@@ -58,7 +76,12 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter build ipa --release --dart-define=SIGILLUM_EDITION=user --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release \
+            --dart-define=SIGILLUM_EDITION=user \
+            --dart-define=GIT_COMMIT="$BUILD_GIT_COMMIT" \
+            --dart-define=GIT_BRANCH="$BUILD_GIT_BRANCH" \
+            --dart-define=BUILD_TIME_UTC="$BUILD_TIME_UTC" \
+            --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
@@ -82,9 +105,27 @@ workflows:
       app_store_connect: Codemagic-HCV
 
     scripts:
+      - name: Resolve build identity
+        script: |
+          export BUILD_GIT_COMMIT="$(git rev-parse HEAD)"
+          export BUILD_GIT_BRANCH="${CM_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+          export BUILD_TIME_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "SIGILLUM BUILD COMMIT: $BUILD_GIT_COMMIT"
+          echo "SIGILLUM BUILD BRANCH: $BUILD_GIT_BRANCH"
+          echo "SIGILLUM BUILD TIME: $BUILD_TIME_UTC"
+          test -n "$BUILD_GIT_COMMIT"
+          echo "BUILD_GIT_COMMIT=$BUILD_GIT_COMMIT" >> "$CM_ENV"
+          echo "BUILD_GIT_BRANCH=$BUILD_GIT_BRANCH" >> "$CM_ENV"
+          echo "BUILD_TIME_UTC=$BUILD_TIME_UTC" >> "$CM_ENV"
+
       - name: Flutter pub get
         script: |
           flutter pub get
+
+      - name: Run production tests
+        script: |
+          flutter analyze --no-fatal-warnings --no-fatal-infos
+          flutter test
 
       - name: Configure SIGILLUM Lab edition
         script: |
@@ -124,7 +165,12 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter build ipa --release --dart-define=SIGILLUM_EDITION=lab --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release \
+            --dart-define=SIGILLUM_EDITION=lab \
+            --dart-define=GIT_COMMIT="$BUILD_GIT_COMMIT" \
+            --dart-define=GIT_BRANCH="$BUILD_GIT_BRANCH" \
+            --dart-define=BUILD_TIME_UTC="$BUILD_TIME_UTC" \
+            --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
