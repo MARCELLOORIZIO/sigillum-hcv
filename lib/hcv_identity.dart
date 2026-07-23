@@ -64,21 +64,22 @@ class HCVIdentity {
       publicKey = await HCVKeystoreSigner.getPublicKey();
       keyFingerprint = sha256
           .convert(utf8.encode(jsonEncode(publicKey)))
-          .toString();
+          .toString()
+          .toLowerCase();
     } catch (_) {}
 
-    var creatorId = prefs.getString(_creatorIdKey);
+    final previousCreatorId = prefs.getString(_creatorIdKey);
+    var creatorId = previousCreatorId;
     var deviceId = prefs.getString(_deviceIdKey);
     var creatorName = prefs.getString(_creatorNameKey);
 
-    if (creatorId == null || creatorId.isEmpty) {
-      creatorId = keyFingerprint == 'UNAVAILABLE'
-          ? 'ACC-${sha256.convert(utf8.encode(DateTime.now().toUtc().toIso8601String())).toString().substring(0, 24).toUpperCase()}'
-          : 'ACC-${keyFingerprint.substring(0, 24).toUpperCase()}';
+    if (keyFingerprint != 'UNAVAILABLE') {
+      creatorId = 'ACC-${keyFingerprint.toUpperCase()}';
+      deviceId = 'DEV-${keyFingerprint.toUpperCase()}';
+    } else {
+      creatorId ??= 'ACC-${sha256.convert(utf8.encode(DateTime.now().toUtc().toIso8601String())).toString().toUpperCase()}';
+      deviceId ??= creatorId;
     }
-    deviceId ??= keyFingerprint == 'UNAVAILABLE'
-        ? creatorId
-        : 'DEV-${keyFingerprint.substring(24, 48).toUpperCase()}';
 
     final platformDefaultCreatorName =
         Platform.isIOS ? 'Local iPhone Creator' : defaultCreatorName;
@@ -139,7 +140,7 @@ class HCVIdentity {
           isKycVerified ? 'KYC_DOCUMENT_VERIFIED' : 'DEVICE_KEY_BOUND',
       'legalIdentityStatus': isKycVerified ? 'VERIFIED' : 'NOT_VERIFIED',
       'creatorKeyBinding': 'PUBLIC_KEY_FINGERPRINT_REQUIRED',
-      'identityVersion': 4,
+      'identityVersion': 5,
       'identityFingerprint': identityFingerprint,
       'privacyMode': 'MINIMIZED',
       'kycProvider': kycProvider,
@@ -152,6 +153,9 @@ class HCVIdentity {
       'hardwareSerialCollected': false,
       'phoneSerialCollected': false,
       'publicKeyIncludedInCertificate': publicKey != null,
+      'legacyCreatorIdMigrated': previousCreatorId != null &&
+          previousCreatorId.isNotEmpty &&
+          previousCreatorId != creatorId,
     };
   }
 
