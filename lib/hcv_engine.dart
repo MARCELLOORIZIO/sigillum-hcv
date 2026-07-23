@@ -2,26 +2,28 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'hcv_identity.dart';
 import 'hcv_keystore_signer.dart';
+import 'hcv_local_certificate_store.dart';
+import 'hcv_verifier.dart';
 
 class HCVEngine {
   final List<Map<String, dynamic>> chain = [];
 
   final String sessionId = const Uuid().v4();
-  final String createdAt = DateTime.now().toIso8601String();
+  final String createdAt = DateTime.now().toUtc().toIso8601String();
   final String hcvId =
-      "HCV-${const Uuid().v4().split('-').first.toUpperCase()}";
+      'HCV-${const Uuid().v4().split('-').first.toUpperCase()}';
 
   Map<String, dynamic> meta = {
-    "app": "hcv_app",
-    "format": "HCV",
-    "version": "2.0.0",
-    "device": "android",
+    'app': 'sigillum_hcv',
+    'format': 'HCV',
+    'version': '2.1.0',
+    'device': Platform.operatingSystem,
   };
 
   Map<String, dynamic> claims = {};
@@ -36,13 +38,8 @@ class HCVEngine {
     liveSignals = value;
   }
 
-  void start() {
-    _addEvent("START");
-  }
-
-  void stop() {
-    _addEvent("STOP");
-  }
+  void start() => _addEvent('START');
+  void stop() => _addEvent('STOP');
 
   void setContent({
     required String type,
@@ -51,26 +48,23 @@ class HCVEngine {
     String? name,
   }) {
     content = {
-      "type": type,
-      "hash": hash,
-      if (size != null) "size": size,
-      if (name != null) "name": name,
+      'type': type,
+      'hash': hash,
+      if (size != null) 'size': size,
+      if (name != null) 'name': name,
     };
-
-    _addEvent("CONTENT_BOUND");
+    _addEvent('CONTENT_BOUND');
   }
 
   void _addEvent(String type) {
-    final timestamp = DateTime.now().toIso8601String();
-    final prevHash = chain.isEmpty ? "GENESIS" : chain.last["hash"];
-
-    final event = {
-      "type": type,
-      "timestamp": timestamp,
-      "prev": prevHash,
+    final timestamp = DateTime.now().toUtc().toIso8601String();
+    final prevHash = chain.isEmpty ? 'GENESIS' : chain.last['hash'];
+    final event = <String, dynamic>{
+      'type': type,
+      'timestamp': timestamp,
+      'prev': prevHash,
     };
-
-    event["hash"] = _computeHash(event);
+    event['hash'] = _computeHash(event);
     chain.add(event);
   }
 
@@ -83,90 +77,79 @@ class HCVEngine {
   }
 
   Future<void> _attachIdentity() async {
-    final identity = await HCVIdentity().loadIdentity();
-
-    meta = {
-      ...meta,
-      "identity": identity,
-    };
+    final identity = await HCVIdentity().loadIdentity(
+      attemptKycRecovery: false,
+    );
+    meta = {...meta, 'identity': identity};
   }
 
   void _attachPublishData() {
     meta = {
       ...meta,
-      "hcvId": hcvId,
-      "verificationUrl": "hcv://verify/$hcvId",
-      "publishMode": "MEDIA_PLUS_ONLINE_REGISTRY",
+      'hcvId': hcvId,
+      'verificationUrl': 'hcv://verify/$hcvId',
+      'publishMode': 'MEDIA_PLUS_LOCAL_CERTIFICATE_PLUS_ONLINE_REGISTRY',
     };
   }
 
-  Map<String, dynamic> _buildSignedPayload({
-    required String rootHash,
-  }) {
+  Map<String, dynamic> _buildSignedPayload({required String rootHash}) {
     return {
-      "format": "HCV_CERTIFICATE",
-      "version": 2,
-      "sessionId": sessionId,
-      "createdAt": createdAt,
-      "meta": meta,
-      "content": content,
-      "claims": claims,
-      if (liveSignals != null) "liveSignals": liveSignals,
-      "rootHash": rootHash,
-      "chain": chain,
+      'format': 'HCV_CERTIFICATE',
+      'version': 2,
+      'sessionId': sessionId,
+      'createdAt': createdAt,
+      'meta': meta,
+      'content': content,
+      'claims': claims,
+      if (liveSignals != null) 'liveSignals': liveSignals,
+      'rootHash': rootHash,
+      'chain': chain,
     };
-  }
-
-  String _canonicalJson(Map<String, dynamic> data) {
-    return jsonEncode(data);
   }
 
   Future<String> exportToFile() async {
-    if (content == null) {
-      throw Exception("Content non impostato");
+    if (content == null) throw Exception('Content non impostato');
+    if (chain.isEmpty || chain.first['type'] != 'START') {
+      throw Exception('Catena HCV non avviata');
+    }
+    if (chain.last['type'] != 'STOP') {
+      throw Exception('Catena HCV non chiusa');
     }
 
     await _attachIdentity();
     _attachPublishData();
 
-    print("===== HCV ENGINE IDENTITY =====");
-    print(meta["identity"]);
-    print("================================");
-
     final dir = Platform.isAndroid
-        ? Directory("/storage/emulated/0/Download")
+        ? Directory('/storage/emulated/0/Download')
         : await getApplicationDocumentsDirectory();
+    if (!await dir.exists()) await dir.create(recursive: true);
 
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-
-    final rootHash = _computeRootHash();
-
-    final signedPayload = _buildSignedPayload(
-      rootHash: rootHash,
-    );
-
-    final canonical = _canonicalJson(signedPayload);
-
-    final signature = await HCVKeystoreSigner.sign(canonical);
-    final publicKey = await HCVKeystoreSigner.getPublicKey();
-
+    final signedPayload = _buildSignedPayload(rootHash: _computeRootHash());
+    final canonical = jsonEncode(signedPayload);
     final payload = {
       ...signedPayload,
-      "signatureAlgorithm": "RSA-SHA256-HCV-V2",
-      "signature": signature,
-      "publicKey": publicKey,
+      'signatureAlgorithm': 'RSA-SHA256-HCV-V2',
+      'signature': await HCVKeystoreSigner.sign(canonical),
+      'publicKey': await HCVKeystoreSigner.getPublicKey(),
     };
 
     final file = File(
-      p.join(dir.path, "hcv_${DateTime.now().millisecondsSinceEpoch}.hcv"),
+      p.join(dir.path, 'hcv_${DateTime.now().millisecondsSinceEpoch}.hcv'),
     );
-
     await file.writeAsString(
-      const JsonEncoder.withIndent("  ").convert(payload),
+      const JsonEncoder.withIndent('  ').convert(payload),
+      flush: true,
     );
 
+    final valid = await HCVVerifier().verifyFile(file.path);
+    if (!valid) {
+      try {
+        await file.delete();
+      } catch (_) {}
+      throw Exception('Il certificato generato non supera la verifica RSA locale');
+    }
+
+    await const HCVLocalCertificateStore().saveCertificateFile(file.path);
     return file.path;
   }
 }
