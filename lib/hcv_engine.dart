@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import 'hcv_build_info.dart';
 import 'hcv_id.dart';
 import 'hcv_identity.dart';
 import 'hcv_keystore_signer.dart';
@@ -24,6 +25,7 @@ class HCVEngine {
     'format': 'HCV',
     'version': '2.2.0',
     'device': Platform.operatingSystem,
+    'build': HCVBuildInfo.toJson(),
   };
 
   Map<String, dynamic> claims = {};
