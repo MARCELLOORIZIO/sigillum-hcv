@@ -32,9 +32,9 @@ class HCVDisplayRiskResult {
 
 class HCVDisplayRiskFusion {
   static HCVDisplayRiskResult combine(
-    List<Map<String, dynamic>?> analyses,
-    {bool liveCaptureOnly = false}
-  ) {
+    List<Map<String, dynamic>?> analyses, {
+    bool liveCaptureOnly = false,
+  }) {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
     final available = liveCaptureOnly
         ? allAvailable
@@ -63,29 +63,52 @@ class HCVDisplayRiskFusion {
 
     final liveScore = (live?['screenReplayRiskScore'] as num?)?.toInt();
     final liveSignals = _signals(live);
+    final framesAnalyzed =
+        ((live?['framesAnalyzed'] as num?)?.toInt() ?? 0);
+    final localFlicker = _number(live, 'localTemporalFlickerScore');
+    final refreshBand = _number(live, 'refreshBandScore');
+    final fineStripe = _number(live, 'fineStripeScore', fallback: 1);
+    final fineGrid = _number(live, 'fineGridScore');
+    final moire = _number(live, 'moireFrequencyScore');
+
     final liveTemporal = live != null &&
         liveScore != null &&
         liveScore >= 70 &&
         (liveSignals['confirmedDisplayTrace'] == true ||
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
+
     final liveEmissiveTemporal = live != null &&
         liveScore != null &&
-        ((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
-        _number(live, 'localTemporalFlickerScore') >= 0.55 &&
-        _number(live, 'refreshBandScore') >= 0.12 &&
-        (_number(live, 'fineGridScore') >= 0.80 ||
-            _number(live, 'moireFrequencyScore') >= 0.45);
+        framesAnalyzed >= 24 &&
+        localFlicker >= 0.55 &&
+        refreshBand >= 0.12 &&
+        (fineGrid >= 0.80 || moire >= 0.45);
+
     final liveCorroboratedModerate = live != null &&
         liveScore != null &&
-        ((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
-        _number(live, 'localTemporalFlickerScore') >= 0.30 &&
-        _number(live, 'refreshBandScore') >= 0.15 &&
-        (_number(live, 'fineGridScore') >= 0.75 ||
-            _number(live, 'moireFrequencyScore') >= 0.40);
+        framesAnalyzed >= 24 &&
+        localFlicker >= 0.30 &&
+        refreshBand >= 0.15 &&
+        (fineGrid >= 0.75 || moire >= 0.40);
+
+    // iOS archive 15: the camera's exposure/zoom transition attenuates the
+    // refresh score, while a real monitor still retains four independent
+    // characteristics together. This remains moderate evidence only.
+    final liveScreenTextureModerate = live != null &&
+        liveScore != null &&
+        framesAnalyzed >= 24 &&
+        localFlicker >= 0.38 &&
+        refreshBand >= 0.09 &&
+        fineStripe >= 0.36 &&
+        (fineGrid >= 0.60 || moire >= 0.34);
+
     final liveModerate = live != null &&
         liveScore != null &&
-        (liveTemporal || liveEmissiveTemporal || liveCorroboratedModerate);
+        (liveTemporal ||
+            liveEmissiveTemporal ||
+            liveCorroboratedModerate ||
+            liveScreenTextureModerate);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveTemporal) {
@@ -95,6 +118,8 @@ class HCVDisplayRiskFusion {
       reasons.add('LIVE_EMISSIVE_TEMPORAL_PATTERN');
     } else if (liveCorroboratedModerate) {
       reasons.add('LIVE_CORROBORATED_TEMPORAL_PATTERN');
+    } else if (liveScreenTextureModerate) {
+      reasons.add('LIVE_SCREEN_TEXTURE_TEMPORAL_PATTERN');
     }
 
     var passiveStrong = false;
