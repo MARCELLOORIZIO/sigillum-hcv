@@ -308,13 +308,26 @@ class HCVRegistryService {
 
   Future<Map<String, dynamic>> fetchKycSessionStatus({
     required String sessionId,
-  }) {
+  }) async {
     final cleaned = sessionId.trim();
     if (cleaned.isEmpty) throw Exception('Sessione KYC mancante');
+    final resolved = await _resolveDeviceIdentity();
+    final fingerprint = resolved.$1.toLowerCase();
+    final accountId = 'ACC-${fingerprint.toUpperCase()}';
+    final proof = await _createDeviceKeyProof(
+      deviceKeyFingerprint: fingerprint,
+      publicKey: resolved.$2,
+    );
     return _requestJson(
-      method: 'GET',
+      method: 'POST',
       path: '/api/identity/kyc/status',
-      query: {'sessionId': cleaned},
+      body: {
+        'sessionId': cleaned,
+        'accountId': accountId,
+        'creatorId': accountId,
+        'creatorName': '',
+        ...proof,
+      },
     );
   }
 
