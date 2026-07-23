@@ -193,6 +193,19 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
+  Future<void> _settleCameraAfterLiveProbe() async {
+    final camera = controller;
+    if (camera == null || !camera.value.isInitialized) return;
+
+    if (camera.value.isStreamingImages) {
+      await camera.stopImageStream();
+    }
+    await camera.setZoomLevel(currentZoom.clamp(minZoom, maxZoom).toDouble());
+    // Second guard after the probe: wait for the preview/capture pipeline to
+    // converge before takePicture, otherwise iOS can capture while zoomed.
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+
   Future<void> setZoom(double zoom) async {
     if (controller == null || !controller!.value.isInitialized) return;
 
@@ -283,6 +296,7 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       final liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+      await _settleCameraAfterLiveProbe();
 
       setState(() {
         status = 'SCATTO FOTO...';
@@ -336,16 +350,14 @@ class _CameraPageState extends State<CameraPage> {
 
       if (screenReplayAnalysis != null) {
         screenReplayAnalysis = {
-          ...screenReplayAnalysis!,
+          ...screenReplayAnalysis,
           'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
         };
       }
-      if (mlScreenReplayAnalysis != null) {
-        mlScreenReplayAnalysis = {
-          ...mlScreenReplayAnalysis!,
-          'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
-        };
-      }
+      mlScreenReplayAnalysis = {
+        ...mlScreenReplayAnalysis,
+        'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
+      };
 
       final screenReplayAnalyses = [
         liveScreenProbe,

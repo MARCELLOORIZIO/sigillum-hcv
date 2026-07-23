@@ -20,14 +20,14 @@ class HCVDisplayRiskResult {
   final List<String> reasons;
 
   Map<String, dynamic> toJson() => {
-        'risk': risk,
-        'score': score,
-        'decision': decision,
-        'analysisStatus': analysisStatus,
-        'evidenceSources': evidenceSources,
-        'strongSources': strongSources,
-        'reasons': reasons,
-      };
+    'risk': risk,
+    'score': score,
+    'decision': decision,
+    'analysisStatus': analysisStatus,
+    'evidenceSources': evidenceSources,
+    'strongSources': strongSources,
+    'reasons': reasons,
+  };
 }
 
 class HCVDisplayRiskFusion {
@@ -38,24 +38,29 @@ class HCVDisplayRiskFusion {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
     final available = liveCaptureOnly
         ? allAvailable
-            .where((analysis) =>
-                analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1')
-            .toList()
+              .where(
+                (analysis) =>
+                    analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+              )
+              .toList()
         : allAvailable;
     final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
     final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
     final passive = available
-        .where((analysis) =>
-            analysis['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' &&
-            analysis['type'] != 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1')
+        .where(
+          (analysis) =>
+              analysis['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' &&
+              analysis['type'] != 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+        )
         .toList();
 
     final scores = available
         .map((analysis) => (analysis['screenReplayRiskScore'] as num?)?.toInt())
         .whereType<int>()
         .toList();
-    final rawScore =
-        (scores.isEmpty ? 0 : scores.reduce(max)).clamp(0, 100).toInt();
+    final rawScore = (scores.isEmpty ? 0 : scores.reduce(max))
+        .clamp(0, 100)
+        .toInt();
 
     final evidenceSources = <String>{};
     final strongSources = <String>{};
@@ -63,29 +68,31 @@ class HCVDisplayRiskFusion {
 
     final liveScore = (live?['screenReplayRiskScore'] as num?)?.toInt();
     final liveSignals = _signals(live);
-    final framesAnalyzed =
-        ((live?['framesAnalyzed'] as num?)?.toInt() ?? 0);
+    final framesAnalyzed = ((live?['framesAnalyzed'] as num?)?.toInt() ?? 0);
     final localFlicker = _number(live, 'localTemporalFlickerScore');
     final refreshBand = _number(live, 'refreshBandScore');
     final fineStripe = _number(live, 'fineStripeScore', fallback: 1);
     final fineGrid = _number(live, 'fineGridScore');
     final moire = _number(live, 'moireFrequencyScore');
 
-    final liveTemporal = live != null &&
+    final liveTemporal =
+        live != null &&
         liveScore != null &&
         liveScore >= 70 &&
         (liveSignals['confirmedDisplayTrace'] == true ||
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
 
-    final liveEmissiveTemporal = live != null &&
+    final liveEmissiveTemporal =
+        live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
         localFlicker >= 0.55 &&
         refreshBand >= 0.12 &&
         (fineGrid >= 0.80 || moire >= 0.45);
 
-    final liveCorroboratedModerate = live != null &&
+    final liveCorroboratedModerate =
+        live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
         localFlicker >= 0.30 &&
@@ -94,8 +101,9 @@ class HCVDisplayRiskFusion {
 
     // iOS archive 15: the camera's exposure/zoom transition attenuates the
     // refresh score, while a real monitor still retains four independent
-    // characteristics together. This remains moderate evidence only.
-    final liveScreenTextureModerate = live != null &&
+    // characteristics together.  This is deliberately moderate evidence only.
+    final liveScreenTextureModerate =
+        live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
         localFlicker >= 0.38 &&
@@ -103,7 +111,8 @@ class HCVDisplayRiskFusion {
         fineStripe >= 0.36 &&
         (fineGrid >= 0.60 || moire >= 0.34);
 
-    final liveModerate = live != null &&
+    final liveModerate =
+        live != null &&
         liveScore != null &&
         (liveTemporal ||
             liveEmissiveTemporal ||
@@ -127,7 +136,8 @@ class HCVDisplayRiskFusion {
     for (final analysis in passive) {
       final score = (analysis['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final signals = _signals(analysis);
-      final structural = signals['structuralDisplayTrace'] == true ||
+      final structural =
+          signals['structuralDisplayTrace'] == true ||
           signals['strongDisplayTrace'] == true ||
           signals['confirmedDisplayTrace'] == true;
       if (score >= 70 && structural) passiveStrong = true;
@@ -145,10 +155,12 @@ class HCVDisplayRiskFusion {
     final mlClass = ml?['predictedClass']?.toString() ?? '';
     final mlConfidence = (ml?['predictedClassConfidence'] as num?)?.toDouble();
     final mlSaysScreen = mlScore != null && mlClass.startsWith('SCREEN_');
-    final mlStrong = mlSaysScreen &&
+    final mlStrong =
+        mlSaysScreen &&
         mlScore >= 92 &&
         (mlConfidence == null || mlConfidence >= 0.78);
-    final mlModerate = mlSaysScreen &&
+    final mlModerate =
+        mlSaysScreen &&
         mlScore >= 88 &&
         (mlConfidence == null || mlConfidence >= 0.70);
     if (mlModerate) evidenceSources.add('ML_SCREEN_CLASS');
@@ -196,8 +208,8 @@ class HCVDisplayRiskFusion {
       risk: score >= 70
           ? 'HIGH'
           : score >= 45
-              ? 'MEDIUM'
-              : 'LOW',
+          ? 'MEDIUM'
+          : 'LOW',
       score: score,
       decision: decision,
       analysisStatus: analysisStatus,

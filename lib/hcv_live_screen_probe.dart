@@ -85,6 +85,9 @@ class HCVLiveScreenProbe {
       try {
         if (zoomToRestore != null && controller.value.isInitialized) {
           await controller.setZoomLevel(zoomToRestore);
+          // setZoomLevel completes before the iOS camera pipeline, autofocus
+          // and exposure have necessarily settled at the restored framing.
+          await Future.delayed(const Duration(milliseconds: 450));
         }
       } catch (_) {}
     }
@@ -127,10 +130,7 @@ class HCVLiveScreenProbe {
     });
 
     try {
-      await Future.any([
-        done.future,
-        Future.delayed(duration),
-      ]);
+      await Future.any([done.future, Future.delayed(duration)]);
     } finally {
       if (controller.value.isStreamingImages) {
         await controller.stopImageStream();
@@ -147,20 +147,22 @@ class HCVLiveScreenProbe {
     }
 
     final globalFlickerScore = _temporalPulseScore(meanSeries);
-    final localFlickerScore =
-        tileSeries.map(_temporalPulseScore).reduce(max).clamp(0.0, 1.0);
+    final localFlickerScore = tileSeries
+        .map(_temporalPulseScore)
+        .reduce(max)
+        .clamp(0.0, 1.0);
     final refreshBandScore =
         frames.map((f) => f.bandContrast).reduce((a, b) => a + b) /
-            frames.length;
+        frames.length;
     final fineStripeScore =
         frames.map((f) => f.fineStripeScore).reduce((a, b) => a + b) /
-            frames.length;
+        frames.length;
     final fineGridScore =
         frames.map((f) => f.fineGridScore).reduce((a, b) => a + b) /
-            frames.length;
+        frames.length;
     final moireFrequencyScore =
         frames.map((f) => f.moireFrequencyScore).reduce((a, b) => a + b) /
-            frames.length;
+        frames.length;
     final challenge = _dynamicChallenge(frames);
     final dynamicChallengeScore = challenge['dynamicChallengeScore'] as double;
     final persistentPatternScore =
@@ -173,44 +175,48 @@ class HCVLiveScreenProbe {
     final movingRefreshTrace = bandTemporalScore > 0.04;
     final strongRefreshTrace =
         refreshBandScore > 0.22 || bandTemporalScore > 0.10;
-    final displayBandTrace = localFlickerScore > 0.34 &&
+    final displayBandTrace =
+        localFlickerScore > 0.34 &&
         refreshBandScore > 0.18 &&
         movingRefreshTrace;
-    final opticalStripeTrace = fineStripeScore > 0.30 &&
+    final opticalStripeTrace =
+        fineStripeScore > 0.30 &&
         fineGridScore > 0.24 &&
         (refreshBandScore > 0.14 || localFlickerScore > 0.34);
     final refreshCorroboration =
         strongRefreshTrace || movingRefreshTrace || periodicLightTrace;
     final moireFrequencyTrace =
         moireFrequencyScore > 0.42 && refreshCorroboration;
-    final globalDisplayPulse = globalFlickerScore > 0.16 &&
+    final globalDisplayPulse =
+        globalFlickerScore > 0.16 &&
         localFlickerScore > 0.38 &&
         refreshCorroboration;
-    final pairedFlickerTrace = localFlickerScore > 0.18 &&
+    final pairedFlickerTrace =
+        localFlickerScore > 0.18 &&
         (refreshBandScore > 0.14 || bandTemporalScore > 0.06);
-    final uncorroboratedDisplayPattern = !refreshCorroboration &&
+    final uncorroboratedDisplayPattern =
+        !refreshCorroboration &&
         (refreshBandScore > 0.07 ||
             fineGridScore > 0.70 ||
             moireFrequencyScore > 0.28 ||
             (globalFlickerScore > 0.22 && localFlickerScore > 0.38));
-    final dynamicScreenChallengeTrace = persistentPatternScore > 0.58 &&
+    final dynamicScreenChallengeTrace =
+        persistentPatternScore > 0.58 &&
         dynamicChallengeScore < 0.18 &&
         (moireFrequencyScore > 0.30 || fineGridScore > 0.70);
-    final closeDisplaySpatialTrace = dynamicScreenChallengeTrace &&
+    final closeDisplaySpatialTrace =
+        dynamicScreenChallengeTrace &&
         fineGridScore > 0.85 &&
         fineStripeScore < 0.42 &&
         persistentPatternScore > 0.85 &&
         dynamicChallengeScore < 0.18;
-    final confirmedDisplayTrace = strongRefreshTrace ||
+    final confirmedDisplayTrace =
+        strongRefreshTrace ||
         displayBandTrace ||
         globalDisplayPulse ||
         periodicLightTrace;
     final opticalCorroboratedTrace =
         opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
-    final emissiveTemporalTrace = frames.length >= 24 &&
-        localFlickerScore >= 0.55 &&
-        refreshBandScore >= 0.12 &&
-        (fineGridScore >= 0.80 || moireFrequencyScore >= 0.45);
 
     var riskScore = 0;
     if (confirmedDisplayTrace) riskScore += 50;
@@ -226,11 +232,7 @@ class HCVLiveScreenProbe {
     }
     if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
     if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
-    if (!confirmedDisplayTrace && emissiveTemporalTrace) {
-      riskScore = max(riskScore, 45);
-    }
     if (!confirmedDisplayTrace &&
-        !emissiveTemporalTrace &&
         !(dynamicScreenChallengeTrace && moireFrequencyScore > 0.42)) {
       riskScore = min(riskScore, 30);
     }
@@ -238,7 +240,10 @@ class HCVLiveScreenProbe {
     final displayRiskDecision = _displayRiskDecision(
       riskScore: riskScore,
       confirmedDisplayTrace: confirmedDisplayTrace,
-      emissiveTemporalTrace: emissiveTemporalTrace,
+      opticalCorroboratedTrace: opticalCorroboratedTrace,
+      dynamicScreenChallengeTrace: dynamicScreenChallengeTrace,
+      uncorroboratedDisplayPattern: uncorroboratedDisplayPattern,
+      pairedFlickerTrace: pairedFlickerTrace,
     );
 
     return {
@@ -268,7 +273,6 @@ class HCVLiveScreenProbe {
         'moireFrequencyTrace': moireFrequencyTrace,
         'globalDisplayPulse': globalDisplayPulse,
         'confirmedDisplayTrace': confirmedDisplayTrace,
-        'emissiveTemporalTrace': emissiveTemporalTrace,
         'periodicLightTrace': periodicLightTrace,
         'closeDisplaySpatialTrace': closeDisplaySpatialTrace,
         'pairedFlickerTrace': pairedFlickerTrace,
@@ -289,21 +293,20 @@ class HCVLiveScreenProbe {
     final challenged = frames.where((f) => f.phase == 1).toList();
 
     if (baseline.length < 4 || challenged.length < 4) {
-      return {
-        'dynamicChallengeScore': 0,
-        'persistentPatternScore': 0,
-      };
+      return {'dynamicChallengeScore': 0, 'persistentPatternScore': 0};
     }
 
     final before = _phaseAverages(baseline);
     final after = _phaseAverages(challenged);
-    final response = ((before.meanLuma - after.meanLuma).abs() * 1.4) +
+    final response =
+        ((before.meanLuma - after.meanLuma).abs() * 1.4) +
         ((before.fineGridScore - after.fineGridScore).abs() * 0.7) +
         ((before.moireFrequencyScore - after.moireFrequencyScore).abs() * 0.9) +
         ((before.bandContrast - after.bandContrast).abs() * 0.7);
-    final moireShift =
-        (before.moireFrequencyScore - after.moireFrequencyScore).abs();
-    final persistentPattern = min(before.fineGridScore, after.fineGridScore) *
+    final moireShift = (before.moireFrequencyScore - after.moireFrequencyScore)
+        .abs();
+    final persistentPattern =
+        min(before.fineGridScore, after.fineGridScore) *
         (1.0 - min(1.0, moireShift));
 
     return {
@@ -369,9 +372,9 @@ class HCVLiveScreenProbe {
 
         final luma = isBgra && index + 2 < bytes.length
             ? ((0.114 * bytes[index]) +
-                    (0.587 * bytes[index + 1]) +
-                    (0.299 * bytes[index + 2])) /
-                255.0
+                      (0.587 * bytes[index + 1]) +
+                      (0.299 * bytes[index + 2])) /
+                  255.0
             : bytes[index] / 255.0;
         total += luma;
         count++;
@@ -444,8 +447,10 @@ class HCVLiveScreenProbe {
       bandMeans: bandMeans,
       bandContrast: _profileContrast(bandMeans),
       fineStripeScore: _fineStripeScore(fineRows),
-      fineGridScore:
-          max(_fineStripeScore(fineRows), _fineStripeScore(fineCols)),
+      fineGridScore: max(
+        _fineStripeScore(fineRows),
+        _fineStripeScore(fineCols),
+      ),
       moireFrequencyScore: max(
         _periodicFrequencyScore(fineRows),
         _periodicFrequencyScore(fineCols),
@@ -490,9 +495,7 @@ class HCVLiveScreenProbe {
   double _electronicLightScore(List<_FrameStats> frames) {
     if (frames.length < 12) return 0;
 
-    final series = <List<double>>[
-      frames.map((f) => f.meanLuma).toList(),
-    ];
+    final series = <List<double>>[frames.map((f) => f.meanLuma).toList()];
 
     for (var tile = 0; tile < frames.first.tileMeans.length; tile++) {
       series.add(frames.map((f) => f.tileMeans[tile]).toList());
@@ -591,10 +594,12 @@ class HCVLiveScreenProbe {
 
     final variance =
         intervals.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) /
-            intervals.length;
+        intervals.length;
     final coefficient = sqrt(variance) / mean;
-    final crossingDensity =
-        (crossings.length / centered.length).clamp(0.0, 1.0);
+    final crossingDensity = (crossings.length / centered.length).clamp(
+      0.0,
+      1.0,
+    );
 
     return ((1.0 - coefficient).clamp(0.0, 1.0) * 0.75) +
         (crossingDensity * 0.25);
@@ -607,7 +612,7 @@ class HCVLiveScreenProbe {
     final centered = profile.map((value) => value - mean).toList();
     final contrast =
         centered.map((value) => value.abs()).reduce((a, b) => a + b) /
-            centered.length;
+        centered.length;
 
     if (contrast < 0.004) return 0;
 
@@ -648,8 +653,9 @@ class HCVLiveScreenProbe {
 
     final mean = profile.reduce((a, b) => a + b) / profile.length;
     final centered = profile.map((value) => value - mean).toList();
-    final totalEnergy =
-        centered.map((value) => value * value).reduce((a, b) => a + b);
+    final totalEnergy = centered
+        .map((value) => value * value)
+        .reduce((a, b) => a + b);
 
     if (totalEnergy < 0.00008) return 0;
 
@@ -683,7 +689,7 @@ class HCVLiveScreenProbe {
     final centered = series.map((value) => value - mean).toList();
     final energy =
         centered.map((value) => value.abs()).reduce((a, b) => a + b) /
-            centered.length;
+        centered.length;
 
     if (energy < 0.006) return 0;
 
@@ -722,7 +728,8 @@ class HCVLiveScreenProbe {
     if (profile.isEmpty) return 0;
 
     final mean = profile.reduce((a, b) => a + b) / profile.length;
-    final variance = profile
+    final variance =
+        profile
             .map((value) => (value - mean) * (value - mean))
             .reduce((a, b) => a + b) /
         profile.length;
@@ -751,21 +758,27 @@ class HCVLiveScreenProbe {
     return riskScore >= 70
         ? 'HIGH'
         : riskScore >= 45
-            ? 'MEDIUM'
-            : 'LOW';
+        ? 'MEDIUM'
+        : 'LOW';
   }
 
   String _displayRiskDecision({
     required int riskScore,
     required bool confirmedDisplayTrace,
-    required bool emissiveTemporalTrace,
+    required bool opticalCorroboratedTrace,
+    required bool dynamicScreenChallengeTrace,
+    required bool uncorroboratedDisplayPattern,
+    required bool pairedFlickerTrace,
   }) {
     final strongEvidence = confirmedDisplayTrace && riskScore >= 70;
     if (strongEvidence) return 'STRONG_DISPLAY_RISK';
 
     if (riskScore < 45) return 'NO_DISPLAY_EVIDENCE';
 
-    if (emissiveTemporalTrace && riskScore >= 45) {
+    if (uncorroboratedDisplayPattern ||
+        pairedFlickerTrace ||
+        dynamicScreenChallengeTrace ||
+        riskScore >= 45) {
       return 'NON_CONCLUSIVE';
     }
 
