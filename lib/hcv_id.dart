@@ -5,6 +5,10 @@ class HCVID {
     r'HCV-[A-F0-9]{8,32}',
     caseSensitive: false,
   );
+  static final RegExp _fullPattern = RegExp(
+    r'^HCV-[A-F0-9]{8,32}$',
+    caseSensitive: false,
+  );
 
   static String generate() {
     final hex = const Uuid().v4().replaceAll('-', '').toUpperCase();
@@ -15,19 +19,20 @@ class HCVID {
     final normalized = value
         .trim()
         .toUpperCase()
+        .replaceAll('\u2014', '-')
+        .replaceAll('\u2013', '-')
         .replaceAll('HCV-ID:', 'HCV-')
         .replaceAll('HCV ID:', 'HCV-')
         .replaceAll('HCVID:', 'HCV-')
         .replaceAll('HCV_ID', 'HCV-')
         .replaceAll('HCV_', 'HCV-')
-        .replaceAll('\u2014', '-')
-        .replaceAll('\u2013', '-');
+        .replaceAll(RegExp(r'\s+'), '');
     final match = pattern.firstMatch(normalized);
     return match?.group(0)?.toUpperCase();
   }
 
   static bool isValid(String value) {
     final normalized = normalize(value);
-    return normalized != null && normalized.length == value.trim().length;
+    return normalized != null && _fullPattern.hasMatch(normalized);
   }
 }
