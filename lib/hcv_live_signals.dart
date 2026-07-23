@@ -5,6 +5,8 @@ import 'package:flutter/widgets.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 class HCVLiveSignals with WidgetsBindingObserver {
+  static final Set<HCVLiveSignals> _activeInstances = <HCVLiveSignals>{};
+
   final List<Map<String, dynamic>> _accelerometer = [];
   final List<Map<String, dynamic>> _gyroscope = [];
 
@@ -18,6 +20,13 @@ class HCVLiveSignals with WidgetsBindingObserver {
 
   bool get isRecording => _accSub != null || _gyroSub != null;
 
+  static Future<void> cancelAll() async {
+    final active = List<HCVLiveSignals>.from(_activeInstances);
+    for (final signals in active) {
+      await signals.dispose();
+    }
+  }
+
   Future<void> start({
     Duration maximumDuration = const Duration(minutes: 30),
   }) async {
@@ -27,6 +36,7 @@ class HCVLiveSignals with WidgetsBindingObserver {
 
     _startedAt = DateTime.now();
     _stoppedAt = null;
+    _activeInstances.add(this);
 
     if (!_observingLifecycle) {
       WidgetsBinding.instance.addObserver(this);
@@ -62,7 +72,7 @@ class HCVLiveSignals with WidgetsBindingObserver {
     );
 
     _safetyTimer = Timer(maximumDuration, () {
-      unawaited(cancel());
+      unawaited(dispose());
     });
   }
 
@@ -71,7 +81,7 @@ class HCVLiveSignals with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
-      unawaited(cancel());
+      unawaited(dispose());
     }
   }
 
@@ -104,6 +114,7 @@ class HCVLiveSignals with WidgetsBindingObserver {
 
   Future<void> dispose() async {
     await cancel();
+    _activeInstances.remove(this);
     if (_observingLifecycle) {
       WidgetsBinding.instance.removeObserver(this);
       _observingLifecycle = false;
