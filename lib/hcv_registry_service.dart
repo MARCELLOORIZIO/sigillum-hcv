@@ -41,6 +41,8 @@ class HCVRegistryRetryReport {
   final int pending;
   final int discarded;
   final Set<String> uploadedPaths;
+
+  bool get hasTerminalFailures => discarded > 0;
 }
 
 class HCVRegistryService {
@@ -145,6 +147,8 @@ class HCVRegistryService {
       'attempts': existing >= 0
           ? ((pending[existing]['attempts'] as num?)?.toInt() ?? 0)
           : 0,
+      'terminal': false,
+      'lastError': null,
     };
     if (existing >= 0) {
       pending[existing] = {...pending[existing], ...entry};
@@ -159,26 +163,49 @@ class HCVRegistryService {
     final remaining = <Map<String, dynamic>>[];
     final uploadedPaths = <String>{};
     var attempted = 0;
-    var discarded = 0;
+    var terminalFailures = 0;
 
     for (final entry in pending) {
-      final path = entry['path']?.toString();
-      if (path == null || path.isEmpty || !await File(path).exists()) {
-        discarded++;
+      if (entry['terminal'] == true) {
+        terminalFailures++;
+        remaining.add(entry);
         continue;
       }
+
+      final path = entry['path']?.toString();
+      if (path == null || path.isEmpty || !await File(path).exists()) {
+        terminalFailures++;
+        remaining.add({
+          ...entry,
+          'terminal': true,
+          'lastAttemptAt': DateTime.now().toUtc().toIso8601String(),
+          'lastError': 'Certificato locale non disponibile',
+        });
+        continue;
+      }
+
       attempted++;
       try {
         await uploadCertificateFile(path);
         uploadedPaths.add(File(path).absolute.path);
       } on HCVRegistryException catch (error) {
-        if (error.kind == HCVRegistryFailureKind.invalidCertificate) {
-          discarded++;
+        final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
+        if (error.kind == HCVRegistryFailureKind.invalidCertificate ||
+            !error.isRetryable) {
+          terminalFailures++;
+          remaining.add({
+            ...entry,
+            'attempts': attempts,
+            'terminal': true,
+            'lastAttemptAt': DateTime.now().toUtc().toIso8601String(),
+            'lastError': error.message,
+          });
           continue;
         }
         remaining.add({
           ...entry,
-          'attempts': ((entry['attempts'] as num?)?.toInt() ?? 0) + 1,
+          'attempts': attempts,
+          'terminal': false,
           'lastAttemptAt': DateTime.now().toUtc().toIso8601String(),
           'lastError': error.message,
         });
@@ -186,19 +213,25 @@ class HCVRegistryService {
         remaining.add({
           ...entry,
           'attempts': ((entry['attempts'] as num?)?.toInt() ?? 0) + 1,
+          'terminal': false,
           'lastAttemptAt': DateTime.now().toUtc().toIso8601String(),
           'lastError': error.toString(),
         });
       }
     }
+
     await _writePendingUploads(remaining);
     return HCVRegistryRetryReport(
       attempted: attempted,
       uploaded: uploadedPaths.length,
       pending: remaining.length,
-      discarded: discarded,
+      discarded: terminalFailures,
       uploadedPaths: uploadedPaths,
     );
+  }
+
+  Future<List<Map<String, dynamic>>> pendingUploads() {
+    return _readPendingUploads();
   }
 
   Future<Map<String, dynamic>> startKycSession({
