@@ -31,101 +31,106 @@ class HCVDisplayRiskResult {
 }
 
 class HCVDisplayRiskFusion {
+  static const _liveTypes = {
+    'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+    'SIGILLUM_LIVE_SCREEN_PROBE_V2',
+  };
+
   static HCVDisplayRiskResult combine(
-    List<Map<String, dynamic>?> analyses,
-    {bool liveCaptureOnly = false}
-  ) {
+    List<Map<String, dynamic>?> analyses, {
+    bool liveCaptureOnly = false,
+  }) {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
     final available = liveCaptureOnly
         ? allAvailable
-            .where((analysis) =>
-                analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1')
+            .where((analysis) => _liveTypes.contains(analysis['type']))
             .toList()
         : allAvailable;
-    final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
+    final live = _firstLive(available);
     final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
     final passive = available
         .where((analysis) =>
-            analysis['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' &&
+            !_liveTypes.contains(analysis['type']) &&
             analysis['type'] != 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1')
         .toList();
 
-    final scores = available
+    final reasons = <String>[];
+    final evidenceSources = <String>{};
+    final strongSources = <String>{};
+    final validScores = available
+        .where((analysis) => analysis['analysisStatus'] != 'NOT_ANALYZED')
         .map((analysis) => (analysis['screenReplayRiskScore'] as num?)?.toInt())
         .whereType<int>()
         .toList();
     final rawScore =
-        (scores.isEmpty ? 0 : scores.reduce(max)).clamp(0, 100).toInt();
+        (validScores.isEmpty ? 0 : validScores.reduce(max)).clamp(0, 100).toInt();
 
-    final evidenceSources = <String>{};
-    final strongSources = <String>{};
-    final reasons = <String>[];
-
-    final liveScore = (live?['screenReplayRiskScore'] as num?)?.toInt();
+    final liveAnalyzed = live != null &&
+        live['analysisStatus'] != 'NOT_ANALYZED' &&
+        live['screenReplayRiskScore'] != null;
+    final liveDecision = live?['displayRiskDecision']?.toString() ?? '';
+    final liveScore = (live?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final liveQuality = _number(live, 'analysisQuality', fallback: 1);
     final liveSignals = _signals(live);
-    final liveTemporal = live != null &&
-        liveScore != null &&
+
+    final liveStrong = liveAnalyzed &&
+        liveQuality >= 0.48 &&
+        liveDecision == 'STRONG_DISPLAY_RISK' &&
         liveScore >= 70 &&
-        (liveSignals['confirmedDisplayTrace'] == true ||
-            liveSignals['periodicLightTrace'] == true) &&
-        live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
-    final liveEmissiveTemporal = live != null &&
-        liveScore != null &&
-        ((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
-        _number(live, 'localTemporalFlickerScore') >= 0.55 &&
-        _number(live, 'refreshBandScore') >= 0.12 &&
-        (_number(live, 'fineGridScore') >= 0.80 ||
-            _number(live, 'moireFrequencyScore') >= 0.45);
-    final liveCorroboratedModerate = live != null &&
-        liveScore != null &&
-        ((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
-        _number(live, 'localTemporalFlickerScore') >= 0.30 &&
-        _number(live, 'refreshBandScore') >= 0.15 &&
-        (_number(live, 'fineGridScore') >= 0.75 ||
-            _number(live, 'moireFrequencyScore') >= 0.40);
-    final liveModerate = live != null &&
-        liveScore != null &&
-        (liveTemporal || liveEmissiveTemporal || liveCorroboratedModerate);
+        liveSignals['confirmedDisplayTrace'] == true;
+    final liveModerate = liveAnalyzed &&
+        liveQuality >= 0.48 &&
+        (liveDecision == 'NON_CONCLUSIVE' ||
+            liveStrong ||
+            (liveScore >= 45 &&
+                (liveSignals['corroboratedModerateTrace'] == true ||
+                    liveSignals['confirmedDisplayTrace'] == true)));
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
-    if (liveTemporal) {
-      strongSources.add('LIVE_TEMPORAL');
-      reasons.add('LIVE_TEMPORAL_CONFIRMED');
-    } else if (liveEmissiveTemporal) {
-      reasons.add('LIVE_EMISSIVE_TEMPORAL_PATTERN');
-    } else if (liveCorroboratedModerate) {
-      reasons.add('LIVE_CORROBORATED_TEMPORAL_PATTERN');
+    if (liveStrong) {
+      strongSources.add('LIVE_PREVIEW');
+      reasons.add('LIVE_DISPLAY_TRACE_CONFIRMED');
+    } else if (liveModerate) {
+      reasons.add('LIVE_DISPLAY_TRACE_NON_CONCLUSIVE');
+    } else if (live != null && !liveAnalyzed) {
+      reasons.add(
+        'LIVE_PROBE_NOT_ANALYZED_${live['reason']?.toString() ?? 'UNKNOWN'}',
+      );
     }
 
     var passiveStrong = false;
     var passiveModerate = false;
     for (final analysis in passive) {
+      if (analysis['analysisStatus'] == 'NOT_ANALYZED') continue;
       final score = (analysis['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final signals = _signals(analysis);
       final structural = signals['structuralDisplayTrace'] == true ||
           signals['strongDisplayTrace'] == true ||
           signals['confirmedDisplayTrace'] == true;
       if (score >= 70 && structural) passiveStrong = true;
-      if ((score >= 45 && structural) || score >= 70) passiveModerate = true;
+      if ((score >= 45 && structural) || score >= 80) passiveModerate = true;
     }
     if (passiveModerate) evidenceSources.add('STATIC_OPTICAL');
     if (passiveStrong) {
       strongSources.add('STATIC_OPTICAL');
       reasons.add('STATIC_STRUCTURE_CONFIRMED');
     } else if (passiveModerate) {
-      reasons.add('STATIC_SCORE_UNCORROBORATED');
+      reasons.add('STATIC_STRUCTURE_NON_CONCLUSIVE');
     }
 
-    final mlScore = (ml?['screenReplayRiskScore'] as num?)?.toInt();
+    final mlAnalyzed = ml != null &&
+        ml['analysisStatus'] != 'NOT_ANALYZED' &&
+        ml['screenReplayRiskScore'] != null;
+    final mlScore = (ml?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
     final mlClass = ml?['predictedClass']?.toString() ?? '';
     final mlConfidence = (ml?['predictedClassConfidence'] as num?)?.toDouble();
-    final mlSaysScreen = mlScore != null && mlClass.startsWith('SCREEN_');
+    final mlSaysScreen = mlAnalyzed && mlClass.startsWith('SCREEN_');
     final mlStrong = mlSaysScreen &&
         mlScore >= 92 &&
         (mlConfidence == null || mlConfidence >= 0.78);
     final mlModerate = mlSaysScreen &&
-        mlScore >= 88 &&
-        (mlConfidence == null || mlConfidence >= 0.70);
+        mlScore >= 82 &&
+        (mlConfidence == null || mlConfidence >= 0.65);
     if (mlModerate) evidenceSources.add('ML_SCREEN_CLASS');
     if (mlStrong) {
       strongSources.add('ML_SCREEN_CLASS');
@@ -134,45 +139,49 @@ class HCVDisplayRiskFusion {
       reasons.add('ML_SCREEN_MODERATE_CONFIDENCE');
     }
 
+    final analyzedCount = available
+        .where((analysis) =>
+            analysis['analysisStatus'] != 'NOT_ANALYZED' &&
+            analysis['screenReplayRiskScore'] != null)
+        .length;
     final hasIndependentCorroboration =
         strongSources.isNotEmpty && evidenceSources.length >= 2;
     final hasAnyEvidence = evidenceSources.isNotEmpty;
 
     late final String decision;
     late final int score;
-    if (hasIndependentCorroboration) {
+    late final String risk;
+    late final String analysisStatus;
+
+    if (analyzedCount == 0) {
+      decision = 'NOT_ANALYZED';
+      score = 0;
+      risk = 'UNKNOWN';
+      analysisStatus = 'NOT_ANALYZED';
+      if (live == null) reasons.add('LIVE_PROBE_MISSING');
+      if (!liveCaptureOnly && ml == null) reasons.add('ML_ANALYSIS_MISSING');
+    } else if (hasIndependentCorroboration) {
       decision = 'STRONG_DISPLAY_RISK';
       score = max(rawScore, 70).clamp(70, 100).toInt();
+      risk = 'HIGH';
+      analysisStatus =
+          analyzedCount == available.length ? 'COMPLETE' : 'PARTIAL';
     } else if (hasAnyEvidence) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
+      risk = 'MEDIUM';
+      analysisStatus =
+          analyzedCount == available.length ? 'COMPLETE' : 'PARTIAL';
     } else {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 30);
+      risk = 'LOW';
+      analysisStatus =
+          analyzedCount == available.length ? 'COMPLETE' : 'PARTIAL';
     }
 
-    final missingReasons = <String>[];
-    _appendMissingReason(
-      missingReasons,
-      live,
-      missingTypeReason: 'LIVE_PROBE_MISSING',
-    );
-    if (!liveCaptureOnly) {
-      _appendMissingReason(
-        missingReasons,
-        ml,
-        missingTypeReason: 'ML_ANALYSIS_MISSING',
-      );
-    }
-    reasons.addAll(missingReasons);
-
-    final analysisStatus = missingReasons.isEmpty ? 'COMPLETE' : 'PARTIAL';
     return HCVDisplayRiskResult(
-      risk: score >= 70
-          ? 'HIGH'
-          : score >= 45
-              ? 'MEDIUM'
-              : 'LOW',
+      risk: risk,
       score: score,
       decision: decision,
       analysisStatus: analysisStatus,
@@ -180,6 +189,18 @@ class HCVDisplayRiskFusion {
       strongSources: strongSources.toList()..sort(),
       reasons: reasons,
     );
+  }
+
+  static Map<String, dynamic>? _firstLive(
+    List<Map<String, dynamic>> analyses,
+  ) {
+    for (final analysis in analyses) {
+      if (analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V2') return analysis;
+    }
+    for (final analysis in analyses) {
+      if (analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1') return analysis;
+    }
+    return null;
   }
 
   static Map<String, dynamic>? _firstOfType(
@@ -203,26 +224,5 @@ class HCVDisplayRiskFusion {
     double fallback = 0,
   }) {
     return (analysis?[key] as num?)?.toDouble() ?? fallback;
-  }
-
-  static void _appendMissingReason(
-    List<String> output,
-    Map<String, dynamic>? analysis, {
-    required String missingTypeReason,
-  }) {
-    if (analysis == null) {
-      output.add(missingTypeReason);
-      return;
-    }
-    final score = analysis['screenReplayRiskScore'];
-    final status = analysis['analysisStatus']?.toString();
-    if (score != null && status != 'NOT_ANALYZED') return;
-
-    final reason = analysis['reason']?.toString();
-    output.add(
-      reason == null || reason.isEmpty
-          ? missingTypeReason
-          : '${missingTypeReason}_$reason',
-    );
   }
 }
