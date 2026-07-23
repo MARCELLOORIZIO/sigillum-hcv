@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/camera_page.dart';
 
 void main() {
-  test('photo decision uses only pre-capture live evidence', () {
+  test('photo decision accepts two independent post-capture sources only as non-conclusive', () {
     final result = combinePhotoDisplayRiskFromPreCaptureEvidence([
       {
         'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
@@ -14,6 +14,7 @@ void main() {
       },
       {
         'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
+        'analysisStatus': 'ANALYZED',
         'screenReplayRiskScore': 98,
         'signals': const {
           'structuralDisplayTrace': true,
@@ -28,8 +29,13 @@ void main() {
       },
     ]);
 
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.score, 20);
-    expect(result.evidenceSources, isEmpty);
+    expect(result.decision, 'NON_CONCLUSIVE');
+    expect(result.score, 69);
+    expect(
+      result.evidenceSources,
+      containsAll(<String>['STATIC_OPTICAL', 'ML_SCREEN_CLASS']),
+    );
+    expect(result.strongSources, hasLength(2));
+    expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
   });
 }
