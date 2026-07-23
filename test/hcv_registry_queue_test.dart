@@ -13,7 +13,7 @@ void main() {
         {
           'hcvId': 'HCV-0123456789ABCDEF',
           'path': '/definitely/missing/certificate.hcv',
-          'sha256': 'a' * 64,
+          'sha256': List.filled(64, 'a').join(),
           'queuedAt': '2026-07-23T00:00:00.000Z',
           'attempts': 0,
           'terminal': false,
