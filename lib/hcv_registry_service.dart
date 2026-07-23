@@ -12,7 +12,6 @@ enum HCVRegistryFailureKind {
   notFound,
   unavailable,
   server,
-  conflict,
   invalidCertificate,
   invalidResponse,
 }
@@ -173,8 +172,7 @@ class HCVRegistryService {
         await uploadCertificateFile(path);
         uploadedPaths.add(File(path).absolute.path);
       } on HCVRegistryException catch (error) {
-        if (error.kind == HCVRegistryFailureKind.invalidCertificate ||
-            error.kind == HCVRegistryFailureKind.conflict) {
+        if (error.kind == HCVRegistryFailureKind.invalidCertificate) {
           discarded++;
           continue;
         }
@@ -292,8 +290,9 @@ class HCVRegistryService {
     Map<String, dynamic>? publicKey,
   }) async {
     final resolvedKey = publicKey ?? await HCVKeystoreSigner.getPublicKey();
-    final resolvedFingerprint = deviceKeyFingerprint?.trim().isNotEmpty == true
-        ? deviceKeyFingerprint!.trim()
+    final suppliedFingerprint = deviceKeyFingerprint?.trim() ?? '';
+    final resolvedFingerprint = suppliedFingerprint.isNotEmpty
+        ? suppliedFingerprint
         : sha256.convert(utf8.encode(jsonEncode(resolvedKey))).toString();
     return (resolvedFingerprint, resolvedKey);
   }
@@ -343,7 +342,7 @@ class HCVRegistryService {
         final kind = response.statusCode == 404
             ? HCVRegistryFailureKind.notFound
             : response.statusCode == 409
-                ? HCVRegistryFailureKind.conflict
+                ? HCVRegistryFailureKind.invalidCertificate
                 : response.statusCode >= 500
                     ? HCVRegistryFailureKind.server
                     : HCVRegistryFailureKind.invalidResponse;
