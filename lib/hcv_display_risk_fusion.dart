@@ -40,12 +40,7 @@ class HCVDisplayRiskFusion {
     List<Map<String, dynamic>?> analyses, {
     bool liveCaptureOnly = false,
   }) {
-    final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
-    final available = liveCaptureOnly
-        ? allAvailable
-            .where((analysis) => _liveTypes.contains(analysis['type']))
-            .toList()
-        : allAvailable;
+    final available = analyses.whereType<Map<String, dynamic>>().toList();
     final live = _firstLive(available);
     final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
     final passive = available
@@ -74,7 +69,7 @@ class HCVDisplayRiskFusion {
     final liveSignals = _signals(live);
 
     final liveStrong = liveAnalyzed &&
-        liveQuality >= 0.48 &&
+        liveQuality >= 0.52 &&
         liveDecision == 'STRONG_DISPLAY_RISK' &&
         liveScore >= 70 &&
         liveSignals['confirmedDisplayTrace'] == true;
@@ -85,6 +80,13 @@ class HCVDisplayRiskFusion {
             (liveScore >= 45 &&
                 (liveSignals['corroboratedModerateTrace'] == true ||
                     liveSignals['confirmedDisplayTrace'] == true)));
+    final liveWeakSupport = liveAnalyzed &&
+        liveQuality >= 0.48 &&
+        (liveScore >= 20 ||
+            liveSignals['temporalEvidence'] == true ||
+            liveSignals['stripeEvidence'] == true ||
+            liveSignals['spatialEvidence'] == true ||
+            liveSignals['uncorroboratedDisplayPattern'] == true);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveStrong) {
@@ -92,6 +94,8 @@ class HCVDisplayRiskFusion {
       reasons.add('LIVE_DISPLAY_TRACE_CONFIRMED');
     } else if (liveModerate) {
       reasons.add('LIVE_DISPLAY_TRACE_NON_CONCLUSIVE');
+    } else if (liveWeakSupport) {
+      reasons.add('LIVE_DISPLAY_TRACE_WEAK_SUPPORT');
     } else if (live != null && !liveAnalyzed) {
       reasons.add(
         'LIVE_PROBE_NOT_ANALYZED_${live['reason']?.toString() ?? 'UNKNOWN'}',
@@ -108,7 +112,7 @@ class HCVDisplayRiskFusion {
           signals['strongDisplayTrace'] == true ||
           signals['confirmedDisplayTrace'] == true;
       if (score >= 70 && structural) passiveStrong = true;
-      if ((score >= 45 && structural) || score >= 80) passiveModerate = true;
+      if ((score >= 45 && structural) || score >= 85) passiveModerate = true;
     }
     if (passiveModerate) evidenceSources.add('STATIC_OPTICAL');
     if (passiveStrong) {
@@ -144,34 +148,48 @@ class HCVDisplayRiskFusion {
             analysis['analysisStatus'] != 'NOT_ANALYZED' &&
             analysis['screenReplayRiskScore'] != null)
         .length;
-    final hasIndependentCorroboration =
-        strongSources.isNotEmpty && evidenceSources.length >= 2;
-    final hasAnyEvidence = evidenceSources.isNotEmpty;
+    final postCaptureEvidenceCount =
+        (passiveModerate ? 1 : 0) + (mlModerate ? 1 : 0);
+    final independentEvidenceCount = evidenceSources.length;
+
+    final strongDecision = liveCaptureOnly
+        ? liveStrong && postCaptureEvidenceCount >= 1
+        : strongSources.isNotEmpty && independentEvidenceCount >= 2;
+
+    final moderateDecision = liveCaptureOnly
+        ? liveModerate ||
+            postCaptureEvidenceCount >= 2 ||
+            (liveWeakSupport && postCaptureEvidenceCount >= 1)
+        : independentEvidenceCount >= 1;
 
     late final String decision;
     late final int score;
     late final String risk;
     late final String analysisStatus;
 
-    if (analyzedCount == 0) {
+    if (analyzedCount == 0 ||
+        (liveCaptureOnly && !liveAnalyzed && postCaptureEvidenceCount < 2)) {
       decision = 'NOT_ANALYZED';
       score = 0;
       risk = 'UNKNOWN';
       analysisStatus = 'NOT_ANALYZED';
       if (live == null) reasons.add('LIVE_PROBE_MISSING');
       if (!liveCaptureOnly && ml == null) reasons.add('ML_ANALYSIS_MISSING');
-    } else if (hasIndependentCorroboration) {
+    } else if (strongDecision) {
       decision = 'STRONG_DISPLAY_RISK';
       score = max(rawScore, 70).clamp(70, 100).toInt();
       risk = 'HIGH';
       analysisStatus =
           analyzedCount == available.length ? 'COMPLETE' : 'PARTIAL';
-    } else if (hasAnyEvidence) {
+    } else if (moderateDecision) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
       risk = 'MEDIUM';
       analysisStatus =
           analyzedCount == available.length ? 'COMPLETE' : 'PARTIAL';
+      if (liveCaptureOnly && postCaptureEvidenceCount >= 2 && !liveModerate) {
+        reasons.add('POST_CAPTURE_SOURCES_CORROBORATE_SCREEN');
+      }
     } else {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 30);
