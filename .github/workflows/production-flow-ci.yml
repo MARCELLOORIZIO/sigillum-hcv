@@ -22,6 +22,21 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
       - name: Analyze compile errors
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+        id: analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-fatal-warnings --no-fatal-infos > flutter_analyze.log 2>&1
+          code=$?
+          cat flutter_analyze.log
+          exit $code
+      - name: Upload analyzer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-analyze-log
+          path: flutter_analyze.log
+          if-no-files-found: error
+          retention-days: 7
       - name: Test
         run: flutter test
