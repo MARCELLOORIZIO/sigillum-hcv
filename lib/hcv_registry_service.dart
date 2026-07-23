@@ -206,12 +206,16 @@ class HCVRegistryService {
   Future<Map<String, dynamic>> startKycSession({
     required String creatorId,
     required String creatorName,
-    required String deviceKeyFingerprint,
-    required Map<String, dynamic> publicKey,
+    String? deviceKeyFingerprint,
+    Map<String, dynamic>? publicKey,
   }) async {
-    final proof = await _createDeviceKeyProof(
+    final resolved = await _resolveDeviceIdentity(
       deviceKeyFingerprint: deviceKeyFingerprint,
       publicKey: publicKey,
+    );
+    final proof = await _createDeviceKeyProof(
+      deviceKeyFingerprint: resolved.$1,
+      publicKey: resolved.$2,
     );
     return _requestJson(
       method: 'POST',
@@ -281,6 +285,17 @@ class HCVRegistryService {
       path: '/api/identity/kyc/status',
       query: {'sessionId': cleaned},
     );
+  }
+
+  Future<(String, Map<String, dynamic>)> _resolveDeviceIdentity({
+    String? deviceKeyFingerprint,
+    Map<String, dynamic>? publicKey,
+  }) async {
+    final resolvedKey = publicKey ?? await HCVKeystoreSigner.getPublicKey();
+    final resolvedFingerprint = deviceKeyFingerprint?.trim().isNotEmpty == true
+        ? deviceKeyFingerprint!.trim()
+        : sha256.convert(utf8.encode(jsonEncode(resolvedKey))).toString();
+    return (resolvedFingerprint, resolvedKey);
   }
 
   Future<Map<String, dynamic>> _createDeviceKeyProof({
