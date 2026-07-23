@@ -13,6 +13,35 @@ import 'hcv_keystore_signer.dart';
 import 'hcv_local_certificate_store.dart';
 import 'hcv_verifier.dart';
 
+Map<String, dynamic> publicHcvIdentity(
+  Map<String, dynamic> localIdentity,
+) {
+  final fields = <String>[
+    'creatorId',
+    'creatorName',
+    'devicePublicKeyFingerprint',
+    'issuer',
+    'trustLevel',
+    'identityAssuranceLevel',
+    'legalIdentityStatus',
+    'creatorKeyBinding',
+    'identityVersion',
+    'identityFingerprint',
+    'privacyMode',
+    'kycProvider',
+    'kycStatus',
+    'verifiedLegalName',
+    'verifiedLegalCountry',
+    'hardwareSerialCollected',
+    'phoneSerialCollected',
+  ];
+  return {
+    for (final field in fields)
+      if (localIdentity[field] != null) field: localIdentity[field],
+    'publicDisclosure': 'MINIMIZED_CERTIFICATE_IDENTITY_V1',
+  };
+}
+
 class HCVEngine {
   final List<Map<String, dynamic>> chain = [];
 
@@ -79,10 +108,13 @@ class HCVEngine {
   }
 
   Future<void> _attachIdentity() async {
-    final identity = await HCVIdentity().loadIdentity(
+    final localIdentity = await HCVIdentity().loadIdentity(
       attemptKycRecovery: false,
     );
-    meta = {...meta, 'identity': identity};
+    meta = {
+      ...meta,
+      'identity': publicHcvIdentity(localIdentity),
+    };
   }
 
   void _attachPublishData() {
