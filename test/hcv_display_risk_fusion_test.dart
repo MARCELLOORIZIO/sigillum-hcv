@@ -249,6 +249,52 @@ void main() {
       expect(result.decision, 'NO_DISPLAY_EVIDENCE');
       expect(result.score, 30);
     });
+
+    test('paired flicker alone is not display evidence', () {
+      final result = HCVDisplayRiskFusion.combine(
+        [
+          _liveProbe(
+            score: 69,
+            frames: 45,
+            localFlicker: 0.42,
+            refresh: 0.18,
+            fineGrid: 0.30,
+            moire: 0.20,
+            signals: const {
+              'pairedFlickerTrace': true,
+            },
+          ),
+        ],
+        liveCaptureOnly: true,
+      );
+
+      expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+      expect(result.score, 30);
+      expect(result.evidenceSources, isNot(contains('LIVE_PREVIEW')));
+    });
+
+    test('corroborated live evidence is capped at non-conclusive', () {
+      final result = HCVDisplayRiskFusion.combine(
+        [
+          _liveProbe(
+            score: 85,
+            frames: 45,
+            localFlicker: 0.48,
+            refresh: 0.19,
+            fineGrid: 0.82,
+            moire: 0.41,
+            signals: const {
+              'pairedFlickerTrace': true,
+            },
+          ),
+        ],
+        liveCaptureOnly: true,
+      );
+
+      expect(result.decision, 'NON_CONCLUSIVE');
+      expect(result.score, 69);
+      expect(result.strongSources, isEmpty);
+    });
   });
 }
 

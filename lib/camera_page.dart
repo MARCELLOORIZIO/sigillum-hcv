@@ -25,6 +25,12 @@ import 'hcv_display_risk_fusion.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 
+HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
+  List<Map<String, dynamic>?> analyses,
+) {
+  return HCVDisplayRiskFusion.combine(analyses, liveCaptureOnly: true);
+}
+
 class CameraPage extends StatefulWidget {
   const CameraPage({
     super.key,
@@ -328,14 +334,26 @@ class _CameraPageState extends State<CameraPage> {
         };
       }
 
+      if (screenReplayAnalysis != null) {
+        screenReplayAnalysis = {
+          ...screenReplayAnalysis!,
+          'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
+        };
+      }
+      if (mlScreenReplayAnalysis != null) {
+        mlScreenReplayAnalysis = {
+          ...mlScreenReplayAnalysis!,
+          'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
+        };
+      }
+
       final screenReplayAnalyses = [
         liveScreenProbe,
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final displayRisk = HCVDisplayRiskFusion.combine(
+      final displayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
         screenReplayAnalyses,
-        liveCaptureOnly: true,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;

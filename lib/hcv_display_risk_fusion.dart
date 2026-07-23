@@ -71,20 +71,18 @@ class HCVDisplayRiskFusion {
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
     final liveEmissiveTemporal = live != null &&
         liveScore != null &&
-        ((liveSignals['emissiveTemporalTrace'] == true) ||
-            (((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
-                _number(live, 'localTemporalFlickerScore') >= 0.55 &&
-                _number(live, 'refreshBandScore') >= 0.12 &&
-                (_number(live, 'fineGridScore') >= 0.80 ||
-                    _number(live, 'moireFrequencyScore') >= 0.45)));
+        ((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
+        _number(live, 'localTemporalFlickerScore') >= 0.55 &&
+        _number(live, 'refreshBandScore') >= 0.12 &&
+        (_number(live, 'fineGridScore') >= 0.80 ||
+            _number(live, 'moireFrequencyScore') >= 0.45);
     final liveCorroboratedModerate = live != null &&
         liveScore != null &&
-        ((liveSignals['corroboratedModerateTrace'] == true) ||
-            (((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
-                _number(live, 'localTemporalFlickerScore') >= 0.30 &&
-                _number(live, 'refreshBandScore') >= 0.15 &&
-                (_number(live, 'fineGridScore') >= 0.75 ||
-                    _number(live, 'moireFrequencyScore') >= 0.40)));
+        ((live['framesAnalyzed'] as num?)?.toInt() ?? 0) >= 24 &&
+        _number(live, 'localTemporalFlickerScore') >= 0.30 &&
+        _number(live, 'refreshBandScore') >= 0.15 &&
+        (_number(live, 'fineGridScore') >= 0.75 ||
+            _number(live, 'moireFrequencyScore') >= 0.40);
     final liveModerate = live != null &&
         liveScore != null &&
         (liveTemporal || liveEmissiveTemporal || liveCorroboratedModerate);

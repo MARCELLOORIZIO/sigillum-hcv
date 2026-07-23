@@ -19,6 +19,48 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'hcv_social_fingerprint.dart';
 import 'sigillum_localization.dart';
 
+class HCVDisplayRiskClaimValues {
+  const HCVDisplayRiskClaimValues({
+    required this.risk,
+    required this.score,
+    required this.decision,
+    required this.requiresLegacyNormalization,
+  });
+
+  final String? risk;
+  final String? score;
+  final String? decision;
+  final bool requiresLegacyNormalization;
+}
+
+HCVDisplayRiskClaimValues resolveHCVDisplayRiskClaimValues(
+  Map<dynamic, dynamic> claims,
+) {
+  final evidence = claims['displayRiskEvidence'];
+  final signedRisk = evidence is Map ? evidence['risk']?.toString() : null;
+  final signedScore = evidence is Map ? evidence['score']?.toString() : null;
+  final signedDecision =
+      evidence is Map ? evidence['decision']?.toString() : null;
+  final hasCompleteSignedEvidence =
+      signedRisk != null && signedScore != null && signedDecision != null;
+
+  if (hasCompleteSignedEvidence) {
+    return HCVDisplayRiskClaimValues(
+      risk: signedRisk,
+      score: signedScore,
+      decision: signedDecision,
+      requiresLegacyNormalization: false,
+    );
+  }
+
+  return HCVDisplayRiskClaimValues(
+    risk: claims['screenReplayRisk']?.toString(),
+    score: claims['screenReplayRiskScore']?.toString(),
+    decision: claims['displayRiskDecision']?.toString(),
+    requiresLegacyNormalization: true,
+  );
+}
+
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
   final String languageCode;
@@ -758,15 +800,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       if (claims is Map) {
         hcvTrustLevel = claims['trustLevel']?.toString();
         liveCaptureTrust = claims['liveCaptureTrust']?.toString();
-        screenReplayRisk = claims['screenReplayRisk']?.toString();
-        screenReplayRiskScore = claims['screenReplayRiskScore']?.toString();
-        displayRiskDecision = claims['displayRiskDecision']?.toString();
-        final displayRiskEvidence = claims['displayRiskEvidence'];
-        if (displayRiskEvidence is Map) {
-          screenReplayRisk = displayRiskEvidence['risk']?.toString();
-          screenReplayRiskScore = displayRiskEvidence['score']?.toString();
-          displayRiskDecision = displayRiskEvidence['decision']?.toString();
-        }
+        final displayRiskClaims = resolveHCVDisplayRiskClaimValues(claims);
+        screenReplayRisk = displayRiskClaims.risk;
+        screenReplayRiskScore = displayRiskClaims.score;
+        displayRiskDecision = displayRiskClaims.decision;
         final screenReplayAnalysis = claims['screenReplayAnalysis'];
         if (screenReplayAnalysis is Map) {
           screenReplaySegmentsAnalyzed =
@@ -817,7 +854,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
         aiProofLevel = claims['aiProofLevel']?.toString();
-        if (displayRiskEvidence is! Map) {
+        if (displayRiskClaims.requiresLegacyNormalization) {
           _normalizeScreenReplayRiskFromClaims(claims);
         }
       }
