@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'hcvpack_player_page.dart';
+import 'hcvpack_verifier_page.dart';
 import 'verify_page.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
@@ -22,7 +22,7 @@ class HCVImportRouterPage extends StatefulWidget {
 }
 
 class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
-  String status = "";
+  String status = '';
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
@@ -39,29 +39,24 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
 
     if (!await File(path).exists()) {
       setState(() {
-        status = "${_t('fileNotFound')}:\n$path";
+        status = '${_t('fileNotFound')}:\n$path';
       });
       return;
     }
 
-    if (lower.endsWith(".hcvpack")) {
+    if (lower.endsWith('.hcvpack')) {
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => HCVPackPlayerPage(
-            initialPath: path,
-            languageCode: widget.languageCode,
-          ),
+          builder: (_) => HCVPackVerifierPage(initialPath: path),
         ),
       );
       return;
     }
 
-    if (lower.endsWith(".hcv")) {
+    if (lower.endsWith('.hcv')) {
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -76,7 +71,6 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
 
     if (_isMediaOrTextFile(lower)) {
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -90,28 +84,28 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
     }
 
     setState(() {
-      status = "${_t('unknownFormat')}:\n$path";
+      status = '${_t('unknownFormat')}:\n$path';
     });
   }
 
   bool _isMediaOrTextFile(String lower) {
-    return lower.endsWith(".mp4") ||
-        lower.endsWith(".mov") ||
-        lower.endsWith(".m4v") ||
-        lower.endsWith(".jpg") ||
-        lower.endsWith(".jpeg") ||
-        lower.endsWith(".png") ||
-        lower.endsWith(".txt") ||
-        lower.endsWith(".pdf") ||
-        lower.endsWith(".mp3") ||
-        lower.endsWith(".wav");
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.txt') ||
+        lower.endsWith('.pdf') ||
+        lower.endsWith('.mp3') ||
+        lower.endsWith('.wav');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("HCV Import"),
+        title: const Text('HCV Import'),
       ),
       body: Center(
         child: Padding(
