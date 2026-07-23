@@ -39,4 +39,19 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Test
-        run: flutter test
+        id: test
+        shell: bash
+        run: |
+          set +e
+          flutter test > flutter_test.log 2>&1
+          code=$?
+          cat flutter_test.log
+          exit $code
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-log
+          path: flutter_test.log
+          if-no-files-found: error
+          retention-days: 7
