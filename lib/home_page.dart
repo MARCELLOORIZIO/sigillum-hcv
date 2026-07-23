@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'hcv_build_info.dart';
 import 'hcv_identity.dart';
 import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
 import 'hcvpack_verifier_page.dart';
 import 'identity_page.dart';
 import 'import_page.dart';
-import 'production_camera_page.dart';
+import 'production_camera_session_page.dart';
 import 'registry_verify_page.dart';
 import 'screen_replay_calibration_page.dart';
 import 'screen_replay_diagnostics_page.dart';
@@ -41,7 +42,10 @@ class _HomePageState extends State<HomePage> {
         messages.add('${report.uploaded} certificati Registry pubblicati');
       }
       if (report.pending > 0) {
-        messages.add('${report.pending} pubblicazioni Registry ancora in attesa');
+        messages.add('${report.pending} pubblicazioni Registry conservate in coda');
+      }
+      if (report.hasTerminalFailures) {
+        messages.add('${report.discarded} pubblicazioni richiedono controllo');
       }
     } catch (_) {
       messages.add('Registry non raggiungibile: pubblicazioni conservate in coda');
@@ -90,16 +94,17 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
 
     final lower = path.toLowerCase();
-
     final isMedia = lower.endsWith('.mp4') ||
         lower.endsWith('.mov') ||
+        lower.endsWith('.m4v') ||
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.png') ||
         lower.endsWith('.txt') ||
         lower.endsWith('.pdf') ||
         lower.endsWith('.mp3') ||
-        lower.endsWith('.wav');
+        lower.endsWith('.wav') ||
+        lower.endsWith('.m4a');
 
     if (isMedia) {
       Navigator.push(
@@ -185,12 +190,12 @@ class _HomePageState extends State<HomePage> {
             child: SingleChildScrollView(
               child: Text(
                 'HCV crea una prova digitale per un contenuto.\n\n'
-                'Quando crei una foto, un video o un testo, l\'app genera:\n\n'
+                'Quando crei una foto, un video o un testo, l app genera:\n\n'
                 '- un contenuto standard condivisibile\n'
                 '- un HCV-ID\n'
                 '- un certificato firmato\n'
                 '- un pacchetto HCVPACK opzionale\n\n'
-                'Il controllo non riguarda solo i monitor. Sigillum combina piu prove: integrita del file, cattura live, watermark visibile, certificato firmato, Registry, fingerprint per file ricompressi dai social e analisi del rischio di replay da schermo.\n\n'
+                'Il controllo combina integrita del file, cattura live, watermark visibile, certificato firmato, Registry, fingerprint per file ricompressi dai social e analisi del rischio di replay da schermo.\n\n'
                 'La verifica locale continua a funzionare anche quando il Registry non e momentaneamente raggiungibile.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, height: 1.4),
@@ -237,6 +242,12 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(fontSize: 14),
                 ),
               ),
+              const SizedBox(height: 8),
+              Text(
+                'Build ${HCVBuildInfo.shortCommit} · ${HCVBuildInfo.branch}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
               if (_startupStatus != null) ...[
                 const SizedBox(height: 14),
                 Padding(
@@ -253,7 +264,7 @@ class _HomePageState extends State<HomePage> {
                 icon: Icons.videocam,
                 title: 'CREA FOTO O VIDEO VERIFICABILE',
                 subtitle: 'Pipeline integrata con firma locale e coda Registry',
-                onPressed: () => _open(const ProductionCameraPage()),
+                onPressed: () => _open(const ProductionCameraSessionPage()),
               ),
               const SizedBox(height: 14),
               _mainButton(
