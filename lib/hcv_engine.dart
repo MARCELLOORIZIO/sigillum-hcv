@@ -14,8 +14,12 @@ class HCVEngine {
 
   final String sessionId = const Uuid().v4();
   final String createdAt = DateTime.now().toIso8601String();
-  final String hcvId =
-      "HCV-${const Uuid().v4().split('-').first.toUpperCase()}";
+  final String hcvId = _newHcvId();
+
+  static String _newHcvId() {
+    final raw = const Uuid().v4().replaceAll('-', '').toUpperCase();
+    return 'HCV-${raw.substring(0, 16)}';
+  }
 
   Map<String, dynamic> meta = {
     "app": "hcv_app",
