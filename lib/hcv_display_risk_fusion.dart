@@ -108,11 +108,14 @@ class HCVDisplayRiskFusion {
       if (analysis['analysisStatus'] == 'NOT_ANALYZED') continue;
       final score = (analysis['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final signals = _signals(analysis);
-      final structural = signals['structuralDisplayTrace'] == true ||
-          signals['strongDisplayTrace'] == true ||
-          signals['confirmedDisplayTrace'] == true;
+      final structural = _passiveStructuralEvidence(
+        analysis['type']?.toString() ?? '',
+        signals,
+      );
       if (score >= 70 && structural) passiveStrong = true;
-      if ((score >= 45 && structural) || score >= 85) passiveModerate = true;
+      if ((score >= 45 && structural) || (score >= 85 && structural)) {
+        passiveModerate = true;
+      }
     }
     if (passiveModerate) evidenceSources.add('STATIC_OPTICAL');
     if (passiveStrong) {
@@ -207,6 +210,26 @@ class HCVDisplayRiskFusion {
       strongSources: strongSources.toList()..sort(),
       reasons: reasons,
     );
+  }
+
+  static bool _passiveStructuralEvidence(
+    String type,
+    Map<dynamic, dynamic> signals,
+  ) {
+    final genericStructural = signals['structuralDisplayTrace'] == true ||
+        signals['strongDisplayTrace'] == true ||
+        signals['confirmedDisplayTrace'] == true;
+    if (type != 'SIGILLUM_SCREEN_REPLAY_IMAGE_ANALYSIS_V1') {
+      return genericStructural;
+    }
+
+    final pixelSpecific = signals['uniformPixelGrid'] == true ||
+        signals['pixelGridOrMoireHint'] == true;
+    final framedBrightBands =
+        signals['brightUniformDisplayBands'] == true &&
+            signals['rectangularDisplayEdges'] == true;
+
+    return pixelSpecific || framedBrightBands;
   }
 
   static Map<String, dynamic>? _firstLive(
