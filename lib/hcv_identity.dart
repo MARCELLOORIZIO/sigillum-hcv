@@ -127,6 +127,7 @@ class HCVIdentity {
       "kycStatus": kycStatus,
       "verifiedLegalName": verifiedLegalName,
       "verifiedLegalCountry": verifiedLegalCountry,
+      "publicKey": publicKey,
       "hardwareSerialCollected": false,
       "phoneSerialCollected": false,
       "publicKeyIncludedInCertificate": publicKey != null,
