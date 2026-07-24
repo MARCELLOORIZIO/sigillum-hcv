@@ -8,6 +8,10 @@ import 'package:sigillum_iphone/hcv_registry_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() {
+    HttpOverrides.global = null;
+  });
+
   test('recovery automatically binds the locally stored legacy Stripe session',
       () async {
     SharedPreferences.setMockInitialValues({
