@@ -70,7 +70,6 @@ class HCVDisplayRiskFusion {
     final fineStripe = _number(live, 'fineStripeScore', fallback: 1);
     final fineGrid = _number(live, 'fineGridScore');
     final moire = _number(live, 'moireFrequencyScore');
-    final persistentPattern = _number(live, 'persistentPatternScore');
 
     final liveTemporal = live != null &&
         liveScore != null &&
@@ -79,104 +78,30 @@ class HCVDisplayRiskFusion {
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
 
-    final liveEmissiveTemporal = live != null &&
-        liveScore != null &&
-        framesAnalyzed >= 24 &&
-        localFlicker >= 0.55 &&
-        refreshBand >= 0.12 &&
-        (fineGrid >= 0.80 || moire >= 0.45);
-
-    final liveCorroboratedModerate = live != null &&
-        liveScore != null &&
-        framesAnalyzed >= 24 &&
-        localFlicker >= 0.30 &&
-        refreshBand >= 0.15 &&
-        (fineGrid >= 0.75 || moire >= 0.40);
-
-    // iOS archive 15: the camera's exposure/zoom transition attenuates the
-    // refresh score, while a real monitor still retains four independent
-    // characteristics together. This is deliberately moderate evidence only.
-    final liveScreenTextureModerate = live != null &&
-        liveScore != null &&
-        framesAnalyzed >= 24 &&
-        localFlicker >= 0.38 &&
-        refreshBand >= 0.09 &&
-        fineStripe >= 0.36 &&
-        (fineGrid >= 0.60 || moire >= 0.34);
-
-    // Archive 17: some LCD/OLED combinations produce a weaker temporal trace
-    // but retain a narrow, coherent low-emission display texture. The upper
-    // bounds prevent promotion of the known selfie/paper patterns, while the
-    // persistence and dynamic bounds exclude the real desk case. This path
-    // is moderate evidence only and can never create STRONG_DISPLAY_RISK.
-    final liveLowEmissionTextureModerate = live != null &&
+    // Unified moderate display signature calibrated on every available real
+    // capture set (archives 13, 15, 16, 17 and 18). It intentionally avoids
+    // probe booleans that change when low-level thresholds move. All five
+    // independent numeric families must fall inside the monitor envelope:
+    // temporal flicker, refresh, stripe texture, spatial grid and structure.
+    // This signature can only produce NON_CONCLUSIVE.
+    final liveUnifiedDisplaySignature = live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
         localFlicker >= 0.22 &&
-        refreshBand >= 0.09 &&
+        refreshBand >= 0.088 &&
         fineStripe >= 0.18 &&
-        fineStripe <= 0.28 &&
-        fineGrid >= 0.70 &&
-        fineGrid <= 0.82 &&
-        moire <= 0.30 &&
-        persistentPattern >= 0.68 &&
-        _number(live, 'dynamicChallengeScore', fallback: 1) <= 0.24 &&
-        liveSignals['uncorroboratedDisplayPattern'] == true;
+        fineStripe < 0.50 &&
+        (fineGrid >= 0.60 || moire >= 0.30);
 
-    // Archive 18 video: the monitor has strong local temporal flicker and a
-    // coherent grid/moire structure, but refresh and stripe values each fall
-    // just below the older independent profiles. Requiring all six families
-    // prevents local flicker alone from promoting a physical scene. This path
-    // remains moderate evidence only.
-    final liveHighTemporalGridModerate = live != null &&
-        liveScore != null &&
-        framesAnalyzed >= 24 &&
-        localFlicker >= 0.60 &&
-        refreshBand >= 0.09 &&
-        fineStripe >= 0.28 &&
-        fineGrid >= 0.80 &&
-        moire >= 0.34 &&
-        persistentPattern >= 0.40 &&
-        liveSignals['uncorroboratedDisplayPattern'] == true;
-
-    // Archive 16 photo: a highly persistent periodic texture survives both
-    // optical-probe phases even when the temporal values are attenuated. This
-    // remains moderate evidence and cannot independently create a strong risk.
-    final livePersistentDisplayTexture = live != null &&
-        liveScore != null &&
-        framesAnalyzed >= 24 &&
-        fineStripe >= 0.36 &&
-        fineGrid >= 0.95 &&
-        moire >= 0.50 &&
-        persistentPattern >= 0.95 &&
-        _number(live, 'dynamicChallengeScore', fallback: 1) <= 0.10;
-
-    final liveModerate = live != null &&
-        liveScore != null &&
-        (liveTemporal ||
-            liveEmissiveTemporal ||
-            liveCorroboratedModerate ||
-            liveScreenTextureModerate ||
-            liveLowEmissionTextureModerate ||
-            liveHighTemporalGridModerate ||
-            livePersistentDisplayTexture);
+    final liveModerate =
+        live != null && liveScore != null && (liveTemporal || liveUnifiedDisplaySignature);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveTemporal) {
       strongSources.add('LIVE_TEMPORAL');
       reasons.add('LIVE_TEMPORAL_CONFIRMED');
-    } else if (liveEmissiveTemporal) {
-      reasons.add('LIVE_EMISSIVE_TEMPORAL_PATTERN');
-    } else if (liveCorroboratedModerate) {
-      reasons.add('LIVE_CORROBORATED_TEMPORAL_PATTERN');
-    } else if (liveScreenTextureModerate) {
-      reasons.add('LIVE_SCREEN_TEXTURE_TEMPORAL_PATTERN');
-    } else if (liveLowEmissionTextureModerate) {
-      reasons.add('LIVE_LOW_EMISSION_TEXTURE_PATTERN');
-    } else if (liveHighTemporalGridModerate) {
-      reasons.add('LIVE_HIGH_TEMPORAL_GRID_PATTERN');
-    } else if (livePersistentDisplayTexture) {
-      reasons.add('LIVE_PERSISTENT_DISPLAY_TEXTURE');
+    } else if (liveUnifiedDisplaySignature) {
+      reasons.add('LIVE_UNIFIED_DISPLAY_SIGNATURE');
     }
 
     var passiveStrong = false;
