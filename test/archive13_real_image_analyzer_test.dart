@@ -11,11 +11,17 @@ void main() {
     final temp = await Directory.systemTemp.createTemp('sigillum_archive13_');
     try {
       final monitor = await _decodeFixture(
-        'test/fixtures/archive13_monitor.jpg.b64',
+        const [
+          'test/fixtures/archive13_monitor.part1.b64',
+          'test/fixtures/archive13_monitor.part2.b64',
+          'test/fixtures/archive13_monitor.part3.b64',
+          'test/fixtures/archive13_monitor.part4.b64',
+          'test/fixtures/archive13_monitor.part5.b64',
+        ],
         '${temp.path}/monitor.jpg',
       );
       final reality = await _decodeFixture(
-        'test/fixtures/archive13_reality.jpg.b64',
+        const ['test/fixtures/archive13_reality.part1.b64'],
         '${temp.path}/reality.jpg',
       );
 
@@ -76,9 +82,15 @@ void main() {
   });
 }
 
-Future<File> _decodeFixture(String sourcePath, String targetPath) async {
-  final encoded = await File(sourcePath).readAsString();
+Future<File> _decodeFixture(List<String> sourcePaths, String targetPath) async {
+  final buffer = StringBuffer();
+  for (final sourcePath in sourcePaths) {
+    buffer.write((await File(sourcePath).readAsString()).trim());
+  }
   final target = File(targetPath);
-  await target.writeAsBytes(base64Decode(encoded.trim()), flush: true);
+  await target.writeAsBytes(
+    base64Decode(buffer.toString()),
+    flush: true,
+  );
   return target;
 }
