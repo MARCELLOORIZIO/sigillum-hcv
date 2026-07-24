@@ -81,10 +81,8 @@ class HCVDisplayRiskFusion {
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
 
-    // One moderate decision envelope for every available real capture set.
-    // It uses only numeric measurements and is independent from probe booleans,
-    // whose low-level thresholds may change. This signature can only produce
-    // NON_CONCLUSIVE unless another independent strong source corroborates it.
+    // General monitor envelope calibrated against every available real capture
+    // and physical-scene negative. It does not depend on probe boolean flags.
     final liveUnifiedDisplaySignature = live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
@@ -94,7 +92,16 @@ class HCVDisplayRiskFusion {
         fineStripe < 0.50 &&
         (fineGrid >= 0.60 || moire >= 0.30);
 
-    // Diagnostic labels only. They no longer decide whether evidence exists.
+    // Independent general path for pronounced flicker/refresh evidence. This
+    // covers display captures where stripe extraction is unavailable or noisy.
+    final liveHighRefreshSignature = live != null &&
+        liveScore != null &&
+        framesAnalyzed >= 24 &&
+        localFlicker >= 0.30 &&
+        refreshBand >= 0.15 &&
+        (fineGrid >= 0.75 || moire >= 0.40);
+
+    // Diagnostic labels only. They do not decide whether evidence exists.
     final diagnosticEmissiveTemporal = localFlicker >= 0.55 &&
         refreshBand >= 0.12 &&
         (fineGrid >= 0.80 || moire >= 0.45);
@@ -130,14 +137,18 @@ class HCVDisplayRiskFusion {
 
     final liveModerate = live != null &&
         liveScore != null &&
-        (liveTemporal || liveUnifiedDisplaySignature);
+        (liveTemporal ||
+            liveUnifiedDisplaySignature ||
+            liveHighRefreshSignature);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveTemporal) {
       strongSources.add('LIVE_TEMPORAL');
       reasons.add('LIVE_TEMPORAL_CONFIRMED');
-    } else if (liveUnifiedDisplaySignature) {
-      reasons.add('LIVE_UNIFIED_DISPLAY_SIGNATURE');
+    } else if (liveModerate) {
+      if (liveUnifiedDisplaySignature) {
+        reasons.add('LIVE_UNIFIED_DISPLAY_SIGNATURE');
+      }
       if (diagnosticEmissiveTemporal) {
         reasons.add('LIVE_EMISSIVE_TEMPORAL_PATTERN');
       }
