@@ -70,6 +70,7 @@ class HCVDisplayRiskFusion {
     final fineStripe = _number(live, 'fineStripeScore', fallback: 1);
     final fineGrid = _number(live, 'fineGridScore');
     final moire = _number(live, 'moireFrequencyScore');
+    final persistentPattern = _number(live, 'persistentPatternScore');
 
     final liveTemporal = live != null &&
         liveScore != null &&
@@ -118,8 +119,24 @@ class HCVDisplayRiskFusion {
         fineGrid >= 0.70 &&
         fineGrid <= 0.82 &&
         moire <= 0.30 &&
-        _number(live, 'persistentPatternScore') >= 0.68 &&
+        persistentPattern >= 0.68 &&
         _number(live, 'dynamicChallengeScore', fallback: 1) <= 0.24 &&
+        liveSignals['uncorroboratedDisplayPattern'] == true;
+
+    // Archive 18 video: the monitor has strong local temporal flicker and a
+    // coherent grid/moire structure, but refresh and stripe values each fall
+    // just below the older independent profiles. Requiring all six families
+    // prevents local flicker alone from promoting a physical scene. This path
+    // remains moderate evidence only.
+    final liveHighTemporalGridModerate = live != null &&
+        liveScore != null &&
+        framesAnalyzed >= 24 &&
+        localFlicker >= 0.60 &&
+        refreshBand >= 0.09 &&
+        fineStripe >= 0.28 &&
+        fineGrid >= 0.80 &&
+        moire >= 0.34 &&
+        persistentPattern >= 0.40 &&
         liveSignals['uncorroboratedDisplayPattern'] == true;
 
     // Archive 16 photo: a highly persistent periodic texture survives both
@@ -131,7 +148,7 @@ class HCVDisplayRiskFusion {
         fineStripe >= 0.36 &&
         fineGrid >= 0.95 &&
         moire >= 0.50 &&
-        _number(live, 'persistentPatternScore') >= 0.95 &&
+        persistentPattern >= 0.95 &&
         _number(live, 'dynamicChallengeScore', fallback: 1) <= 0.10;
 
     final liveModerate = live != null &&
@@ -141,6 +158,7 @@ class HCVDisplayRiskFusion {
             liveCorroboratedModerate ||
             liveScreenTextureModerate ||
             liveLowEmissionTextureModerate ||
+            liveHighTemporalGridModerate ||
             livePersistentDisplayTexture);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
@@ -155,6 +173,8 @@ class HCVDisplayRiskFusion {
       reasons.add('LIVE_SCREEN_TEXTURE_TEMPORAL_PATTERN');
     } else if (liveLowEmissionTextureModerate) {
       reasons.add('LIVE_LOW_EMISSION_TEXTURE_PATTERN');
+    } else if (liveHighTemporalGridModerate) {
+      reasons.add('LIVE_HIGH_TEMPORAL_GRID_PATTERN');
     } else if (livePersistentDisplayTexture) {
       reasons.add('LIVE_PERSISTENT_DISPLAY_TEXTURE');
     }
