@@ -20,6 +20,12 @@ workflows:
         script: |
           flutter pub get
 
+      - name: Verify source and tests
+        script: |
+          echo "Building commit $(git rev-parse HEAD)"
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+
       - name: Configure SIGILLUM User edition
         script: |
           cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
@@ -58,7 +64,8 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter build ipa --release --dart-define=SIGILLUM_EDITION=user --export-options-plist=/Users/builder/export_options.plist
+          BUILD_COMMIT="$(git rev-parse HEAD)"
+          flutter build ipa --release --dart-define=SIGILLUM_EDITION=user --dart-define=GIT_COMMIT="$BUILD_COMMIT" --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
@@ -85,6 +92,12 @@ workflows:
       - name: Flutter pub get
         script: |
           flutter pub get
+
+      - name: Verify source and tests
+        script: |
+          echo "Building commit $(git rev-parse HEAD)"
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
 
       - name: Configure SIGILLUM Lab edition
         script: |
@@ -124,7 +137,8 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter build ipa --release --dart-define=SIGILLUM_EDITION=lab --export-options-plist=/Users/builder/export_options.plist
+          BUILD_COMMIT="$(git rev-parse HEAD)"
+          flutter build ipa --release --dart-define=SIGILLUM_EDITION=lab --dart-define=GIT_COMMIT="$BUILD_COMMIT" --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
