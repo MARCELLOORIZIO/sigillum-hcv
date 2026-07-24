@@ -85,6 +85,10 @@ class HCVLiveScreenProbe {
       try {
         if (zoomToRestore != null && controller.value.isInitialized) {
           await controller.setZoomLevel(zoomToRestore);
+          // The plugin future completes before iOS has necessarily restored
+          // optical framing, autofocus and exposure. Do not return control to
+          // takePicture/startVideoRecording until the preview has settled.
+          await Future.delayed(const Duration(milliseconds: 450));
         }
       } catch (_) {}
     }
