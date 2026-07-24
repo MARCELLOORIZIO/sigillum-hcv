@@ -12,17 +12,11 @@ void main() {
     final temp = await Directory.systemTemp.createTemp('sigillum_archive13_');
     try {
       final monitor = await _decodeFixture(
-        const [
-          'test/fixtures/archive13_monitor.part1.b64',
-          'test/fixtures/archive13_monitor.part2.b64',
-          'test/fixtures/archive13_monitor.part3.b64',
-          'test/fixtures/archive13_monitor.part4.b64',
-          'test/fixtures/archive13_monitor.part5.b64',
-        ],
+        'test/fixtures/archive13_monitor_compact.b64',
         '${temp.path}/monitor.jpg',
       );
       final reality = await _decodeFixture(
-        const ['test/fixtures/archive13_reality.part1.b64'],
+        'test/fixtures/archive13_reality_compact.b64',
         '${temp.path}/reality.jpg',
       );
 
@@ -148,17 +142,10 @@ const Map<String, dynamic> _realityMl = {
   'predictedClassConfidence': 0.99,
 };
 
-Future<File> _decodeFixture(List<String> sourcePaths, String targetPath) async {
-  final buffer = StringBuffer();
-  for (final sourcePath in sourcePaths) {
-    buffer.write(await File(sourcePath).readAsString());
-  }
-  final normalized = buffer.toString().replaceAll(RegExp(r'\s+'), '');
-  final remainder = normalized.length % 4;
-  final padded = remainder == 0
-      ? normalized
-      : normalized.padRight(normalized.length + (4 - remainder), '=');
+Future<File> _decodeFixture(String sourcePath, String targetPath) async {
+  final normalized = (await File(sourcePath).readAsString())
+      .replaceAll(RegExp(r'\s+'), '');
   final target = File(targetPath);
-  await target.writeAsBytes(base64Decode(padded), flush: true);
+  await target.writeAsBytes(base64Decode(normalized), flush: true);
   return target;
 }
