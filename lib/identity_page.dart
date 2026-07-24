@@ -64,7 +64,7 @@ class _IdentityPageState extends State<IdentityPage>
     if (remoteStatus == 'requires_input' && url.isNotEmpty) {
       lines.add(_t('kycRequiresInputHint'));
     }
-    return lines.join('\\n');
+    return lines.join('\n');
   }
 
   Future<bool> _openKycUrl(String url) async {
@@ -112,6 +112,98 @@ class _IdentityPageState extends State<IdentityPage>
       trustLevel = identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
       status = _t('technicalIdentityLoaded');
     });
+
+    await _recoverKycForDevice(identity, silent: true);
+  }
+
+  Future<bool> _recoverKycForDevice(
+    Map<String, dynamic> identity, {
+    bool silent = false,
+  }) async {
+    final fingerprint =
+        identity['devicePublicKeyFingerprint']?.toString() ?? '';
+    final rawPublicKey = identity['publicKey'];
+    if (fingerprint.isEmpty ||
+        fingerprint == 'UNAVAILABLE' ||
+        rawPublicKey is! Map) {
+      return false;
+    }
+
+    try {
+      final remote = await const HCVRegistryService().recoverKycSession(
+        deviceKeyFingerprint: fingerprint,
+        publicKey: Map<String, dynamic>.from(rawPublicKey),
+      );
+      if (remote['found'] != true) return false;
+
+      final recoveredSessionId = remote['sessionId']?.toString() ?? '';
+      final provider = remote['provider']?.toString() ?? 'stripe_identity';
+      final remoteStatus = remote['status']?.toString() ?? 'unknown';
+      if (recoveredSessionId.isNotEmpty) {
+        await HCVIdentity().saveKycSession(
+          sessionId: recoveredSessionId,
+          provider: provider,
+          status: remoteStatus,
+        );
+      }
+      await HCVIdentity().saveKycStatus(
+        remoteStatus,
+        verifiedOutputs: remote['verifiedOutputs'] is Map
+            ? Map<String, dynamic>.from(remote['verifiedOutputs'] as Map)
+            : null,
+      );
+      final recovered = await HCVIdentity().loadIdentity();
+      if (!mounted) return true;
+      setState(() {
+        kycSessionId = recovered['kycSessionId']?.toString() ?? '';
+        kycStatus = recovered['kycStatus']?.toString() ?? '';
+        verifiedLegalName = recovered['verifiedLegalName']?.toString() ?? '';
+        verifiedLegalCountry =
+            recovered['verifiedLegalCountry']?.toString() ?? '';
+        identityAssuranceLevel =
+            recovered['identityAssuranceLevel']?.toString() ?? '';
+        legalIdentityStatus =
+            recovered['legalIdentityStatus']?.toString() ?? '';
+        trustLevel = recovered['trustLevel']?.toString() ?? trustLevel;
+        nameController.text =
+            recovered['creatorName']?.toString() ?? nameController.text;
+        if (!silent || remoteStatus == 'verified') {
+          status = remoteStatus == 'verified'
+              ? _t('kycVerified')
+              : _statusTextForRemote(remote);
+        }
+      });
+      return true;
+    } catch (err) {
+      if (!silent && mounted) {
+        setState(() {
+          status = '${_t('kycStatusUnavailable')}\n$err';
+        });
+      }
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> _fetchAndBindKycSession(
+    String sessionId,
+    Map<String, dynamic> identity,
+  ) async {
+    final registry = const HCVRegistryService();
+    final remote = await registry.fetchKycSessionStatus(sessionId: sessionId);
+    final fingerprint =
+        identity['devicePublicKeyFingerprint']?.toString() ?? '';
+    final rawPublicKey = identity['publicKey'];
+    if (fingerprint.isNotEmpty &&
+        fingerprint != 'UNAVAILABLE' &&
+        rawPublicKey is Map) {
+      await registry.bindExistingKycSession(
+        sessionId: sessionId,
+        creatorId: identity['creatorId']?.toString() ?? '',
+        deviceKeyFingerprint: fingerprint,
+        publicKey: Map<String, dynamic>.from(rawPublicKey),
+      );
+    }
+    return remote;
   }
 
   Future<void> saveIdentity() async {
@@ -153,10 +245,13 @@ class _IdentityPageState extends State<IdentityPage>
     });
 
     try {
+      final identity = await HCVIdentity().loadIdentity();
+      if (await _recoverKycForDevice(identity)) {
+        if (kycStatus == 'verified') return;
+      }
+
       if (kycSessionId.isNotEmpty) {
-        final remote = await const HCVRegistryService().fetchKycSessionStatus(
-          sessionId: kycSessionId,
-        );
+        final remote = await _fetchAndBindKycSession(kycSessionId, identity);
         final remoteStatus = remote['status']?.toString() ?? 'unknown';
         final url = remote['url']?.toString() ?? '';
         await HCVIdentity().saveKycStatus(
@@ -165,20 +260,21 @@ class _IdentityPageState extends State<IdentityPage>
               ? Map<String, dynamic>.from(remote["verifiedOutputs"] as Map)
               : null,
         );
-        final identity = await HCVIdentity().loadIdentity();
+        final updatedIdentity = await HCVIdentity().loadIdentity();
         setState(() {
           identityAssuranceLevel =
-              identity["identityAssuranceLevel"]?.toString() ?? "";
+              updatedIdentity["identityAssuranceLevel"]?.toString() ?? "";
           legalIdentityStatus =
-              identity["legalIdentityStatus"]?.toString() ?? "";
+              updatedIdentity["legalIdentityStatus"]?.toString() ?? "";
           trustLevel =
-              identity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
+              updatedIdentity["trustLevel"]?.toString() ?? "LOCAL_KEY_VERIFIED";
           kycStatus = remoteStatus;
-          verifiedLegalName = identity["verifiedLegalName"]?.toString() ?? "";
+          verifiedLegalName =
+              updatedIdentity["verifiedLegalName"]?.toString() ?? "";
           verifiedLegalCountry =
-              identity["verifiedLegalCountry"]?.toString() ?? "";
+              updatedIdentity["verifiedLegalCountry"]?.toString() ?? "";
           nameController.text =
-              identity["creatorName"]?.toString() ?? nameController.text;
+              updatedIdentity["creatorName"]?.toString() ?? nameController.text;
           status = remoteStatus == 'verified'
               ? _t('kycVerified')
               : _statusTextForRemote(remote);
@@ -198,9 +294,20 @@ class _IdentityPageState extends State<IdentityPage>
         }
       }
 
+      final fingerprint =
+          identity['devicePublicKeyFingerprint']?.toString() ?? '';
+      final rawPublicKey = identity['publicKey'];
+      if (fingerprint.isEmpty ||
+          fingerprint == 'UNAVAILABLE' ||
+          rawPublicKey is! Map) {
+        throw Exception('Chiave stabile del dispositivo non disponibile');
+      }
+
       final session = await const HCVRegistryService().startKycSession(
         creatorId: creatorId,
         creatorName: name.isEmpty ? 'Local Creator' : name,
+        deviceKeyFingerprint: fingerprint,
+        publicKey: Map<String, dynamic>.from(rawPublicKey),
       );
       final url = session['url']?.toString() ?? '';
       final provider = session['provider']?.toString() ?? 'stripe_identity';
@@ -254,9 +361,8 @@ class _IdentityPageState extends State<IdentityPage>
     }
 
     try {
-      final remote = await const HCVRegistryService().fetchKycSessionStatus(
-        sessionId: kycSessionId,
-      );
+      final localIdentity = await HCVIdentity().loadIdentity();
+      final remote = await _fetchAndBindKycSession(kycSessionId, localIdentity);
       final remoteStatus = remote['status']?.toString() ?? 'unknown';
       await HCVIdentity().saveKycStatus(
         remoteStatus,
