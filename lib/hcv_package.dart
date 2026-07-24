@@ -53,7 +53,6 @@ class HCVPackage {
         .convert(utf8.encode('$contentSha256|$certificateSha256|$createdAt'))
         .toString();
 
-    final isVideo = contentType == 'video';
     final meta = <String, dynamic>{
       'type': 'HCV_PACKAGE',
       'version': 3,
@@ -69,7 +68,7 @@ class HCVPackage {
       'certificateSha256': certificateSha256,
       'hashAlgorithm': 'SHA256',
       'certificateFormat': 'HCV',
-      if (isVideo) 'legacyCompatibilityFile': 'video.mp4',
+      'singleContentEntry': true,
     };
 
     final archive = Archive()
@@ -83,14 +82,6 @@ class HCVPackage {
         hcvBytes.length,
         hcvBytes,
       ));
-
-    if (isVideo && archiveContentPath != 'video.mp4') {
-      archive.addFile(ArchiveFile(
-        'video.mp4',
-        contentBytes.length,
-        contentBytes,
-      ));
-    }
 
     final metaBytes = utf8.encode(
       const JsonEncoder.withIndent('  ').convert(meta),
