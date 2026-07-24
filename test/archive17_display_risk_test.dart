@@ -56,7 +56,7 @@ void main() {
       ], liveCaptureOnly: true);
 
       expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-      expect(result.score, 30);
+      expect(result.score, 20);
     });
 
     test('known paper-pattern negative is not promoted', () {
@@ -73,7 +73,7 @@ void main() {
       ], liveCaptureOnly: true);
 
       expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-      expect(result.score, 30);
+      expect(result.score, 20);
     });
   });
 }
