@@ -2,12 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sigillum_iphone/hcv_display_risk_fusion.dart';
 import 'package:sigillum_iphone/hcv_screen_replay_analyzer.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('real Archive 13 monitor and physical scene remain separable', () async {
+  test('Archive 13 monitor and physical scene diverge in complete fusion', () async {
     final temp = await Directory.systemTemp.createTemp('sigillum_archive13_');
     try {
       final monitor = await _decodeFixture(
@@ -26,55 +27,59 @@ void main() {
       );
 
       final analyzer = HCVScreenReplayAnalyzer();
-      final monitorResult = await analyzer.analyzeImage(monitor.path);
-      final realityResult = await analyzer.analyzeImage(reality.path);
-
-      final monitorScore =
-          (monitorResult['screenReplayRiskScore'] as num?)?.toInt();
-      final realityScore =
-          (realityResult['screenReplayRiskScore'] as num?)?.toInt();
-      final monitorSignals = monitorResult['signals'];
-      final realitySignals = realityResult['signals'];
-      final monitorStructural = monitorSignals is Map &&
-          monitorSignals['structuralDisplayTrace'] == true;
-      final realityStructural = realitySignals is Map &&
-          realitySignals['structuralDisplayTrace'] == true;
+      final monitorStatic = await analyzer.analyzeImage(monitor.path);
+      final realityStatic = await analyzer.analyzeImage(reality.path);
 
       expect(
-        monitorScore,
+        monitorStatic['screenReplayRiskScore'],
         isNotNull,
-        reason: 'Monitor non analizzato: $monitorResult',
+        reason: 'Monitor non analizzato: $monitorStatic',
       );
       expect(
-        realityScore,
+        realityStatic['screenReplayRiskScore'],
         isNotNull,
-        reason: 'Scena fisica non analizzata: $realityResult',
+        reason: 'Scena fisica non analizzata: $realityStatic',
       );
-      expect(
-        monitorStructural,
-        isTrue,
-        reason: 'Il monitor reale non mostra traccia strutturale: $monitorResult',
+
+      final monitorResult = HCVDisplayRiskFusion.combine(
+        [
+          _archive13MonitorLiveProbe,
+          monitorStatic,
+          _monitorMl,
+        ],
+        liveCaptureOnly: true,
       );
-      expect(
-        monitorScore!,
-        greaterThanOrEqualTo(45),
-        reason: 'Punteggio monitor troppo basso: $monitorResult',
+      final realityResult = HCVDisplayRiskFusion.combine(
+        [
+          _archive13RealityLiveProbe,
+          realityStatic,
+          _realityMl,
+        ],
+        liveCaptureOnly: true,
       );
+
       expect(
-        realityStructural,
-        isFalse,
-        reason: 'La scena fisica produce una falsa traccia: $realityResult',
-      );
-      expect(
-        realityScore!,
-        lessThanOrEqualTo(30),
-        reason: 'Punteggio scena fisica troppo alto: $realityResult',
-      );
-      expect(
-        monitorScore,
-        greaterThan(realityScore),
+        monitorResult.decision,
+        'STRONG_DISPLAY_RISK',
         reason:
-            'Le due immagini reali non sono separate: monitor=$monitorResult reality=$realityResult',
+            'La foto reale del monitor non viene riconosciuta dalla fusione: ${monitorResult.toJson()} static=$monitorStatic',
+      );
+      expect(
+        monitorResult.evidenceSources,
+        containsAll(<String>['LIVE_PREVIEW', 'ML_SCREEN_CLASS']),
+      );
+      expect(
+        realityResult.decision,
+        'NO_DISPLAY_EVIDENCE',
+        reason:
+            'La scena fisica produce un falso positivo: ${realityResult.toJson()} static=$realityStatic',
+      );
+      expect(realityResult.score, lessThanOrEqualTo(30));
+      expect(
+        realityResult.evidenceSources,
+        isNot(contains('STATIC_OPTICAL')),
+        reason:
+            'Bande luminose generiche sono state accettate come evidenza ottica indipendente: $realityStatic',
       );
     } finally {
       await temp.delete(recursive: true);
@@ -82,15 +87,78 @@ void main() {
   });
 }
 
+const Map<String, dynamic> _archive13MonitorLiveProbe = {
+  'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V2',
+  'analysisStatus': 'ANALYZED',
+  'analysisQuality': 0.82,
+  'framesAnalyzed': 45,
+  'screenReplayRisk': 'HIGH',
+  'screenReplayRiskScore': 83,
+  'displayRiskDecision': 'STRONG_DISPLAY_RISK',
+  'localTemporalFlickerScore': 0.6672,
+  'refreshBandScore': 0.1600,
+  'fineStripeScore': 0.4396,
+  'fineGridScore': 0.8782,
+  'moireFrequencyScore': 0.5103,
+  'persistentPatternScore': 0.6956,
+  'signals': {
+    'temporalEvidence': true,
+    'stripeEvidence': true,
+    'spatialEvidence': true,
+    'crossPhasePersistence': true,
+    'corroboratedModerateTrace': true,
+    'confirmedDisplayTrace': true,
+  },
+};
+
+const Map<String, dynamic> _archive13RealityLiveProbe = {
+  'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V2',
+  'analysisStatus': 'ANALYZED',
+  'analysisQuality': 0.82,
+  'framesAnalyzed': 45,
+  'screenReplayRisk': 'LOW',
+  'screenReplayRiskScore': 20,
+  'displayRiskDecision': 'NO_DISPLAY_EVIDENCE',
+  'localTemporalFlickerScore': 0.4364,
+  'refreshBandScore': 0.0640,
+  'signals': {
+    'temporalEvidence': false,
+    'stripeEvidence': false,
+    'spatialEvidence': false,
+    'crossPhasePersistence': false,
+    'corroboratedModerateTrace': false,
+    'confirmedDisplayTrace': false,
+    'uncorroboratedDisplayPattern': false,
+  },
+};
+
+const Map<String, dynamic> _monitorMl = {
+  'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+  'analysisStatus': 'ANALYZED',
+  'screenReplayRiskScore': 98,
+  'predictedClass': 'SCREEN_MONITOR',
+  'predictedClassConfidence': 0.98,
+};
+
+const Map<String, dynamic> _realityMl = {
+  'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+  'analysisStatus': 'ANALYZED',
+  'screenReplayRiskScore': 2,
+  'predictedClass': 'REALITY_REFLECTED',
+  'predictedClassConfidence': 0.99,
+};
+
 Future<File> _decodeFixture(List<String> sourcePaths, String targetPath) async {
   final buffer = StringBuffer();
   for (final sourcePath in sourcePaths) {
-    buffer.write((await File(sourcePath).readAsString()).trim());
+    buffer.write(await File(sourcePath).readAsString());
   }
+  final normalized = buffer.toString().replaceAll(RegExp(r'\s+'), '');
+  final remainder = normalized.length % 4;
+  final padded = remainder == 0
+      ? normalized
+      : normalized.padRight(normalized.length + (4 - remainder), '=');
   final target = File(targetPath);
-  await target.writeAsBytes(
-    base64Decode(buffer.toString()),
-    flush: true,
-  );
+  await target.writeAsBytes(base64Decode(padded), flush: true);
   return target;
 }
