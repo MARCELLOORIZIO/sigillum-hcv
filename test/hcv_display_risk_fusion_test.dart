@@ -167,7 +167,10 @@ Map<String, dynamic> _staticOptical({
     'type': 'SIGILLUM_SCREEN_REPLAY_IMAGE_ANALYSIS_V1',
     'analysisStatus': 'ANALYZED',
     'screenReplayRiskScore': score,
-    'signals': {'structuralDisplayTrace': structural},
+    'signals': {
+      'structuralDisplayTrace': structural,
+      'pixelGridOrMoireHint': structural,
+    },
   };
 }
 
