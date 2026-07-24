@@ -47,6 +47,8 @@ class HCVRegistryRetryReport {
 
 class HCVRegistryService {
   static const _pendingUploadsKey = 'hcv_registry_pending_uploads_v2';
+  static const _legacyKycSessionKey = 'hcv_kyc_session_id';
+  static const _legacyKycLegalNameKey = 'hcv_kyc_legal_name';
   static const _requestTimeout = Duration(seconds: 20);
 
   final String baseUrl;
@@ -270,7 +272,7 @@ class HCVRegistryService {
       deviceKeyFingerprint: deviceKeyFingerprint,
       publicKey: publicKey,
     );
-    return _requestJson(
+    final recovered = await _requestJson(
       method: 'POST',
       path: '/api/identity/kyc/recover',
       body: {
@@ -279,6 +281,27 @@ class HCVRegistryService {
         'creatorName': creatorName,
         ...proof,
       },
+    );
+    if (recovered['found'] == true) return recovered;
+
+    final prefs = await SharedPreferences.getInstance();
+    final legacySessionId =
+        prefs.getString(_legacyKycSessionKey)?.trim() ?? '';
+    final verifiedLegalName =
+        prefs.getString(_legacyKycLegalNameKey)?.trim() ?? '';
+    final migrationName = verifiedLegalName.isNotEmpty
+        ? verifiedLegalName
+        : creatorName.trim();
+    if (legacySessionId.isEmpty || !_isUsableLegacyLegalName(migrationName)) {
+      return recovered;
+    }
+
+    return bindExistingKycSession(
+      sessionId: legacySessionId,
+      creatorId: creatorId,
+      creatorName: migrationName,
+      deviceKeyFingerprint: deviceKeyFingerprint,
+      publicKey: publicKey,
     );
   }
 
@@ -329,6 +352,14 @@ class HCVRegistryService {
         ...proof,
       },
     );
+  }
+
+  bool _isUsableLegacyLegalName(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    return normalized != 'local creator' &&
+        normalized != 'local iphone creator' &&
+        normalized != 'local android creator';
   }
 
   Future<(String, Map<String, dynamic>)> _resolveDeviceIdentity({
@@ -387,7 +418,7 @@ class HCVRegistryService {
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final kind = response.statusCode == 404
             ? HCVRegistryFailureKind.notFound
-            : response.statusCode == 409
+            : response.statusCode == 409 && path == '/api/certificate'
                 ? HCVRegistryFailureKind.invalidCertificate
                 : response.statusCode >= 500
                     ? HCVRegistryFailureKind.server
