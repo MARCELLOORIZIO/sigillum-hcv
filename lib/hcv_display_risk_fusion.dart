@@ -74,6 +74,12 @@ class HCVDisplayRiskFusion {
     final fineStripe = _number(live, 'fineStripeScore', fallback: 1);
     final fineGrid = _number(live, 'fineGridScore');
     final moire = _number(live, 'moireFrequencyScore');
+    final persistentPattern = _number(live, 'persistentPatternScore');
+    final dynamicChallenge = _number(
+      live,
+      'dynamicChallengeScore',
+      fallback: 1,
+    );
 
     final liveTemporal =
         live != null &&
@@ -99,9 +105,9 @@ class HCVDisplayRiskFusion {
         refreshBand >= 0.15 &&
         (fineGrid >= 0.75 || moire >= 0.40);
 
-    // iOS archive 15: the camera's exposure/zoom transition attenuates the
-    // refresh score, while a real monitor still retains four independent
-    // characteristics together.  This is deliberately moderate evidence only.
+    // Archive 15 video: exposure and optical-probe transitions can attenuate
+    // refresh bands, while a monitor retains temporal flicker plus texture.
+    // This is moderate evidence only and can never produce a strong verdict.
     final liveScreenTextureModerate =
         live != null &&
         liveScore != null &&
@@ -111,13 +117,29 @@ class HCVDisplayRiskFusion {
         fineStripe >= 0.36 &&
         (fineGrid >= 0.60 || moire >= 0.34);
 
+    // Archive 16 photo: the pre-capture probe can suppress temporal values,
+    // but the monitor still produces a highly persistent, fine periodic texture
+    // across both optical-probe phases. The strict conjunction below separates
+    // it from the previously tested selfie, desk and paper false positives.
+    // It remains only NON_CONCLUSIVE evidence.
+    final livePersistentDisplayTexture =
+        live != null &&
+        liveScore != null &&
+        framesAnalyzed >= 24 &&
+        fineStripe >= 0.36 &&
+        fineGrid >= 0.95 &&
+        moire >= 0.50 &&
+        persistentPattern >= 0.95 &&
+        dynamicChallenge <= 0.10;
+
     final liveModerate =
         live != null &&
         liveScore != null &&
         (liveTemporal ||
             liveEmissiveTemporal ||
             liveCorroboratedModerate ||
-            liveScreenTextureModerate);
+            liveScreenTextureModerate ||
+            livePersistentDisplayTexture);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveTemporal) {
@@ -129,6 +151,8 @@ class HCVDisplayRiskFusion {
       reasons.add('LIVE_CORROBORATED_TEMPORAL_PATTERN');
     } else if (liveScreenTextureModerate) {
       reasons.add('LIVE_SCREEN_TEXTURE_TEMPORAL_PATTERN');
+    } else if (livePersistentDisplayTexture) {
+      reasons.add('LIVE_PERSISTENT_DISPLAY_TEXTURE');
     }
 
     var passiveStrong = false;
