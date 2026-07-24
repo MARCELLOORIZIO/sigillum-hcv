@@ -70,6 +70,9 @@ class HCVDisplayRiskFusion {
     final fineStripe = _number(live, 'fineStripeScore', fallback: 1);
     final fineGrid = _number(live, 'fineGridScore');
     final moire = _number(live, 'moireFrequencyScore');
+    final persistentPattern = _number(live, 'persistentPatternScore');
+    final dynamicChallenge =
+        _number(live, 'dynamicChallengeScore', fallback: 1);
 
     final liveTemporal = live != null &&
         liveScore != null &&
@@ -78,12 +81,10 @@ class HCVDisplayRiskFusion {
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
 
-    // Unified moderate display signature calibrated on every available real
-    // capture set (archives 13, 15, 16, 17 and 18). It intentionally avoids
-    // probe booleans that change when low-level thresholds move. All five
-    // independent numeric families must fall inside the monitor envelope:
-    // temporal flicker, refresh, stripe texture, spatial grid and structure.
-    // This signature can only produce NON_CONCLUSIVE.
+    // One moderate decision envelope for every available real capture set.
+    // It uses only numeric measurements and is independent from probe booleans,
+    // whose low-level thresholds may change. This signature can only produce
+    // NON_CONCLUSIVE unless another independent strong source corroborates it.
     final liveUnifiedDisplaySignature = live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
@@ -93,8 +94,43 @@ class HCVDisplayRiskFusion {
         fineStripe < 0.50 &&
         (fineGrid >= 0.60 || moire >= 0.30);
 
-    final liveModerate =
-        live != null && liveScore != null && (liveTemporal || liveUnifiedDisplaySignature);
+    // Diagnostic labels only. They no longer decide whether evidence exists.
+    final diagnosticEmissiveTemporal = localFlicker >= 0.55 &&
+        refreshBand >= 0.12 &&
+        (fineGrid >= 0.80 || moire >= 0.45);
+    final diagnosticCorroboratedTemporal = localFlicker >= 0.30 &&
+        refreshBand >= 0.15 &&
+        (fineGrid >= 0.75 || moire >= 0.40);
+    final diagnosticScreenTexture = localFlicker >= 0.38 &&
+        refreshBand >= 0.09 &&
+        fineStripe >= 0.36 &&
+        (fineGrid >= 0.60 || moire >= 0.34);
+    final diagnosticLowEmissionTexture = localFlicker >= 0.22 &&
+        refreshBand >= 0.09 &&
+        fineStripe >= 0.18 &&
+        fineStripe <= 0.28 &&
+        fineGrid >= 0.70 &&
+        fineGrid <= 0.82 &&
+        moire <= 0.30 &&
+        persistentPattern >= 0.68 &&
+        dynamicChallenge <= 0.24 &&
+        liveSignals['uncorroboratedDisplayPattern'] == true;
+    final diagnosticHighTemporalGrid = localFlicker >= 0.60 &&
+        refreshBand >= 0.09 &&
+        fineStripe >= 0.28 &&
+        fineGrid >= 0.80 &&
+        moire >= 0.34 &&
+        persistentPattern >= 0.40 &&
+        liveSignals['uncorroboratedDisplayPattern'] == true;
+    final diagnosticPersistentTexture = fineStripe >= 0.36 &&
+        fineGrid >= 0.95 &&
+        moire >= 0.50 &&
+        persistentPattern >= 0.95 &&
+        dynamicChallenge <= 0.10;
+
+    final liveModerate = live != null &&
+        liveScore != null &&
+        (liveTemporal || liveUnifiedDisplaySignature);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
     if (liveTemporal) {
@@ -102,6 +138,24 @@ class HCVDisplayRiskFusion {
       reasons.add('LIVE_TEMPORAL_CONFIRMED');
     } else if (liveUnifiedDisplaySignature) {
       reasons.add('LIVE_UNIFIED_DISPLAY_SIGNATURE');
+      if (diagnosticEmissiveTemporal) {
+        reasons.add('LIVE_EMISSIVE_TEMPORAL_PATTERN');
+      }
+      if (diagnosticCorroboratedTemporal) {
+        reasons.add('LIVE_CORROBORATED_TEMPORAL_PATTERN');
+      }
+      if (diagnosticScreenTexture) {
+        reasons.add('LIVE_SCREEN_TEXTURE_TEMPORAL_PATTERN');
+      }
+      if (diagnosticLowEmissionTexture) {
+        reasons.add('LIVE_LOW_EMISSION_TEXTURE_PATTERN');
+      }
+      if (diagnosticHighTemporalGrid) {
+        reasons.add('LIVE_HIGH_TEMPORAL_GRID_PATTERN');
+      }
+      if (diagnosticPersistentTexture) {
+        reasons.add('LIVE_PERSISTENT_DISPLAY_TEXTURE');
+      }
     }
 
     var passiveStrong = false;
