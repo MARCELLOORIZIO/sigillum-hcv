@@ -74,6 +74,17 @@ class HCVDisplayRiskFusion {
     final dynamicChallenge =
         _number(live, 'dynamicChallengeScore', fallback: 1);
 
+    final activeProbeVersion = (live?['activeProbeVersion'] as num?)?.toInt();
+    final activeDisplayEvidence =
+        liveSignals['activeIlluminationDisplayEvidence'] == true;
+    final reflectedRealityEvidence =
+        liveSignals['reflectedRealityEvidence'] == true;
+    final activeChallengeIndeterminate =
+        liveSignals['activeChallengeIndeterminate'] == true;
+    final activeProbeNonConclusive = activeProbeVersion != null &&
+        activeProbeVersion >= 2 &&
+        live?['displayRiskDecision'] == 'NON_CONCLUSIVE';
+
     final liveTemporal = live != null &&
         liveScore != null &&
         liveScore >= 70 &&
@@ -81,9 +92,10 @@ class HCVDisplayRiskFusion {
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
 
-    // General monitor envelope calibrated against every available real capture
-    // and physical-scene negative. It does not depend on probe boolean flags.
-    final liveUnifiedDisplaySignature = live != null &&
+    // Legacy passive signatures remain available for old certificates and as
+    // corroboration, but a valid reflected-reality response suppresses them.
+    final liveUnifiedDisplaySignature = !reflectedRealityEvidence &&
+        live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
         localFlicker >= 0.22 &&
@@ -92,16 +104,15 @@ class HCVDisplayRiskFusion {
         fineStripe < 0.50 &&
         (fineGrid >= 0.60 || moire >= 0.30);
 
-    // Independent general path for pronounced flicker/refresh evidence. This
-    // covers display captures where stripe extraction is unavailable or noisy.
-    final liveHighRefreshSignature = live != null &&
+    final liveHighRefreshSignature = !reflectedRealityEvidence &&
+        live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
         localFlicker >= 0.30 &&
         refreshBand >= 0.15 &&
         (fineGrid >= 0.75 || moire >= 0.40);
 
-    // Diagnostic labels only. They do not decide whether evidence exists.
+    // Diagnostic labels only; they do not decide the verdict.
     final diagnosticEmissiveTemporal = localFlicker >= 0.55 &&
         refreshBand >= 0.12 &&
         (fineGrid >= 0.80 || moire >= 0.45);
@@ -138,14 +149,32 @@ class HCVDisplayRiskFusion {
     final liveModerate = live != null &&
         liveScore != null &&
         (liveTemporal ||
+            activeDisplayEvidence ||
+            activeProbeNonConclusive ||
             liveUnifiedDisplaySignature ||
             liveHighRefreshSignature);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
+    if (activeDisplayEvidence || activeProbeNonConclusive) {
+      evidenceSources.add('ACTIVE_ILLUMINATION');
+    }
+    if (reflectedRealityEvidence) {
+      reasons.add('ACTIVE_REFLECTED_REALITY_EVIDENCE');
+    }
+    if (activeChallengeIndeterminate) {
+      reasons.add('ACTIVE_CHALLENGE_INDETERMINATE');
+    }
+
     if (liveTemporal) {
       strongSources.add('LIVE_TEMPORAL');
       reasons.add('LIVE_TEMPORAL_CONFIRMED');
     } else if (liveModerate) {
+      if (activeDisplayEvidence) {
+        reasons.add('ACTIVE_EMISSIVE_DISPLAY_EVIDENCE');
+      }
+      if (activeProbeNonConclusive && !activeDisplayEvidence) {
+        reasons.add('ACTIVE_PROBE_REQUIRES_GEOMETRIC_CORROBORATION');
+      }
       if (liveUnifiedDisplaySignature) {
         reasons.add('LIVE_UNIFIED_DISPLAY_SIGNATURE');
       }
@@ -178,7 +207,10 @@ class HCVDisplayRiskFusion {
           signals['strongDisplayTrace'] == true ||
           signals['confirmedDisplayTrace'] == true;
       if (score >= 70 && structural) passiveStrong = true;
-      if ((score >= 45 && structural) || score >= 70) passiveModerate = true;
+      if (!reflectedRealityEvidence &&
+          ((score >= 45 && structural) || score >= 70)) {
+        passiveModerate = true;
+      }
     }
     if (passiveModerate) evidenceSources.add('STATIC_OPTICAL');
     if (passiveStrong) {
@@ -195,7 +227,8 @@ class HCVDisplayRiskFusion {
     final mlStrong = mlSaysScreen &&
         mlScore >= 92 &&
         (mlConfidence == null || mlConfidence >= 0.78);
-    final mlModerate = mlSaysScreen &&
+    final mlModerate = !reflectedRealityEvidence &&
+        mlSaysScreen &&
         mlScore >= 88 &&
         (mlConfidence == null || mlConfidence >= 0.70);
     if (mlModerate) evidenceSources.add('ML_SCREEN_CLASS');
@@ -209,6 +242,9 @@ class HCVDisplayRiskFusion {
     final hasIndependentCorroboration =
         strongSources.isNotEmpty && evidenceSources.length >= 2;
     final hasAnyEvidence = evidenceSources.isNotEmpty;
+    final liveNotAnalyzed = live == null ||
+        liveScore == null ||
+        live?['analysisStatus'] == 'NOT_ANALYZED';
 
     late final String decision;
     late final int score;
@@ -218,6 +254,10 @@ class HCVDisplayRiskFusion {
     } else if (hasAnyEvidence) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
+    } else if (liveNotAnalyzed || activeChallengeIndeterminate) {
+      decision = 'NON_CONCLUSIVE';
+      score = 45;
+      reasons.add('DISPLAY_CLASSIFICATION_NOT_RESOLVED');
     } else {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 30);
