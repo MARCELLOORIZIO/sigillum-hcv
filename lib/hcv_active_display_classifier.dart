@@ -52,28 +52,43 @@ class HCVActiveDisplayClassifier {
     required double fineStripe,
     required double fineGrid,
     required double moire,
+    double flashLiftRatio = 0,
+    double flashResponseEntropy = 0,
+    double flashHotspotConcentration = 1,
   }) {
     final reasons = <String>[];
     final baselineReference =
         ((baselineMeanLuma + recoveryMeanLuma) / 2).clamp(0.0, 1.0);
-    final positiveTorchLift =
-        max(0.0, torchMeanLuma - baselineReference).clamp(0.0, 1.0);
-    final torchLiftRatio =
-        (positiveTorchLift / max(0.08, baselineReference)).clamp(0.0, 1.0);
     final recoveryError =
         (recoveryMeanLuma - baselineMeanLuma).abs().clamp(0.0, 1.0);
+    final relativeRecoveryError =
+        (recoveryError / max(0.08, baselineReference)).clamp(0.0, 1.0);
+    final positiveTorchLift =
+        max(0.0, torchMeanLuma - baselineReference).clamp(0.0, 1.0);
+    final measuredLiftRatio = flashLiftRatio > 0
+        ? flashLiftRatio.clamp(0.0, 1.0).toDouble()
+        : (positiveTorchLift / max(0.08, baselineReference))
+            .clamp(0.0, 1.0)
+            .toDouble();
 
+    // A strict API exposure lock is preferred. If the plugin cannot report a
+    // lock, a highly repeatable OFF-before/OFF-after baseline still makes the
+    // physical challenge usable.
+    final recoveryStable = relativeRecoveryError <= 0.12;
     final challengeValid = framesAnalyzed >= 24 &&
-        exposureLocked &&
         torchChallengeCompleted &&
-        recoveryError <= 0.16;
+        recoveryStable &&
+        (exposureLocked || relativeRecoveryError <= 0.055);
 
-    // Reflected scenes normally brighten over a meaningful part of the frame
-    // when exposure is locked and the phone torch is added. A self-emissive
-    // display is substantially less dependent on that illumination.
+    final coverage = responsiveTileFraction.clamp(0.0, 1.0).toDouble();
+    final entropy = flashResponseEntropy.clamp(0.0, 1.0).toDouble();
+    final hotspot = flashHotspotConcentration.clamp(0.0, 1.0).toDouble();
+    final broadDiffuseShape =
+        (coverage * 0.55 + entropy * 0.45).clamp(0.0, 1.0).toDouble();
+    final liftStrength =
+        (measuredLiftRatio / 0.20).clamp(0.0, 1.0).toDouble();
     final illuminationResponseScore = challengeValid
-        ? ((torchLiftRatio / 0.22) * 0.65 +
-                (responsiveTileFraction / 0.70) * 0.35)
+        ? (liftStrength * 0.52 + broadDiffuseShape * 0.48)
             .clamp(0.0, 1.0)
             .toDouble()
         : 0.0;
@@ -95,29 +110,46 @@ class HCVActiveDisplayClassifier {
             .clamp(0.0, 1.0)
             .toDouble();
 
-    final reflectedRealityEvidence =
-        challengeValid && illuminationResponseScore >= 0.62;
+    final diffuseReflection = challengeValid &&
+        measuredLiftRatio >= 0.07 &&
+        coverage >= 0.38 &&
+        entropy >= 0.48 &&
+        hotspot <= 0.58 &&
+        illuminationResponseScore >= 0.42;
+    final lowElectronicScene = electronicCueScore <= 0.46;
+    final reflectedRealityEvidence = diffuseReflection && lowElectronicScene;
+
+    // A display can reflect the torch from its glass. That reflection is
+    // generally concentrated in a small area while the emitted image remains
+    // stable elsewhere. Electronic structure is therefore required together
+    // with weak/directed illumination response.
+    final electronicDisplayStructure = electronicCueScore >= 0.48;
+    final directedGlare = hotspot >= 0.52 || coverage <= 0.34;
+    final weakDiffuseResponse = illuminationResponseScore <= 0.58;
     final emissiveDisplayEvidence = challengeValid &&
-        emissiveIndependenceScore >= 0.58 &&
-        electronicCueScore >= 0.34;
+        electronicDisplayStructure &&
+        (directedGlare || weakDiffuseResponse);
 
     if (!challengeValid) {
       reasons.add('ACTIVE_ILLUMINATION_CHALLENGE_NOT_VALID');
+      if (!exposureLocked) reasons.add('EXPOSURE_LOCK_NOT_CONFIRMED');
+      if (!recoveryStable) reasons.add('OFF_PHASES_NOT_REPEATABLE');
     }
     if (reflectedRealityEvidence) {
-      reasons.add('REFLECTED_SCENE_RESPONDS_TO_TORCH');
+      reasons.add('DIFFUSE_REFLECTED_SCENE_RESPONSE');
+      reasons.add('LOW_ELECTRONIC_DISPLAY_STRUCTURE');
     }
     if (emissiveDisplayEvidence) {
-      reasons.add('EMISSIVE_SCENE_RESISTS_TORCH');
+      reasons.add('EMISSIVE_SCENE_RESISTS_DIFFUSE_TORCH');
       reasons.add('ELECTRONIC_DISPLAY_CUES_PRESENT');
+      if (directedGlare) reasons.add('TORCH_RESPONSE_CONCENTRATED_AS_GLARE');
     }
 
-    // This is intentionally conservative. Until the independent geometric
-    // challenge is added, active illumination can support a display warning
-    // but cannot by itself create STRONG_DISPLAY_RISK.
-    if (emissiveDisplayEvidence) {
+    if (emissiveDisplayEvidence && !reflectedRealityEvidence) {
       final probability =
-          (emissiveIndependenceScore * 0.62 + electronicCueScore * 0.38)
+          (electronicCueScore * 0.48 +
+                  emissiveIndependenceScore * 0.32 +
+                  hotspot * 0.20)
               .clamp(0.0, 1.0)
               .toDouble();
       return HCVActiveDisplayClassification(
@@ -132,10 +164,11 @@ class HCVActiveDisplayClassifier {
       );
     }
 
-    if (reflectedRealityEvidence) {
+    if (reflectedRealityEvidence && !emissiveDisplayEvidence) {
       final probability =
-          ((1.0 - illuminationResponseScore) * 0.75 +
-                  electronicCueScore * 0.25)
+          ((1.0 - illuminationResponseScore) * 0.52 +
+                  electronicCueScore * 0.28 +
+                  hotspot * 0.20)
               .clamp(0.0, 1.0)
               .toDouble();
       return HCVActiveDisplayClassification(
@@ -150,13 +183,17 @@ class HCVActiveDisplayClassifier {
       );
     }
 
-    reasons.add('ACTIVE_CHALLENGE_INDETERMINATE');
+    if (emissiveDisplayEvidence && reflectedRealityEvidence) {
+      reasons.add('FLASH_AND_ELECTRONIC_EVIDENCE_CONFLICT');
+    } else {
+      reasons.add('ACTIVE_CHALLENGE_INDETERMINATE');
+    }
     return HCVActiveDisplayClassification(
       decision: 'NON_CONCLUSIVE',
       risk: 'MEDIUM',
       score: 45,
       displayProbability:
-          max(0.35, electronicCueScore * 0.55).clamp(0.0, 1.0).toDouble(),
+          max(0.30, electronicCueScore * 0.60).clamp(0.0, 1.0).toDouble(),
       illuminationResponseScore: illuminationResponseScore,
       emissiveIndependenceScore: emissiveIndependenceScore,
       electronicCueScore: electronicCueScore,
