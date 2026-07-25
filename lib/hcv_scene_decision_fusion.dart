@@ -91,7 +91,7 @@ class HCVSceneDecisionFusion {
     final indeterminate = decision == 'NON_CONCLUSIVE' &&
         !displayEvidence &&
         !realityEvidence;
-    final sceneClass = strongGeometryReality
+    final sceneClass = realityEvidence && !displayEvidence
         ? 'REALITY'
         : geometry.planarEvidence && displayEvidence
             ? 'DISPLAY_SUSPECTED'
