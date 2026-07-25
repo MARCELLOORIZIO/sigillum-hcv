@@ -42,6 +42,7 @@ void main() {
 
     expect(decision.decision, 'NO_DISPLAY_EVIDENCE');
     expect(decision.displayEvidence, isFalse);
-    expect(decision.sceneClass, 'UNKNOWN');
+    expect(decision.realityEvidence, isTrue);
+    expect(decision.sceneClass, 'REALITY');
   });
 }
