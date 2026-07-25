@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - fix/display-kyc-zoom-20260723
+      - sigillum-iphone
   workflow_dispatch:
 
 permissions:
