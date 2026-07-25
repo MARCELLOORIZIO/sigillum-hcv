@@ -3,10 +3,12 @@ import 'dart:math';
 
 import 'package:camera/camera.dart';
 
+import 'hcv_active_display_classifier.dart';
+
 class HCVLiveScreenProbe {
   Future<Map<String, dynamic>> analyzePreview(
     CameraController controller, {
-    Duration duration = const Duration(milliseconds: 1600),
+    Duration duration = const Duration(milliseconds: 1800),
     int maxFrames = 45,
     double? restoreZoomLevel,
     bool useOpticalProbeZoom = true,
@@ -14,92 +16,232 @@ class HCVLiveScreenProbe {
     if (!controller.value.isInitialized) {
       return _unknown('CAMERA_NOT_READY');
     }
-
     if (controller.value.isRecordingVideo) {
       return _unknown('CAMERA_RECORDING');
     }
-
     if (controller.value.isStreamingImages) {
       return _unknown('STREAM_ALREADY_ACTIVE');
     }
 
-    final frameStats = <_FrameStats>[];
-    double? zoomToRestore = restoreZoomLevel;
+    final baselineFrames = <_FrameStats>[];
+    final torchFrames = <_FrameStats>[];
+    final recoveryFrames = <_FrameStats>[];
+    final phaseFrames = max(8, maxFrames ~/ 3);
+    final phaseDuration = Duration(
+      milliseconds: max(550, duration.inMilliseconds ~/ 3),
+    );
+
+    var exposureLocked = false;
+    var focusLocked = false;
+    var torchChallengeCompleted = false;
+    String? challengeError;
 
     try {
-      if (useOpticalProbeZoom) {
-        final minZoom = await controller.getMinZoomLevel();
-        final maxZoom = await controller.getMaxZoomLevel();
-        zoomToRestore ??= minZoom;
-        final baselineFrames = max(8, maxFrames ~/ 2);
-        final probeFrames = max(8, maxFrames - baselineFrames);
-        final phaseDuration = Duration(
-          milliseconds: max(450, duration.inMilliseconds ~/ 2),
-        );
+      await controller.setFlashMode(FlashMode.off);
+      try {
+        await controller.setExposureMode(ExposureMode.auto);
+      } catch (_) {}
+      try {
+        await controller.setFocusMode(FocusMode.auto);
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 350));
 
+      try {
+        await controller.setExposureMode(ExposureMode.locked);
+        exposureLocked = true;
+      } catch (_) {
+        exposureLocked = false;
+      }
+      try {
+        await controller.setFocusMode(FocusMode.locked);
+        focusLocked = true;
+      } catch (_) {
+        focusLocked = false;
+      }
+      await Future.delayed(const Duration(milliseconds: 180));
+
+      await _collectFrameStats(
+        controller,
+        baselineFrames,
+        maxFrames: phaseFrames,
+        duration: phaseDuration,
+        phase: 0,
+      );
+
+      try {
+        await controller.setFlashMode(FlashMode.torch);
+        await Future.delayed(const Duration(milliseconds: 280));
         await _collectFrameStats(
           controller,
-          frameStats,
-          maxFrames: baselineFrames,
-          duration: phaseDuration,
-          phase: 0,
-        );
-
-        final baselineZoom = zoomToRestore;
-        final probeZoom = min(maxZoom, max(minZoom, baselineZoom + 0.55));
-
-        if (probeZoom > baselineZoom + 0.1) {
-          await controller.setZoomLevel(probeZoom);
-          await Future.delayed(const Duration(milliseconds: 180));
-        }
-
-        await _collectFrameStats(
-          controller,
-          frameStats,
-          maxFrames: probeFrames,
+          torchFrames,
+          maxFrames: phaseFrames,
           duration: phaseDuration,
           phase: 1,
         );
-      } else {
-        await _collectFrameStats(
-          controller,
-          frameStats,
-          maxFrames: maxFrames,
-          duration: duration,
-          phase: 0,
-        );
+        torchChallengeCompleted = torchFrames.length >= 4;
+      } catch (e) {
+        challengeError = 'TORCH_CHALLENGE_FAILED: $e';
+      } finally {
+        try {
+          await controller.setFlashMode(FlashMode.off);
+        } catch (_) {}
       }
-    } catch (e) {
-      return _unknown(
-        'LIVE_PROBE_FAILED',
-        framesAnalyzed: frameStats.length,
-        error: e.toString(),
+
+      await Future.delayed(const Duration(milliseconds: 280));
+      await _collectFrameStats(
+        controller,
+        recoveryFrames,
+        maxFrames: phaseFrames,
+        duration: phaseDuration,
+        phase: 2,
       );
+    } catch (e) {
+      challengeError ??= 'ACTIVE_PROBE_FAILED: $e';
     } finally {
       try {
         if (controller.value.isStreamingImages) {
           await controller.stopImageStream();
         }
       } catch (_) {}
-
       try {
-        if (zoomToRestore != null && controller.value.isInitialized) {
-          await controller.setZoomLevel(zoomToRestore);
-          // setZoomLevel completes before the iOS camera pipeline, autofocus
-          // and exposure have necessarily settled at the restored framing.
-          await Future.delayed(const Duration(milliseconds: 450));
+        await controller.setFlashMode(FlashMode.off);
+      } catch (_) {}
+      try {
+        await controller.setExposureMode(ExposureMode.auto);
+      } catch (_) {}
+      try {
+        await controller.setFocusMode(FocusMode.auto);
+      } catch (_) {}
+      try {
+        if (restoreZoomLevel != null && controller.value.isInitialized) {
+          await controller.setZoomLevel(restoreZoomLevel);
         }
       } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 450));
     }
 
-    if (frameStats.length < 8) {
+    final allFrames = <_FrameStats>[
+      ...baselineFrames,
+      ...torchFrames,
+      ...recoveryFrames,
+    ];
+    if (allFrames.length < 8) {
       return _unknown(
         'NOT_ENOUGH_PREVIEW_FRAMES',
-        framesAnalyzed: frameStats.length,
+        framesAnalyzed: allFrames.length,
+        error: challengeError,
       );
     }
 
-    return _analyze(frameStats);
+    final passiveFrames = <_FrameStats>[
+      ...baselineFrames,
+      ...recoveryFrames,
+    ];
+    final passive = _analyzePassive(
+      passiveFrames.length >= 8 ? passiveFrames : allFrames,
+    );
+    final baseline = _phaseAverage(baselineFrames);
+    final torch = _phaseAverage(torchFrames);
+    final recovery = _phaseAverage(recoveryFrames);
+    final responsiveTileFraction = _responsiveTileFraction(
+      baseline,
+      torch,
+      recovery,
+    );
+
+    final active = HCVActiveDisplayClassifier.classify(
+      framesAnalyzed: allFrames.length,
+      exposureLocked: exposureLocked,
+      torchChallengeCompleted: torchChallengeCompleted,
+      baselineMeanLuma: baseline?.meanLuma ?? 0,
+      torchMeanLuma: torch?.meanLuma ?? 0,
+      recoveryMeanLuma: recovery?.meanLuma ?? 0,
+      responsiveTileFraction: responsiveTileFraction,
+      localFlicker: passive.localFlicker,
+      refreshBand: passive.refreshBand,
+      fineStripe: passive.fineStripe,
+      fineGrid: passive.fineGrid,
+      moire: passive.moire,
+    );
+
+    final torchLift = max(
+      0.0,
+      (torch?.meanLuma ?? 0) -
+          (((baseline?.meanLuma ?? 0) + (recovery?.meanLuma ?? 0)) / 2),
+    );
+    final persistentPattern = _persistentPattern(baseline, recovery);
+    final activeDisplayEvidence =
+        active.reasons.contains('EMISSIVE_SCENE_RESISTS_TORCH');
+    final reflectedRealityEvidence =
+        active.reasons.contains('REFLECTED_SCENE_RESPONDS_TO_TORCH');
+
+    return {
+      'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+      'activeProbeVersion': 2,
+      'analysisStatus': 'ANALYZED',
+      'framesAnalyzed': allFrames.length,
+      'screenReplayRisk': active.risk,
+      'screenReplayRiskScore': active.score,
+      'displayRiskDecision': active.decision,
+      'displayProbability': _round(active.displayProbability),
+      'globalFlickerScore': _round(passive.globalFlicker),
+      'localTemporalFlickerScore': _round(passive.localFlicker),
+      'refreshBandScore': _round(passive.refreshBand),
+      'fineStripeScore': _round(passive.fineStripe),
+      'fineGridScore': _round(passive.fineGrid),
+      'moireFrequencyScore': _round(passive.moire),
+      'dynamicChallengeScore': _round(active.illuminationResponseScore),
+      'persistentPatternScore': _round(persistentPattern),
+      'bandTemporalScore': _round(passive.bandTemporal),
+      'electronicLightScore': _round(active.electronicCueScore),
+      'stableExposureScore': _round(passive.stableExposure),
+      'illuminationChallenge': {
+        'completed': torchChallengeCompleted,
+        'exposureLocked': exposureLocked,
+        'focusLocked': focusLocked,
+        'baselineMeanLuma': _round(baseline?.meanLuma ?? 0),
+        'torchMeanLuma': _round(torch?.meanLuma ?? 0),
+        'recoveryMeanLuma': _round(recovery?.meanLuma ?? 0),
+        'torchLumaLift': _round(torchLift),
+        'responsiveTileFraction': _round(responsiveTileFraction),
+        'illuminationResponseScore':
+            _round(active.illuminationResponseScore),
+        'emissiveIndependenceScore':
+            _round(active.emissiveIndependenceScore),
+        if (challengeError != null) 'error': challengeError,
+      },
+      'signals': {
+        'livePreviewAnalyzed': true,
+        'activeIlluminationChallenge': torchChallengeCompleted,
+        'activeIlluminationDisplayEvidence': activeDisplayEvidence,
+        'reflectedRealityEvidence': reflectedRealityEvidence,
+        'activeChallengeIndeterminate':
+            active.reasons.contains('ACTIVE_CHALLENGE_INDETERMINATE'),
+        'confirmedDisplayTrace': false,
+        'periodicLightTrace': passive.electronicLight > 0.58,
+        'strongRefreshTrace': passive.refreshBand > 0.22,
+        'displayBandTrace':
+            passive.localFlicker > 0.34 && passive.refreshBand > 0.18,
+        'opticalStripeTrace': passive.fineStripe > 0.30,
+        'opticalCorroboratedTrace': passive.fineStripe > 0.30 &&
+            (passive.refreshBand > 0.14 || passive.localFlicker > 0.34),
+        'moireFrequencyTrace': passive.moire > 0.42,
+        'globalDisplayPulse': passive.globalFlicker > 0.16 &&
+            passive.localFlicker > 0.38,
+        'pairedFlickerTrace': passive.localFlicker > 0.18 &&
+            passive.refreshBand > 0.14,
+        'uncorroboratedDisplayPattern':
+            !activeDisplayEvidence && !reflectedRealityEvidence,
+        'dynamicScreenChallengeTrace': activeDisplayEvidence,
+        'globalFlicker': passive.globalFlicker > 0.16,
+        'localRefreshFlicker': passive.localFlicker > 0.18,
+        'horizontalRefreshBands': passive.refreshBand > 0.12,
+        'movingRefreshBands': passive.bandTemporal > 0.04,
+      },
+      'activeReasons': active.reasons,
+      'note':
+          'Active illumination probe measured before capture with locked exposure. Display evidence is based on emissive independence plus electronic cues; reflected-scene response supports reality.',
+    };
   }
 
   Future<void> _collectFrameStats(
@@ -111,21 +253,23 @@ class HCVLiveScreenProbe {
   }) async {
     final done = Completer<void>();
     var collected = 0;
+    var processing = false;
 
     await controller.startImageStream((image) {
-      if (collected >= maxFrames) {
-        if (!done.isCompleted) done.complete();
+      if (processing || collected >= maxFrames) {
+        if (collected >= maxFrames && !done.isCompleted) done.complete();
         return;
       }
-
-      final stats = _readFrameStats(image, phase);
-      if (stats != null) {
-        output.add(stats);
-        collected++;
-      }
-
-      if (collected >= maxFrames && !done.isCompleted) {
-        done.complete();
+      processing = true;
+      try {
+        final stats = _readFrameStats(image, phase);
+        if (stats != null) {
+          output.add(stats);
+          collected++;
+        }
+        if (collected >= maxFrames && !done.isCompleted) done.complete();
+      } finally {
+        processing = false;
       }
     });
 
@@ -138,192 +282,163 @@ class HCVLiveScreenProbe {
     }
   }
 
-  Map<String, dynamic> _analyze(List<_FrameStats> frames) {
+  _PassiveMetrics _analyzePassive(List<_FrameStats> frames) {
     final meanSeries = frames.map((f) => f.meanLuma).toList();
     final tileSeries = <List<double>>[];
-
     for (var tile = 0; tile < frames.first.tileMeans.length; tile++) {
       tileSeries.add(frames.map((f) => f.tileMeans[tile]).toList());
     }
 
-    final globalFlickerScore = _temporalPulseScore(meanSeries);
-    final localFlickerScore = tileSeries
+    final globalFlicker = _temporalPulseScore(meanSeries);
+    final localFlicker = tileSeries
         .map(_temporalPulseScore)
         .reduce(max)
-        .clamp(0.0, 1.0);
-    final refreshBandScore =
-        frames.map((f) => f.bandContrast).reduce((a, b) => a + b) /
-        frames.length;
-    final fineStripeScore =
-        frames.map((f) => f.fineStripeScore).reduce((a, b) => a + b) /
-        frames.length;
-    final fineGridScore =
-        frames.map((f) => f.fineGridScore).reduce((a, b) => a + b) /
-        frames.length;
-    final moireFrequencyScore =
-        frames.map((f) => f.moireFrequencyScore).reduce((a, b) => a + b) /
-        frames.length;
-    final challenge = _dynamicChallenge(frames);
-    final dynamicChallengeScore = challenge['dynamicChallengeScore'] as double;
-    final persistentPatternScore =
-        challenge['persistentPatternScore'] as double;
-    final bandTemporalScore = _bandTemporalScore(frames);
-    final electronicLightScore = _electronicLightScore(frames);
-    final stableExposureScore = 1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0);
+        .clamp(0.0, 1.0)
+        .toDouble();
+    double average(double Function(_FrameStats frame) read) =>
+        frames.map(read).reduce((a, b) => a + b) / frames.length;
 
-    final periodicLightTrace = electronicLightScore > 0.48;
-    final movingRefreshTrace = bandTemporalScore > 0.04;
-    final strongRefreshTrace =
-        refreshBandScore > 0.22 || bandTemporalScore > 0.10;
-    final displayBandTrace =
-        localFlickerScore > 0.34 &&
-        refreshBandScore > 0.18 &&
-        movingRefreshTrace;
-    final opticalStripeTrace =
-        fineStripeScore > 0.30 &&
-        fineGridScore > 0.24 &&
-        (refreshBandScore > 0.14 || localFlickerScore > 0.34);
-    final refreshCorroboration =
-        strongRefreshTrace || movingRefreshTrace || periodicLightTrace;
-    final moireFrequencyTrace =
-        moireFrequencyScore > 0.42 && refreshCorroboration;
-    final globalDisplayPulse =
-        globalFlickerScore > 0.16 &&
-        localFlickerScore > 0.38 &&
-        refreshCorroboration;
-    final pairedFlickerTrace =
-        localFlickerScore > 0.18 &&
-        (refreshBandScore > 0.14 || bandTemporalScore > 0.06);
-    final uncorroboratedDisplayPattern =
-        !refreshCorroboration &&
-        (refreshBandScore > 0.07 ||
-            fineGridScore > 0.70 ||
-            moireFrequencyScore > 0.28 ||
-            (globalFlickerScore > 0.22 && localFlickerScore > 0.38));
-    final dynamicScreenChallengeTrace =
-        persistentPatternScore > 0.58 &&
-        dynamicChallengeScore < 0.18 &&
-        (moireFrequencyScore > 0.30 || fineGridScore > 0.70);
-    final closeDisplaySpatialTrace =
-        dynamicScreenChallengeTrace &&
-        fineGridScore > 0.85 &&
-        fineStripeScore < 0.42 &&
-        persistentPatternScore > 0.85 &&
-        dynamicChallengeScore < 0.18;
-    final confirmedDisplayTrace =
-        strongRefreshTrace ||
-        displayBandTrace ||
-        globalDisplayPulse ||
-        periodicLightTrace;
-    final opticalCorroboratedTrace =
-        opticalStripeTrace && (strongRefreshTrace || displayBandTrace);
+    final refreshBand = average((frame) => frame.bandContrast);
+    final fineStripe = average((frame) => frame.fineStripeScore);
+    final fineGrid = average((frame) => frame.fineGridScore);
+    final moire = average((frame) => frame.moireFrequencyScore);
+    final bandTemporal = _bandTemporalScore(frames);
+    final electronicLight = _electronicLightScore(frames);
+    final stableExposure =
+        1.0 - _seriesDelta(meanSeries).clamp(0.0, 1.0).toDouble();
 
-    var riskScore = 0;
-    if (confirmedDisplayTrace) riskScore += 50;
-    if (periodicLightTrace) riskScore += 20;
-    if (!confirmedDisplayTrace && closeDisplaySpatialTrace) riskScore += 20;
-    if (strongRefreshTrace) riskScore += 15;
-    if (opticalCorroboratedTrace) riskScore += 15;
-    if (moireFrequencyTrace && confirmedDisplayTrace) riskScore += 10;
-    if (!confirmedDisplayTrace && pairedFlickerTrace) riskScore += 15;
-    if (!confirmedDisplayTrace && uncorroboratedDisplayPattern) riskScore += 20;
-    if (dynamicScreenChallengeTrace && moireFrequencyScore > 0.42) {
-      riskScore += 35;
+    return _PassiveMetrics(
+      globalFlicker: globalFlicker,
+      localFlicker: localFlicker,
+      refreshBand: refreshBand,
+      fineStripe: fineStripe,
+      fineGrid: fineGrid,
+      moire: moire,
+      bandTemporal: bandTemporal,
+      electronicLight: electronicLight,
+      stableExposure: stableExposure,
+    );
+  }
+
+  _FrameStats? _readFrameStats(CameraImage image, int phase) {
+    if (image.planes.isEmpty || image.width <= 0 || image.height <= 0) {
+      return null;
     }
-    if (globalFlickerScore > 0.16 && confirmedDisplayTrace) riskScore += 10;
-    if (stableExposureScore > 0.94 && confirmedDisplayTrace) riskScore += 5;
-    if (!confirmedDisplayTrace &&
-        !(dynamicScreenChallengeTrace && moireFrequencyScore > 0.42)) {
-      riskScore = min(riskScore, 30);
+    final plane = image.planes.first;
+    final bytes = plane.bytes;
+    final rowStride = plane.bytesPerRow;
+    final pixelStride = plane.bytesPerPixel ?? 1;
+    if (bytes.isEmpty || rowStride <= 0) return null;
+
+    const tilesX = 4;
+    const tilesY = 4;
+    const bands = 12;
+    final tileTotals = List<double>.filled(tilesX * tilesY, 0);
+    final tileCounts = List<int>.filled(tilesX * tilesY, 0);
+    final bandTotals = List<double>.filled(bands, 0);
+    final bandCounts = List<int>.filled(bands, 0);
+    final centerRows = <double>[];
+    final centerCols = <double>[];
+    var total = 0.0;
+    var count = 0;
+
+    for (var y = 0; y < image.height; y += 6) {
+      final row = y * rowStride;
+      if (row >= bytes.length) break;
+      for (var x = 0; x < image.width; x += 6) {
+        final index = row + x * pixelStride;
+        if (index >= bytes.length) break;
+        final luma = _readLuma(bytes, index, pixelStride);
+        total += luma;
+        count++;
+        final tx = min(tilesX - 1, (x * tilesX / image.width).floor());
+        final ty = min(tilesY - 1, (y * tilesY / image.height).floor());
+        final tile = ty * tilesX + tx;
+        tileTotals[tile] += luma;
+        tileCounts[tile]++;
+        final band = min(bands - 1, (y * bands / image.height).floor());
+        bandTotals[band] += luma;
+        bandCounts[band]++;
+      }
     }
-    riskScore = riskScore.clamp(0, 100).toInt();
-    final displayRiskDecision = _displayRiskDecision(
-      riskScore: riskScore,
-      confirmedDisplayTrace: confirmedDisplayTrace,
-      opticalCorroboratedTrace: opticalCorroboratedTrace,
-      dynamicScreenChallengeTrace: dynamicScreenChallengeTrace,
-      uncorroboratedDisplayPattern: uncorroboratedDisplayPattern,
-      pairedFlickerTrace: pairedFlickerTrace,
+    if (count == 0) return null;
+
+    final left = (image.width * 0.18).floor();
+    final right = (image.width * 0.82).floor();
+    final top = (image.height * 0.18).floor();
+    final bottom = (image.height * 0.82).floor();
+    for (var y = top; y < bottom; y += 2) {
+      var sum = 0.0;
+      var samples = 0;
+      final row = y * rowStride;
+      for (var x = left; x < right; x += 2) {
+        final index = row + x * pixelStride;
+        if (index >= bytes.length) break;
+        sum += _readLuma(bytes, index, pixelStride);
+        samples++;
+      }
+      if (samples > 0) centerRows.add(sum / samples);
+    }
+    for (var x = left; x < right; x += 2) {
+      var sum = 0.0;
+      var samples = 0;
+      for (var y = top; y < bottom; y += 2) {
+        final index = y * rowStride + x * pixelStride;
+        if (index >= bytes.length) break;
+        sum += _readLuma(bytes, index, pixelStride);
+        samples++;
+      }
+      if (samples > 0) centerCols.add(sum / samples);
+    }
+
+    final tileMeans = List<double>.generate(
+      tileTotals.length,
+      (index) => tileTotals[index] / max(1, tileCounts[index]),
+    );
+    final bandMeans = List<double>.generate(
+      bandTotals.length,
+      (index) => bandTotals[index] / max(1, bandCounts[index]),
     );
 
-    return {
-      'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-      'analysisStatus': 'ANALYZED',
-      'framesAnalyzed': frames.length,
-      'screenReplayRisk': _riskLabel(riskScore),
-      'screenReplayRiskScore': riskScore,
-      'displayRiskDecision': displayRiskDecision,
-      'globalFlickerScore': _round(globalFlickerScore),
-      'localTemporalFlickerScore': _round(localFlickerScore.toDouble()),
-      'refreshBandScore': _round(refreshBandScore),
-      'fineStripeScore': _round(fineStripeScore),
-      'fineGridScore': _round(fineGridScore),
-      'moireFrequencyScore': _round(moireFrequencyScore),
-      'dynamicChallengeScore': _round(dynamicChallengeScore),
-      'persistentPatternScore': _round(persistentPatternScore),
-      'bandTemporalScore': _round(bandTemporalScore),
-      'electronicLightScore': _round(electronicLightScore),
-      'stableExposureScore': _round(stableExposureScore),
-      'signals': {
-        'livePreviewAnalyzed': true,
-        'strongRefreshTrace': strongRefreshTrace,
-        'displayBandTrace': displayBandTrace,
-        'opticalStripeTrace': opticalStripeTrace,
-        'opticalCorroboratedTrace': opticalCorroboratedTrace,
-        'moireFrequencyTrace': moireFrequencyTrace,
-        'globalDisplayPulse': globalDisplayPulse,
-        'confirmedDisplayTrace': confirmedDisplayTrace,
-        'periodicLightTrace': periodicLightTrace,
-        'closeDisplaySpatialTrace': closeDisplaySpatialTrace,
-        'pairedFlickerTrace': pairedFlickerTrace,
-        'uncorroboratedDisplayPattern': uncorroboratedDisplayPattern,
-        'dynamicScreenChallengeTrace': dynamicScreenChallengeTrace,
-        'globalFlicker': globalFlickerScore > 0.16,
-        'localRefreshFlicker': localFlickerScore > 0.18,
-        'horizontalRefreshBands': refreshBandScore > 0.12,
-        'movingRefreshBands': movingRefreshTrace,
-      },
-      'note':
-          'Live preview screen probe measured before capture. It is evidence of display flicker/bands, not absolute proof.',
-    };
+    return _FrameStats(
+      phase: phase,
+      meanLuma: total / count,
+      tileMeans: tileMeans,
+      bandMeans: bandMeans,
+      bandContrast: _profileContrast(bandMeans),
+      fineStripeScore: _fineStripeScore(centerRows),
+      fineGridScore:
+          max(_fineStripeScore(centerRows), _fineStripeScore(centerCols)),
+      moireFrequencyScore: max(
+        _periodicFrequencyScore(centerRows),
+        _periodicFrequencyScore(centerCols),
+      ),
+    );
   }
 
-  Map<String, double> _dynamicChallenge(List<_FrameStats> frames) {
-    final baseline = frames.where((f) => f.phase == 0).toList();
-    final challenged = frames.where((f) => f.phase == 1).toList();
-
-    if (baseline.length < 4 || challenged.length < 4) {
-      return {'dynamicChallengeScore': 0, 'persistentPatternScore': 0};
+  double _readLuma(List<int> bytes, int index, int pixelStride) {
+    if (pixelStride >= 4 && index + 2 < bytes.length) {
+      return ((0.114 * bytes[index]) +
+              (0.587 * bytes[index + 1]) +
+              (0.299 * bytes[index + 2])) /
+          255.0;
     }
-
-    final before = _phaseAverages(baseline);
-    final after = _phaseAverages(challenged);
-    final response =
-        ((before.meanLuma - after.meanLuma).abs() * 1.4) +
-        ((before.fineGridScore - after.fineGridScore).abs() * 0.7) +
-        ((before.moireFrequencyScore - after.moireFrequencyScore).abs() * 0.9) +
-        ((before.bandContrast - after.bandContrast).abs() * 0.7);
-    final moireShift = (before.moireFrequencyScore - after.moireFrequencyScore)
-        .abs();
-    final persistentPattern =
-        min(before.fineGridScore, after.fineGridScore) *
-        (1.0 - min(1.0, moireShift));
-
-    return {
-      'dynamicChallengeScore': response.clamp(0.0, 1.0).toDouble(),
-      'persistentPatternScore': persistentPattern.clamp(0.0, 1.0).toDouble(),
-    };
+    return bytes[index] / 255.0;
   }
 
-  _FrameStats _phaseAverages(List<_FrameStats> frames) {
-    double average(double Function(_FrameStats frame) read) {
-      return frames.map(read).reduce((a, b) => a + b) / frames.length;
-    }
-
+  _FrameStats? _phaseAverage(List<_FrameStats> frames) {
+    if (frames.isEmpty) return null;
+    double average(double Function(_FrameStats frame) read) =>
+        frames.map(read).reduce((a, b) => a + b) / frames.length;
+    final tileMeans = List<double>.generate(
+      frames.first.tileMeans.length,
+      (index) => frames.map((frame) => frame.tileMeans[index]).reduce((a, b) => a + b) /
+          frames.length,
+    );
     return _FrameStats(
       phase: frames.first.phase,
       meanLuma: average((frame) => frame.meanLuma),
-      tileMeans: frames.first.tileMeans,
+      tileMeans: tileMeans,
       bandMeans: frames.first.bandMeans,
       bandContrast: average((frame) => frame.bandContrast),
       fineStripeScore: average((frame) => frame.fineStripeScore),
@@ -332,409 +447,148 @@ class HCVLiveScreenProbe {
     );
   }
 
-  _FrameStats? _readFrameStats(CameraImage image, int phase) {
-    if (image.planes.isEmpty) return null;
-
-    final plane = image.planes.first;
-    final bytes = plane.bytes;
-    final width = image.width;
-    final height = image.height;
-    final rowStride = plane.bytesPerRow;
-    final pixelStride = plane.bytesPerPixel ?? 1;
-    final isBgra = image.format.group == ImageFormatGroup.bgra8888;
-
-    if (bytes.isEmpty || width <= 0 || height <= 0 || rowStride <= 0) {
-      return null;
-    }
-
-    const tiles = 4;
-    const bands = 12;
-    final tileTotals = List<double>.filled(tiles * tiles, 0);
-    final tileCounts = List<int>.filled(tiles * tiles, 0);
-    final bandTotals = List<double>.filled(bands, 0);
-    final bandCounts = List<int>.filled(bands, 0);
-    final fineRows = <double>[];
-    final fineCols = <double>[];
-    var total = 0.0;
-    var count = 0;
-    final centerLeft = (width * 0.18).floor();
-    final centerRight = (width * 0.82).floor();
-    final centerTop = (height * 0.18).floor();
-    final centerBottom = (height * 0.82).floor();
-
-    for (var y = 0; y < height; y += 6) {
-      final row = y * rowStride;
-      if (row >= bytes.length) break;
-
-      for (var x = 0; x < width; x += 6) {
-        final index = row + (x * pixelStride);
-        if (index >= bytes.length) break;
-
-        final luma = isBgra && index + 2 < bytes.length
-            ? ((0.114 * bytes[index]) +
-                      (0.587 * bytes[index + 1]) +
-                      (0.299 * bytes[index + 2])) /
-                  255.0
-            : bytes[index] / 255.0;
-        total += luma;
-        count++;
-
-        final tx = min(tiles - 1, (x * tiles / width).floor());
-        final ty = min(tiles - 1, (y * tiles / height).floor());
-        final tileIndex = ty * tiles + tx;
-        tileTotals[tileIndex] += luma;
-        tileCounts[tileIndex]++;
-
-        final band = min(bands - 1, (y * bands / height).floor());
-        bandTotals[band] += luma;
-        bandCounts[band]++;
-      }
-    }
-
-    for (var y = centerTop; y < centerBottom; y += 2) {
-      final row = y * rowStride;
-      if (row >= bytes.length) break;
-
-      var rowTotal = 0.0;
-      var rowCount = 0;
-
-      for (var x = centerLeft; x < centerRight; x += 2) {
-        final index = row + (x * pixelStride);
-        if (index >= bytes.length) break;
-
-        rowTotal += _readLuma(bytes, index, isBgra);
-        rowCount++;
-      }
-
-      if (rowCount > 0) {
-        fineRows.add(rowTotal / rowCount);
-      }
-    }
-
-    for (var x = centerLeft; x < centerRight; x += 2) {
-      var colTotal = 0.0;
-      var colCount = 0;
-
-      for (var y = centerTop; y < centerBottom; y += 2) {
-        final index = (y * rowStride) + (x * pixelStride);
-        if (index >= bytes.length) break;
-
-        colTotal += _readLuma(bytes, index, isBgra);
-        colCount++;
-      }
-
-      if (colCount > 0) {
-        fineCols.add(colTotal / colCount);
-      }
-    }
-
-    if (count == 0) return null;
-
-    final tileMeans = <double>[];
-    for (var i = 0; i < tileTotals.length; i++) {
-      tileMeans.add(tileTotals[i] / max(tileCounts[i], 1));
-    }
-
-    final bandMeans = <double>[];
-    for (var i = 0; i < bandTotals.length; i++) {
-      bandMeans.add(bandTotals[i] / max(bandCounts[i], 1));
-    }
-
-    return _FrameStats(
-      phase: phase,
-      meanLuma: total / count,
-      tileMeans: tileMeans,
-      bandMeans: bandMeans,
-      bandContrast: _profileContrast(bandMeans),
-      fineStripeScore: _fineStripeScore(fineRows),
-      fineGridScore: max(
-        _fineStripeScore(fineRows),
-        _fineStripeScore(fineCols),
-      ),
-      moireFrequencyScore: max(
-        _periodicFrequencyScore(fineRows),
-        _periodicFrequencyScore(fineCols),
-      ),
+  double _responsiveTileFraction(
+    _FrameStats? baseline,
+    _FrameStats? torch,
+    _FrameStats? recovery,
+  ) {
+    if (baseline == null || torch == null || recovery == null) return 0;
+    final count = min(
+      baseline.tileMeans.length,
+      min(torch.tileMeans.length, recovery.tileMeans.length),
     );
+    if (count == 0) return 0;
+    var responsive = 0;
+    for (var i = 0; i < count; i++) {
+      final reference = (baseline.tileMeans[i] + recovery.tileMeans[i]) / 2;
+      final lift = torch.tileMeans[i] - reference;
+      final threshold = max(0.025, reference * 0.08);
+      if (lift >= threshold) responsive++;
+    }
+    return responsive / count;
   }
 
-  double _readLuma(List<int> bytes, int index, bool isBgra) {
-    if (isBgra && index + 2 < bytes.length) {
-      return ((0.114 * bytes[index]) +
-              (0.587 * bytes[index + 1]) +
-              (0.299 * bytes[index + 2])) /
-          255.0;
-    }
-
-    return bytes[index] / 255.0;
+  double _persistentPattern(_FrameStats? baseline, _FrameStats? recovery) {
+    if (baseline == null || recovery == null) return 0;
+    final gridPersistence =
+        1.0 - (baseline.fineGridScore - recovery.fineGridScore).abs();
+    final moirePersistence =
+        1.0 - (baseline.moireFrequencyScore - recovery.moireFrequencyScore).abs();
+    return ((gridPersistence + moirePersistence) / 2)
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   double _bandTemporalScore(List<_FrameStats> frames) {
     if (frames.length < 2) return 0;
-
     var total = 0.0;
     var pairs = 0;
-
     for (var i = 1; i < frames.length; i++) {
       final previous = frames[i - 1].bandMeans;
       final current = frames[i].bandMeans;
       final count = min(previous.length, current.length);
       var delta = 0.0;
-
       for (var j = 0; j < count; j++) {
         delta += (current[j] - previous[j]).abs();
       }
-
-      total += delta / max(count, 1);
+      total += delta / max(1, count);
       pairs++;
     }
-
-    return total / max(pairs, 1);
+    return (total / max(1, pairs)).clamp(0.0, 1.0).toDouble();
   }
 
   double _electronicLightScore(List<_FrameStats> frames) {
-    if (frames.length < 12) return 0;
-
-    final series = <List<double>>[frames.map((f) => f.meanLuma).toList()];
-
-    for (var tile = 0; tile < frames.first.tileMeans.length; tile++) {
-      series.add(frames.map((f) => f.tileMeans[tile]).toList());
-    }
-
-    for (var band = 0; band < frames.first.bandMeans.length; band++) {
-      series.add(frames.map((f) => f.bandMeans[band]).toList());
-    }
-
-    return series.map(_periodicLightSeriesScore).reduce(max);
-  }
-
-  double _periodicLightSeriesScore(List<double> series) {
-    if (series.length < 12) return 0;
-
-    final mean = series.reduce((a, b) => a + b) / series.length;
-    final start = series.first;
-    final end = series.last;
-    final detrended = <double>[];
-
-    for (var i = 0; i < series.length; i++) {
-      final trend = start + ((end - start) * i / max(series.length - 1, 1));
-      detrended.add(series[i] - trend - mean + ((start + end) / 2));
-    }
-
-    final energy =
-        detrended.map((v) => v * v).reduce((a, b) => a + b) / detrended.length;
-    final rms = sqrt(energy);
-    if (rms < 0.0045) return 0;
-
-    var strongest = 0.0;
-    var secondStrongest = 0.0;
-    final upperBin = min(series.length ~/ 2, 12);
-
-    for (var bin = 2; bin <= upperBin; bin++) {
-      var real = 0.0;
-      var imaginary = 0.0;
-
-      for (var i = 0; i < detrended.length; i++) {
-        final angle = 2 * pi * bin * i / detrended.length;
-        real += detrended[i] * cos(angle);
-        imaginary += detrended[i] * sin(angle);
-      }
-
-      final binEnergy =
-          (real * real + imaginary * imaginary) / detrended.length;
-      if (binEnergy > strongest) {
-        secondStrongest = strongest;
-        strongest = binEnergy;
-      } else if (binEnergy > secondStrongest) {
-        secondStrongest = binEnergy;
-      }
-    }
-
-    final totalEnergy = energy * detrended.length;
-    if (totalEnergy <= 0) return 0;
-
-    final dominance = (strongest / totalEnergy).clamp(0.0, 1.0);
-    final separation = strongest <= 0
-        ? 0.0
-        : (1.0 - (secondStrongest / strongest)).clamp(0.0, 1.0);
-    final intervalRegularity = _zeroCrossingRegularity(detrended);
-    final amplitudeScore = (rms * 18).clamp(0.0, 1.0);
-
-    return ((dominance * 0.45) +
-            (separation * 0.15) +
-            (intervalRegularity * 0.25) +
-            (amplitudeScore * 0.15))
+    if (frames.length < 8) return 0;
+    final series = frames.map((frame) => frame.meanLuma).toList();
+    final pulse = _temporalPulseScore(series);
+    final band = frames.map((frame) => frame.bandContrast).reduce((a, b) => a + b) /
+        frames.length;
+    return (pulse * 0.55 + band * 1.8 * 0.45)
         .clamp(0.0, 1.0)
         .toDouble();
-  }
-
-  double _zeroCrossingRegularity(List<double> centered) {
-    if (centered.length < 12) return 0;
-
-    final crossings = <int>[];
-    var previous = centered.first;
-
-    for (var i = 1; i < centered.length; i++) {
-      final current = centered[i];
-      if ((previous < 0 && current >= 0) || (previous >= 0 && current < 0)) {
-        crossings.add(i);
-      }
-      previous = current;
-    }
-
-    if (crossings.length < 4) return 0;
-
-    final intervals = <double>[];
-    for (var i = 1; i < crossings.length; i++) {
-      intervals.add((crossings[i] - crossings[i - 1]).toDouble());
-    }
-
-    final mean = intervals.reduce((a, b) => a + b) / intervals.length;
-    if (mean <= 0) return 0;
-
-    final variance =
-        intervals.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) /
-        intervals.length;
-    final coefficient = sqrt(variance) / mean;
-    final crossingDensity = (crossings.length / centered.length).clamp(
-      0.0,
-      1.0,
-    );
-
-    return ((1.0 - coefficient).clamp(0.0, 1.0) * 0.75) +
-        (crossingDensity * 0.25);
-  }
-
-  double _fineStripeScore(List<double> profile) {
-    if (profile.length < 12) return 0;
-
-    final mean = profile.reduce((a, b) => a + b) / profile.length;
-    final centered = profile.map((value) => value - mean).toList();
-    final contrast =
-        centered.map((value) => value.abs()).reduce((a, b) => a + b) /
-        centered.length;
-
-    if (contrast < 0.004) return 0;
-
-    var alternating = 0.0;
-    var transitions = 0;
-    var gradientTotal = 0.0;
-
-    for (var i = 1; i < centered.length; i++) {
-      final gradient = centered[i] - centered[i - 1];
-      gradientTotal += gradient.abs();
-
-      if (centered[i].sign != centered[i - 1].sign) {
-        transitions++;
-      }
-
-      if (i > 1) {
-        final previousGradient = centered[i - 1] - centered[i - 2];
-        if (gradient.sign != previousGradient.sign) {
-          alternating++;
-        }
-      }
-    }
-
-    final transitionRatio = transitions / (centered.length - 1);
-    final alternatingRatio = alternating / max(centered.length - 2, 1);
-    final gradientStrength = gradientTotal / (centered.length - 1);
-
-    return ((contrast * 2.8) +
-            (gradientStrength * 1.8) +
-            (transitionRatio * 0.12) +
-            (alternatingRatio * 0.10))
-        .clamp(0.0, 1.0)
-        .toDouble();
-  }
-
-  double _periodicFrequencyScore(List<double> profile) {
-    if (profile.length < 24) return 0;
-
-    final mean = profile.reduce((a, b) => a + b) / profile.length;
-    final centered = profile.map((value) => value - mean).toList();
-    final totalEnergy = centered
-        .map((value) => value * value)
-        .reduce((a, b) => a + b);
-
-    if (totalEnergy < 0.00008) return 0;
-
-    var strongest = 0.0;
-    final upperBin = min(profile.length ~/ 2, 18);
-
-    for (var bin = 3; bin <= upperBin; bin++) {
-      var real = 0.0;
-      var imaginary = 0.0;
-
-      for (var i = 0; i < centered.length; i++) {
-        final angle = 2 * pi * bin * i / centered.length;
-        real += centered[i] * cos(angle);
-        imaginary += centered[i] * sin(angle);
-      }
-
-      final energy = (real * real + imaginary * imaginary) / centered.length;
-      strongest = max(strongest, energy);
-    }
-
-    final dominance = strongest / totalEnergy;
-    final contrast = sqrt(totalEnergy / centered.length);
-
-    return ((dominance * 1.8) + (contrast * 2.4)).clamp(0.0, 1.0).toDouble();
   }
 
   double _temporalPulseScore(List<double> series) {
     if (series.length < 6) return 0;
-
     final mean = series.reduce((a, b) => a + b) / series.length;
-    final centered = series.map((value) => value - mean).toList();
-    final energy =
-        centered.map((value) => value.abs()).reduce((a, b) => a + b) /
-        centered.length;
-
-    if (energy < 0.006) return 0;
-
-    var alternating = 0.0;
-    var transitions = 0;
-
-    for (var i = 1; i < centered.length; i++) {
-      if (centered[i].sign != centered[i - 1].sign) {
-        transitions++;
+    var energy = 0.0;
+    var delta = 0.0;
+    var crossings = 0;
+    var previous = series.first - mean;
+    for (var i = 0; i < series.length; i++) {
+      final centered = series[i] - mean;
+      energy += centered.abs();
+      if (i > 0) {
+        delta += (series[i] - series[i - 1]).abs();
+        if (centered.sign != previous.sign) crossings++;
       }
-      alternating += (centered[i] - centered[i - 1]).abs();
+      previous = centered;
     }
-
-    final transitionRatio = transitions / (centered.length - 1);
-    final alternatingStrength = alternating / (centered.length - 1);
-
-    return ((energy * 3.0) +
-            (alternatingStrength * 2.5) +
-            (transitionRatio * 0.35))
+    return ((energy / series.length) * 3.0 +
+            (delta / max(1, series.length - 1)) * 2.5 +
+            (crossings / max(1, series.length - 1)) * 0.35)
         .clamp(0.0, 1.0)
         .toDouble();
   }
 
   double _seriesDelta(List<double> series) {
     if (series.length < 2) return 0;
-
     var total = 0.0;
     for (var i = 1; i < series.length; i++) {
       total += (series[i] - series[i - 1]).abs();
     }
-
     return total / (series.length - 1);
   }
 
-  static double _profileContrast(List<double> profile) {
+  double _profileContrast(List<double> profile) {
     if (profile.isEmpty) return 0;
-
     final mean = profile.reduce((a, b) => a + b) / profile.length;
-    final variance =
-        profile
-            .map((value) => (value - mean) * (value - mean))
+    final variance = profile
+            .map((value) => pow(value - mean, 2).toDouble())
             .reduce((a, b) => a + b) /
         profile.length;
-
     return sqrt(variance).clamp(0.0, 1.0).toDouble();
+  }
+
+  double _fineStripeScore(List<double> profile) {
+    if (profile.length < 12) return 0;
+    final mean = profile.reduce((a, b) => a + b) / profile.length;
+    final centered = profile.map((value) => value - mean).toList();
+    var gradients = 0.0;
+    var signChanges = 0;
+    for (var i = 1; i < centered.length; i++) {
+      gradients += (centered[i] - centered[i - 1]).abs();
+      if (centered[i].sign != centered[i - 1].sign) signChanges++;
+    }
+    return ((gradients / (centered.length - 1)) * 2.8 +
+            (signChanges / (centered.length - 1)) * 0.22)
+        .clamp(0.0, 1.0)
+        .toDouble();
+  }
+
+  double _periodicFrequencyScore(List<double> profile) {
+    if (profile.length < 24) return 0;
+    final mean = profile.reduce((a, b) => a + b) / profile.length;
+    final centered = profile.map((value) => value - mean).toList();
+    final totalEnergy = centered.map((value) => value * value).reduce((a, b) => a + b);
+    if (totalEnergy < 0.00008) return 0;
+    var strongest = 0.0;
+    final upperBin = min(profile.length ~/ 2, 18);
+    for (var bin = 3; bin <= upperBin; bin++) {
+      var real = 0.0;
+      var imaginary = 0.0;
+      for (var i = 0; i < centered.length; i++) {
+        final angle = 2 * pi * bin * i / centered.length;
+        real += centered[i] * cos(angle);
+        imaginary += centered[i] * sin(angle);
+      }
+      strongest = max(strongest, (real * real + imaginary * imaginary) / centered.length);
+    }
+    final dominance = strongest / totalEnergy;
+    final contrast = sqrt(totalEnergy / centered.length);
+    return (dominance * 1.8 + contrast * 2.4)
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   Map<String, dynamic> _unknown(
@@ -742,63 +596,25 @@ class HCVLiveScreenProbe {
     int framesAnalyzed = 0,
     String? error,
   }) {
-    return <String, dynamic>{
+    return {
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+      'activeProbeVersion': 2,
       'analysisStatus': 'NOT_ANALYZED',
-      'displayRiskDecision': 'NOT_ANALYZED',
       'framesAnalyzed': framesAnalyzed,
       'screenReplayRisk': 'UNKNOWN',
       'screenReplayRiskScore': null,
+      'displayRiskDecision': 'NOT_ANALYZED',
       'reason': reason,
       if (error != null && error.isNotEmpty) 'error': error,
     };
   }
 
-  String _riskLabel(int riskScore) {
-    return riskScore >= 70
-        ? 'HIGH'
-        : riskScore >= 45
-        ? 'MEDIUM'
-        : 'LOW';
-  }
-
-  String _displayRiskDecision({
-    required int riskScore,
-    required bool confirmedDisplayTrace,
-    required bool opticalCorroboratedTrace,
-    required bool dynamicScreenChallengeTrace,
-    required bool uncorroboratedDisplayPattern,
-    required bool pairedFlickerTrace,
-  }) {
-    final strongEvidence = confirmedDisplayTrace && riskScore >= 70;
-    if (strongEvidence) return 'STRONG_DISPLAY_RISK';
-
-    if (riskScore < 45) return 'NO_DISPLAY_EVIDENCE';
-
-    if (uncorroboratedDisplayPattern ||
-        pairedFlickerTrace ||
-        dynamicScreenChallengeTrace ||
-        riskScore >= 45) {
-      return 'NON_CONCLUSIVE';
-    }
-
-    return 'NO_DISPLAY_EVIDENCE';
-  }
-
-  double _round(double value) => double.parse(value.toStringAsFixed(4));
+  double _round(double value) =>
+      double.parse(value.clamp(0.0, 1.0).toStringAsFixed(4));
 }
 
 class _FrameStats {
-  final int phase;
-  final double meanLuma;
-  final List<double> tileMeans;
-  final List<double> bandMeans;
-  final double bandContrast;
-  final double fineStripeScore;
-  final double fineGridScore;
-  final double moireFrequencyScore;
-
-  _FrameStats({
+  const _FrameStats({
     required this.phase,
     required this.meanLuma,
     required this.tileMeans,
@@ -808,4 +624,37 @@ class _FrameStats {
     required this.fineGridScore,
     required this.moireFrequencyScore,
   });
+
+  final int phase;
+  final double meanLuma;
+  final List<double> tileMeans;
+  final List<double> bandMeans;
+  final double bandContrast;
+  final double fineStripeScore;
+  final double fineGridScore;
+  final double moireFrequencyScore;
+}
+
+class _PassiveMetrics {
+  const _PassiveMetrics({
+    required this.globalFlicker,
+    required this.localFlicker,
+    required this.refreshBand,
+    required this.fineStripe,
+    required this.fineGrid,
+    required this.moire,
+    required this.bandTemporal,
+    required this.electronicLight,
+    required this.stableExposure,
+  });
+
+  final double globalFlicker;
+  final double localFlicker;
+  final double refreshBand;
+  final double fineStripe;
+  final double fineGrid;
+  final double moire;
+  final double bandTemporal;
+  final double electronicLight;
+  final double stableExposure;
 }
