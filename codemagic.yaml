@@ -2,6 +2,15 @@ workflows:
   ios-workflow:
     name: SIGILLUM iOS User
 
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: sigillum-iphone
+          include: true
+          source: true
+      cancel_previous_builds: true
+
     environment:
       flutter: stable
       xcode: latest
