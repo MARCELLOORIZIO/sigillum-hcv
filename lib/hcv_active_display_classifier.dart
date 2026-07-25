@@ -110,24 +110,42 @@ class HCVActiveDisplayClassifier {
             .clamp(0.0, 1.0)
             .toDouble();
 
-    final diffuseReflection = challengeValid &&
+    final strictDiffuseReflection = challengeValid &&
         measuredLiftRatio >= 0.07 &&
         coverage >= 0.38 &&
         entropy >= 0.48 &&
         hotspot <= 0.58 &&
         illuminationResponseScore >= 0.42;
+
+    // A real three-dimensional scene may produce a modest global lift when the
+    // torch is distant, but its response is still spatially broad, distributed
+    // and non-glare-like. This signature is deliberately stricter on shape
+    // than on raw brightness so it does not accept a glossy display hotspot.
+    final broadDiffusePhysicalResponse = challengeValid &&
+        measuredLiftRatio >= 0.045 &&
+        coverage >= 0.50 &&
+        entropy >= 0.72 &&
+        hotspot <= 0.42 &&
+        illuminationResponseScore >= 0.40;
+
     final lowElectronicScene = electronicCueScore <= 0.46;
-    final reflectedRealityEvidence = diffuseReflection && lowElectronicScene;
+    final electronicCuesNotDominant = electronicCueScore < 0.68;
+    final reflectedRealityEvidence =
+        (strictDiffuseReflection && lowElectronicScene) ||
+            (broadDiffusePhysicalResponse && electronicCuesNotDominant);
 
     // A display can reflect the torch from its glass. That reflection is
     // generally concentrated in a small area while the emitted image remains
     // stable elsewhere. Electronic structure is therefore required together
-    // with weak/directed illumination response.
+    // with weak/directed illumination response. A broad diffuse physical
+    // response suppresses this hypothesis because it is incompatible with a
+    // localized glass glare response.
     final electronicDisplayStructure = electronicCueScore >= 0.48;
     final directedGlare = hotspot >= 0.52 || coverage <= 0.34;
     final weakDiffuseResponse = illuminationResponseScore <= 0.58;
     final emissiveDisplayEvidence = challengeValid &&
         electronicDisplayStructure &&
+        !broadDiffusePhysicalResponse &&
         (directedGlare || weakDiffuseResponse);
 
     if (!challengeValid) {
@@ -137,7 +155,14 @@ class HCVActiveDisplayClassifier {
     }
     if (reflectedRealityEvidence) {
       reasons.add('DIFFUSE_REFLECTED_SCENE_RESPONSE');
-      reasons.add('LOW_ELECTRONIC_DISPLAY_STRUCTURE');
+      if (broadDiffusePhysicalResponse) {
+        reasons.add('BROAD_DIFFUSE_PHYSICAL_RESPONSE');
+      }
+      if (lowElectronicScene) {
+        reasons.add('LOW_ELECTRONIC_DISPLAY_STRUCTURE');
+      } else {
+        reasons.add('OPTICAL_TEXTURE_OVERRIDDEN_BY_BROAD_FLASH_RESPONSE');
+      }
     }
     if (emissiveDisplayEvidence) {
       reasons.add('EMISSIVE_SCENE_RESISTS_DIFFUSE_TORCH');
