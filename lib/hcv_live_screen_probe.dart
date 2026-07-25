@@ -8,7 +8,7 @@ import 'hcv_active_display_classifier.dart';
 class HCVLiveScreenProbe {
   Future<Map<String, dynamic>> analyzePreview(
     CameraController controller, {
-    Duration duration = const Duration(milliseconds: 1800),
+    Duration duration = const Duration(milliseconds: 3000),
     int maxFrames = 45,
     double? restoreZoomLevel,
     bool useOpticalProbeZoom = true,
@@ -27,14 +27,35 @@ class HCVLiveScreenProbe {
     final torchFrames = <_FrameStats>[];
     final recoveryFrames = <_FrameStats>[];
     final phaseFrames = max(8, maxFrames ~/ 3);
-    final phaseDuration = Duration(
-      milliseconds: max(550, duration.inMilliseconds ~/ 3),
+    final phaseTimeout = Duration(
+      milliseconds: max(750, duration.inMilliseconds ~/ 3),
     );
 
     var exposureLocked = false;
     var focusLocked = false;
     var torchChallengeCompleted = false;
     String? challengeError;
+    var processing = false;
+    var activePhase = 0;
+    var discardUntil = DateTime.fromMillisecondsSinceEpoch(0);
+
+    List<_FrameStats> targetForPhase() {
+      switch (activePhase) {
+        case 1:
+          return torchFrames;
+        case 2:
+          return recoveryFrames;
+        default:
+          return baselineFrames;
+      }
+    }
+
+    Future<void> waitForPhase(List<_FrameStats> target) async {
+      final deadline = DateTime.now().add(phaseTimeout);
+      while (target.length < phaseFrames && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 20));
+      }
+    }
 
     try {
       await controller.setFlashMode(FlashMode.off);
@@ -44,7 +65,7 @@ class HCVLiveScreenProbe {
       try {
         await controller.setFocusMode(FocusMode.auto);
       } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 350));
+      await Future.delayed(const Duration(milliseconds: 450));
 
       try {
         await controller.setExposureMode(ExposureMode.locked);
@@ -58,45 +79,42 @@ class HCVLiveScreenProbe {
       } catch (_) {
         focusLocked = false;
       }
-      await Future.delayed(const Duration(milliseconds: 180));
+      await Future.delayed(const Duration(milliseconds: 220));
 
-      await _collectFrameStats(
-        controller,
-        baselineFrames,
-        maxFrames: phaseFrames,
-        duration: phaseDuration,
-        phase: 0,
-      );
+      await controller.startImageStream((image) {
+        if (processing || DateTime.now().isBefore(discardUntil)) return;
+        final target = targetForPhase();
+        if (target.length >= phaseFrames) return;
 
-      try {
-        await controller.setFlashMode(FlashMode.torch);
-        await Future.delayed(const Duration(milliseconds: 280));
-        await _collectFrameStats(
-          controller,
-          torchFrames,
-          maxFrames: phaseFrames,
-          duration: phaseDuration,
-          phase: 1,
-        );
-        torchChallengeCompleted = torchFrames.length >= 4;
-      } catch (e) {
-        challengeError = 'TORCH_CHALLENGE_FAILED: $e';
-      } finally {
+        processing = true;
         try {
-          await controller.setFlashMode(FlashMode.off);
-        } catch (_) {}
-      }
+          final stats = _readFrameStats(image, activePhase);
+          if (stats != null && target.length < phaseFrames) {
+            target.add(stats);
+          }
+        } finally {
+          processing = false;
+        }
+      });
 
-      await Future.delayed(const Duration(milliseconds: 280));
-      await _collectFrameStats(
-        controller,
-        recoveryFrames,
-        maxFrames: phaseFrames,
-        duration: phaseDuration,
-        phase: 2,
-      );
+      activePhase = 0;
+      discardUntil = DateTime.now().add(const Duration(milliseconds: 120));
+      await waitForPhase(baselineFrames);
+
+      await controller.setFlashMode(FlashMode.torch);
+      activePhase = 1;
+      discardUntil = DateTime.now().add(const Duration(milliseconds: 320));
+      await Future.delayed(const Duration(milliseconds: 320));
+      await waitForPhase(torchFrames);
+      torchChallengeCompleted = torchFrames.length >= 6;
+
+      await controller.setFlashMode(FlashMode.off);
+      activePhase = 2;
+      discardUntil = DateTime.now().add(const Duration(milliseconds: 320));
+      await Future.delayed(const Duration(milliseconds: 320));
+      await waitForPhase(recoveryFrames);
     } catch (e) {
-      challengeError ??= 'ACTIVE_PROBE_FAILED: $e';
+      challengeError = 'ACTIVE_PROBE_FAILED: $e';
     } finally {
       try {
         if (controller.value.isStreamingImages) {
@@ -117,7 +135,7 @@ class HCVLiveScreenProbe {
           await controller.setZoomLevel(restoreZoomLevel);
         }
       } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 450));
+      await Future.delayed(const Duration(milliseconds: 500));
     }
 
     final allFrames = <_FrameStats>[
@@ -140,14 +158,10 @@ class HCVLiveScreenProbe {
     final passive = _analyzePassive(
       passiveFrames.length >= 8 ? passiveFrames : allFrames,
     );
-    final baseline = _phaseAverage(baselineFrames);
-    final torch = _phaseAverage(torchFrames);
-    final recovery = _phaseAverage(recoveryFrames);
-    final responsiveTileFraction = _responsiveTileFraction(
-      baseline,
-      torch,
-      recovery,
-    );
+    final baseline = _phaseRepresentative(baselineFrames);
+    final torch = _phaseRepresentative(torchFrames);
+    final recovery = _phaseRepresentative(recoveryFrames);
+    final flash = _flashResponseProfile(baseline, torch, recovery);
 
     final active = HCVActiveDisplayClassifier.classify(
       framesAnalyzed: allFrames.length,
@@ -156,7 +170,10 @@ class HCVLiveScreenProbe {
       baselineMeanLuma: baseline?.meanLuma ?? 0,
       torchMeanLuma: torch?.meanLuma ?? 0,
       recoveryMeanLuma: recovery?.meanLuma ?? 0,
-      responsiveTileFraction: responsiveTileFraction,
+      responsiveTileFraction: flash.responsiveTileFraction,
+      flashLiftRatio: flash.globalLiftRatio,
+      flashResponseEntropy: flash.responseEntropy,
+      flashHotspotConcentration: flash.hotspotConcentration,
       localFlicker: passive.localFlicker,
       refreshBand: passive.refreshBand,
       fineStripe: passive.fineStripe,
@@ -164,20 +181,30 @@ class HCVLiveScreenProbe {
       moire: passive.moire,
     );
 
-    final torchLift = max(
-      0.0,
-      (torch?.meanLuma ?? 0) -
-          (((baseline?.meanLuma ?? 0) + (recovery?.meanLuma ?? 0)) / 2),
-    );
     final persistentPattern = _persistentPattern(baseline, recovery);
     final activeDisplayEvidence =
-        active.reasons.contains('EMISSIVE_SCENE_RESISTS_TORCH');
+        active.reasons.contains('EMISSIVE_SCENE_RESISTS_DIFFUSE_TORCH');
     final reflectedRealityEvidence =
-        active.reasons.contains('REFLECTED_SCENE_RESPONDS_TO_TORCH');
+        active.reasons.contains('DIFFUSE_REFLECTED_SCENE_RESPONSE');
+    final indeterminate =
+        active.reasons.contains('ACTIVE_CHALLENGE_INDETERMINATE') ||
+            active.reasons.contains('ACTIVE_ILLUMINATION_CHALLENGE_NOT_VALID') ||
+            active.reasons.contains('FLASH_AND_ELECTRONIC_EVIDENCE_CONFLICT');
+
+    final compactReason = <String>[
+      'ACTIVE_V3',
+      ...active.reasons,
+      'LOCK=${exposureLocked ? 1 : 0}',
+      'LIFT=${_round(flash.globalLiftRatio)}',
+      'COV=${_round(flash.responsiveTileFraction)}',
+      'ENT=${_round(flash.responseEntropy)}',
+      'HOT=${_round(flash.hotspotConcentration)}',
+      if (challengeError != null) challengeError!,
+    ].join('|');
 
     return {
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-      'activeProbeVersion': 2,
+      'activeProbeVersion': 3,
       'analysisStatus': 'ANALYZED',
       'framesAnalyzed': allFrames.length,
       'screenReplayRisk': active.risk,
@@ -195,15 +222,22 @@ class HCVLiveScreenProbe {
       'bandTemporalScore': _round(passive.bandTemporal),
       'electronicLightScore': _round(active.electronicCueScore),
       'stableExposureScore': _round(passive.stableExposure),
+      'reason': compactReason,
       'illuminationChallenge': {
         'completed': torchChallengeCompleted,
+        'continuousStream': true,
         'exposureLocked': exposureLocked,
         'focusLocked': focusLocked,
+        'baselineFrames': baselineFrames.length,
+        'torchFrames': torchFrames.length,
+        'recoveryFrames': recoveryFrames.length,
         'baselineMeanLuma': _round(baseline?.meanLuma ?? 0),
         'torchMeanLuma': _round(torch?.meanLuma ?? 0),
         'recoveryMeanLuma': _round(recovery?.meanLuma ?? 0),
-        'torchLumaLift': _round(torchLift),
-        'responsiveTileFraction': _round(responsiveTileFraction),
+        'globalLiftRatio': _round(flash.globalLiftRatio),
+        'responsiveTileFraction': _round(flash.responsiveTileFraction),
+        'responseEntropy': _round(flash.responseEntropy),
+        'hotspotConcentration': _round(flash.hotspotConcentration),
         'illuminationResponseScore':
             _round(active.illuminationResponseScore),
         'emissiveIndependenceScore':
@@ -213,10 +247,10 @@ class HCVLiveScreenProbe {
       'signals': {
         'livePreviewAnalyzed': true,
         'activeIlluminationChallenge': torchChallengeCompleted,
+        'activeIlluminationContinuousStream': true,
         'activeIlluminationDisplayEvidence': activeDisplayEvidence,
         'reflectedRealityEvidence': reflectedRealityEvidence,
-        'activeChallengeIndeterminate':
-            active.reasons.contains('ACTIVE_CHALLENGE_INDETERMINATE'),
+        'activeChallengeIndeterminate': indeterminate,
         'confirmedDisplayTrace': false,
         'periodicLightTrace': passive.electronicLight > 0.58,
         'strongRefreshTrace': passive.refreshBand > 0.22,
@@ -228,8 +262,8 @@ class HCVLiveScreenProbe {
         'moireFrequencyTrace': passive.moire > 0.42,
         'globalDisplayPulse': passive.globalFlicker > 0.16 &&
             passive.localFlicker > 0.38,
-        'pairedFlickerTrace': passive.localFlicker > 0.18 &&
-            passive.refreshBand > 0.14,
+        'pairedFlickerTrace':
+            passive.localFlicker > 0.18 && passive.refreshBand > 0.14,
         'uncorroboratedDisplayPattern':
             !activeDisplayEvidence && !reflectedRealityEvidence,
         'dynamicScreenChallengeTrace': activeDisplayEvidence,
@@ -240,46 +274,8 @@ class HCVLiveScreenProbe {
       },
       'activeReasons': active.reasons,
       'note':
-          'Active illumination probe measured before capture with locked exposure. Display evidence is based on emissive independence plus electronic cues; reflected-scene response supports reality.',
+          'Active display probe V3: one continuous image stream measures OFF/ON/OFF torch response. Diffuse scene illumination is separated from concentrated glass glare and electronic display structure.',
     };
-  }
-
-  Future<void> _collectFrameStats(
-    CameraController controller,
-    List<_FrameStats> output, {
-    required int maxFrames,
-    required Duration duration,
-    required int phase,
-  }) async {
-    final done = Completer<void>();
-    var collected = 0;
-    var processing = false;
-
-    await controller.startImageStream((image) {
-      if (processing || collected >= maxFrames) {
-        if (collected >= maxFrames && !done.isCompleted) done.complete();
-        return;
-      }
-      processing = true;
-      try {
-        final stats = _readFrameStats(image, phase);
-        if (stats != null) {
-          output.add(stats);
-          collected++;
-        }
-        if (collected >= maxFrames && !done.isCompleted) done.complete();
-      } finally {
-        processing = false;
-      }
-    });
-
-    try {
-      await Future.any([done.future, Future.delayed(duration)]);
-    } finally {
-      if (controller.value.isStreamingImages) {
-        await controller.stopImageStream();
-      }
-    }
   }
 
   _PassiveMetrics _analyzePassive(List<_FrameStats> frames) {
@@ -295,13 +291,14 @@ class HCVLiveScreenProbe {
         .reduce(max)
         .clamp(0.0, 1.0)
         .toDouble();
-    double average(double Function(_FrameStats frame) read) =>
-        frames.map(read).reduce((a, b) => a + b) / frames.length;
 
-    final refreshBand = average((frame) => frame.bandContrast);
-    final fineStripe = average((frame) => frame.fineStripeScore);
-    final fineGrid = average((frame) => frame.fineGridScore);
-    final moire = average((frame) => frame.moireFrequencyScore);
+    double medianMetric(double Function(_FrameStats frame) read) =>
+        _median(frames.map(read).toList());
+
+    final refreshBand = medianMetric((frame) => frame.bandContrast);
+    final fineStripe = medianMetric((frame) => frame.fineStripeScore);
+    final fineGrid = medianMetric((frame) => frame.fineGridScore);
+    final moire = medianMetric((frame) => frame.moireFrequencyScore);
     final bandTemporal = _bandTemporalScore(frames);
     final electronicLight = _electronicLightScore(frames);
     final stableExposure =
@@ -367,10 +364,12 @@ class HCVLiveScreenProbe {
     final right = (image.width * 0.82).floor();
     final top = (image.height * 0.18).floor();
     final bottom = (image.height * 0.82).floor();
+
     for (var y = top; y < bottom; y += 2) {
       var sum = 0.0;
       var samples = 0;
       final row = y * rowStride;
+      if (row >= bytes.length) break;
       for (var x = left; x < right; x += 2) {
         final index = row + x * pixelStride;
         if (index >= bytes.length) break;
@@ -379,6 +378,7 @@ class HCVLiveScreenProbe {
       }
       if (samples > 0) centerRows.add(sum / samples);
     }
+
     for (var x = left; x < right; x += 2) {
       var sum = 0.0;
       var samples = 0;
@@ -426,49 +426,101 @@ class HCVLiveScreenProbe {
     return bytes[index] / 255.0;
   }
 
-  _FrameStats? _phaseAverage(List<_FrameStats> frames) {
+  _FrameStats? _phaseRepresentative(List<_FrameStats> frames) {
     if (frames.isEmpty) return null;
-    double average(double Function(_FrameStats frame) read) =>
-        frames.map(read).reduce((a, b) => a + b) / frames.length;
+
+    double medianMetric(double Function(_FrameStats frame) read) =>
+        _median(frames.map(read).toList());
+
     final tileMeans = List<double>.generate(
       frames.first.tileMeans.length,
-      (index) => frames.map((frame) => frame.tileMeans[index]).reduce((a, b) => a + b) /
-          frames.length,
+      (index) => _median(
+        frames.map((frame) => frame.tileMeans[index]).toList(),
+      ),
     );
+    final bandMeans = List<double>.generate(
+      frames.first.bandMeans.length,
+      (index) => _median(
+        frames.map((frame) => frame.bandMeans[index]).toList(),
+      ),
+    );
+
     return _FrameStats(
       phase: frames.first.phase,
-      meanLuma: average((frame) => frame.meanLuma),
+      meanLuma: medianMetric((frame) => frame.meanLuma),
       tileMeans: tileMeans,
-      bandMeans: frames.first.bandMeans,
-      bandContrast: average((frame) => frame.bandContrast),
-      fineStripeScore: average((frame) => frame.fineStripeScore),
-      fineGridScore: average((frame) => frame.fineGridScore),
-      moireFrequencyScore: average((frame) => frame.moireFrequencyScore),
+      bandMeans: bandMeans,
+      bandContrast: medianMetric((frame) => frame.bandContrast),
+      fineStripeScore: medianMetric((frame) => frame.fineStripeScore),
+      fineGridScore: medianMetric((frame) => frame.fineGridScore),
+      moireFrequencyScore:
+          medianMetric((frame) => frame.moireFrequencyScore),
     );
   }
 
-  double _responsiveTileFraction(
+  _FlashResponseProfile _flashResponseProfile(
     _FrameStats? baseline,
     _FrameStats? torch,
     _FrameStats? recovery,
   ) {
-    if (baseline == null || torch == null || recovery == null) return 0;
+    if (baseline == null || torch == null || recovery == null) {
+      return const _FlashResponseProfile.empty();
+    }
+
     final count = min(
       baseline.tileMeans.length,
       min(torch.tileMeans.length, recovery.tileMeans.length),
     );
-    if (count == 0) return 0;
+    if (count == 0) return const _FlashResponseProfile.empty();
+
+    final positiveLifts = <double>[];
     var responsive = 0;
     for (var i = 0; i < count; i++) {
       final reference = (baseline.tileMeans[i] + recovery.tileMeans[i]) / 2;
-      final lift = torch.tileMeans[i] - reference;
-      final threshold = max(0.025, reference * 0.08);
-      if (lift >= threshold) responsive++;
+      final lift = max(0.0, torch.tileMeans[i] - reference);
+      final liftRatio = lift / max(0.05, reference);
+      positiveLifts.add(lift);
+      if (lift >= 0.012 && liftRatio >= 0.065) responsive++;
     }
-    return responsive / count;
+
+    final totalLift = positiveLifts.fold<double>(0, (a, b) => a + b);
+    final sorted = [...positiveLifts]..sort((a, b) => b.compareTo(a));
+    final topTwoLift = sorted.take(min(2, sorted.length)).fold<double>(
+          0,
+          (a, b) => a + b,
+        );
+    final hotspotConcentration =
+        totalLift <= 0.000001 ? 1.0 : topTwoLift / totalLift;
+
+    var entropy = 0.0;
+    if (totalLift > 0.000001) {
+      for (final lift in positiveLifts) {
+        if (lift <= 0) continue;
+        final p = lift / totalLift;
+        entropy -= p * log(p);
+      }
+      entropy = entropy / log(count);
+    }
+
+    final baselineReference =
+        (baseline.meanLuma + recovery.meanLuma) / 2;
+    final globalLift = max(0.0, torch.meanLuma - baselineReference);
+    final globalLiftRatio =
+        (globalLift / max(0.05, baselineReference)).clamp(0.0, 1.0);
+
+    return _FlashResponseProfile(
+      globalLiftRatio: globalLiftRatio.toDouble(),
+      responsiveTileFraction: responsive / count,
+      responseEntropy: entropy.clamp(0.0, 1.0).toDouble(),
+      hotspotConcentration:
+          hotspotConcentration.clamp(0.0, 1.0).toDouble(),
+    );
   }
 
-  double _persistentPattern(_FrameStats? baseline, _FrameStats? recovery) {
+  double _persistentPattern(
+    _FrameStats? baseline,
+    _FrameStats? recovery,
+  ) {
     if (baseline == null || recovery == null) return 0;
     final gridPersistence =
         1.0 - (baseline.fineGridScore - recovery.fineGridScore).abs();
@@ -501,8 +553,7 @@ class HCVLiveScreenProbe {
     if (frames.length < 8) return 0;
     final series = frames.map((frame) => frame.meanLuma).toList();
     final pulse = _temporalPulseScore(series);
-    final band = frames.map((frame) => frame.bandContrast).reduce((a, b) => a + b) /
-        frames.length;
+    final band = _median(frames.map((frame) => frame.bandContrast).toList());
     return (pulse * 0.55 + band * 1.8 * 0.45)
         .clamp(0.0, 1.0)
         .toDouble();
@@ -570,8 +621,10 @@ class HCVLiveScreenProbe {
     if (profile.length < 24) return 0;
     final mean = profile.reduce((a, b) => a + b) / profile.length;
     final centered = profile.map((value) => value - mean).toList();
-    final totalEnergy = centered.map((value) => value * value).reduce((a, b) => a + b);
+    final totalEnergy =
+        centered.map((value) => value * value).reduce((a, b) => a + b);
     if (totalEnergy < 0.00008) return 0;
+
     var strongest = 0.0;
     final upperBin = min(profile.length ~/ 2, 18);
     for (var bin = 3; bin <= upperBin; bin++) {
@@ -582,13 +635,25 @@ class HCVLiveScreenProbe {
         real += centered[i] * cos(angle);
         imaginary += centered[i] * sin(angle);
       }
-      strongest = max(strongest, (real * real + imaginary * imaginary) / centered.length);
+      strongest = max(
+        strongest,
+        (real * real + imaginary * imaginary) / centered.length,
+      );
     }
+
     final dominance = strongest / totalEnergy;
     final contrast = sqrt(totalEnergy / centered.length);
     return (dominance * 1.8 + contrast * 2.4)
         .clamp(0.0, 1.0)
         .toDouble();
+  }
+
+  double _median(List<double> values) {
+    if (values.isEmpty) return 0;
+    final sorted = [...values]..sort();
+    final middle = sorted.length ~/ 2;
+    if (sorted.length.isOdd) return sorted[middle];
+    return (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
   Map<String, dynamic> _unknown(
@@ -598,7 +663,7 @@ class HCVLiveScreenProbe {
   }) {
     return {
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-      'activeProbeVersion': 2,
+      'activeProbeVersion': 3,
       'analysisStatus': 'NOT_ANALYZED',
       'framesAnalyzed': framesAnalyzed,
       'screenReplayRisk': 'UNKNOWN',
@@ -657,4 +722,24 @@ class _PassiveMetrics {
   final double bandTemporal;
   final double electronicLight;
   final double stableExposure;
+}
+
+class _FlashResponseProfile {
+  const _FlashResponseProfile({
+    required this.globalLiftRatio,
+    required this.responsiveTileFraction,
+    required this.responseEntropy,
+    required this.hotspotConcentration,
+  });
+
+  const _FlashResponseProfile.empty()
+      : globalLiftRatio = 0,
+        responsiveTileFraction = 0,
+        responseEntropy = 0,
+        hotspotConcentration = 1;
+
+  final double globalLiftRatio;
+  final double responsiveTileFraction;
+  final double responseEntropy;
+  final double hotspotConcentration;
 }
