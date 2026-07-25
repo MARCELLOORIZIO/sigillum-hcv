@@ -30,5 +30,22 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      - name: Run tests
-        run: flutter test
+      - name: Run tests and save full log
+        id: flutter_tests
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded > flutter-test.log 2>&1
+          TEST_EXIT=$?
+          cat flutter-test.log
+          echo "exit_code=$TEST_EXIT" >> "$GITHUB_OUTPUT"
+          exit $TEST_EXIT
+
+      - name: Upload Flutter test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-log
+          path: flutter-test.log
+          if-no-files-found: error
+          retention-days: 7
