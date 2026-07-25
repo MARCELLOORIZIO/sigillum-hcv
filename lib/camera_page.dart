@@ -64,7 +64,6 @@ class _CameraPageState extends State<CameraPage> {
   bool recording = false;
 
   bool photoMode = false;
-  String captureMode = 'studio';
 
   FlashMode currentFlashMode = FlashMode.off;
 
@@ -84,6 +83,11 @@ class _CameraPageState extends State<CameraPage> {
   String? createdContentKind;
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+
+  String get _physicalProbeStatus =>
+      widget.languageCode.toLowerCase().startsWith('it')
+          ? 'MUOVI LEGGERMENTE IL TELEFONO LATERALMENTE...'
+          : 'MOVE THE PHONE SLIGHTLY SIDEWAYS...';
 
   @override
   void initState() {
@@ -193,6 +197,19 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
+  Future<void> _settleCameraAfterLiveProbe() async {
+    final camera = controller;
+    if (camera == null || !camera.value.isInitialized) return;
+
+    if (camera.value.isStreamingImages) {
+      await camera.stopImageStream();
+    }
+    await camera.setZoomLevel(currentZoom.clamp(minZoom, maxZoom).toDouble());
+    // Second guard after the probe: wait for the preview/capture pipeline to
+    // converge before takePicture, otherwise iOS can capture while zoomed.
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+
   Future<void> setZoom(double zoom) async {
     if (controller == null || !controller!.value.isInitialized) return;
 
@@ -216,7 +233,7 @@ class _CameraPageState extends State<CameraPage> {
     if (controller!.value.isRecordingVideo) return;
 
     setState(() {
-      status = 'CHECKING LIVE SCREEN FLICKER...';
+      status = _physicalProbeStatus;
       result = null;
       videoPath = null;
       hcvPath = null;
@@ -279,10 +296,11 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       setState(() {
-        status = 'CHECKING LIVE SCREEN FLICKER...';
+        status = _physicalProbeStatus;
       });
 
       final liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+      await _settleCameraAfterLiveProbe();
 
       setState(() {
         status = 'SCATTO FOTO...';
@@ -336,16 +354,14 @@ class _CameraPageState extends State<CameraPage> {
 
       if (screenReplayAnalysis != null) {
         screenReplayAnalysis = {
-          ...screenReplayAnalysis!,
+          ...screenReplayAnalysis,
           'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
         };
       }
-      if (mlScreenReplayAnalysis != null) {
-        mlScreenReplayAnalysis = {
-          ...mlScreenReplayAnalysis!,
-          'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
-        };
-      }
+      mlScreenReplayAnalysis = {
+        ...mlScreenReplayAnalysis,
+        'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
+      };
 
       final screenReplayAnalyses = [
         liveScreenProbe,
@@ -415,6 +431,8 @@ class _CameraPageState extends State<CameraPage> {
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
         "liveScreenProbe": liveScreenProbe,
+        "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",
+        "geometryChallenge": liveScreenProbe["geometryChallenge"],
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
         "mlScreenReplayAnalysisStatus":
@@ -682,7 +700,6 @@ class _CameraPageState extends State<CameraPage> {
     final trustAnalysis = HCVTrustAnalyzer.analyze(
       liveSignals: lastLiveSignals,
       audioCaptured: true,
-      captureMode: captureMode,
     );
     final screenReplayAnalyses = [
       liveScreenProbe,
@@ -747,7 +764,7 @@ class _CameraPageState extends State<CameraPage> {
     engine.setClaims({
       "fileIntegrity": "VERIFIED",
       "captureSource": "HCV_CAMERA",
-      "captureMode": captureMode,
+      "captureMode": "STANDARD",
       "liveCapture": true,
       "liveCaptureMode": "PASSIVE",
       "audioCaptured": true,
@@ -769,6 +786,8 @@ class _CameraPageState extends State<CameraPage> {
       "captureCreatedAt": effectiveCapturedAt.toUtc().toIso8601String(),
       "captureCreatedAtLocal": HCVCaptureTimestamp.format(effectiveCapturedAt),
       "liveScreenProbe": liveScreenProbe,
+      "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",
+      "geometryChallenge": liveScreenProbe?["geometryChallenge"],
       "screenReplayAnalysis": screenReplayAnalysis,
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
       "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(mlScreenReplayAnalysis),
@@ -1416,72 +1435,6 @@ class _CameraPageState extends State<CameraPage> {
                             },
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        height: 40,
-                        child: photoMode
-                            ? const SizedBox.shrink()
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  ChoiceChip(
-                                    label: const Text('STUDIO'),
-                                    selected: captureMode == 'studio',
-                                    showCheckmark: false,
-                                    selectedColor:
-                                        Colors.green.withValues(alpha: 0.28),
-                                    backgroundColor:
-                                        Colors.black.withValues(alpha: 0.62),
-                                    side: BorderSide(
-                                      color: captureMode == 'studio'
-                                          ? Colors.greenAccent
-                                          : Colors.white54,
-                                    ),
-                                    labelStyle: TextStyle(
-                                      color: captureMode == 'studio'
-                                          ? Colors.greenAccent
-                                          : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    onSelected: recording
-                                        ? null
-                                        : (_) {
-                                            setState(() {
-                                              captureMode = 'studio';
-                                            });
-                                          },
-                                  ),
-                                  const SizedBox(width: 14),
-                                  ChoiceChip(
-                                    label: const Text('FIELD'),
-                                    selected: captureMode == 'field',
-                                    showCheckmark: false,
-                                    selectedColor:
-                                        Colors.green.withValues(alpha: 0.28),
-                                    backgroundColor:
-                                        Colors.black.withValues(alpha: 0.62),
-                                    side: BorderSide(
-                                      color: captureMode == 'field'
-                                          ? Colors.greenAccent
-                                          : Colors.white54,
-                                    ),
-                                    labelStyle: TextStyle(
-                                      color: captureMode == 'field'
-                                          ? Colors.greenAccent
-                                          : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    onSelected: recording
-                                        ? null
-                                        : (_) {
-                                            setState(() {
-                                              captureMode = 'field';
-                                            });
-                                          },
-                                  ),
-                                ],
-                              ),
                       ),
                       const SizedBox(height: 20),
                       GestureDetector(

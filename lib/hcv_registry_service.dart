@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'hcv_keystore_signer.dart';
+
 enum HCVRegistryFailureKind {
   notFound,
   unavailable,
@@ -50,6 +52,7 @@ class HCVRegistryRetryReport {
 class HCVRegistryService {
   static const _pendingUploadsKey = 'hcv_registry_pending_uploads_v1';
   static const _requestTimeout = Duration(seconds: 15);
+  static final RegExp _hcvIdPattern = RegExp(r'^HCV-[A-F0-9]{16}$');
 
   final String baseUrl;
 
@@ -89,7 +92,7 @@ class HCVRegistryService {
     if (hcvId == null || hcvId.isEmpty) {
       throw const HCVRegistryException(
         HCVRegistryFailureKind.invalidCertificate,
-        'HCV-ID mancante nel certificato',
+        'HCV-ID non valido: sono richiesti 16 caratteri esadecimali',
       );
     }
 
@@ -165,8 +168,11 @@ class HCVRegistryService {
   Future<Map<String, dynamic>> fetchCertificate(String hcvId) async {
     final cleaned = hcvId.trim().toUpperCase();
 
-    if (cleaned.isEmpty) {
-      throw Exception('Inserisci HCV-ID');
+    if (!_hcvIdPattern.hasMatch(cleaned)) {
+      throw const HCVRegistryException(
+        HCVRegistryFailureKind.invalidResponse,
+        'HCV-ID non valido: sono richiesti 16 caratteri esadecimali',
+      );
     }
 
     final client = HttpClient()..connectionTimeout = _requestTimeout;
@@ -353,6 +359,8 @@ class HCVRegistryService {
   Future<Map<String, dynamic>> startKycSession({
     required String creatorId,
     required String creatorName,
+    required String deviceKeyFingerprint,
+    required Map<String, dynamic> publicKey,
   }) async {
     final client = HttpClient();
 
@@ -360,9 +368,14 @@ class HCVRegistryService {
       final uri = Uri.parse('$baseUrl/api/identity/kyc/start');
       final req = await client.postUrl(uri);
       req.headers.contentType = ContentType.json;
+      final proof = await _createDeviceKeyProof(
+        deviceKeyFingerprint: deviceKeyFingerprint,
+        publicKey: publicKey,
+      );
       req.write(jsonEncode({
         'creatorId': creatorId,
         'creatorName': creatorName,
+        ...proof,
       }));
 
       final res = await req.close();
@@ -382,6 +395,100 @@ class HCVRegistryService {
     } finally {
       client.close(force: true);
     }
+  }
+
+  Future<Map<String, dynamic>> recoverKycSession({
+    required String deviceKeyFingerprint,
+    required Map<String, dynamic> publicKey,
+  }) async {
+    final client = HttpClient();
+
+    try {
+      final uri = Uri.parse('$baseUrl/api/identity/kyc/recover');
+      final req = await client.postUrl(uri);
+      req.headers.contentType = ContentType.json;
+      req.write(jsonEncode(await _createDeviceKeyProof(
+        deviceKeyFingerprint: deviceKeyFingerprint,
+        publicKey: publicKey,
+      )));
+
+      final res = await req.close();
+      final body = await utf8.decoder.bind(res).join();
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Risposta recupero KYC non valida');
+      }
+      if (res.statusCode == 404) return decoded;
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw Exception(decoded['message'] ??
+            decoded['error'] ??
+            'Recupero KYC non disponibile');
+      }
+      return decoded;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<Map<String, dynamic>> bindExistingKycSession({
+    required String sessionId,
+    required String creatorId,
+    required String deviceKeyFingerprint,
+    required Map<String, dynamic> publicKey,
+  }) async {
+    final cleanedSessionId = sessionId.trim();
+    if (cleanedSessionId.isEmpty) {
+      throw Exception('Sessione KYC mancante');
+    }
+
+    final client = HttpClient();
+    try {
+      final uri = Uri.parse('$baseUrl/api/identity/kyc/bind');
+      final req = await client.postUrl(uri);
+      req.headers.contentType = ContentType.json;
+      final proof = await _createDeviceKeyProof(
+        deviceKeyFingerprint: deviceKeyFingerprint,
+        publicKey: publicKey,
+      );
+      req.write(jsonEncode({
+        'sessionId': cleanedSessionId,
+        'creatorId': creatorId,
+        ...proof,
+      }));
+
+      final res = await req.close();
+      final body = await utf8.decoder.bind(res).join();
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Risposta associazione KYC non valida');
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw Exception(decoded['message'] ??
+            decoded['error'] ??
+            'Associazione KYC non disponibile');
+      }
+      return decoded;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<Map<String, dynamic>> _createDeviceKeyProof({
+    required String deviceKeyFingerprint,
+    required Map<String, dynamic> publicKey,
+  }) async {
+    final signedAt = DateTime.now().toUtc().toIso8601String();
+    final statement = jsonEncode({
+      'purpose': 'SIGILLUM_KYC_DEVICE_BINDING_V1',
+      'deviceKeyFingerprint': deviceKeyFingerprint,
+      'signedAt': signedAt,
+    });
+    return {
+      'deviceKeyFingerprint': deviceKeyFingerprint,
+      'publicKey': publicKey,
+      'signedAt': signedAt,
+      'signature': await HCVKeystoreSigner.sign(statement),
+    };
   }
 
   Future<Map<String, dynamic>> fetchKycSessionStatus({
@@ -425,15 +532,12 @@ class HCVRegistryService {
 
   String? _extractHcvId(Map<String, dynamic> cert) {
     final meta = cert['meta'];
+    final raw = meta is Map && meta['hcvId'] != null
+        ? meta['hcvId'].toString()
+        : cert['hcvId']?.toString();
+    if (raw == null) return null;
 
-    if (meta is Map && meta['hcvId'] != null) {
-      return meta['hcvId'].toString();
-    }
-
-    if (cert['hcvId'] != null) {
-      return cert['hcvId'].toString();
-    }
-
-    return null;
+    final normalized = raw.trim().toUpperCase();
+    return _hcvIdPattern.hasMatch(normalized) ? normalized : null;
   }
 }
