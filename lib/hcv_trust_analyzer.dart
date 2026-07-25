@@ -2,9 +2,9 @@ class HCVTrustAnalyzer {
   static Map<String, dynamic> analyze({
     required Map<String, dynamic>? liveSignals,
     bool audioCaptured = false,
-    String captureMode = "field",
+    String captureMode = "standard",
   }) {
-    final mode = captureMode == "studio" ? "studio" : "field";
+    const mode = "standard";
 
     if (liveSignals == null) {
       return {
@@ -25,47 +25,33 @@ class HCVTrustAnalyzer {
     final gyroMotion = (liveSignals["gyroscopeMotionScore"] ?? 0).toDouble();
     final continuity = liveSignals["continuity"]?.toString() ?? "UNKNOWN";
 
-    int score = 0;
-
+    var score = 0;
     if (accSamples >= 20) score += 20;
     if (gyroSamples >= 20) score += 20;
     if (continuity == "RECORDED") score += 20;
     if (audioCaptured) score += 10;
-
-    if (mode == "studio") {
-      score += 20;
-      if (accMotion > 0.05 || gyroMotion > 0.02) score += 10;
-      if (accMotion > 0.5 || gyroMotion > 0.1) score += 10;
-    } else {
-      if (accMotion > 0.5) score += 20;
-      if (gyroMotion > 0.1) score += 20;
-    }
-
+    if (accMotion > 0.05 || gyroMotion > 0.02) score += 15;
+    if (accMotion > 0.5 || gyroMotion > 0.1) score += 15;
     if (score > 100) score = 100;
 
-    String trustLevel;
-    String liveCaptureTrust;
-    String screenReplayRisk;
-    String syntheticRisk;
-    String sceneAuthenticity;
+    late final String trustLevel;
+    late final String liveCaptureTrust;
+    late final String screenReplayRisk;
+    late final String syntheticRisk;
+    late final String sceneAuthenticity;
 
     if (score >= 80) {
-      trustLevel = mode == "studio" ? "HCV_STUDIO_LIVE" : "HCV_LIVE";
-      liveCaptureTrust = mode == "studio" ? "STUDIO_HIGH" : "HIGH";
+      trustLevel = "HCV_LIVE";
+      liveCaptureTrust = "HIGH";
       screenReplayRisk = "REDUCED";
       syntheticRisk = "REDUCED";
-      sceneAuthenticity = mode == "studio"
-          ? "STUDIO_LIVE_CAPTURE_SUPPORTED"
-          : "LIVE_CAPTURE_SUPPORTED";
+      sceneAuthenticity = "LIVE_CAPTURE_SUPPORTED";
     } else if (score >= 40) {
-      trustLevel =
-          mode == "studio" ? "HCV_STUDIO_PARTIAL_LIVE" : "HCV_PARTIAL_LIVE";
-      liveCaptureTrust = mode == "studio" ? "STUDIO_MEDIUM" : "MEDIUM";
+      trustLevel = "HCV_PARTIAL_LIVE";
+      liveCaptureTrust = "MEDIUM";
       screenReplayRisk = "PARTIALLY_REDUCED";
       syntheticRisk = "PARTIALLY_REDUCED";
-      sceneAuthenticity = mode == "studio"
-          ? "STUDIO_PARTIAL_LIVE_SIGNALS"
-          : "PARTIAL_LIVE_SIGNALS";
+      sceneAuthenticity = "PARTIAL_LIVE_SIGNALS";
     } else {
       trustLevel = "HCV_BASIC";
       liveCaptureTrust = "LOW";
@@ -90,9 +76,7 @@ class HCVTrustAnalyzer {
       "gyroscopeMotionScore": gyroMotion,
       "continuity": continuity,
       "note":
-          mode == "studio"
-              ? "Studio mode allows a static camera. It is passive live-capture support, not absolute proof against AI or screen replay."
-              : "Field mode expects natural device motion. This is passive live-capture trust analysis, not absolute proof against AI.",
+          "Standard passive live-capture trust analysis. Device motion supports capture continuity but is not absolute proof against AI or screen replay.",
     };
   }
 }
