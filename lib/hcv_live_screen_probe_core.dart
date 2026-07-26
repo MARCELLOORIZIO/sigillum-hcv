@@ -192,7 +192,7 @@ class HCVLiveScreenProbe {
     final finalReasons = sceneDecision.reasons;
 
     final compactReason = <String>[
-      'ACTIVE_V4',
+      'ACTIVE_V5',
       ...finalReasons,
       'LOCK=${exposureLocked ? 1 : 0}',
       'LIFT=${_round(flash.globalLiftRatio)}',
@@ -207,9 +207,9 @@ class HCVLiveScreenProbe {
       if (challengeError != null) challengeError!,
     ].join('|');
 
-    return {
+    final activeLiveAnalysis = <String, dynamic>{
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-      'activeProbeVersion': 4,
+      'activeProbeVersion': 5,
       'analysisStatus': 'ANALYZED',
       'framesAnalyzed': allFrames.length,
       'screenReplayRisk': sceneDecision.risk,
@@ -285,8 +285,55 @@ class HCVLiveScreenProbe {
       'activeReasons': finalReasons,
       'geometryReasons': geometry.reasons,
       'note':
-          'Active display probe V4 combines OFF/ON/OFF illumination response with low-resolution camera-motion geometry. Multi-depth parallax supports reality; coherent planarity only corroborates other display evidence.',
+          'Active display probe V5 combines OFF/ON/OFF illumination response, low-resolution camera-motion geometry, and a disposable pre-capture mini-video analyzed through the same optical and ML pipeline used for recorded video.',
     };
+
+    final temporalProbe =
+        await const HCVTemporalCaptureProbe().analyze(controller);
+    final temporalOptical =
+        _stringMap(temporalProbe['screenReplayAnalysis']);
+    final temporalMl =
+        _stringMap(temporalProbe['mlScreenReplayAnalysis']);
+    final temporalAnalyzed =
+        temporalProbe['analysisStatus'] == 'ANALYZED' &&
+            (temporalOptical != null || temporalMl != null);
+
+    HCVDisplayRiskResult? videoEquivalentRisk;
+    if (temporalAnalyzed) {
+      videoEquivalentRisk = HCVDisplayRiskFusion.combine([
+        activeLiveAnalysis,
+        temporalOptical,
+        temporalMl,
+      ]);
+    }
+
+    activeLiveAnalysis['photoTemporalVideoProbe'] = temporalProbe;
+    activeLiveAnalysis['photoDecisionMethod'] =
+        'VIDEO_EQUIVALENT_PRE_CAPTURE_TEMPORAL_ANALYSIS';
+    activeLiveAnalysis['videoEquivalentAvailable'] =
+        videoEquivalentRisk != null;
+    if (videoEquivalentRisk != null) {
+      activeLiveAnalysis['videoEquivalentDisplayRisk'] =
+          videoEquivalentRisk.toJson();
+    }
+
+    final signals = activeLiveAnalysis['signals'];
+    if (signals is Map<String, dynamic>) {
+      signals['photoTemporalVideoAnalyzed'] = temporalAnalyzed;
+      signals['photoTemporalVideoDeletedAfterAnalysis'] =
+          temporalProbe['temporaryVideoDeletedAfterAnalysis'] == true;
+    }
+    activeLiveAnalysis['reason'] =
+        '$compactReason|TEMP=${temporalAnalyzed ? 1 : 0}';
+
+    return activeLiveAnalysis;
+  }
+
+  Map<String, dynamic>? _stringMap(dynamic value) {
+    if (value is! Map) return null;
+    return value.map(
+      (key, item) => MapEntry(key.toString(), item),
+    );
   }
 
   Map<String, dynamic> _unknown(
@@ -296,7 +343,7 @@ class HCVLiveScreenProbe {
   }) {
     return {
       'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-      'activeProbeVersion': 4,
+      'activeProbeVersion': 5,
       'analysisStatus': 'NOT_ANALYZED',
       'framesAnalyzed': framesAnalyzed,
       'screenReplayRisk': 'UNKNOWN',
