@@ -43,6 +43,12 @@ class HCVDisplayRiskFusion {
             .toList()
         : allAvailable;
     final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
+    if (liveCaptureOnly) {
+      final videoEquivalent = _embeddedVideoEquivalentResult(live);
+      if (videoEquivalent != null) {
+        return videoEquivalent;
+      }
+    }
     final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
     final passive = available
         .where((analysis) =>
@@ -292,6 +298,57 @@ class HCVDisplayRiskFusion {
       strongSources: strongSources.toList()..sort(),
       reasons: reasons,
     );
+  }
+
+  static HCVDisplayRiskResult? _embeddedVideoEquivalentResult(
+    Map<String, dynamic>? live,
+  ) {
+    if (live == null || live['videoEquivalentAvailable'] != true) {
+      return null;
+    }
+
+    final raw = live['videoEquivalentDisplayRisk'];
+    if (raw is! Map) return null;
+
+    final decision = raw['decision']?.toString();
+    final score = (raw['score'] as num?)?.toInt();
+    const validDecisions = <String>{
+      'NO_DISPLAY_EVIDENCE',
+      'NON_CONCLUSIVE',
+      'STRONG_DISPLAY_RISK',
+    };
+    if (decision == null ||
+        score == null ||
+        !validDecisions.contains(decision)) {
+      return null;
+    }
+
+    final evidenceSources = _stringList(raw['evidenceSources']);
+    final strongSources = _stringList(raw['strongSources']);
+    final reasons = _stringList(raw['reasons']);
+    if (!reasons.contains('PHOTO_VIDEO_EQUIVALENT_METHOD')) {
+      reasons.add('PHOTO_VIDEO_EQUIVALENT_METHOD');
+    }
+
+    return HCVDisplayRiskResult(
+      risk: raw['risk']?.toString() ??
+          (score >= 70
+              ? 'HIGH'
+              : score >= 45
+                  ? 'MEDIUM'
+                  : 'LOW'),
+      score: score.clamp(0, 100).toInt(),
+      decision: decision,
+      analysisStatus: raw['analysisStatus']?.toString() ?? 'PARTIAL',
+      evidenceSources: evidenceSources,
+      strongSources: strongSources,
+      reasons: reasons,
+    );
+  }
+
+  static List<String> _stringList(dynamic value) {
+    if (value is! Iterable) return <String>[];
+    return value.map((item) => item.toString()).toList();
   }
 
   static Map<String, dynamic>? _firstOfType(
