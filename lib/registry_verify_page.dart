@@ -82,8 +82,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String? extractHcvIdFromName(String fileName) {
     final patterns = [
-      RegExp(r'hcv_video_(HCV-[A-Z0-9]+)', caseSensitive: false),
-      RegExp(r'(HCV-[A-Z0-9]+)', caseSensitive: false),
+      RegExp(r'hcv_video_(HCV-[A-F0-9]{16})(?![A-F0-9])', caseSensitive: false),
+      RegExp(r'(HCV-[A-F0-9]{16})(?![A-F0-9])', caseSensitive: false),
     ];
 
     for (final pattern in patterns) {
@@ -107,13 +107,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         .replaceAll('HCV_ID', 'HCV-')
         .replaceAll('HCV_', 'HCV-');
 
-    final match = RegExp(r'HCV-[A-F0-9]{8}').firstMatch(normalized);
+    final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')
+        .firstMatch(normalized);
     return match?.group(0);
   }
 
   String normalizeSocialText(String value) {
     final footer = RegExp(
-      r'\s+HCV VERIFIED\s*[^\r\n]*\s+ID:\s*HCV-[A-F0-9]{8}\s+VERIFY WITH SIGILLUM\s*$',
+      r'\s+HCV VERIFIED\s*[^\r\n]*\s+ID:\s*HCV-(?:[A-F0-9]{16}|[A-F0-9]{8})\s+VERIFY WITH SIGILLUM\s*$',
       caseSensitive: false,
       multiLine: true,
     );
@@ -187,7 +188,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           .replaceAll('HCV_', 'HCV-')
           .replaceAll('O', '0');
 
-      final match = RegExp(r'HCV-[A-F0-9]{8}').firstMatch(normalized);
+      final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')
+          .firstMatch(normalized);
 
       if (match != null) {
         return match.group(0);
@@ -257,7 +259,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       final command = "-y -ss $time -i '$videoPath' "
-          "-vf \"crop=iw:ih*0.35:0:ih*0.65,scale=iw*2:ih*2,eq=contrast=1.6:brightness=0.05:saturation=1.2\" "
+          "-vf \"crop=iw:ih*0.40:0:0,scale=iw*2:ih*2,eq=contrast=1.6:brightness=0.05:saturation=1.2\" "
           "-frames:v 1 '$framePath'";
 
       final session = await FFmpegKit.execute(command);
@@ -272,7 +274,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   List<String> _b8Variants(String hcvId) {
-    final match = RegExp(r'^HCV-([A-F0-9]{8})$').firstMatch(hcvId);
+    final match = RegExp(r'^HCV-([A-F0-9]{16})$').firstMatch(hcvId);
 
     if (match == null) {
       return const [];
