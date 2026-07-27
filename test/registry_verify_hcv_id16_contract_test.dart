@@ -37,7 +37,7 @@ void main() {
     test('B and 8 OCR variants operate on sixteen characters', () {
       expect(
         source,
-        contains("RegExp(r'^HCV-([A-F0-9]{16})$')"),
+        contains(r"RegExp(r'^HCV-([A-F0-9]{16})$')"),
       );
     });
   });
