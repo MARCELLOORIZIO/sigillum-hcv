@@ -1,0 +1,126 @@
+name: Apply HCV ID16 verification fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-hcv-id16-verification-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout active branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/reality-monitor-geometry-20260725
+          fetch-depth: 0
+
+      - name: Patch registry verification source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/registry_verify_page.dart')
+          source = path.read_text()
+
+          replacements = [
+              (
+                  "RegExp(r'hcv_video_(HCV-[A-Z0-9]+)', caseSensitive: false),\n      RegExp(r'(HCV-[A-Z0-9]+)', caseSensitive: false),",
+                  "RegExp(r'hcv_video_(HCV-[A-F0-9]{16})(?![A-F0-9])', caseSensitive: false),\n      RegExp(r'(HCV-[A-F0-9]{16})(?![A-F0-9])', caseSensitive: false),",
+              ),
+              (
+                  "final match = RegExp(r'HCV-[A-F0-9]{8}').firstMatch(normalized);\n    return match?.group(0);",
+                  "final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')\n        .firstMatch(normalized);\n    return match?.group(0);",
+              ),
+              (
+                  "r'\\s+HCV VERIFIED\\s*[^\\r\\n]*\\s+ID:\\s*HCV-[A-F0-9]{8}\\s+VERIFY WITH SIGILLUM\\s*$'",
+                  "r'\\s+HCV VERIFIED\\s*[^\\r\\n]*\\s+ID:\\s*HCV-(?:[A-F0-9]{16}|[A-F0-9]{8})\\s+VERIFY WITH SIGILLUM\\s*$'",
+              ),
+              (
+                  "final match = RegExp(r'HCV-[A-F0-9]{8}').firstMatch(normalized);\n\n      if (match != null) {",
+                  "final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')\n          .firstMatch(normalized);\n\n      if (match != null) {",
+              ),
+              (
+                  "crop=iw:ih*0.35:0:ih*0.65,scale=iw*2:ih*2",
+                  "crop=iw:ih*0.40:0:0,scale=iw*2:ih*2",
+              ),
+              (
+                  "RegExp(r'^HCV-([A-F0-9]{8})$').firstMatch(hcvId)",
+                  "RegExp(r'^HCV-([A-F0-9]{16})$').firstMatch(hcvId)",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f'Expected exactly one occurrence, found {count}: {old[:100]}'
+                  )
+              source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          PY
+
+      - name: Add regression contract
+        shell: bash
+        run: |
+          cat > test/registry_verify_hcv_id16_contract_test.dart <<'DART'
+          import 'dart:io';
+
+          import 'package:flutter_test/flutter_test.dart';
+
+          void main() {
+            group('Registry verification HCV-ID format', () {
+              late String source;
+
+              setUpAll(() {
+                source = File('lib/registry_verify_page.dart').readAsStringSync();
+              });
+
+              test('OCR and text parsing require the complete sixteen-character ID', () {
+                expect(
+                  RegExp(r"RegExp\(r'HCV-\[A-F0-9\]\{16\}")
+                      .allMatches(source)
+                      .length,
+                  greaterThanOrEqualTo(2),
+                );
+                expect(
+                  source,
+                  isNot(contains("RegExp(r'HCV-[A-F0-9]{8}')")),
+                );
+              });
+
+              test('Messenger recompressed sample ID is not truncated', () {
+                final pattern = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])');
+                final match = pattern.firstMatch('HCV-DD73F6F14B294836');
+                expect(match?.group(0), 'HCV-DD73F6F14B294836');
+              });
+
+              test('Android OCR crop reads the upper watermark region', () {
+                expect(source, contains('crop=iw:ih*0.40:0:0'));
+                expect(source, isNot(contains('crop=iw:ih*0.35:0:ih*0.65')));
+              });
+
+              test('B and 8 OCR variants operate on sixteen characters', () {
+                expect(
+                  source,
+                  contains("RegExp(r'^HCV-([A-F0-9]{16})$')"),
+                );
+              });
+            });
+          }
+          DART
+
+      - name: Remove one-shot workflow and commit fix
+        shell: bash
+        run: |
+          rm .github/workflows/apply-hcv-id16-verification-fix.yml
+          git config user.name 'SIGILLUM Fix Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/registry_verify_page.dart test/registry_verify_hcv_id16_contract_test.dart .github/workflows/apply-hcv-id16-verification-fix.yml
+          git commit -m 'Fix 16-character HCV-ID extraction for recompressed media'
+          git push origin HEAD:fix/reality-monitor-geometry-20260725
