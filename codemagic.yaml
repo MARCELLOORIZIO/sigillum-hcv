@@ -18,7 +18,7 @@ workflows:
     scripts:
       - name: Apply reliable iOS share handoff
         script: |
-          python3 tool/apply_ios_share_handoff_fix.py
+          python3 tool/run_ios_share_handoff_fix.py
 
       - name: Flutter pub get
         script: |
@@ -95,7 +95,7 @@ workflows:
     scripts:
       - name: Apply reliable iOS share handoff
         script: |
-          python3 tool/apply_ios_share_handoff_fix.py
+          python3 tool/run_ios_share_handoff_fix.py
 
       - name: Flutter pub get
         script: |
