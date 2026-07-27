@@ -16,6 +16,10 @@ workflows:
       app_store_connect: Codemagic-HCV
 
     scripts:
+      - name: Apply reliable iOS share handoff
+        script: |
+          python3 tool/apply_ios_share_handoff_fix.py
+
       - name: Flutter pub get
         script: |
           flutter pub get
@@ -89,6 +93,10 @@ workflows:
       app_store_connect: Codemagic-HCV
 
     scripts:
+      - name: Apply reliable iOS share handoff
+        script: |
+          python3 tool/apply_ios_share_handoff_fix.py
+
       - name: Flutter pub get
         script: |
           flutter pub get
