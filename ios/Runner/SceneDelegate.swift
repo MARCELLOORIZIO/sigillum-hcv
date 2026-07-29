@@ -287,6 +287,39 @@ class SceneDelegate: FlutterSceneDelegate {
           result(try self.signWithKeychain(data))
         } else if call.method == "getPublicKey" {
           result(try self.getPublicKeyMap())
+        } else if call.method == "setSecret" {
+          guard
+            let args = call.arguments as? [String: Any],
+            let key = args["key"] as? String,
+            let value = args["value"] as? String,
+            !key.isEmpty
+          else {
+            result(FlutterError(code: "INVALID_SECRET", message: "Secret key is empty", details: nil))
+            return
+          }
+          try self.setKeychainSecret(key: key, value: value)
+          result(nil)
+        } else if call.method == "getSecret" {
+          guard
+            let args = call.arguments as? [String: Any],
+            let key = args["key"] as? String,
+            !key.isEmpty
+          else {
+            result(FlutterError(code: "INVALID_SECRET", message: "Secret key is empty", details: nil))
+            return
+          }
+          result(try self.getKeychainSecret(key: key))
+        } else if call.method == "deleteSecret" {
+          guard
+            let args = call.arguments as? [String: Any],
+            let key = args["key"] as? String,
+            !key.isEmpty
+          else {
+            result(FlutterError(code: "INVALID_SECRET", message: "Secret key is empty", details: nil))
+            return
+          }
+          try self.deleteKeychainSecret(key: key)
+          result(nil)
         } else {
           result(FlutterMethodNotImplemented)
         }
@@ -356,6 +389,61 @@ class SceneDelegate: FlutterSceneDelegate {
       return destination.path
     } catch {
       return nil
+    }
+  }
+
+  private let secretService = "com.sigillum.hcv.secure"
+
+  private func secretQuery(key: String) -> [String: Any] {
+    return [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: secretService,
+      kSecAttrAccount as String: key
+    ]
+  }
+
+  private func setKeychainSecret(key: String, value: String) throws {
+    var query = secretQuery(key: key)
+    SecItemDelete(query as CFDictionary)
+    query[kSecValueData as String] = Data(value.utf8)
+    query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    let status = SecItemAdd(query as CFDictionary, nil)
+    guard status == errSecSuccess else {
+      throw NSError(
+        domain: NSOSStatusErrorDomain,
+        code: Int(status),
+        userInfo: [NSLocalizedDescriptionKey: "Unable to save secure account session"]
+      )
+    }
+  }
+
+  private func getKeychainSecret(key: String) throws -> String? {
+    var query = secretQuery(key: key)
+    query[kSecReturnData as String] = true
+    query[kSecMatchLimit as String] = kSecMatchLimitOne
+    var item: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &item)
+    if status == errSecItemNotFound {
+      return nil
+    }
+    guard status == errSecSuccess, let data = item as? Data else {
+      throw NSError(
+        domain: NSOSStatusErrorDomain,
+        code: Int(status),
+        userInfo: [NSLocalizedDescriptionKey: "Unable to read secure account session"]
+      )
+    }
+    return String(data: data, encoding: .utf8)
+  }
+
+  private func deleteKeychainSecret(key: String) throws {
+    let status = SecItemDelete(secretQuery(key: key) as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw NSError(
+        domain: NSOSStatusErrorDomain,
+        code: Int(status),
+        userInfo: [NSLocalizedDescriptionKey: "Unable to delete secure account session"]
+      )
     }
   }
 

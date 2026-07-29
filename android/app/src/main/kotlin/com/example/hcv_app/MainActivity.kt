@@ -17,11 +17,17 @@ import java.security.KeyStore
 import java.security.Signature
 import java.security.interfaces.RSAPublicKey
 import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 class MainActivity : FlutterActivity() {
     private val INTENT_CHANNEL = "hcv.intent"
     private val KEYSTORE_CHANNEL = "hcv.keystore"
     private val KEY_ALIAS = "hcv_rsa_signing_key_v1"
+    private val SECRET_KEY_ALIAS = "hcv_account_secret_key_v1"
+    private val SECRET_PREFS = "hcv_secure_account_store"
 
     private var sharedPath: String? = null
     private var intentChannel: MethodChannel? = null
@@ -66,6 +72,36 @@ class MainActivity : FlutterActivity() {
 
                     "getPublicKey" -> {
                         result.success(getPublicKeyMap())
+                    }
+
+                    "setSecret" -> {
+                        val key = call.argument<String>("key")
+                        val value = call.argument<String>("value")
+                        if (key.isNullOrEmpty() || value == null) {
+                            result.error("INVALID_SECRET", "Secret key is empty", null)
+                            return@setMethodCallHandler
+                        }
+                        setSecret(key, value)
+                        result.success(null)
+                    }
+
+                    "getSecret" -> {
+                        val key = call.argument<String>("key")
+                        if (key.isNullOrEmpty()) {
+                            result.error("INVALID_SECRET", "Secret key is empty", null)
+                            return@setMethodCallHandler
+                        }
+                        result.success(getSecret(key))
+                    }
+
+                    "deleteSecret" -> {
+                        val key = call.argument<String>("key")
+                        if (key.isNullOrEmpty()) {
+                            result.error("INVALID_SECRET", "Secret key is empty", null)
+                            return@setMethodCallHandler
+                        }
+                        deleteSecret(key)
+                        result.success(null)
                     }
 
                     else -> result.notImplemented()
@@ -169,6 +205,63 @@ class MainActivity : FlutterActivity() {
         } finally {
             cursor?.close()
         }
+    }
+
+    private fun getOrCreateSecretKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        val existing = keyStore.getKey(SECRET_KEY_ALIAS, null)
+        if (existing is SecretKey) return existing
+
+        val generator = KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_AES,
+            "AndroidKeyStore"
+        )
+        val spec = KeyGenParameterSpec.Builder(
+            SECRET_KEY_ALIAS,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setRandomizedEncryptionRequired(true)
+            .build()
+        generator.init(spec)
+        return generator.generateKey()
+    }
+
+    private fun setSecret(key: String, value: String) {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
+        val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+        val encoded = Base64.getEncoder().encodeToString(cipher.iv) + "." +
+            Base64.getEncoder().encodeToString(encrypted)
+        getSharedPreferences(SECRET_PREFS, MODE_PRIVATE)
+            .edit()
+            .putString(key, encoded)
+            .apply()
+    }
+
+    private fun getSecret(key: String): String? {
+        val encoded = getSharedPreferences(SECRET_PREFS, MODE_PRIVATE)
+            .getString(key, null) ?: return null
+        val parts = encoded.split('.', limit = 2)
+        if (parts.size != 2) return null
+        val iv = Base64.getDecoder().decode(parts[0])
+        val encrypted = Base64.getDecoder().decode(parts[1])
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            getOrCreateSecretKey(),
+            GCMParameterSpec(128, iv)
+        )
+        return String(cipher.doFinal(encrypted), Charsets.UTF_8)
+    }
+
+    private fun deleteSecret(key: String) {
+        getSharedPreferences(SECRET_PREFS, MODE_PRIVATE)
+            .edit()
+            .remove(key)
+            .apply()
     }
 
     private fun getOrCreateKey() {
