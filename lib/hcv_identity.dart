@@ -22,6 +22,21 @@ class HCVIdentity {
     await prefs.setString(_creatorNameKey, creatorName);
   }
 
+  Future<void> clearPersonalData() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in [
+      _creatorIdKey,
+      _creatorNameKey,
+      _kycSessionIdKey,
+      _kycProviderKey,
+      _kycStatusKey,
+      _kycLegalNameKey,
+      _kycCountryKey,
+    ]) {
+      await prefs.remove(key);
+    }
+  }
+
   Future<void> saveKycSession({
     required String sessionId,
     required String provider,
