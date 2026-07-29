@@ -401,9 +401,12 @@ class _AccountPageState extends State<AccountPage> {
         ? Map<String, dynamic>.from(raw)
         : <String, dynamic>{};
     if (!mounted) return;
+    final returnedExpiry = envelope['expiresAt']?.toString() ?? '';
     setState(() {
       _account = account;
-      _sessionExpiresAt = envelope['expiresAt']?.toString() ?? '';
+      if (returnedExpiry.isNotEmpty) {
+        _sessionExpiresAt = returnedExpiry;
+      }
       _emailController.text = account['email']?.toString() ?? '';
     });
   }
