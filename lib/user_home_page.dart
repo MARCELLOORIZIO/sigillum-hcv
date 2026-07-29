@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'camera_page.dart';
 import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
-import 'identity_page.dart';
+import 'account_page.dart';
 import 'import_page.dart';
 import 'legal_info_page.dart';
 import 'registry_verify_page.dart';
@@ -129,7 +129,10 @@ class _UserHomePageState extends State<UserHomePage> {
                   languageCode: languageCode,
                   onLanguageChanged: _setLanguage,
                   onIdentity: () => _open(
-                    IdentityPage(languageCode: languageCode),
+                    AccountPage(
+                      languageCode: languageCode,
+                      onLanguageChanged: _setLanguage,
+                    ),
                   ),
                 ),
               ),
@@ -162,6 +165,19 @@ class _UserHomePageState extends State<UserHomePage> {
                     subtitle: _t('verifySubtitle'),
                     onPressed: () => _open(
                       ImportPage(languageCode: languageCode),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _PrimaryAction(
+                    icon: Icons.manage_accounts_rounded,
+                    title: _t('accountTitle'),
+                    subtitle: _t('accountSubtitle'),
+                    filled: false,
+                    onPressed: () => _open(
+                      AccountPage(
+                        languageCode: languageCode,
+                        onLanguageChanged: _setLanguage,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -248,9 +264,9 @@ class _Header extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: _t('identity'),
+              tooltip: 'Account',
               onPressed: onIdentity,
-              icon: const Icon(Icons.badge_outlined),
+              icon: const Icon(Icons.manage_accounts_outlined),
             ),
             PopupMenuButton<String>(
               tooltip: language.name,

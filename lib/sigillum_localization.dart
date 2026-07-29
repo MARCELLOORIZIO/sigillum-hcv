@@ -41,6 +41,8 @@ class SigillumCopy {
   static const _copy = {
     'it': {
       'identity': 'Identita',
+      'accountTitle': 'ACCOUNT',
+      'accountSubtitle': 'Profilo, identita, KYC, sicurezza e dati.',
       'headline': 'Prova tecnica per contenuti creati da persone reali.',
       'subtitle':
           'SIGILLUM collega foto, video e testi a HCV-ID, identita tecnica, impronta del file, certificato firmato e Registry online. Le modifiche restano rilevabili.',
@@ -202,6 +204,8 @@ class SigillumCopy {
     },
     'en': {
       'identity': 'Identity',
+      'accountTitle': 'ACCOUNT',
+      'accountSubtitle': 'Profile, identity, KYC, security and data.',
       'headline': 'Technical proof for content created by real people.',
       'subtitle':
           'SIGILLUM links photos, videos and text to an HCV-ID, technical identity, file fingerprint, signed certificate and online Registry. Changes remain detectable.',
@@ -363,6 +367,8 @@ class SigillumCopy {
     },
     'es': {
       'identity': 'Identidad',
+      'accountTitle': 'CUENTA',
+      'accountSubtitle': 'Perfil, identidad, KYC, seguridad y datos.',
       'headline': 'Prueba tecnica para contenidos creados por personas reales.',
       'subtitle':
           'SIGILLUM vincula fotos, videos y textos a un HCV-ID, identidad tecnica, huella del archivo, certificado firmado y Registry online. Las modificaciones siguen siendo detectables.',
@@ -525,6 +531,8 @@ class SigillumCopy {
     },
     'ru': {
       'identity': 'Идентичность',
+      'accountTitle': 'АККАУНТ',
+      'accountSubtitle': 'Профиль, личность, KYC, безопасность и данные.',
       'headline': 'Техническое доказательство для контента, созданного людьми.',
       'subtitle':
           'SIGILLUM связывает фото, видео и текст с HCV-ID, технической идентичностью, отпечатком файла, подписанным сертификатом и онлайн Registry. Изменения остаются обнаруживаемыми.',
