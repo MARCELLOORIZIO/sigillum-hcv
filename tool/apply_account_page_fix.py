@@ -11,14 +11,14 @@ if new_import not in source:
     source = source.replace(old_import, new_import, 1)
 
 old_open = '''                  onIdentity: () => _open(
-                     IdentityPage(languageCode: languageCode),
-                   ),'''
+                    IdentityPage(languageCode: languageCode),
+                  ),'''
 new_open = '''                  onIdentity: () => _open(
-                     AccountPage(
-                       languageCode: languageCode,
-                       onLanguageChanged: _setLanguage,
-                     ),
-                   ),'''
+                    AccountPage(
+                      languageCode: languageCode,
+                      onLanguageChanged: _setLanguage,
+                    ),
+                  ),'''
 if new_open not in source:
     if source.count(old_open) != 1:
         raise RuntimeError('Unable to connect AccountPage to the user header')
