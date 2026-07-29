@@ -63,7 +63,6 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
-
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
@@ -109,23 +108,29 @@
 	<true/>
 	<key>CFBundleDocumentTypes</key>
 	<array>
-	<dict>
-		<key>CFBundleTypeName</key>
-		<string>SIGILLUM Verifiable Media</string>
-		<key>LSItemContentTypes</key>
-		<array>
-		<string>public.movie</string>
-		<string>public.mpeg-4</string>
-		<string>com.apple.quicktime-movie</string>
-		<string>public.image</string>
-		<string>public.jpeg</string>
-		<string>public.png</string>
-		<string>public.plain-text</string>
-		<string>public.text</string>
-		</array>
-		<key>LSHandlerRank</key>
-		<string>Owner</string>
-	</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Fotocamera Sigillum - contenuti verificabili</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.movie</string>
+				<string>public.mpeg-4</string>
+				<string>com.apple.quicktime-movie</string>
+				<string>public.image</string>
+				<string>public.jpeg</string>
+				<string>public.png</string>
+				<string>public.audio</string>
+				<string>public.mp3</string>
+				<string>com.microsoft.waveform-audio</string>
+				<string>com.adobe.pdf</string>
+				<string>public.plain-text</string>
+				<string>public.text</string>
+			</array>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
 	</array>
 </dict>
 </plist>
