@@ -4,21 +4,34 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Registry verification HCV-ID format', () {
-    late String source;
+    late String registrySource;
+    late String ocrSource;
 
     setUpAll(() {
-      source = File('lib/registry_verify_page.dart').readAsStringSync();
+      registrySource =
+          File('lib/registry_verify_page.dart').readAsStringSync();
+      ocrSource = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
     });
 
-    test('OCR and text parsing require the complete sixteen-character ID', () {
+    test('all verification paths require the complete sixteen-character ID', () {
       expect(
-        RegExp(r"RegExp\(r'HCV-\[A-F0-9\]\{16\}")
-            .allMatches(source)
-            .length,
-        greaterThanOrEqualTo(2),
+        registrySource,
+        contains("RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')"),
       );
       expect(
-        source,
+        ocrSource,
+        contains("RegExp(r'HCV-([A-F0-9]{16})')"),
+      );
+      expect(
+        registrySource,
+        contains('HCVMediaIdOcr.extractFromImage(path)'),
+      );
+      expect(
+        registrySource,
+        isNot(contains("RegExp(r'HCV-[A-F0-9]{8}')")),
+      );
+      expect(
+        ocrSource,
         isNot(contains("RegExp(r'HCV-[A-F0-9]{8}')")),
       );
     });
@@ -30,13 +43,16 @@ void main() {
     });
 
     test('Android OCR crop reads the upper watermark region', () {
-      expect(source, contains('crop=iw:ih*0.40:0:0'));
-      expect(source, isNot(contains('crop=iw:ih*0.35:0:ih*0.65')));
+      expect(registrySource, contains('crop=iw:ih*0.40:0:0'));
+      expect(
+        registrySource,
+        isNot(contains('crop=iw:ih*0.35:0:ih*0.65')),
+      );
     });
 
     test('B and 8 OCR variants operate on sixteen characters', () {
       expect(
-        source,
+        registrySource,
         contains(r"RegExp(r'^HCV-([A-F0-9]{16})$')"),
       );
     });
