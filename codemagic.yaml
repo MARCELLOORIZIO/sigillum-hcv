@@ -20,6 +20,10 @@ workflows:
         script: |
           python3 tool/run_ios_share_handoff_fix.py
 
+      - name: Apply document import and Messenger OCR fixes
+        script: |
+          python3 tool/apply_file_import_and_ocr_fix.py
+
       - name: Flutter pub get
         script: |
           flutter pub get
@@ -96,6 +100,10 @@ workflows:
       - name: Apply reliable iOS share handoff
         script: |
           python3 tool/run_ios_share_handoff_fix.py
+
+      - name: Apply document import and Messenger OCR fixes
+        script: |
+          python3 tool/apply_file_import_and_ocr_fix.py
 
       - name: Flutter pub get
         script: |
