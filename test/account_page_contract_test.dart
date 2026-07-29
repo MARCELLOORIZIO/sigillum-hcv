@@ -5,9 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('SIGILLUM account section', () {
     final account = File('lib/account_page.dart').readAsStringSync();
+    final auth = File('lib/hcv_auth_service.dart').readAsStringSync();
+    final secureStore = File('lib/hcv_secure_store.dart').readAsStringSync();
+    final identity = File('lib/hcv_identity.dart').readAsStringSync();
     final home = File('lib/user_home_page.dart').readAsStringSync();
     final localization =
         File('lib/sigillum_localization.dart').readAsStringSync();
+    final swift = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
+    final kotlin = File(
+      'android/app/src/main/kotlin/com/example/hcv_app/MainActivity.kt',
+    ).readAsStringSync();
 
     test('home exposes an explicit and visible Account action', () {
       expect(home, contains("import 'account_page.dart';"));
@@ -17,39 +24,54 @@ void main() {
       expect(home, contains('AccountPage('));
       expect(home, contains('onLanguageChanged: _setLanguage'));
       expect(localization, contains("'accountTitle': 'ACCOUNT'"));
-      expect(
-        localization,
-        contains("'accountSubtitle': 'Profilo, identita, KYC, sicurezza e dati.'"),
-      );
     });
 
-    test('top header also opens the account page', () {
-      expect(home, contains("tooltip: 'Account'"));
-      expect(home, contains('Icons.manage_accounts_outlined'));
+    test('account supports registration login and active session controls', () {
+      expect(account, contains('_auth.register('));
+      expect(account, contains('_auth.login('));
+      expect(account, contains("'createAccount': 'CREA ACCOUNT'"));
+      expect(account, contains("'login': 'ACCEDI'"));
+      expect(account, contains("'active': 'Attiva'"));
+      expect(account, contains('Icons.logout_rounded'));
+      expect(account, contains('_auth.logout('));
+      expect(account, isNot(contains("'logoutUnavailable'")));
     });
 
-    test('profile name and language are editable', () {
+    test('profile identity KYC password and devices remain manageable', () {
       expect(account, contains('HCVIdentity().saveCreatorName(name)'));
       expect(account, contains('DropdownButtonFormField<String>'));
-      expect(account, contains('widget.onLanguageChanged(code)'));
-    });
-
-    test('identity and KYC management remains available', () {
       expect(account, contains('IdentityPage(languageCode: _languageCode)'));
-      expect(account, contains("_identity['kycStatus']"));
+      expect(account, contains('_auth.changePassword('));
+      expect(account, contains('_auth.listDevices()'));
       expect(account, contains("_identity['devicePublicKeyFingerprint']"));
     });
 
-    test('account deletion opens the official deletion endpoint', () {
-      expect(account, contains('LegalInfoPage.deleteDataUrl'));
-      expect(account, contains('LaunchMode.externalApplication'));
-      expect(account, contains('_openDeletionRequest'));
+    test('account deletion is executed directly against authenticated API', () {
+      expect(account, contains('_auth.deleteAccount('));
+      expect(auth, contains("'/api/auth/delete'"));
+      expect(auth, contains("'confirmation': 'DELETE'"));
+      expect(identity, contains('Future<void> clearPersonalData()'));
+      expect(account, isNot(contains('LegalInfoPage.deleteDataUrl')));
     });
 
-    test('logout is not falsely implemented without online authentication', () {
-      expect(account, contains("'logoutUnavailable'"));
-      expect(account, contains('onPressed: null'));
-      expect(account, contains('Icons.logout_rounded'));
+    test('auth client binds sessions to the stable device key', () {
+      expect(auth, contains('SIGILLUM_AUTH_DEVICE_BINDING_V1'));
+      expect(auth, contains('HCVKeystoreSigner.sign(statement)'));
+      expect(auth, contains("'/api/auth/register'"));
+      expect(auth, contains("'/api/auth/login'"));
+      expect(auth, contains("'/api/auth/session'"));
+      expect(auth, contains("'/api/auth/logout'"));
+    });
+
+    test('session token uses native secure storage on iOS and Android', () {
+      expect(secureStore, contains("MethodChannel('hcv.keystore')"));
+      expect(secureStore, contains("'setSecret'"));
+      expect(secureStore, contains("'getSecret'"));
+      expect(secureStore, contains("'deleteSecret'"));
+      expect(swift, contains('kSecClassGenericPassword'));
+      expect(swift, contains('kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly'));
+      expect(kotlin, contains('AES/GCM/NoPadding'));
+      expect(kotlin, contains('AndroidKeyStore'));
     });
   });
 }
