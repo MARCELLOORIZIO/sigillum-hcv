@@ -1,0 +1,35 @@
+name: Materialize SIGILLUM Account source
+
+on:
+  push:
+    paths:
+      - '.github/workflows/materialize-account-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout active branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/reality-monitor-geometry-20260725
+          fetch-depth: 0
+
+      - name: Apply Account source changes
+        run: |
+          python3 tool/apply_account_page_fix.py
+
+      - name: Commit generated source
+        run: |
+          git config user.name 'SIGILLUM Fix Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/user_home_page.dart lib/sigillum_localization.dart test/account_page_contract_test.dart
+          if git diff --cached --quiet; then
+            echo 'Account source already materialized'
+          else
+            git commit -m 'Expose Account page directly from SIGILLUM home'
+            git push origin HEAD:fix/reality-monitor-geometry-20260725
+          fi
