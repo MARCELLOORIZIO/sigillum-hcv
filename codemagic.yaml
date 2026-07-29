@@ -24,10 +24,6 @@ workflows:
         script: |
           python3 tool/apply_file_import_and_ocr_fix.py
 
-      - name: Apply account section
-        script: |
-          python3 tool/apply_account_page_fix.py
-
       - name: Flutter pub get
         script: |
           flutter pub get
@@ -108,10 +104,6 @@ workflows:
       - name: Apply document import and Messenger OCR fixes
         script: |
           python3 tool/apply_file_import_and_ocr_fix.py
-
-      - name: Apply account section
-        script: |
-          python3 tool/apply_account_page_fix.py
 
       - name: Flutter pub get
         script: |
