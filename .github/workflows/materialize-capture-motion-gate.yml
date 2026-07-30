@@ -1,0 +1,31 @@
+name: Materialize capture movement gate
+
+on:
+  push:
+    paths:
+      - '.github/workflows/materialize-capture-motion-gate.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/reality-monitor-geometry-20260725
+          fetch-depth: 0
+      - name: Apply strict movement gate
+        run: python3 tool/apply_capture_motion_gate_fix.py
+      - name: Commit source and tests
+        run: |
+          git config user.name 'SIGILLUM Fix Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/camera_page.dart lib/hcv_live_screen_probe_core.dart lib/hcv_scene_geometry_classifier.dart test/capture_motion_gate_contract_test.dart test/physical_probe_user_instruction_test.dart
+          if git diff --cached --quiet; then
+            echo 'Capture movement gate already materialized'
+          else
+            git commit -m 'Require sufficient movement before photo or video capture'
+            git push origin HEAD:fix/reality-monitor-geometry-20260725
+          fi
