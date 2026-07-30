@@ -1,0 +1,31 @@
+name: Materialize Account clarity
+
+on:
+  push:
+    paths:
+      - '.github/workflows/materialize-account-clarity.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/reality-monitor-geometry-20260725
+          fetch-depth: 0
+      - name: Clarify Account actions
+        run: python3 tool/apply_account_clarity_fix.py
+      - name: Commit Account clarity
+        run: |
+          git config user.name 'SIGILLUM Fix Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/account_page.dart lib/hcv_auth_service.dart test/account_page_contract_test.dart
+          if git diff --cached --quiet; then
+            echo 'Account clarity already materialized'
+          else
+            git commit -m 'Clarify Account registration and login actions'
+            git push origin HEAD:fix/reality-monitor-geometry-20260725
+          fi
