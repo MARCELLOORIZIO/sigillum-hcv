@@ -59,9 +59,6 @@ class _CameraPageState extends State<CameraPage> {
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
   DateTime? pendingVideoCapturedAt;
-  bool _captureProbeRunning = false;
-  bool _captureProbeReady = false;
-  String? _captureProbeMode;
 
   bool ready = false;
   bool recording = false;
@@ -91,17 +88,6 @@ class _CameraPageState extends State<CameraPage> {
       widget.languageCode.toLowerCase().startsWith('it')
           ? 'MUOVI LEGGERMENTE IL TELEFONO LATERALMENTE...'
           : 'MOVE THE PHONE SLIGHTLY SIDEWAYS...';
-
-  String get _physicalProbeReadyStatus =>
-      widget.languageCode.toLowerCase().startsWith('it')
-          ? 'MOVIMENTO SUFFICIENTE. RIPORTA IL TELEFONO SULL’INQUADRATURA: ORA PUOI PROCEDERE. TOCCA DI NUOVO.'
-          : 'MOVEMENT SUFFICIENT. RETURN TO YOUR COMPOSITION: YOU CAN NOW PROCEED. TAP AGAIN.';
-
-  String get _physicalProbeInsufficientStatus =>
-      widget.languageCode.toLowerCase().startsWith('it')
-          ? 'MOVIMENTO NON SUFFICIENTE. NESSUNO SCATTO ESEGUITO. MUOVI IL TELEFONO LATERALMENTE E TOCCA PER RIPROVARE.'
-          : 'MOVEMENT NOT SUFFICIENT. NOTHING WAS CAPTURED. MOVE SIDEWAYS AND TAP TO TRY AGAIN.';
-
 
   @override
   void initState() {
@@ -160,10 +146,7 @@ class _CameraPageState extends State<CameraPage> {
 
     if (!mounted) return;
 
-    setState(() {
-      _clearPreparedCaptureProbe();
-      status = 'READY';
-    });
+    setState(() {});
   }
 
   Future<void> toggleFlash() async {
@@ -214,85 +197,6 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  void _clearPreparedCaptureProbe() {
-    pendingLiveScreenProbe = null;
-    _captureProbeReady = false;
-    _captureProbeMode = null;
-  }
-
-  Future<bool> _prepareCaptureProbe({required bool photo}) async {
-    final camera = controller;
-    if (camera == null || !camera.value.isInitialized || _captureProbeRunning) {
-      return false;
-    }
-
-    final mode = photo ? 'photo' : 'video';
-    setState(() {
-      _captureProbeRunning = true;
-      _clearPreparedCaptureProbe();
-      status = _physicalProbeStatus;
-      result = null;
-      videoPath = null;
-      hcvPath = null;
-      packagePath = null;
-      hcvId = null;
-      verificationUrl = null;
-      registryStatus = null;
-    });
-
-    try {
-      // Use the complete, original monitor probe unchanged. The movement gate
-      // only reads its geometry result and never replaces detector evidence.
-      final analysis = await _analyzeLiveScreenProbeWithoutFlash();
-      await _settleCameraAfterLiveProbe();
-
-      final rawGeometry = analysis['geometryChallenge'];
-      final geometry = rawGeometry is Map
-          ? Map<String, dynamic>.from(rawGeometry)
-          : <String, dynamic>{};
-      final matchedRegions = (geometry['matchedRegions'] as num?)?.toInt() ?? 0;
-      final motionMagnitude =
-          (geometry['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
-      final flowReliability =
-          (geometry['flowReliability'] as num?)?.toDouble() ?? 0.0;
-      final movementSufficient = matchedRegions >= 5 &&
-          motionMagnitude >= 0.16 &&
-          flowReliability >= 0.46;
-
-      if (!movementSufficient) {
-        if (mounted) {
-          setState(() {
-            status = _physicalProbeInsufficientStatus;
-          });
-        }
-        return false;
-      }
-
-      if (!mounted) return false;
-      setState(() {
-        pendingLiveScreenProbe = analysis;
-        _captureProbeReady = true;
-        _captureProbeMode = mode;
-        status = _physicalProbeReadyStatus;
-      });
-      return true;
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _clearPreparedCaptureProbe();
-          status = 'PROBE ERROR: $error';
-        });
-      }
-      return false;
-    } finally {
-      if (mounted) {
-        setState(() {
-          _captureProbeRunning = false;
-        });
-      }
-    }
-  }
-
   Future<void> _settleCameraAfterLiveProbe() async {
     final camera = controller;
     if (camera == null || !camera.value.isInitialized) return;
@@ -316,8 +220,6 @@ class _CameraPageState extends State<CameraPage> {
 
       setState(() {
         currentZoom = safeZoom;
-        _clearPreparedCaptureProbe();
-        status = 'READY';
       });
     } catch (e) {
       setState(() {
@@ -330,29 +232,25 @@ class _CameraPageState extends State<CameraPage> {
     if (controller == null || !controller!.value.isInitialized) return;
     if (controller!.value.isRecordingVideo) return;
 
-    if (!_captureProbeReady || _captureProbeMode != 'video') {
-      await _prepareCaptureProbe(photo: false);
-      return;
-    }
-
-    final preparedProbe = pendingLiveScreenProbe;
-    if (preparedProbe == null) {
-      setState(() {
-        _clearPreparedCaptureProbe();
-        status = _physicalProbeInsufficientStatus;
-      });
-      return;
-    }
-
     setState(() {
-      _captureProbeReady = false;
-      _captureProbeMode = null;
-      recording = true;
-      status = 'STARTING...';
+      status = _physicalProbeStatus;
+      result = null;
+      videoPath = null;
+      hcvPath = null;
+      packagePath = null;
+      hcvId = null;
+      verificationUrl = null;
+      registryStatus = null;
     });
 
     try {
-      pendingLiveScreenProbe = preparedProbe;
+      pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+
+      setState(() {
+        recording = true;
+        status = 'STARTING...';
+      });
+
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
 
@@ -396,29 +294,18 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> takePhoto() async {
     if (controller == null) return;
 
-    if (!_captureProbeReady || _captureProbeMode != 'photo') {
-      await _prepareCaptureProbe(photo: true);
-      return;
-    }
-
-    final liveScreenProbe = pendingLiveScreenProbe;
-    if (liveScreenProbe == null) {
-      setState(() {
-        _clearPreparedCaptureProbe();
-        status = _physicalProbeInsufficientStatus;
-      });
-      return;
-    }
-
-    setState(() {
-      pendingLiveScreenProbe = null;
-      _captureProbeReady = false;
-      _captureProbeMode = null;
-      status = 'SCATTO FOTO...';
-    });
-
     try {
+      setState(() {
+        status = _physicalProbeStatus;
+      });
+
+      final liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
       await _settleCameraAfterLiveProbe();
+
+      setState(() {
+        status = 'SCATTO FOTO...';
+      });
+
       final file = await controller!.takePicture();
       final capturedAt = DateTime.now();
 
@@ -1467,11 +1354,9 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                           min: minZoom,
                           max: maxZoom,
-                          onChanged: _captureProbeRunning
-                              ? null
-                              : (value) async {
-                                  await setZoom(value);
-                                },
+                          onChanged: (value) async {
+                            await setZoom(value);
+                          },
                         ),
                       ),
                     ),
@@ -1526,11 +1411,8 @@ class _CameraPageState extends State<CameraPage> {
                               fontWeight: FontWeight.bold,
                             ),
                             onSelected: (_) {
-                              if (_captureProbeRunning || recording) return;
                               setState(() {
                                 photoMode = false;
-                                _clearPreparedCaptureProbe();
-                                status = 'READY';
                               });
                             },
                           ),
@@ -1547,11 +1429,8 @@ class _CameraPageState extends State<CameraPage> {
                               fontWeight: FontWeight.bold,
                             ),
                             onSelected: (_) {
-                              if (_captureProbeRunning || recording) return;
                               setState(() {
                                 photoMode = true;
-                                _clearPreparedCaptureProbe();
-                                status = 'READY';
                               });
                             },
                           ),
@@ -1559,7 +1438,7 @@ class _CameraPageState extends State<CameraPage> {
                       ),
                       const SizedBox(height: 20),
                       GestureDetector(
-                        onTap: !ready || _captureProbeRunning
+                        onTap: !ready
                             ? null
                             : () async {
                                 if (photoMode) {
@@ -1580,11 +1459,7 @@ class _CameraPageState extends State<CameraPage> {
                           height: recording ? 78 : 86,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: recording
-                                ? Colors.red
-                                : _captureProbeReady
-                                    ? Colors.green
-                                    : Colors.white,
+                            color: recording ? Colors.red : Colors.white,
                             border: Border.all(
                               color: Colors.white70,
                               width: 5,
@@ -1607,14 +1482,10 @@ class _CameraPageState extends State<CameraPage> {
                                     ),
                                   )
                                 : Icon(
-                                    _captureProbeReady
-                                        ? Icons.check_rounded
-                                        : photoMode
-                                            ? Icons.camera_alt
-                                            : Icons.videocam,
-                                    color: _captureProbeReady
-                                        ? Colors.white
-                                        : Colors.black,
+                                    photoMode
+                                        ? Icons.camera_alt
+                                        : Icons.videocam,
+                                    color: Colors.black,
                                     size: 34,
                                   ),
                           ),
