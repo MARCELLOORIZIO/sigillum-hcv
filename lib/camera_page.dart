@@ -20,7 +20,6 @@ import 'hcv_social_fingerprint.dart';
 import 'hcv_image_watermark.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_live_screen_probe.dart';
-import 'hcv_scene_geometry_classifier.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_capture_timestamp.dart';
@@ -93,11 +92,6 @@ class _CameraPageState extends State<CameraPage> {
           ? 'MUOVI LEGGERMENTE IL TELEFONO LATERALMENTE...'
           : 'MOVE THE PHONE SLIGHTLY SIDEWAYS...';
 
-  String get _physicalProbeCompletingStatus =>
-      widget.languageCode.toLowerCase().startsWith('it')
-          ? 'MOVIMENTO SUFFICIENTE. COMPLETAMENTO VERIFICA...'
-          : 'MOVEMENT SUFFICIENT. COMPLETING VERIFICATION...';
-
   String get _physicalProbeReadyStatus =>
       widget.languageCode.toLowerCase().startsWith('it')
           ? 'MOVIMENTO SUFFICIENTE. RIPORTA IL TELEFONO SULL’INQUADRATURA: ORA PUOI PROCEDERE. TOCCA DI NUOVO.'
@@ -108,10 +102,6 @@ class _CameraPageState extends State<CameraPage> {
           ? 'MOVIMENTO NON SUFFICIENTE. NESSUNO SCATTO ESEGUITO. MUOVI IL TELEFONO LATERALMENTE E TOCCA PER RIPROVARE.'
           : 'MOVEMENT NOT SUFFICIENT. NOTHING WAS CAPTURED. MOVE SIDEWAYS AND TAP TO TRY AGAIN.';
 
-  String get _preparedCaptureActionLabel =>
-      widget.languageCode.toLowerCase().startsWith('it')
-          ? 'RIPOSIZIONA E TOCCA PER PROCEDERE'
-          : 'RECOMPOSE AND TAP TO PROCEED';
 
   @override
   void initState() {
@@ -190,9 +180,7 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
-  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash({
-    HCVSceneGeometryClassification? geometryOverride,
-  }) async {
+  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash() async {
     final camera = controller;
     if (camera == null) {
       return {
@@ -212,7 +200,6 @@ class _CameraPageState extends State<CameraPage> {
       final analysis = await HCVLiveScreenProbe().analyzePreview(
         camera,
         restoreZoomLevel: currentZoom,
-        geometryOverride: geometryOverride,
       );
       analysis['flashSuppressedDuringProbe'] = shouldSuppressFlash;
       analysis['probeFlashMode'] = 'OFF';
@@ -254,13 +241,25 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      final movement = await HCVLiveScreenProbe().waitForSufficientMovement(
-        camera,
-        restoreZoomLevel: currentZoom,
-        restoreFlashMode: currentFlashMode,
-      );
+      // Use the complete, original monitor probe unchanged. The movement gate
+      // only reads its geometry result and never replaces detector evidence.
+      final analysis = await _analyzeLiveScreenProbeWithoutFlash();
+      await _settleCameraAfterLiveProbe();
 
-      if (!movement.movementSufficient) {
+      final rawGeometry = analysis['geometryChallenge'];
+      final geometry = rawGeometry is Map
+          ? Map<String, dynamic>.from(rawGeometry)
+          : <String, dynamic>{};
+      final matchedRegions = (geometry['matchedRegions'] as num?)?.toInt() ?? 0;
+      final motionMagnitude =
+          (geometry['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
+      final flowReliability =
+          (geometry['flowReliability'] as num?)?.toDouble() ?? 0.0;
+      final movementSufficient = matchedRegions >= 5 &&
+          motionMagnitude >= 0.16 &&
+          flowReliability >= 0.46;
+
+      if (!movementSufficient) {
         if (mounted) {
           setState(() {
             status = _physicalProbeInsufficientStatus;
@@ -268,17 +267,6 @@ class _CameraPageState extends State<CameraPage> {
         }
         return false;
       }
-
-      if (mounted) {
-        setState(() {
-          status = _physicalProbeCompletingStatus;
-        });
-      }
-
-      final analysis = await _analyzeLiveScreenProbeWithoutFlash(
-        geometryOverride: movement,
-      );
-      await _settleCameraAfterLiveProbe();
 
       if (!mounted) return false;
       setState(() {
@@ -1634,15 +1622,11 @@ class _CameraPageState extends State<CameraPage> {
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        _captureProbeRunning
-                            ? _physicalProbeStatus
-                            : recording
-                                ? _t('recording')
-                                : _captureProbeReady
-                                    ? _preparedCaptureActionLabel
-                                    : photoMode
-                                        ? _t('photoMode')
-                                        : _t('videoMode'),
+                        recording
+                            ? _t('recording')
+                            : photoMode
+                                ? _t('photoMode')
+                                : _t('videoMode'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
