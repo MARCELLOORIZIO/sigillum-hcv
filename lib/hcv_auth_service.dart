@@ -269,10 +269,19 @@ class HCVAuthService {
       }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        final serverError = decoded['error']?.toString() ?? '';
+        final serverMessage = decoded['message']?.toString() ?? '';
+        final missingAccountEndpoint = response.statusCode == 404 &&
+            (serverError == 'Endpoint non trovato' ||
+                serverError == 'ENDPOINT_ACCOUNT_NON_TROVATO');
         throw HCVAuthException(
-          decoded['message']?.toString() ??
-              decoded['error']?.toString() ??
-              'Operazione account non disponibile.',
+          missingAccountEndpoint
+              ? 'Il server Account non è ancora aggiornato. Attendi il completamento del deploy Registry e riprova.'
+              : serverMessage.isNotEmpty
+                  ? serverMessage
+                  : serverError.isNotEmpty
+                      ? serverError
+                      : 'Operazione account non disponibile.',
           statusCode: response.statusCode,
           code: decoded['error']?.toString(),
         );

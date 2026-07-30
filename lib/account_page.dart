@@ -41,7 +41,7 @@ class _AccountPageState extends State<AccountPage> {
       'title': 'Account',
       'profile': 'Profilo',
       'declaredName': 'Nome dichiarato',
-      'save': 'SALVA MODIFICHE',
+      'save': 'SALVA NOME E LINGUA',
       'saved': 'Profilo aggiornato',
       'language': 'Lingua',
       'identity': 'Identità e verifica',
@@ -57,8 +57,8 @@ class _AccountPageState extends State<AccountPage> {
       'email': 'Email',
       'password': 'Password',
       'passwordHint': 'Almeno 12 caratteri',
-      'createAccount': 'CREA ACCOUNT',
-      'login': 'ACCEDI',
+      'createAccount': 'CREA ACCOUNT ONLINE',
+      'login': 'ACCEDI A UN ACCOUNT ESISTENTE',
       'logout': 'LOGOUT',
       'logoutAll': 'LOGOUT DA TUTTI I DISPOSITIVI',
       'changePassword': 'CAMBIA PASSWORD',
@@ -67,6 +67,8 @@ class _AccountPageState extends State<AccountPage> {
       'sessionExpires': 'Scadenza sessione',
       'accessExplanation':
           'L’accesso collega il profilo online alla chiave sicura di questo dispositivo. Il token di sessione è custodito nel Keychain o nel Keystore.',
+      'accountActionHelp':
+          'SALVA NOME E LINGUA aggiorna solo il profilo. Per registrarti inserisci nome, email e password, poi tocca CREA ACCOUNT ONLINE.',
       'privacy': 'Privacy e dati',
       'deleteAccount': 'ELIMINA ACCOUNT E DATI',
       'deleteInfo':
@@ -99,7 +101,7 @@ class _AccountPageState extends State<AccountPage> {
       'title': 'Account',
       'profile': 'Profile',
       'declaredName': 'Declared name',
-      'save': 'SAVE CHANGES',
+      'save': 'SAVE NAME AND LANGUAGE',
       'saved': 'Profile updated',
       'language': 'Language',
       'identity': 'Identity and verification',
@@ -115,8 +117,8 @@ class _AccountPageState extends State<AccountPage> {
       'email': 'Email',
       'password': 'Password',
       'passwordHint': 'At least 12 characters',
-      'createAccount': 'CREATE ACCOUNT',
-      'login': 'LOG IN',
+      'createAccount': 'CREATE ONLINE ACCOUNT',
+      'login': 'LOG IN TO AN EXISTING ACCOUNT',
       'logout': 'LOG OUT',
       'logoutAll': 'LOG OUT ALL DEVICES',
       'changePassword': 'CHANGE PASSWORD',
@@ -125,6 +127,8 @@ class _AccountPageState extends State<AccountPage> {
       'sessionExpires': 'Session expires',
       'accessExplanation':
           'Access links the online profile to this device secure key. The session token is stored in Keychain or Keystore.',
+      'accountActionHelp':
+          'SAVE NAME AND LANGUAGE only updates the profile. To register, enter name, email and password, then tap CREATE ONLINE ACCOUNT.',
       'privacy': 'Privacy and data',
       'deleteAccount': 'DELETE ACCOUNT AND DATA',
       'deleteInfo':
@@ -157,7 +161,7 @@ class _AccountPageState extends State<AccountPage> {
       'title': 'Cuenta',
       'profile': 'Perfil',
       'declaredName': 'Nombre declarado',
-      'save': 'GUARDAR CAMBIOS',
+      'save': 'GUARDAR NOMBRE E IDIOMA',
       'saved': 'Perfil actualizado',
       'language': 'Idioma',
       'identity': 'Identidad y verificación',
@@ -173,8 +177,8 @@ class _AccountPageState extends State<AccountPage> {
       'email': 'Correo electrónico',
       'password': 'Contraseña',
       'passwordHint': 'Al menos 12 caracteres',
-      'createAccount': 'CREAR CUENTA',
-      'login': 'ACCEDER',
+      'createAccount': 'CREAR CUENTA EN LÍNEA',
+      'login': 'ACCEDER A UNA CUENTA EXISTENTE',
       'logout': 'CERRAR SESIÓN',
       'logoutAll': 'CERRAR TODAS LAS SESIONES',
       'changePassword': 'CAMBIAR CONTRASEÑA',
@@ -183,6 +187,8 @@ class _AccountPageState extends State<AccountPage> {
       'sessionExpires': 'La sesión vence',
       'accessExplanation':
           'El acceso vincula el perfil en línea con la clave segura del dispositivo. El token se guarda en Keychain o Keystore.',
+      'accountActionHelp':
+          'GUARDAR NOMBRE E IDIOMA solo actualiza el perfil. Para registrarte introduce nombre, correo y contraseña y toca CREAR CUENTA EN LÍNEA.',
       'privacy': 'Privacidad y datos',
       'deleteAccount': 'ELIMINAR CUENTA Y DATOS',
       'deleteInfo':
@@ -215,7 +221,7 @@ class _AccountPageState extends State<AccountPage> {
       'title': 'Аккаунт',
       'profile': 'Профиль',
       'declaredName': 'Указанное имя',
-      'save': 'СОХРАНИТЬ',
+      'save': 'СОХРАНИТЬ ИМЯ И ЯЗЫК',
       'saved': 'Профиль обновлен',
       'language': 'Язык',
       'identity': 'Личность и проверка',
@@ -231,8 +237,8 @@ class _AccountPageState extends State<AccountPage> {
       'email': 'Email',
       'password': 'Пароль',
       'passwordHint': 'Не менее 12 символов',
-      'createAccount': 'СОЗДАТЬ АККАУНТ',
-      'login': 'ВОЙТИ',
+      'createAccount': 'СОЗДАТЬ ОНЛАЙН-АККАУНТ',
+      'login': 'ВОЙТИ В СУЩЕСТВУЮЩИЙ АККАУНТ',
       'logout': 'ВЫЙТИ',
       'logoutAll': 'ВЫЙТИ НА ВСЕХ УСТРОЙСТВАХ',
       'changePassword': 'ИЗМЕНИТЬ ПАРОЛЬ',
@@ -241,6 +247,8 @@ class _AccountPageState extends State<AccountPage> {
       'sessionExpires': 'Срок сессии',
       'accessExplanation':
           'Вход связывает онлайн-профиль с защищенным ключом устройства. Токен хранится в Keychain или Keystore.',
+      'accountActionHelp':
+          'СОХРАНИТЬ ИМЯ И ЯЗЫК обновляет только профиль. Для регистрации введите имя, email и пароль и нажмите СОЗДАТЬ ОНЛАЙН-АККАУНТ.',
       'privacy': 'Конфиденциальность и данные',
       'deleteAccount': 'УДАЛИТЬ АККАУНТ И ДАННЫЕ',
       'deleteInfo':
@@ -794,6 +802,16 @@ class _AccountPageState extends State<AccountPage> {
           color: SigillumTheme.muted,
           fontSize: 14,
           height: 1.35,
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        _t('accountActionHelp'),
+        style: const TextStyle(
+          color: SigillumTheme.accent,
+          fontSize: 14,
+          height: 1.35,
+          fontWeight: FontWeight.w700,
         ),
       ),
       const SizedBox(height: 12),

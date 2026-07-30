@@ -29,8 +29,8 @@ void main() {
     test('account supports registration login and active session controls', () {
       expect(account, contains('_auth.register('));
       expect(account, contains('_auth.login('));
-      expect(account, contains("'createAccount': 'CREA ACCOUNT'"));
-      expect(account, contains("'login': 'ACCEDI'"));
+      expect(account, contains("'createAccount': 'CREA ACCOUNT ONLINE'"));
+      expect(account, contains("'login': 'ACCEDI A UN ACCOUNT ESISTENTE'"));
       expect(account, contains("'active': 'Attiva'"));
       expect(account, contains('Icons.logout_rounded'));
       expect(account, contains('_auth.logout('));
