@@ -7,5 +7,7 @@ void main() {
     final source = File('lib/camera_page.dart').readAsStringSync();
     expect(source, contains('MUOVI LEGGERMENTE IL TELEFONO LATERALMENTE'));
     expect(source, contains('MOVE THE PHONE SLIGHTLY SIDEWAYS'));
+    expect(source, contains('MOVIMENTO SUFFICIENTE. RIPORTA IL TELEFONO'));
+    expect(source, contains('MOVIMENTO NON SUFFICIENTE. NESSUNO SCATTO ESEGUITO'));
   });
 }

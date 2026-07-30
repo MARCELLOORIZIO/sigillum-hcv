@@ -25,6 +25,9 @@ class HCVSceneGeometryClassification {
   final int matchedRegions;
   final List<String> reasons;
 
+  bool get movementSufficient =>
+      matchedRegions >= 5 && motionMagnitude >= 0.16 && flowReliability >= 0.46;
+
   Map<String, dynamic> toJson() => {
         'sceneClass': sceneClass,
         'realityEvidence': realityEvidence,
@@ -35,6 +38,7 @@ class HCVSceneGeometryClassification {
         'depthDispersion': _round(depthDispersion),
         'planarCoherence': _round(planarCoherence),
         'matchedRegions': matchedRegions,
+        'movementSufficient': movementSufficient,
         'reasons': reasons,
       };
 

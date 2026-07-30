@@ -20,6 +20,7 @@ import 'hcv_social_fingerprint.dart';
 import 'hcv_image_watermark.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_live_screen_probe.dart';
+import 'hcv_scene_geometry_classifier.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_capture_timestamp.dart';
@@ -59,6 +60,9 @@ class _CameraPageState extends State<CameraPage> {
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
   DateTime? pendingVideoCapturedAt;
+  bool _captureProbeRunning = false;
+  bool _captureProbeReady = false;
+  String? _captureProbeMode;
 
   bool ready = false;
   bool recording = false;
@@ -88,6 +92,26 @@ class _CameraPageState extends State<CameraPage> {
       widget.languageCode.toLowerCase().startsWith('it')
           ? 'MUOVI LEGGERMENTE IL TELEFONO LATERALMENTE...'
           : 'MOVE THE PHONE SLIGHTLY SIDEWAYS...';
+
+  String get _physicalProbeCompletingStatus =>
+      widget.languageCode.toLowerCase().startsWith('it')
+          ? 'MOVIMENTO SUFFICIENTE. COMPLETAMENTO VERIFICA...'
+          : 'MOVEMENT SUFFICIENT. COMPLETING VERIFICATION...';
+
+  String get _physicalProbeReadyStatus =>
+      widget.languageCode.toLowerCase().startsWith('it')
+          ? 'MOVIMENTO SUFFICIENTE. RIPORTA IL TELEFONO SULL’INQUADRATURA: ORA PUOI PROCEDERE. TOCCA DI NUOVO.'
+          : 'MOVEMENT SUFFICIENT. RETURN TO YOUR COMPOSITION: YOU CAN NOW PROCEED. TAP AGAIN.';
+
+  String get _physicalProbeInsufficientStatus =>
+      widget.languageCode.toLowerCase().startsWith('it')
+          ? 'MOVIMENTO NON SUFFICIENTE. NESSUNO SCATTO ESEGUITO. MUOVI IL TELEFONO LATERALMENTE E TOCCA PER RIPROVARE.'
+          : 'MOVEMENT NOT SUFFICIENT. NOTHING WAS CAPTURED. MOVE SIDEWAYS AND TAP TO TRY AGAIN.';
+
+  String get _preparedCaptureActionLabel =>
+      widget.languageCode.toLowerCase().startsWith('it')
+          ? 'RIPOSIZIONA E TOCCA PER PROCEDERE'
+          : 'RECOMPOSE AND TAP TO PROCEED';
 
   @override
   void initState() {
@@ -146,7 +170,10 @@ class _CameraPageState extends State<CameraPage> {
 
     if (!mounted) return;
 
-    setState(() {});
+    setState(() {
+      _clearPreparedCaptureProbe();
+      status = 'READY';
+    });
   }
 
   Future<void> toggleFlash() async {
@@ -163,7 +190,9 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
-  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash() async {
+  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash({
+    HCVSceneGeometryClassification? geometryOverride,
+  }) async {
     final camera = controller;
     if (camera == null) {
       return {
@@ -183,6 +212,7 @@ class _CameraPageState extends State<CameraPage> {
       final analysis = await HCVLiveScreenProbe().analyzePreview(
         camera,
         restoreZoomLevel: currentZoom,
+        geometryOverride: geometryOverride,
       );
       analysis['flashSuppressedDuringProbe'] = shouldSuppressFlash;
       analysis['probeFlashMode'] = 'OFF';
@@ -193,6 +223,84 @@ class _CameraPageState extends State<CameraPage> {
           await camera.setFlashMode(flashToRestore);
           await Future.delayed(const Duration(milliseconds: 150));
         } catch (_) {}
+      }
+    }
+  }
+
+  void _clearPreparedCaptureProbe() {
+    pendingLiveScreenProbe = null;
+    _captureProbeReady = false;
+    _captureProbeMode = null;
+  }
+
+  Future<bool> _prepareCaptureProbe({required bool photo}) async {
+    final camera = controller;
+    if (camera == null || !camera.value.isInitialized || _captureProbeRunning) {
+      return false;
+    }
+
+    final mode = photo ? 'photo' : 'video';
+    setState(() {
+      _captureProbeRunning = true;
+      _clearPreparedCaptureProbe();
+      status = _physicalProbeStatus;
+      result = null;
+      videoPath = null;
+      hcvPath = null;
+      packagePath = null;
+      hcvId = null;
+      verificationUrl = null;
+      registryStatus = null;
+    });
+
+    try {
+      final movement = await HCVLiveScreenProbe().waitForSufficientMovement(
+        camera,
+        restoreZoomLevel: currentZoom,
+        restoreFlashMode: currentFlashMode,
+      );
+
+      if (!movement.movementSufficient) {
+        if (mounted) {
+          setState(() {
+            status = _physicalProbeInsufficientStatus;
+          });
+        }
+        return false;
+      }
+
+      if (mounted) {
+        setState(() {
+          status = _physicalProbeCompletingStatus;
+        });
+      }
+
+      final analysis = await _analyzeLiveScreenProbeWithoutFlash(
+        geometryOverride: movement,
+      );
+      await _settleCameraAfterLiveProbe();
+
+      if (!mounted) return false;
+      setState(() {
+        pendingLiveScreenProbe = analysis;
+        _captureProbeReady = true;
+        _captureProbeMode = mode;
+        status = _physicalProbeReadyStatus;
+      });
+      return true;
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _clearPreparedCaptureProbe();
+          status = 'PROBE ERROR: $error';
+        });
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _captureProbeRunning = false;
+        });
       }
     }
   }
@@ -220,6 +328,8 @@ class _CameraPageState extends State<CameraPage> {
 
       setState(() {
         currentZoom = safeZoom;
+        _clearPreparedCaptureProbe();
+        status = 'READY';
       });
     } catch (e) {
       setState(() {
@@ -232,25 +342,29 @@ class _CameraPageState extends State<CameraPage> {
     if (controller == null || !controller!.value.isInitialized) return;
     if (controller!.value.isRecordingVideo) return;
 
+    if (!_captureProbeReady || _captureProbeMode != 'video') {
+      await _prepareCaptureProbe(photo: false);
+      return;
+    }
+
+    final preparedProbe = pendingLiveScreenProbe;
+    if (preparedProbe == null) {
+      setState(() {
+        _clearPreparedCaptureProbe();
+        status = _physicalProbeInsufficientStatus;
+      });
+      return;
+    }
+
     setState(() {
-      status = _physicalProbeStatus;
-      result = null;
-      videoPath = null;
-      hcvPath = null;
-      packagePath = null;
-      hcvId = null;
-      verificationUrl = null;
-      registryStatus = null;
+      _captureProbeReady = false;
+      _captureProbeMode = null;
+      recording = true;
+      status = 'STARTING...';
     });
 
     try {
-      pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
-
-      setState(() {
-        recording = true;
-        status = 'STARTING...';
-      });
-
+      pendingLiveScreenProbe = preparedProbe;
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
 
@@ -294,18 +408,29 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> takePhoto() async {
     if (controller == null) return;
 
+    if (!_captureProbeReady || _captureProbeMode != 'photo') {
+      await _prepareCaptureProbe(photo: true);
+      return;
+    }
+
+    final liveScreenProbe = pendingLiveScreenProbe;
+    if (liveScreenProbe == null) {
+      setState(() {
+        _clearPreparedCaptureProbe();
+        status = _physicalProbeInsufficientStatus;
+      });
+      return;
+    }
+
+    setState(() {
+      pendingLiveScreenProbe = null;
+      _captureProbeReady = false;
+      _captureProbeMode = null;
+      status = 'SCATTO FOTO...';
+    });
+
     try {
-      setState(() {
-        status = _physicalProbeStatus;
-      });
-
-      final liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
       await _settleCameraAfterLiveProbe();
-
-      setState(() {
-        status = 'SCATTO FOTO...';
-      });
-
       final file = await controller!.takePicture();
       final capturedAt = DateTime.now();
 
@@ -1354,9 +1479,11 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                           min: minZoom,
                           max: maxZoom,
-                          onChanged: (value) async {
-                            await setZoom(value);
-                          },
+                          onChanged: _captureProbeRunning
+                              ? null
+                              : (value) async {
+                                  await setZoom(value);
+                                },
                         ),
                       ),
                     ),
@@ -1411,8 +1538,11 @@ class _CameraPageState extends State<CameraPage> {
                               fontWeight: FontWeight.bold,
                             ),
                             onSelected: (_) {
+                              if (_captureProbeRunning || recording) return;
                               setState(() {
                                 photoMode = false;
+                                _clearPreparedCaptureProbe();
+                                status = 'READY';
                               });
                             },
                           ),
@@ -1429,8 +1559,11 @@ class _CameraPageState extends State<CameraPage> {
                               fontWeight: FontWeight.bold,
                             ),
                             onSelected: (_) {
+                              if (_captureProbeRunning || recording) return;
                               setState(() {
                                 photoMode = true;
+                                _clearPreparedCaptureProbe();
+                                status = 'READY';
                               });
                             },
                           ),
@@ -1438,7 +1571,7 @@ class _CameraPageState extends State<CameraPage> {
                       ),
                       const SizedBox(height: 20),
                       GestureDetector(
-                        onTap: !ready
+                        onTap: !ready || _captureProbeRunning
                             ? null
                             : () async {
                                 if (photoMode) {
@@ -1459,7 +1592,11 @@ class _CameraPageState extends State<CameraPage> {
                           height: recording ? 78 : 86,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: recording ? Colors.red : Colors.white,
+                            color: recording
+                                ? Colors.red
+                                : _captureProbeReady
+                                    ? Colors.green
+                                    : Colors.white,
                             border: Border.all(
                               color: Colors.white70,
                               width: 5,
@@ -1482,10 +1619,14 @@ class _CameraPageState extends State<CameraPage> {
                                     ),
                                   )
                                 : Icon(
-                                    photoMode
-                                        ? Icons.camera_alt
-                                        : Icons.videocam,
-                                    color: Colors.black,
+                                    _captureProbeReady
+                                        ? Icons.check_rounded
+                                        : photoMode
+                                            ? Icons.camera_alt
+                                            : Icons.videocam,
+                                    color: _captureProbeReady
+                                        ? Colors.white
+                                        : Colors.black,
                                     size: 34,
                                   ),
                           ),
@@ -1493,11 +1634,15 @@ class _CameraPageState extends State<CameraPage> {
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        recording
-                            ? _t('recording')
-                            : photoMode
-                                ? _t('photoMode')
-                                : _t('videoMode'),
+                        _captureProbeRunning
+                            ? _physicalProbeStatus
+                            : recording
+                                ? _t('recording')
+                                : _captureProbeReady
+                                    ? _preparedCaptureActionLabel
+                                    : photoMode
+                                        ? _t('photoMode')
+                                        : _t('videoMode'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,

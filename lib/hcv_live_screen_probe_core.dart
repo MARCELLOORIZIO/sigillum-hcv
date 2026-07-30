@@ -1,12 +1,99 @@
 part of 'hcv_live_screen_probe.dart';
 
 class HCVLiveScreenProbe {
+  Future<HCVSceneGeometryClassification> waitForSufficientMovement(
+    CameraController controller, {
+    Duration timeout = const Duration(seconds: 12),
+    double? restoreZoomLevel,
+    FlashMode restoreFlashMode = FlashMode.off,
+  }) async {
+    HCVSceneGeometryClassification emptyGeometry() =>
+        HCVSceneGeometryClassifier.classify(
+          motionMagnitude: 0,
+          flowReliability: 0,
+          directionCoherence: 0,
+          depthDispersion: 0,
+          planarCoherence: 0,
+          matchedRegions: 0,
+        );
+
+    if (!controller.value.isInitialized ||
+        controller.value.isRecordingVideo ||
+        controller.value.isStreamingImages) {
+      return emptyGeometry();
+    }
+
+    final frames = <_FrameStats>[];
+    var processing = false;
+    var geometry = emptyGeometry();
+
+    try {
+      await controller.setFlashMode(FlashMode.off);
+      try {
+        await controller.setExposureMode(ExposureMode.auto);
+      } catch (_) {}
+      try {
+        await controller.setFocusMode(FocusMode.auto);
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      await controller.startImageStream((image) {
+        if (processing) return;
+        processing = true;
+        try {
+          final stats = _readFrameStats(image, 0);
+          if (stats != null) {
+            frames.add(stats);
+            if (frames.length > 36) frames.removeAt(0);
+          }
+        } finally {
+          processing = false;
+        }
+      });
+
+      final deadline = DateTime.now().add(timeout);
+      while (DateTime.now().isBefore(deadline)) {
+        if (frames.length >= 4) {
+          geometry = _analyzeGeometry(frames);
+          if (geometry.movementSufficient) break;
+        }
+        await Future.delayed(const Duration(milliseconds: 80));
+      }
+    } finally {
+      try {
+        if (controller.value.isStreamingImages) {
+          await controller.stopImageStream();
+        }
+      } catch (_) {}
+      try {
+        await controller.setExposureMode(ExposureMode.auto);
+      } catch (_) {}
+      try {
+        await controller.setFocusMode(FocusMode.auto);
+      } catch (_) {}
+      try {
+        if (restoreZoomLevel != null && controller.value.isInitialized) {
+          await controller.setZoomLevel(restoreZoomLevel);
+        }
+      } catch (_) {}
+      try {
+        if (controller.value.isInitialized) {
+          await controller.setFlashMode(restoreFlashMode);
+        }
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
+
+    return geometry;
+  }
+
   Future<Map<String, dynamic>> analyzePreview(
     CameraController controller, {
     Duration duration = const Duration(milliseconds: 3000),
     int maxFrames = 45,
     double? restoreZoomLevel,
     bool useOpticalProbeZoom = true,
+    HCVSceneGeometryClassification? geometryOverride,
   }) async {
     if (!controller.value.isInitialized) {
       return _unknown('CAMERA_NOT_READY');
@@ -177,10 +264,11 @@ class HCVLiveScreenProbe {
     );
 
     final persistentPattern = _persistentPattern(baseline, recovery);
-    final geometry = _analyzeGeometry(<_FrameStats>[
-      ...baselineFrames,
-      ...recoveryFrames,
-    ]);
+    final geometry = geometryOverride ??
+        _analyzeGeometry(<_FrameStats>[
+          ...baselineFrames,
+          ...recoveryFrames,
+        ]);
     final sceneDecision = HCVSceneDecisionFusion.fuse(
       illumination: active,
       geometry: geometry,
@@ -260,6 +348,7 @@ class HCVLiveScreenProbe {
         'geometricRealityEvidence': geometry.realityEvidence,
         'planarSceneEvidence': geometry.planarEvidence,
         'geometryChallengeCompleted': geometry.sceneClass != 'UNKNOWN',
+        'geometryMovementSufficient': geometry.movementSufficient,
         'activeChallengeIndeterminate': indeterminate,
         'confirmedDisplayTrace': false,
         'periodicLightTrace': passive.electronicLight > 0.58,
