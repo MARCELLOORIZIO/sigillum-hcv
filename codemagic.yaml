@@ -24,6 +24,11 @@ workflows:
         script: |
           python3 tool/apply_file_import_and_ocr_fix.py
 
+      - name: Apply camera readiness and Account feedback
+        script: |
+          python3 tool/apply_camera_account_feedback_fix.py
+          dart format lib/camera_page.dart lib/account_page.dart test/camera_ready_video_evidence_contract_test.dart test/account_page_contract_test.dart
+
       - name: Flutter pub get
         script: |
           flutter pub get
@@ -104,6 +109,11 @@ workflows:
       - name: Apply document import and Messenger OCR fixes
         script: |
           python3 tool/apply_file_import_and_ocr_fix.py
+
+      - name: Apply camera readiness and Account feedback
+        script: |
+          python3 tool/apply_camera_account_feedback_fix.py
+          dart format lib/camera_page.dart lib/account_page.dart test/camera_ready_video_evidence_contract_test.dart test/account_page_contract_test.dart
 
       - name: Flutter pub get
         script: |
