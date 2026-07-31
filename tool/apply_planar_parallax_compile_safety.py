@@ -10,13 +10,34 @@ def replace_required(source: str, old: str, new: str, label: str) -> str:
     return source.replace(old, new, 1)
 
 
-model = Path('lib/hcv_planar_motion_model.dart').read_text()
+model_path = Path('lib/hcv_planar_motion_model.dart')
+model = model_path.read_text()
 if 'PLANAR_MODEL_TYPES_SAFE_V1' not in model:
     raise RuntimeError('Direct planar motion model is not the type-safe version')
 if 'max(0.05, samples[first].quality).toDouble()' not in model:
     raise RuntimeError('Planar motion model RANSAC weights are not type-safe')
 if 'sample.quality.clamp(0.0, 1.0).toDouble()' not in model:
     raise RuntimeError('Planar motion model quality accumulation is not type-safe')
+
+# A dominant plane must explain most of the tracked regions. With the previous
+# 72% target, six incoherent regions out of twenty could still be absorbed as
+# a planar scene. Requiring 80% consensus makes those residual regions explicit
+# depth evidence while leaving a genuinely coherent monitor plane unchanged.
+model = replace_required(
+    model,
+    """    final missingConsensusPenalty = dominantPlaneRatio >= 0.72
+        ? 0.0
+        : ((0.72 - dominantPlaneRatio) * 4.0)
+            .clamp(0.0, 1.0)
+            .toDouble();""",
+    """    final missingConsensusPenalty = dominantPlaneRatio >= 0.80
+        ? 0.0
+        : ((0.80 - dominantPlaneRatio) * 4.0)
+            .clamp(0.0, 1.0)
+            .toDouble();""",
+    'dominant plane consensus penalty',
+)
+model_path.write_text(model)
 
 
 geometry_path = Path('lib/hcv_live_screen_probe_geometry.dart')
@@ -77,4 +98,4 @@ for old, new, label in (
     geometry = replace_required(geometry, old, new, label)
 geometry_path.write_text(geometry)
 
-print('Planar parallax sources validated and generated geometry made type-safe')
+print('Planar parallax sources validated, consensus-corrected and type-safe')
