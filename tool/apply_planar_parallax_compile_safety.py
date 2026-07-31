@@ -10,47 +10,13 @@ def replace_required(source: str, old: str, new: str, label: str) -> str:
     return source.replace(old, new, 1)
 
 
-model_path = Path('lib/hcv_planar_motion_model.dart')
-model = model_path.read_text()
-for old, new, label in (
-    (
-        'weights[first] = max(0.05, a.quality);',
-        'weights[first] = max(0.05, a.quality).toDouble();',
-        'first RANSAC weight type',
-    ),
-    (
-        'weights[second] = max(0.05, b.quality);',
-        'weights[second] = max(0.05, b.quality).toDouble();',
-        'second RANSAC weight type',
-    ),
-    (
-        'weights[third] = max(0.05, c.quality);',
-        'weights[third] = max(0.05, c.quality).toDouble();',
-        'third RANSAC weight type',
-    ),
-    (
-        'final quality = max(0.05, samples[index].quality);',
-        'final quality = max(0.05, samples[index].quality).toDouble();',
-        'RANSAC quality type',
-    ),
-    (
-        '(index) => inliers[index] ? max(0.05, samples[index].quality) : 0,',
-        '(index) => inliers[index]\n            ? max(0.05, samples[index].quality).toDouble()\n            : 0.0,',
-        'refinement weight type',
-    ),
-    (
-        'final quality = max(0.05, sample.quality);',
-        'final quality = max(0.05, sample.quality).toDouble();',
-        'final quality type',
-    ),
-    (
-        'qualityTotal += sample.quality.clamp(0.0, 1.0);',
-        'qualityTotal += sample.quality.clamp(0.0, 1.0).toDouble();',
-        'quality total type',
-    ),
-):
-    model = replace_required(model, old, new, label)
-model_path.write_text(model)
+model = Path('lib/hcv_planar_motion_model.dart').read_text()
+if 'PLANAR_MODEL_TYPES_SAFE_V1' not in model:
+    raise RuntimeError('Direct planar motion model is not the type-safe version')
+if 'max(0.05, samples[first].quality).toDouble()' not in model:
+    raise RuntimeError('Planar motion model RANSAC weights are not type-safe')
+if 'sample.quality.clamp(0.0, 1.0).toDouble()' not in model:
+    raise RuntimeError('Planar motion model quality accumulation is not type-safe')
 
 
 geometry_path = Path('lib/hcv_live_screen_probe_geometry.dart')
@@ -111,4 +77,4 @@ for old, new, label in (
     geometry = replace_required(geometry, old, new, label)
 geometry_path.write_text(geometry)
 
-print('Planar parallax sources made Dart type-safe')
+print('Planar parallax sources validated and generated geometry made type-safe')
