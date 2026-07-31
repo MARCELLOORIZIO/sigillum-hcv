@@ -20,8 +20,7 @@ workflows:
       - name: Apply safe capture confirmation and optional coordinates
         script: |
           python3 tool/apply_safe_capture_location_fix.py
-          python3 tool/apply_photo_monitor_alignment_fix.py
-          dart format lib/camera_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/photo_monitor_alignment_test.dart
+          dart format lib/camera_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart
       - name: Flutter pub get
         script: flutter pub get
       - name: Verify source and tests
