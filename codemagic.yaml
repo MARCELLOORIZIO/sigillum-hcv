@@ -17,7 +17,7 @@ workflows:
         script: python3 tool/run_ios_share_handoff_fix.py
       - name: Apply document import and Messenger OCR fixes
         script: python3 tool/apply_file_import_and_ocr_fix.py
-      - name: Apply safe capture, mixed-scene monitor fix and coordinates
+      - name: Apply safe capture, monitor evidence fix and coordinates
         script: |
           python3 tool/apply_safe_capture_location_fix.py
           python3 tool/apply_mixed_scene_monitor_fix.py
