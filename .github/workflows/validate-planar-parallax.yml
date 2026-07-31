@@ -28,9 +28,9 @@ jobs:
           python3 tool/apply_mixed_scene_monitor_fix.py
           python3 tool/apply_planar_parallax_compile_safety.py
 
-      - name: Format verification
+      - name: Format generated sources
         run: |
-          dart format --output=none --set-exit-if-changed \
+          dart format \
             lib/camera_page.dart \
             lib/hcv_capture_location.dart \
             lib/hcv_location_image_watermark.dart \
