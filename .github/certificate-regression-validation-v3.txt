@@ -1,0 +1,2 @@
+Temporary validation trigger: uploaded monitor certificates, perspective outlier tolerance and photo temporal corroboration.
+No application source is changed by this validation-only branch.
