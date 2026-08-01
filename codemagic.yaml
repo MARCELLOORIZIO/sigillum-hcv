@@ -35,7 +35,6 @@ workflows:
         script: |
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
-          python3 tool/apply_photo_arm_compile_fix.py
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
       - name: Flutter pub get
         script: flutter pub get
