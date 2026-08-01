@@ -16,7 +16,11 @@ void main() {
     test('all verification paths require the complete sixteen-character ID', () {
       expect(
         registrySource,
-        contains("RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')"),
+        contains('(HCV-[A-F0-9]{16})(?![A-F0-9])'),
+      );
+      expect(
+        registrySource,
+        contains("RegExp(r'^HCV-([A-F0-9]{16})$')"),
       );
       expect(
         ocrSource,
