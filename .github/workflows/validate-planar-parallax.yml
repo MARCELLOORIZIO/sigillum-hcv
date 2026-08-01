@@ -33,6 +33,7 @@ jobs:
           python3 tool/apply_certificate_regression_fix.py
           python3 tool/apply_certificate_regression_compile_fix.py
           python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
 
       - name: Format generated sources
         run: |
@@ -51,6 +52,9 @@ jobs:
             lib/hcv_scene_decision_fusion.dart \
             lib/hcv_display_risk_fusion.dart \
             lib/hcv_live_screen_probe_core.dart \
+            test/camera_physical_scene_contract_test.dart \
+            test/photo_pre_capture_only_contract_test.dart \
+            test/registry_verify_hcv_id16_contract_test.dart \
             test/capture_location_contract_test.dart \
             test/camera_ready_video_evidence_contract_test.dart \
             test/hcv_planar_motion_model_test.dart \
