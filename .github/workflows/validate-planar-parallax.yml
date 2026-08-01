@@ -63,8 +63,32 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Run analysis and tests with diagnostic logs
+        id: diagnostics
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.log 2>&1
+          ANALYZE_STATUS=$?
+          flutter test --reporter expanded > test.log 2>&1
+          TEST_STATUS=$?
+          printf 'analyze_status=%s\ntest_status=%s\n' "$ANALYZE_STATUS" "$TEST_STATUS" > validation-status.txt
+          echo '===== ANALYZE LOG ====='
+          cat analyze.log
+          echo '===== TEST LOG (LAST 250 LINES) ====='
+          tail -n 250 test.log
+          if [ "$ANALYZE_STATUS" -ne 0 ] || [ "$TEST_STATUS" -ne 0 ]; then
+            exit 1
+          fi
 
-      - name: Test
-        run: flutter test
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planar-parallax-diagnostics
+          path: |
+            analyze.log
+            test.log
+            validation-status.txt
+          if-no-files-found: error
+          retention-days: 7
