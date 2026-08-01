@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -26,28 +27,46 @@ def replace_balanced_function(source: str, signature: str, replacement: str) -> 
 
 projective_path = Path('lib/hcv_projective_motion_model.dart')
 projective = projective_path.read_text()
-old = """    final outlierRatio =
-        residuals.where((value) => value > 0.90).length / samples.length;
-    final depthResidual = max(
-      min(1.0, residualMedian / 0.42),
-      min(1.0, outlierRatio * 1.25 + residualMad / 0.55),
-    );
-"""
-new = """    final outlierRatio =
-        residuals.where((value) => value > 0.90).length / samples.length;
-    // Sparse boundary and matcher outliers are expected even on a single
-    // perspective-distorted plane. Only the excess beyond a 5% noise floor
-    // is treated as independent depth evidence.
-    final excessOutlierRatio = max(0.0, (outlierRatio - 0.05) / 0.95);
-    final depthResidual = max(
-      min(1.0, residualMedian / 0.42),
-      min(1.0, excessOutlierRatio * 1.25 + residualMad / 0.55),
-    );
-"""
-if new not in projective:
-    if old not in projective:
-        raise RuntimeError('Projective outlier residual anchor not found')
-    projective = projective.replace(old, new, 1)
+if 'final excessOutlierRatio' not in projective:
+    outlier_declaration = re.search(
+        r'(?P<indent>^[ \t]*)final\s+outlierRatio\s*=\s*'
+        r'residuals\s*\.where\s*\(\s*\(value\)\s*=>\s*'
+        r'value\s*>\s*0\.9(?:0)?\s*\)\s*\.length\s*/\s*'
+        r'samples\.length\s*;',
+        projective,
+        flags=re.MULTILINE,
+    )
+    if outlier_declaration is None:
+        raise RuntimeError('Projective outlier-ratio declaration not found')
+    indent = outlier_declaration.group('indent')
+    insertion = (
+        outlier_declaration.group(0)
+        + '\n'
+        + indent
+        + '// Sparse boundary and matcher outliers are expected even on a single\n'
+        + indent
+        + '// perspective-distorted plane. Only the excess beyond a 5% noise floor\n'
+        + indent
+        + '// is treated as independent depth evidence.\n'
+        + indent
+        + 'final excessOutlierRatio = max(0.0, (outlierRatio - 0.05) / 0.95);'
+    )
+    projective = (
+        projective[:outlier_declaration.start()]
+        + insertion
+        + projective[outlier_declaration.end():]
+    )
+
+projective, replacements = re.subn(
+    r'\boutlierRatio\s*\*\s*1\.25\b',
+    'excessOutlierRatio * 1.25',
+    projective,
+)
+if replacements != 1:
+    if 'excessOutlierRatio * 1.25' not in projective:
+        raise RuntimeError(
+            f'Projective depth-residual expression replacement count: {replacements}'
+        )
 projective_path.write_text(projective)
 
 camera_path = Path('lib/camera_page.dart')
