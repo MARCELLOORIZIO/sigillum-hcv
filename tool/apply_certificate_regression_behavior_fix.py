@@ -27,45 +27,22 @@ def replace_balanced_function(source: str, signature: str, replacement: str) -> 
 
 projective_path = Path('lib/hcv_projective_motion_model.dart')
 projective = projective_path.read_text()
-if 'final excessOutlierRatio' not in projective:
-    outlier_declaration = re.search(
-        r'(?P<indent>^[ \t]*)final\s+outlierRatio\s*=\s*'
-        r'residuals\s*\.where\s*\(\s*\(value\)\s*=>\s*'
-        r'value\s*>\s*0\.9(?:0)?\s*\)\s*\.length\s*/\s*'
-        r'samples\.length\s*;',
-        projective,
-        flags=re.MULTILINE,
-    )
-    if outlier_declaration is None:
-        raise RuntimeError('Projective outlier-ratio declaration not found')
-    indent = outlier_declaration.group('indent')
-    insertion = (
-        outlier_declaration.group(0)
-        + '\n'
-        + indent
-        + '// Sparse boundary and matcher outliers are expected even on a single\n'
-        + indent
-        + '// perspective-distorted plane. Only the excess beyond a 5% noise floor\n'
-        + indent
-        + '// is treated as independent depth evidence.\n'
-        + indent
-        + 'final excessOutlierRatio = max(0.0, (outlierRatio - 0.05) / 0.95);'
-    )
-    projective = (
-        projective[:outlier_declaration.start()]
-        + insertion
-        + projective[outlier_declaration.end():]
-    )
-
-projective, replacements = re.subn(
-    r'\boutlierRatio\s*\*\s*1\.25\b',
-    'excessOutlierRatio * 1.25',
-    projective,
+penalty_pattern = re.compile(
+    r'final\s+missingConsensusPenalty\s*=\s*dominantPlaneRatio\s*>=\s*0\.78\s*'
+    r'\?\s*0\.0\s*:\s*\(\(0\.78\s*-\s*dominantPlaneRatio\)\s*\*\s*3\.6\)\s*'
+    r'\.clamp\(0\.0,\s*1\.0\)\s*\.toDouble\(\)\s*;',
+    flags=re.MULTILINE,
 )
-if replacements != 1:
-    if 'excessOutlierRatio * 1.25' not in projective:
+penalty_replacement = """final missingConsensusPenalty = dominantPlaneRatio >= 0.75
+        ? 0.0
+        : ((0.75 - dominantPlaneRatio) * 7.0)
+            .clamp(0.0, 1.0)
+            .toDouble();"""
+if penalty_replacement not in projective:
+    projective, count = penalty_pattern.subn(penalty_replacement, projective, count=1)
+    if count != 1:
         raise RuntimeError(
-            f'Projective depth-residual expression replacement count: {replacements}'
+            f'Projective consensus-penalty replacement count: {count}'
         )
 projective_path.write_text(projective)
 
