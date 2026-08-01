@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - fix/reality-monitor-geometry-20260725
+      - feature/text-social-verification-20260801
   pull_request:
     branches:
       - fix/reality-monitor-geometry-20260725
+      - feature/text-social-verification-20260801
   workflow_dispatch:
 
 jobs:
@@ -35,12 +37,16 @@ jobs:
           python3 tool/apply_certificate_regression_behavior_fix.py
           python3 tool/apply_certificate_contract_test_fix.py
           python3 tool/apply_account_success_feedback.py
+          python3 tool/apply_text_social_verification.py
 
       - name: Format generated sources
         run: |
           dart format \
             lib/camera_page.dart \
             lib/account_page.dart \
+            lib/text_cert_page.dart \
+            lib/hcv_text_integrity.dart \
+            lib/text_social_verify_page.dart \
             lib/registry_verify_page.dart \
             lib/hcv_capture_location.dart \
             lib/hcv_location_image_watermark.dart \
@@ -65,7 +71,9 @@ jobs:
             test/monitor_certificate_regression_test.dart \
             test/hcv_projective_motion_model_test.dart \
             test/registry_local_republish_contract_test.dart \
-            test/account_success_feedback_contract_test.dart
+            test/account_success_feedback_contract_test.dart \
+            test/hcv_text_integrity_test.dart \
+            test/text_social_workflow_contract_test.dart
 
       - name: Resolve dependencies
         run: flutter pub get
@@ -82,8 +90,8 @@ jobs:
           printf 'analyze_status=%s\ntest_status=%s\n' "$ANALYZE_STATUS" "$TEST_STATUS" > validation-status.txt
           echo '===== ANALYZE LOG ====='
           cat analyze.log
-          echo '===== TEST LOG (LAST 250 LINES) ====='
-          tail -n 250 test.log
+          echo '===== TEST LOG (LAST 300 LINES) ====='
+          tail -n 300 test.log
           if [ "$ANALYZE_STATUS" -ne 0 ] || [ "$TEST_STATUS" -ne 0 ]; then
             exit 1
           fi
