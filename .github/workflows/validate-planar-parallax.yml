@@ -38,6 +38,8 @@ jobs:
           python3 tool/apply_certificate_contract_test_fix.py
           python3 tool/apply_account_success_feedback.py
           python3 tool/apply_text_social_verification.py
+          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          python3 tool/apply_photo_arm_compile_fix.py
 
       - name: Format generated sources
         run: |
@@ -73,7 +75,8 @@ jobs:
             test/registry_local_republish_contract_test.dart \
             test/account_success_feedback_contract_test.dart \
             test/hcv_text_integrity_test.dart \
-            test/text_social_workflow_contract_test.dart
+            test/text_social_workflow_contract_test.dart \
+            test/text_keyboard_registry_photo_arm_contract_test.dart
 
       - name: Resolve dependencies
         run: flutter pub get
@@ -90,8 +93,8 @@ jobs:
           printf 'analyze_status=%s\ntest_status=%s\n' "$ANALYZE_STATUS" "$TEST_STATUS" > validation-status.txt
           echo '===== ANALYZE LOG ====='
           cat analyze.log
-          echo '===== TEST LOG (LAST 300 LINES) ====='
-          tail -n 300 test.log
+          echo '===== TEST LOG (LAST 350 LINES) ====='
+          tail -n 350 test.log
           if [ "$ANALYZE_STATUS" -ne 0 ] || [ "$TEST_STATUS" -ne 0 ]; then
             exit 1
           fi
