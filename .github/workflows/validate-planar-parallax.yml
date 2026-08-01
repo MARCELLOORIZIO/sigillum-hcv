@@ -39,7 +39,6 @@ jobs:
           python3 tool/apply_account_success_feedback.py
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
-          python3 tool/apply_photo_arm_compile_fix.py
 
       - name: Format generated sources
         run: |
