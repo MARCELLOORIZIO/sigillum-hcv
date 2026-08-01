@@ -1,0 +1,2 @@
+Temporary validation trigger v8: corrected raw HCV-ID contract regex string.
+No application source is changed by this validation-only branch.
