@@ -1,0 +1,2 @@
+Temporary validation trigger v7: updated architecture contracts and complete diagnostics.
+No application source is changed by this validation-only branch.
