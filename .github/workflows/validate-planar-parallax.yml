@@ -32,6 +32,7 @@ jobs:
           python3 tool/apply_planar_parallax_compile_safety.py
           python3 tool/apply_certificate_regression_fix.py
           python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
 
       - name: Format generated sources
         run: |
