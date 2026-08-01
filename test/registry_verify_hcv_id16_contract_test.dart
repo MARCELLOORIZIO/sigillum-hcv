@@ -20,7 +20,7 @@ void main() {
       );
       expect(
         registrySource,
-        contains("RegExp(r'^HCV-([A-F0-9]{16})$')"),
+        contains(r"RegExp(r'^HCV-([A-F0-9]{16})$')"),
       );
       expect(
         ocrSource,
