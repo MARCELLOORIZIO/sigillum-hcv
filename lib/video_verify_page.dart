@@ -6,15 +6,18 @@ import 'package:file_picker/file_picker.dart';
 import 'package:crypto/crypto.dart';
 
 import 'hcv_verifier.dart';
+import 'sigillum_localization.dart';
 
 class VideoVerifyPage extends StatefulWidget {
   final String? initialVideoPath;
   final String? initialHcvPath;
+  final String languageCode;
 
   const VideoVerifyPage({
     super.key,
     this.initialVideoPath,
     this.initialHcvPath,
+    this.languageCode = 'it',
   });
 
   @override
@@ -24,7 +27,7 @@ class VideoVerifyPage extends StatefulWidget {
 class _VideoVerifyPageState extends State<VideoVerifyPage> {
   final verifier = HCVVerifier();
 
-  String status = "Seleziona video e certificato HCV";
+  String status = "";
   String? result;
 
   String? videoPath;
@@ -44,9 +47,12 @@ class _VideoVerifyPageState extends State<VideoVerifyPage> {
   String? verifiedAudioTrust;
   String? verifiedAudioCaptured;
 
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+
   @override
   void initState() {
     super.initState();
+    status = _t('selectFileToVerify');
 
     videoPath = widget.initialVideoPath;
     hcvPath = widget.initialHcvPath;
@@ -362,9 +368,9 @@ class _VideoVerifyPageState extends State<VideoVerifyPage> {
               if (isVerified) ...[
                 const SizedBox(height: 14),
                 Text(
-                  "Creator: ${verifiedCreatorName ?? '-'}\n"
-                  "Trust: ${verifiedTrustLevel ?? '-'}\n"
-                  "Issuer: ${verifiedIssuer ?? '-'}\n"
+                  "${_t('declaredName')}: ${verifiedCreatorName ?? '-'}\n"
+                  "${_t('technicalProof')}: ${verifiedTrustLevel ?? '-'}\n"
+                  "${_t('issuer')}: ${verifiedIssuer ?? '-'}\n"
                   "HCV ID: ${verifiedHcvId ?? '-'}\n"
                   "Link: ${verifiedUrl ?? '-'}",
                   textAlign: TextAlign.center,
@@ -391,14 +397,14 @@ class _VideoVerifyPageState extends State<VideoVerifyPage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  "Trust Level: ${verifiedHcvTrustLevel ?? '-'}\n"
-                  "Live Capture: ${verifiedLiveCaptureTrust ?? '-'}\n"
-                  "Screen Replay Risk: ${verifiedScreenReplayRisk ?? '-'}\n"
-                  "Synthetic Risk: ${verifiedSyntheticRisk ?? '-'}\n"
-                  "Scene Authenticity: ${verifiedSceneAuthenticity ?? '-'}\n"
-                  "AI Proof Level: ${verifiedAiProofLevel ?? '-'}\n"
-                  "Audio: ${verifiedAudioCaptured ?? '-'}\n"
-                  "Audio Trust: ${verifiedAudioTrust ?? '-'}",
+                  "${_t('trustLevel')}: ${verifiedHcvTrustLevel ?? '-'}\n"
+                  "${_t('liveCapture')}: ${verifiedLiveCaptureTrust ?? '-'}\n"
+                  "${_t('screenReplayRisk')}: ${verifiedScreenReplayRisk ?? '-'}\n"
+                  "${_t('syntheticRisk')}: ${verifiedSyntheticRisk ?? '-'}\n"
+                  "${_t('sceneAuthenticity')}: ${verifiedSceneAuthenticity ?? '-'}\n"
+                  "${_t('aiProofLevel')}: ${verifiedAiProofLevel ?? '-'}\n"
+                  "${_t('audio')}: ${verifiedAudioCaptured ?? '-'}\n"
+                  "${_t('audioTrust')}: ${verifiedAudioTrust ?? '-'}",
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 11),
                 ),

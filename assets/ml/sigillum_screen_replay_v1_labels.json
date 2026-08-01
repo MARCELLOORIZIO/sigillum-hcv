@@ -1,0 +1,11 @@
+{
+  "classes": [
+    "SCREEN_MONITOR",
+    "SCREEN_PHONE",
+    "SCREEN_TABLET",
+    "REALITY_PAPER",
+    "REALITY_ROOM",
+    "REALITY_OBJECT",
+    "REALITY_OUTDOOR"
+  ]
+}

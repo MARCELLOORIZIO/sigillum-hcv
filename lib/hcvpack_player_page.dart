@@ -9,13 +9,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import 'hcv_verifier.dart';
+import 'sigillum_localization.dart';
 
 class HCVPackPlayerPage extends StatefulWidget {
   final String? initialPath;
+  final String languageCode;
 
   const HCVPackPlayerPage({
     super.key,
     this.initialPath,
+    this.languageCode = 'it',
   });
 
   @override
@@ -25,7 +28,7 @@ class HCVPackPlayerPage extends StatefulWidget {
 class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   final verifier = HCVVerifier();
 
-  String status = "Seleziona file .hcvpack";
+  String status = "";
   String? result;
 
   String? verifiedCreatorName;
@@ -43,20 +46,23 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
   Map<String, dynamic>? certificateData;
 
-  File? extractedVideoFile;
+  File? extractedContentFile;
   bool loading = false;
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
     super.initState();
+    status = _t('hcvpackSelect');
 
     if (widget.initialPath != null && widget.initialPath!.isNotEmpty) {
       Future.microtask(() => loadPackage(widget.initialPath!));
     }
   }
 
-  Future<void> _openVideo(File tempVideoFile) async {
-    extractedVideoFile = tempVideoFile;
+  Future<void> _openContent(File tempContentFile) async {
+    extractedContentFile = tempContentFile;
     return;
   }
 
@@ -73,8 +79,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       if (!path.toLowerCase().endsWith('.hcvpack')) {
         setState(() {
-          status = "Seleziona un file .hcvpack";
-          result = "ERROR ❌";
+          status = _t('hcvpackSelect');
+          result = "ERROR";
         });
         return;
       }
@@ -82,8 +88,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       await loadPackage(path);
     } catch (e) {
       setState(() {
-        status = "Errore selezione file: $e";
-        result = "ERROR ❌";
+        status = "ERROR";
+        result = "ERROR";
       });
     }
   }
@@ -93,8 +99,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (!packPath.toLowerCase().endsWith('.hcvpack')) {
         setState(() {
           loading = false;
-          status = "Questo non è un file HCVPACK";
-          result = "UNSUPPORTED ❌";
+          status = "Questo non e un file HCVPACK";
+          result = "UNSUPPORTED";
         });
         return;
       }
@@ -116,7 +122,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         verifiedAudioTrust = null;
         verifiedAudioCaptured = null;
         certificateData = null;
-        extractedVideoFile = null;
+        extractedContentFile = null;
       });
 
       final file = File(packPath);
@@ -125,7 +131,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         setState(() {
           loading = false;
           status = "File non trovato:\n$packPath";
-          result = "ERROR ❌";
+          result = "ERROR";
         });
         return;
       }
@@ -140,8 +146,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     } catch (e) {
       setState(() {
         loading = false;
-        status = "ERRORE: $e";
-        result = "ERROR ❌";
+        status = "ERROR";
+        result = "ERROR";
       });
     }
   }
@@ -186,8 +192,9 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (videoEntry == null || certEntry == null || metaEntry == null) {
         setState(() {
           loading = false;
-          status = "HCVPACK ZIP incompleto: video/certificato/meta mancanti";
-          result = "ERROR ❌";
+          status =
+              "HCVPACK ZIP incompleto: contenuto/certificato/meta mancanti";
+          result = "ERROR";
         });
         return;
       }
@@ -206,7 +213,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         setState(() {
           loading = false;
           status = "meta.json non valido";
-          result = "ERROR ❌";
+          result = "ERROR";
         });
         return;
       }
@@ -218,15 +225,15 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       );
 
       if (!metaOk) {
-        final tempVideoFile = await _writeTempVideo(videoBytes);
-        extractedVideoFile = tempVideoFile;
+        final tempVideoFile = await _writeTempContent(videoBytes, 'bin');
+        extractedContentFile = tempVideoFile;
 
-        await _openVideo(tempVideoFile);
+        await _openContent(tempVideoFile);
 
         setState(() {
           loading = false;
           status = "Meta HCVPACK non corrisponde";
-          result = "TAMPERED ❌";
+          result = "TAMPERED";
         });
         return;
       }
@@ -241,8 +248,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (certificate is! Map<String, dynamic>) {
         setState(() {
           loading = false;
-          status = "Certificato HCV non valido";
-          result = "ERROR ❌";
+          status = _t('hcvpackInvalid');
+          result = "ERROR";
         });
         return;
       }
@@ -255,8 +262,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     } catch (e) {
       setState(() {
         loading = false;
-        status = "Errore lettura ZIP HCVPACK: $e";
-        result = "ERROR ❌";
+        status = "ERROR";
+        result = "ERROR";
       });
     }
   }
@@ -312,7 +319,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         setState(() {
           loading = false;
           status = "Formato HCVPACK non valido";
-          result = "ERROR ❌";
+          result = "ERROR";
         });
         return;
       }
@@ -324,7 +331,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         setState(() {
           loading = false;
           status = "HCVPACK incompleto";
-          result = "ERROR ❌";
+          result = "ERROR";
         });
         return;
       }
@@ -333,7 +340,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         setState(() {
           loading = false;
           status = "Video HCVPACK non valido";
-          result = "ERROR ❌";
+          result = "ERROR";
         });
         return;
       }
@@ -341,8 +348,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (certificate is! Map<String, dynamic>) {
         setState(() {
           loading = false;
-          status = "Certificato HCV non valido";
-          result = "ERROR ❌";
+          status = _t('hcvpackInvalid');
+          result = "ERROR";
         });
         return;
       }
@@ -359,8 +366,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     } catch (e) {
       setState(() {
         loading = false;
-        status = "Errore lettura JSON HCVPACK: $e";
-        result = "ERROR ❌";
+        status = "ERROR";
+        result = "ERROR";
       });
     }
   }
@@ -377,54 +384,39 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     final content = certificate["content"];
 
     if (content == null || content is! Map<String, dynamic>) {
-      final tempVideoFile = await _writeTempVideo(videoBytes);
-      extractedVideoFile = tempVideoFile;
+      final tempVideoFile = await _writeTempContent(videoBytes, 'bin');
+      extractedContentFile = tempVideoFile;
 
-      await _openVideo(tempVideoFile);
+      await _openContent(tempVideoFile);
 
       setState(() {
         loading = false;
-        status = "Certificato HCV incompleto";
-        result = "INVALID ❌";
+        status = _t('hcvpackIncomplete');
+        result = "INVALID";
       });
       return;
     }
 
     final contentType = (content["type"] ?? "unknown").toString();
 
-    if (contentType != "video") {
-      final tempVideoFile = await _writeTempVideo(videoBytes);
-      extractedVideoFile = tempVideoFile;
-
-      await _openVideo(tempVideoFile);
-
-      setState(() {
-        loading = false;
-        status = "Il certificato HCV non è di tipo video";
-        result = "INVALID ❌";
-        verifiedFileType = contentType;
-      });
-      return;
-    }
-
     final storedHash = content["hash"];
 
     if (storedHash == null || storedHash is! String) {
-      final tempVideoFile = await _writeTempVideo(videoBytes);
-      extractedVideoFile = tempVideoFile;
+      final tempVideoFile = await _writeTempContent(videoBytes, contentType);
+      extractedContentFile = tempVideoFile;
 
-      await _openVideo(tempVideoFile);
+      await _openContent(tempVideoFile);
 
       setState(() {
         loading = false;
         status = "Hash mancante nel certificato";
-        result = "INVALID ❌";
+        result = "INVALID";
       });
       return;
     }
 
-    final tempVideoFile = await _writeTempVideo(videoBytes);
-    extractedVideoFile = tempVideoFile;
+    final tempVideoFile = await _writeTempContent(videoBytes, contentType);
+    extractedContentFile = tempVideoFile;
 
     final tempDir = await getTemporaryDirectory();
     final tempHcvFile = File(
@@ -439,28 +431,28 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     final certOk = await verifier.verifyFile(tempHcvFile.path);
 
     if (!certOk) {
-      await _openVideo(tempVideoFile);
+      await _openContent(tempVideoFile);
 
       setState(() {
         loading = false;
-        result = "INVALID ❌";
-        status = "Certificato non valido";
+        result = "INVALID";
+        status = _t('certificateInvalid');
       });
       return;
     }
 
     if (videoHash != storedHash) {
-      await _openVideo(tempVideoFile);
+      await _openContent(tempVideoFile);
 
       setState(() {
         loading = false;
-        result = "TAMPERED ❌";
-        status = "Video modificato";
+        result = "TAMPERED";
+        status = "Contenuto modificato";
       });
       return;
     }
 
-    await _openVideo(tempVideoFile);
+    await _openContent(tempVideoFile);
 
     final meta = certificate["meta"];
     final identity = meta is Map ? meta["identity"] : null;
@@ -489,8 +481,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
     setState(() {
       loading = false;
-      result = "HUMAN VERIFIED ✔";
-      status = "Verifica completata ($sourceLabel)";
+      result = "HUMAN VERIFIED";
+      status = "${_t('verificationComplete')} ($sourceLabel)";
 
       verifiedFileType = contentType;
 
@@ -510,29 +502,46 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         verifiedAudioTrust = audioTrust;
         verifiedAudioCaptured = audioCaptured;
       } else {
-        verifiedCreatorName = "Identity not available";
+        verifiedCreatorName = _t('identityUnavailable');
         verifiedTrustLevel = "UNKNOWN";
         verifiedIssuer = "UNKNOWN";
       }
     });
   }
 
-  Future<File> _writeTempVideo(List<int> videoBytes) async {
+  Future<File> _writeTempContent(List<int> bytes, String contentType) async {
     final tempDir = await getTemporaryDirectory();
-    final tempVideoFile = File(
+    final extension = _extensionForContentType(contentType);
+    final tempContentFile = File(
       p.join(
         tempDir.path,
-        "hcv_video_${DateTime.now().millisecondsSinceEpoch}.mp4",
+        "hcv_content_${DateTime.now().millisecondsSinceEpoch}.$extension",
       ),
     );
 
-    await tempVideoFile.writeAsBytes(videoBytes);
+    await tempContentFile.writeAsBytes(bytes);
 
-    return tempVideoFile;
+    return tempContentFile;
+  }
+
+  String _extensionForContentType(String contentType) {
+    switch (contentType.toLowerCase()) {
+      case "photo":
+      case "image":
+        return "jpg";
+      case "text":
+        return "txt";
+      case "audio":
+        return "m4a";
+      case "video":
+        return "mp4";
+      default:
+        return "bin";
+    }
   }
 
   bool get isVerified {
-    return result == "HUMAN VERIFIED ✔";
+    return result == "HUMAN VERIFIED";
   }
 
   bool get hasResult {
@@ -595,44 +604,44 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              "Dettagli verifica HCVPACK",
+            Text(
+              _t('hcvpackDetails'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              "Verified by: ${verifiedCreatorName ?? '-'}",
+              "${_t('declaredName')}: ${verifiedCreatorName ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              "Trust: ${verifiedTrustLevel ?? '-'}",
+              "${_t('technicalProof')}: ${verifiedTrustLevel ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              "Issuer: ${verifiedIssuer ?? '-'}",
+              "${_t('issuer')}: ${verifiedIssuer ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              "File type: ${verifiedFileType ?? '-'}",
+              "${_t('fileType')}: ${verifiedFileType ?? '-'}",
               textAlign: TextAlign.center,
             ),
             const Divider(height: 24),
             Text(
-              "Trust Level: ${verifiedHcvTrustLevel ?? '-'}\n"
-              "Live Capture: ${verifiedLiveCaptureTrust ?? '-'}\n"
-              "Screen Replay Risk: ${verifiedScreenReplayRisk ?? '-'}\n"
-              "Synthetic Risk: ${verifiedSyntheticRisk ?? '-'}\n"
-              "Scene Authenticity: ${verifiedSceneAuthenticity ?? '-'}\n"
-              "AI Proof Level: ${verifiedAiProofLevel ?? '-'}\n"
-              "Audio: ${verifiedAudioCaptured ?? '-'}\n"
-              "Audio Trust: ${verifiedAudioTrust ?? '-'}",
+              "${_t('trustLevel')}: ${verifiedHcvTrustLevel ?? '-'}\n"
+              "${_t('liveCapture')}: ${verifiedLiveCaptureTrust ?? '-'}\n"
+              "${_t('screenReplayRisk')}: ${verifiedScreenReplayRisk ?? '-'}\n"
+              "${_t('syntheticRisk')}: ${verifiedSyntheticRisk ?? '-'}\n"
+              "${_t('sceneAuthenticity')}: ${verifiedSceneAuthenticity ?? '-'}\n"
+              "${_t('aiProofLevel')}: ${verifiedAiProofLevel ?? '-'}\n"
+              "${_t('audio')}: ${verifiedAudioCaptured ?? '-'}\n"
+              "${_t('audioTrust')}: ${verifiedAudioTrust ?? '-'}",
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12),
             ),
@@ -643,9 +652,12 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   }
 
   Widget buildVideoInfoPanel() {
-    if (extractedVideoFile == null) {
+    if (extractedContentFile == null) {
       return const SizedBox.shrink();
     }
+
+    final fileType = (verifiedFileType ?? 'contenuto').toLowerCase();
+    final isVideo = fileType == 'video';
 
     return Card(
       margin: const EdgeInsets.only(top: 16),
@@ -653,24 +665,31 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            const Icon(Icons.movie_creation_outlined, size: 36),
-            const SizedBox(height: 8),
-            const Text(
-              "Video estratto dal pacchetto",
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Icon(
+              isVideo ? Icons.movie_creation_outlined : Icons.insert_drive_file,
+              size: 36,
             ),
             const SizedBox(height: 8),
             Text(
-              extractedVideoFile!.path,
+              isVideo
+                  ? "Video estratto dal pacchetto"
+                  : "Contenuto estratto dal pacchetto",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              extractedContentFile!.path,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 11),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              "Playback video disattivato su iOS in questa build.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
-            ),
+            if (isVideo) ...[
+              const SizedBox(height: 8),
+              const Text(
+                "Playback video disattivato su iOS in questa build.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
           ],
         ),
       ),
@@ -680,7 +699,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   @override
   void dispose() {
     try {
-      extractedVideoFile?.deleteSync();
+      extractedContentFile?.deleteSync();
     } catch (_) {}
 
     super.dispose();

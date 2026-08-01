@@ -16,12 +16,30 @@ import 'hcv_live_signals.dart';
 import 'hcv_trust_analyzer.dart';
 import 'hcv_video_watermark.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'hcv_social_fingerprint.dart';
 import 'hcv_image_watermark.dart';
+import 'hcv_screen_replay_analyzer.dart';
+import 'hcv_live_screen_probe.dart';
+import 'hcv_ml_screen_replay_classifier.dart';
+import 'hcv_display_risk_fusion.dart';
+import 'hcv_capture_timestamp.dart';
+import 'sigillum_localization.dart';
+
+HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
+  List<Map<String, dynamic>?> analyses,
+) {
+  return HCVDisplayRiskFusion.combine(analyses, liveCaptureOnly: true);
+}
 
 class CameraPage extends StatefulWidget {
-  const CameraPage({super.key});
+  const CameraPage({
+    super.key,
+    this.initialPhotoMode = false,
+    this.languageCode = 'it',
+  });
+
+  final bool initialPhotoMode;
+  final String languageCode;
 
   @override
   State<CameraPage> createState() => _CameraPageState();
@@ -35,14 +53,18 @@ class _CameraPageState extends State<CameraPage> {
 
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
+  static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
   Map<String, dynamic>? lastLiveSignals;
+  Map<String, dynamic>? pendingLiveScreenProbe;
+  DateTime? pendingVideoCapturedAt;
 
   bool ready = false;
   bool recording = false;
 
   bool photoMode = false;
+  String captureMode = 'studio';
 
   FlashMode currentFlashMode = FlashMode.off;
 
@@ -59,11 +81,16 @@ class _CameraPageState extends State<CameraPage> {
   String? hcvId;
   String? verificationUrl;
   String? registryStatus;
+  String? createdContentKind;
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
     super.initState();
+    photoMode = widget.initialPhotoMode;
     initCamera();
+    Future.microtask(_retryPendingRegistryUploads);
   }
 
   Future<void> initCamera() async {
@@ -88,7 +115,7 @@ class _CameraPageState extends State<CameraPage> {
 
       setState(() {
         ready = true;
-        status = 'READY ✔';
+        status = 'READY';
       });
     } catch (e) {
       setState(() => status = 'ERROR: $e');
@@ -132,6 +159,40 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
+  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash() async {
+    final camera = controller;
+    if (camera == null) {
+      return {
+        'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'reason': 'CAMERA_NOT_READY',
+      };
+    }
+
+    final flashToRestore = currentFlashMode;
+    final shouldSuppressFlash = flashToRestore != FlashMode.off;
+
+    try {
+      await camera.setFlashMode(FlashMode.off);
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      final analysis = await HCVLiveScreenProbe().analyzePreview(
+        camera,
+        restoreZoomLevel: currentZoom,
+      );
+      analysis['flashSuppressedDuringProbe'] = shouldSuppressFlash;
+      analysis['probeFlashMode'] = 'OFF';
+      return analysis;
+    } finally {
+      if (shouldSuppressFlash && camera.value.isInitialized) {
+        try {
+          await camera.setFlashMode(flashToRestore);
+          await Future.delayed(const Duration(milliseconds: 150));
+        } catch (_) {}
+      }
+    }
+  }
+
   Future<void> setZoom(double zoom) async {
     if (controller == null || !controller!.value.isInitialized) return;
 
@@ -155,8 +216,7 @@ class _CameraPageState extends State<CameraPage> {
     if (controller!.value.isRecordingVideo) return;
 
     setState(() {
-      recording = true;
-      status = 'STARTING...';
+      status = 'CHECKING LIVE SCREEN FLICKER...';
       result = null;
       videoPath = null;
       hcvPath = null;
@@ -167,7 +227,15 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
+      pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+
+      setState(() {
+        recording = true;
+        status = 'STARTING...';
+      });
+
       await controller!.startVideoRecording();
+      pendingVideoCapturedAt = DateTime.now();
 
       try {
         await liveSignals.start();
@@ -177,6 +245,7 @@ class _CameraPageState extends State<CameraPage> {
 
       setState(() => status = 'RECORDING...');
     } catch (e) {
+      pendingVideoCapturedAt = null;
       setState(() {
         recording = false;
         status = 'ERROR START: $e';
@@ -189,13 +258,15 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final file = await controller!.stopVideoRecording();
+      final capturedAt = pendingVideoCapturedAt ?? DateTime.now();
+      pendingVideoCapturedAt = null;
 
       setState(() {
         recording = false;
         status = 'PROCESSING VIDEO...';
       });
 
-      await processVideo(file.path);
+      await processVideo(file.path, capturedAt: capturedAt);
     } catch (e) {
       setState(() {
         status = 'STOP ERROR: $e';
@@ -208,10 +279,17 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       setState(() {
+        status = 'CHECKING LIVE SCREEN FLICKER...';
+      });
+
+      final liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+
+      setState(() {
         status = 'SCATTO FOTO...';
       });
 
       final file = await controller!.takePicture();
+      final capturedAt = DateTime.now();
 
       final savedPhotoPath = await savePhotoToDocuments(file.path);
 
@@ -223,15 +301,73 @@ class _CameraPageState extends State<CameraPage> {
 
       final preparedVerificationUrl = "hcv://verify/$preparedHcvId";
 
+      Map<String, dynamic>? socialFingerprint;
+      Map<String, dynamic>? screenReplayAnalysis;
+      Map<String, dynamic>? mlScreenReplayAnalysis;
+
       setState(() {
         hcvId = preparedHcvId;
         verificationUrl = preparedVerificationUrl;
+        status = 'ANALYZING SCREEN REPLAY RISK...';
+      });
+
+      try {
+        screenReplayAnalysis =
+            await HCVScreenReplayAnalyzer().analyzeImage(savedPhotoPath);
+      } catch (_) {
+        screenReplayAnalysis = null;
+      }
+
+      try {
+        mlScreenReplayAnalysis =
+            await HCVMLScreenReplayClassifier.instance.analyzeImage(
+          savedPhotoPath,
+        );
+      } catch (e) {
+        mlScreenReplayAnalysis = {
+          'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+          'screenReplayRisk': 'UNKNOWN',
+          'screenReplayRiskScore': null,
+          'reason': 'ML_ANALYSIS_EXCEPTION',
+          'analysisStatus': 'NOT_ANALYZED',
+          'error': e.toString(),
+        };
+      }
+
+      if (screenReplayAnalysis != null) {
+        screenReplayAnalysis = {
+          ...screenReplayAnalysis!,
+          'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
+        };
+      }
+      if (mlScreenReplayAnalysis != null) {
+        mlScreenReplayAnalysis = {
+          ...mlScreenReplayAnalysis!,
+          'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
+        };
+      }
+
+      final screenReplayAnalyses = [
+        liveScreenProbe,
+        screenReplayAnalysis,
+        mlScreenReplayAnalysis,
+      ];
+      final displayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
+        screenReplayAnalyses,
+      );
+      final detectedScreenReplayRisk = displayRisk.risk;
+      final detectedScreenReplayScore = displayRisk.score;
+      final displayRiskDecision = displayRisk.decision;
+      final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
+
+      setState(() {
         status = 'ADDING SIGILLUM WATERMARK...';
       });
 
       final publishedPhoto = await HCVImageWatermark().createPublishedPhoto(
         inputPath: savedPhotoPath,
         hcvId: preparedHcvId,
+        capturedAt: capturedAt,
       );
 
       try {
@@ -245,6 +381,13 @@ class _CameraPageState extends State<CameraPage> {
 
       final hash = sha256.convert(fileBytes).toString();
 
+      try {
+        socialFingerprint =
+            await HCVSocialFingerprint().buildFromImage(publishedPhoto);
+      } catch (_) {
+        socialFingerprint = null;
+      }
+
       engine.setContent(
         type: 'photo',
         hash: hash,
@@ -257,7 +400,31 @@ class _CameraPageState extends State<CameraPage> {
         "captureSource": "HCV_CAMERA",
         "captureType": "PHOTO",
         "trustLevel": "HCV_PHOTO",
+        "liveCapture": true,
+        "liveCaptureMode": "STILL_CAPTURE",
+        "liveCaptureTrust": "PHOTO_CAPTURE",
+        "syntheticRisk":
+            detectedScreenReplay ? "POSSIBLE_SCREEN_REPLAY" : "UNKNOWN",
+        "sceneAuthenticity": detectedScreenReplay
+            ? "PHOTO_CAPTURE_WITH_SCREEN_REPLAY_RISK"
+            : "PHOTO_CAPTURE",
+        "displayRiskDecision": displayRiskDecision,
+        "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
+        "displayRiskEvidence": displayRisk.toJson(),
+        "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
+        "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
+        "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
+        "liveScreenProbe": liveScreenProbe,
+        "screenReplayAnalysis": screenReplayAnalysis,
+        "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
+        "mlScreenReplayAnalysisStatus":
+            _mlAnalysisStatus(mlScreenReplayAnalysis),
+        "screenReplayRisk": detectedScreenReplayRisk,
+        "screenReplayRiskScore": detectedScreenReplayScore,
         "watermark": "SIGILLUM_VISIBLE",
+        "socialVerification": true,
+        "socialFingerprintAlgorithm": socialFingerprint?["algorithm"],
+        "socialFingerprint": socialFingerprint,
       });
 
       engine.stop();
@@ -275,26 +442,26 @@ class _CameraPageState extends State<CameraPage> {
           videoPath: publishedPhoto,
           hcvPath: hcv,
         );
-        if (pack != null) {
-          pack = await movePackageToUnifiedName(
-            currentPath: pack,
-            hcvId: preparedHcvId,
-          );
-        }
+        pack = await movePackageToUnifiedName(
+          currentPath: pack,
+          hcvId: preparedHcvId,
+        );
       }
 
       setState(() {
-        result = ok ? 'VALID ✔' : 'INVALID ❌';
+        result = ok ? 'VALID' : 'INVALID';
 
-        status = ok ? 'PHOTO VERIFIED ✔' : 'PHOTO INVALID ❌';
+        status = ok ? 'PHOTO VERIFIED' : 'PHOTO INVALID';
 
         videoPath = publishedPhoto;
         hcvPath = hcv;
         packagePath = pack;
+        createdContentKind = 'photo';
 
         recording = false;
       });
       if (ok) {
+        await saveContentToGallery(publishedPhoto);
         await uploadCertificateToRegistry();
       }
     } catch (e) {
@@ -441,7 +608,30 @@ class _CameraPageState extends State<CameraPage> {
     return moved.path;
   }
 
-  Future<void> processVideo(String path) async {
+  String _displayRiskMeaning(String decision) {
+    switch (decision) {
+      case "STRONG_DISPLAY_RISK":
+        return "Multiple consistent signals indicate possible display recapture.";
+      case "NON_CONCLUSIVE":
+        return "Ambiguous visual or optical signals were observed, but not enough for a display warning.";
+      default:
+        return "No sufficient display recapture evidence was observed.";
+    }
+  }
+
+  String _mlAnalysisStatus(Map<String, dynamic>? analysis) {
+    if (analysis == null) return "NOT_ANALYZED";
+    final status = analysis["analysisStatus"]?.toString();
+    if (status != null && status.isNotEmpty) return status;
+    final score = analysis["screenReplayRiskScore"];
+    return score == null ? "NOT_ANALYZED" : "ANALYZED";
+  }
+
+  Future<void> processVideo(String path, {DateTime? capturedAt}) async {
+    final liveScreenProbe = pendingLiveScreenProbe;
+    pendingLiveScreenProbe = null;
+    final effectiveCapturedAt = capturedAt ?? DateTime.now();
+
     setState(() {
       status = 'SAVING MP4 TO DOWNLOAD...';
       registryStatus = null;
@@ -455,11 +645,58 @@ class _CameraPageState extends State<CameraPage> {
     final preparedHcvId = engine.hcvId;
     final preparedVerificationUrl = "hcv://verify/$preparedHcvId";
 
+    Map<String, dynamic>? socialFingerprint;
+    Map<String, dynamic>? screenReplayAnalysis;
+    Map<String, dynamic>? mlScreenReplayAnalysis;
+
     setState(() {
-      status = 'ADDING SIGILLUM LOGO...';
+      status = 'ANALYZING SCREEN REPLAY RISK...';
       videoPath = savedVideoPath;
       hcvId = preparedHcvId;
       verificationUrl = preparedVerificationUrl;
+    });
+
+    try {
+      screenReplayAnalysis =
+          await HCVScreenReplayAnalyzer().analyzeVideo(savedVideoPath);
+    } catch (_) {
+      screenReplayAnalysis = null;
+    }
+
+    try {
+      mlScreenReplayAnalysis =
+          await HCVMLScreenReplayClassifier.instance.analyzeVideo(
+        savedVideoPath,
+      );
+    } catch (e) {
+      mlScreenReplayAnalysis = {
+        'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+        'screenReplayRisk': 'UNKNOWN',
+        'screenReplayRiskScore': null,
+        'reason': 'VIDEO_ML_ANALYSIS_EXCEPTION',
+        'analysisStatus': 'NOT_ANALYZED',
+        'error': e.toString(),
+      };
+    }
+
+    final trustAnalysis = HCVTrustAnalyzer.analyze(
+      liveSignals: lastLiveSignals,
+      audioCaptured: true,
+      captureMode: captureMode,
+    );
+    final screenReplayAnalyses = [
+      liveScreenProbe,
+      screenReplayAnalysis,
+      mlScreenReplayAnalysis,
+    ];
+    final displayRisk = HCVDisplayRiskFusion.combine(screenReplayAnalyses);
+    final detectedScreenReplayRisk = displayRisk.risk;
+    final detectedScreenReplayScore = displayRisk.score;
+    final displayRiskDecision = displayRisk.decision;
+    final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
+
+    setState(() {
+      status = 'ADDING SIGILLUM LOGO...';
     });
 
     final originalVideoBeforeWatermark = savedVideoPath;
@@ -468,7 +705,7 @@ class _CameraPageState extends State<CameraPage> {
       savedVideoPath = await HCVVideoWatermark().createPublishedVideo(
         inputPath: savedVideoPath,
         hcvId: preparedHcvId,
-        verificationUrl: preparedVerificationUrl,
+        capturedAt: effectiveCapturedAt,
       );
 
       try {
@@ -483,8 +720,6 @@ class _CameraPageState extends State<CameraPage> {
       });
       rethrow;
     }
-
-    Map<String, dynamic>? socialFingerprint;
 
     try {
       socialFingerprint =
@@ -509,25 +744,36 @@ class _CameraPageState extends State<CameraPage> {
       name: p.basename(savedVideoPath),
     );
 
-    final trustAnalysis = HCVTrustAnalyzer.analyze(
-      liveSignals: lastLiveSignals,
-      audioCaptured: true,
-    );
-
     engine.setClaims({
       "fileIntegrity": "VERIFIED",
       "captureSource": "HCV_CAMERA",
+      "captureMode": captureMode,
       "liveCapture": true,
       "liveCaptureMode": "PASSIVE",
       "audioCaptured": true,
       "audioIncludedInVideoContainer": true,
       "sensorIntegrity": lastLiveSignals == null ? "NOT_RECORDED" : "RECORDED",
-      "screenReplayRisk": "REDUCED",
-      "syntheticRisk": "REDUCED",
-      "sceneAuthenticity": "LIVE_CAPTURE",
+      "syntheticRisk":
+          detectedScreenReplay ? "POSSIBLE_SCREEN_REPLAY" : "REDUCED",
+      "sceneAuthenticity": detectedScreenReplay
+          ? "LIVE_CAPTURE_WITH_SCREEN_REPLAY_RISK"
+          : "LIVE_CAPTURE",
+      "displayRiskDecision": displayRiskDecision,
+      "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
+      "displayRiskEvidence": displayRisk.toJson(),
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
-      "trustLevel": "HCV_LIVE",
+      "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
+      "passiveLiveProofScore": trustAnalysis["score"],
+      "captureModeNote": trustAnalysis["note"],
+      "captureCreatedAt": effectiveCapturedAt.toUtc().toIso8601String(),
+      "captureCreatedAtLocal": HCVCaptureTimestamp.format(effectiveCapturedAt),
+      "liveScreenProbe": liveScreenProbe,
+      "screenReplayAnalysis": screenReplayAnalysis,
+      "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
+      "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(mlScreenReplayAnalysis),
+      "screenReplayRisk": detectedScreenReplayRisk,
+      "screenReplayRiskScore": detectedScreenReplayScore,
       "audioTrust": trustAnalysis["audioTrust"],
       "watermark": "SIGILLUM_VISIBLE_MP4",
       "publishedVideo": true,
@@ -566,16 +812,16 @@ class _CameraPageState extends State<CameraPage> {
     detectedId ??= preparedHcvId;
     detectedUrl ??= preparedVerificationUrl;
 
-    if (detectedId != null && detectedId!.isNotEmpty) {
+    if (detectedId.isNotEmpty) {
       try {
         savedVideoPath = await renameVideoWithHcvId(
           currentPath: savedVideoPath,
-          hcvId: detectedId!,
+          hcvId: detectedId,
         );
 
         hcv = await moveHcvToUnifiedName(
           currentPath: hcv,
-          hcvId: detectedId!,
+          hcvId: detectedId,
         );
       } catch (e) {
         setState(() {
@@ -592,13 +838,13 @@ class _CameraPageState extends State<CameraPage> {
       );
       print("PACKAGE GENERATED:");
       print(pack);
-      print(pack != null ? await File(pack).exists() : false);
+      print(await File(pack).exists());
 
-      if (detectedId != null && detectedId!.isNotEmpty && pack != null) {
+      if (detectedId.isNotEmpty) {
         try {
           pack = await movePackageToUnifiedName(
             currentPath: pack,
-            hcvId: detectedId!,
+            hcvId: detectedId,
           );
         } catch (_) {}
       }
@@ -611,31 +857,53 @@ class _CameraPageState extends State<CameraPage> {
       packagePath = pack;
       hcvId = detectedId;
       verificationUrl = detectedUrl;
-      result = ok ? 'VALID ✔' : 'INVALID ❌';
+      createdContentKind = 'video';
+      result = ok ? 'VALID' : 'INVALID';
       status = 'DONE';
     });
 
     if (ok) {
+      await saveContentToGallery(savedVideoPath);
       await uploadCertificateToRegistry();
     }
   }
 
   Future<void> uploadCertificateToRegistry() async {
     if (hcvPath == null) return;
+    final currentPath = File(hcvPath!).absolute.path;
 
     setState(() {
-      registryStatus = 'Uploading certificate to registry...';
+      registryStatus = 'Pubblicazione certificato nel Registry...';
     });
 
     try {
-      final res = await registry.uploadCertificateFile(hcvPath!);
+      await registry.enqueueCertificateFile(currentPath);
+      final report = await registry.retryPendingUploads();
+      final currentUploaded = report.uploadedPaths.contains(currentPath);
       setState(() {
-        registryStatus = 'Registry OK: ${res['hcvId'] ?? hcvId}';
+        registryStatus = currentUploaded
+            ? 'Registry OK: ${hcvId ?? 'certificato pubblicato'}'
+            : 'Certificato salvato: pubblicazione Registry in attesa';
       });
     } catch (e) {
       setState(() {
-        registryStatus = 'Registry offline/non raggiungibile: $e';
+        registryStatus =
+            'Certificato salvato localmente. Registry non raggiungibile: $e';
       });
+    }
+  }
+
+  Future<void> _retryPendingRegistryUploads() async {
+    try {
+      final report = await registry.retryPendingUploads();
+      if (!mounted || report.uploaded == 0) return;
+      setState(() {
+        registryStatus = report.pending == 0
+            ? 'Registry sincronizzato'
+            : 'Registry: ${report.uploaded} pubblicati, ${report.pending} in attesa';
+      });
+    } catch (_) {
+      // La certificazione locale resta valida; il retry avverra al prossimo avvio.
     }
   }
 
@@ -670,16 +938,44 @@ class _CameraPageState extends State<CameraPage> {
     try {
       await Share.shareXFiles(
         [
-          XFile(videoPath!, mimeType: 'video/mp4'),
-          XFile(hcvPath!, mimeType: 'application/json'),
+          XFile(videoPath!, mimeType: _contentMimeType(videoPath!)),
         ],
         text: hcvId == null
-            ? 'HCV Human Verified ✔'
-            : 'HCV Human Verified ✔\nID: $hcvId\nVerify with SIGILLUM',
+            ? 'Contenuto verificato SIGILLUM'
+            : 'Contenuto verificato SIGILLUM\nID: $hcvId\nVerify with SIGILLUM',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
       setState(() => status = 'SHARE ERROR: $e');
+    }
+  }
+
+  Future<void> saveContentToGallery(String path) async {
+    if (!Platform.isIOS) {
+      return;
+    }
+
+    try {
+      final saved = await _mediaChannel.invokeMethod<bool>(
+        'saveToPhotos',
+        {'path': path},
+      );
+
+      if (saved == true && mounted) {
+        setState(() {
+          registryStatus = registryStatus == null
+              ? 'Salvato anche in Foto'
+              : '$registryStatus\nSalvato anche in Foto';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          registryStatus = registryStatus == null
+              ? 'Non salvato in Foto: permesso non disponibile'
+              : '$registryStatus\nNon salvato in Foto: permesso non disponibile';
+        });
+      }
     }
   }
 
@@ -695,13 +991,34 @@ class _CameraPageState extends State<CameraPage> {
           XFile(packagePath!, mimeType: 'application/octet-stream'),
         ],
         text: hcvId == null
-            ? 'HCV Human Verified ✔'
-            : 'HCV Human Verified ✔\nID: $hcvId\nOffline package',
+            ? 'HCVPACK offline SIGILLUM'
+            : 'HCVPACK offline SIGILLUM\nID: $hcvId',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
       setState(() => status = 'SHARE PACK ERROR: $e');
     }
+  }
+
+  String get _createdContentLabel {
+    if (createdContentKind == 'photo') return 'foto';
+    if (createdContentKind == 'video') return 'video';
+    return 'contenuto';
+  }
+
+  String get _createdFileLabel {
+    if (createdContentKind == 'photo') return 'Foto';
+    if (createdContentKind == 'video') return 'Video';
+    return 'Contenuto';
+  }
+
+  String _contentMimeType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    if (lower.endsWith('.m4v')) return 'video/x-m4v';
+    return 'video/mp4';
   }
 
   @override
@@ -719,7 +1036,7 @@ class _CameraPageState extends State<CameraPage> {
       );
     }
 
-    final verified = result == 'VALID ✔';
+    final verified = result == 'VALID';
 
     return Column(
       children: [
@@ -730,7 +1047,7 @@ class _CameraPageState extends State<CameraPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          verified ? 'HUMAN VERIFIED ✔' : 'NOT VERIFIED ❌',
+          verified ? 'HUMAN VERIFIED' : 'NOT VERIFIED',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 24,
@@ -753,10 +1070,10 @@ class _CameraPageState extends State<CameraPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              'Video verificabile creato',
+            Text(
+              '${_createdFileLabel} verificabile creato',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 17,
               ),
@@ -768,11 +1085,11 @@ class _CameraPageState extends State<CameraPage> {
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'MP4, certificato HCV e HCVPACK usano lo stesso nome base. '
+            Text(
+              '${_createdFileLabel}, certificato HCV e HCVPACK sono collegati dallo stesso HCV-ID. '
               'La verifica online usa HCV-ID e Registry.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
@@ -817,14 +1134,14 @@ class _CameraPageState extends State<CameraPage> {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            const Text(
-              'File creati',
+            Text(
+              _t('createdFiles'),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             if (videoPath != null) ...[
               const SizedBox(height: 8),
               Text(
-                'MP4:\n$videoPath',
+                '$_createdFileLabel:\n$videoPath',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 11),
               ),
@@ -832,7 +1149,7 @@ class _CameraPageState extends State<CameraPage> {
             if (hcvPath != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Certificato:\n$hcvPath',
+                '${_t('certificate')}:\n$hcvPath',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 11),
               ),
@@ -860,7 +1177,7 @@ class _CameraPageState extends State<CameraPage> {
             child: ElevatedButton.icon(
               onPressed: shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label: const Text('CONDIVIDI VIDEO VERIFICABILE'),
+              label: Text(_t('shareContent')),
             ),
           ),
           const SizedBox(height: 10),
@@ -871,7 +1188,7 @@ class _CameraPageState extends State<CameraPage> {
             child: ElevatedButton.icon(
               onPressed: sharePackage,
               icon: const Icon(Icons.inventory_2),
-              label: const Text('CONDIVIDI PACCHETTO OFFLINE'),
+              label: Text(_t('shareOfflinePack')),
             ),
           ),
           const SizedBox(height: 10),
@@ -914,7 +1231,7 @@ class _CameraPageState extends State<CameraPage> {
             Navigator.of(context).pop();
           },
         ),
-        title: const Text('SIGILLUM Camera'),
+        title: Text(_t('cameraTitle')),
         actions: [
           IconButton(
             icon: Icon(
@@ -1043,8 +1360,8 @@ class _CameraPageState extends State<CameraPage> {
               child: SafeArea(
                 child: Container(
                   padding: const EdgeInsets.only(
-                    bottom: 24,
-                    top: 22,
+                    bottom: 14,
+                    top: 58,
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -1064,7 +1381,7 @@ class _CameraPageState extends State<CameraPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ChoiceChip(
-                            label: const Text('VIDEO'),
+                            label: Text(_t('video')),
                             selected: !photoMode,
                             showCheckmark: false,
                             selectedColor: Colors.white,
@@ -1082,7 +1399,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                           const SizedBox(width: 14),
                           ChoiceChip(
-                            label: const Text('FOTO'),
+                            label: Text(_t('photo')),
                             selected: photoMode,
                             showCheckmark: false,
                             selectedColor: Colors.white,
@@ -1100,7 +1417,73 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 26),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 40,
+                        child: photoMode
+                            ? const SizedBox.shrink()
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('STUDIO'),
+                                    selected: captureMode == 'studio',
+                                    showCheckmark: false,
+                                    selectedColor:
+                                        Colors.green.withValues(alpha: 0.28),
+                                    backgroundColor:
+                                        Colors.black.withValues(alpha: 0.62),
+                                    side: BorderSide(
+                                      color: captureMode == 'studio'
+                                          ? Colors.greenAccent
+                                          : Colors.white54,
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: captureMode == 'studio'
+                                          ? Colors.greenAccent
+                                          : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    onSelected: recording
+                                        ? null
+                                        : (_) {
+                                            setState(() {
+                                              captureMode = 'studio';
+                                            });
+                                          },
+                                  ),
+                                  const SizedBox(width: 14),
+                                  ChoiceChip(
+                                    label: const Text('FIELD'),
+                                    selected: captureMode == 'field',
+                                    showCheckmark: false,
+                                    selectedColor:
+                                        Colors.green.withValues(alpha: 0.28),
+                                    backgroundColor:
+                                        Colors.black.withValues(alpha: 0.62),
+                                    side: BorderSide(
+                                      color: captureMode == 'field'
+                                          ? Colors.greenAccent
+                                          : Colors.white54,
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: captureMode == 'field'
+                                          ? Colors.greenAccent
+                                          : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    onSelected: recording
+                                        ? null
+                                        : (_) {
+                                            setState(() {
+                                              captureMode = 'field';
+                                            });
+                                          },
+                                  ),
+                                ],
+                              ),
+                      ),
+                      const SizedBox(height: 20),
                       GestureDetector(
                         onTap: !ready
                             ? null
@@ -1119,8 +1502,8 @@ class _CameraPageState extends State<CameraPage> {
                               },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          width: recording ? 92 : 102,
-                          height: recording ? 92 : 102,
+                          width: recording ? 78 : 86,
+                          height: recording ? 78 : 86,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: recording ? Colors.red : Colors.white,
@@ -1138,11 +1521,11 @@ class _CameraPageState extends State<CameraPage> {
                           child: Center(
                             child: recording
                                 ? Container(
-                                    width: 34,
-                                    height: 34,
+                                    width: 28,
+                                    height: 28,
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(7),
                                     ),
                                   )
                                 : Icon(
@@ -1150,7 +1533,7 @@ class _CameraPageState extends State<CameraPage> {
                                         ? Icons.camera_alt
                                         : Icons.videocam,
                                     color: Colors.black,
-                                    size: 42,
+                                    size: 34,
                                   ),
                           ),
                         ),
@@ -1158,10 +1541,10 @@ class _CameraPageState extends State<CameraPage> {
                       const SizedBox(height: 18),
                       Text(
                         recording
-                            ? 'REGISTRAZIONE IN CORSO'
+                            ? _t('recording')
                             : photoMode
-                                ? 'MODALITÀ FOTO'
-                                : 'MODALITÀ VIDEO',
+                                ? _t('photoMode')
+                                : _t('videoMode'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -1192,7 +1575,7 @@ class _CameraPageState extends State<CameraPage> {
                             ),
                             onPressed: () {
                               setState(() {
-                                status = 'READY ✔';
+                                status = 'READY';
                                 result = null;
                                 videoPath = null;
                                 hcvPath = null;
@@ -1221,7 +1604,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                           onPressed: () {
                             setState(() {
-                              status = 'READY ✔';
+                              status = 'READY';
                               result = null;
                               videoPath = null;
                               hcvPath = null;

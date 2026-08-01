@@ -4,115 +4,116 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class HCVPackage {
   Future<String> createPackage({
     required String videoPath,
     required String hcvPath,
+  }) {
+    return createContentPackage(
+      contentPath: videoPath,
+      hcvPath: hcvPath,
+    );
+  }
+
+  Future<String> createContentPackage({
+    required String contentPath,
+    required String hcvPath,
   }) async {
-    final videoFile = File(videoPath);
+    final contentFile = File(contentPath);
     final hcvFile = File(hcvPath);
-
-    if (!await videoFile.exists()) {
-      throw Exception("Video non trovato: $videoPath");
+    if (!await contentFile.exists()) {
+      throw Exception('Contenuto non trovato: $contentPath');
     }
-
     if (!await hcvFile.exists()) {
-      throw Exception("Certificato HCV non trovato: $hcvPath");
+      throw Exception('Certificato HCV non trovato: $hcvPath');
     }
 
-    final videoBytes = await videoFile.readAsBytes();
+    final contentBytes = await contentFile.readAsBytes();
     final hcvBytes = await hcvFile.readAsBytes();
+    final certificate = jsonDecode(utf8.decode(hcvBytes));
+    if (certificate is! Map<String, dynamic>) {
+      throw const FormatException('Certificato HCV non valido');
+    }
+    final contentType = certificate['content'] is Map
+        ? (certificate['content']['type']?.toString() ?? 'binary')
+        : 'binary';
+    final hcvId = certificate['meta'] is Map
+        ? certificate['meta']['hcvId']?.toString() ?? ''
+        : '';
+    final originalName = p.basename(contentPath);
+    final safeName = originalName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final archiveContentPath = 'content/$safeName';
 
-    final videoSha256 = sha256.convert(videoBytes).toString();
+    final contentSha256 = sha256.convert(contentBytes).toString();
     final certificateSha256 = sha256.convert(hcvBytes).toString();
+    final createdAt = DateTime.now().toUtc().toIso8601String();
+    final packageId = sha256
+        .convert(utf8.encode('$contentSha256|$certificateSha256|$createdAt'))
+        .toString();
 
-    final createdAt = DateTime.now().toIso8601String();
-
-    final packageIdSource = "$videoSha256|$certificateSha256|$createdAt";
-    final packageId = sha256.convert(utf8.encode(packageIdSource)).toString();
-
-    final meta = {
-      "type": "HCV_PACKAGE",
-      "version": 2,
-      "packageId": packageId,
-      "createdAt": createdAt,
-      "videoFile": "video.mp4",
-      "certificateFile": "certificate.hcv",
-      "originalVideoName": p.basename(videoPath),
-      "originalCertificateName": p.basename(hcvPath),
-      "videoSha256": videoSha256,
-      "certificateSha256": certificateSha256,
-      "hashAlgorithm": "SHA256",
-      "certificateFormat": "HCV",
+    final meta = <String, dynamic>{
+      'type': 'HCV_PACKAGE',
+      'version': 3,
+      'packageId': packageId,
+      'createdAt': createdAt,
+      'hcvId': hcvId,
+      'contentType': contentType,
+      'contentFile': archiveContentPath,
+      'certificateFile': 'certificate.hcv',
+      'originalContentName': originalName,
+      'originalCertificateName': p.basename(hcvPath),
+      'contentSha256': contentSha256,
+      'certificateSha256': certificateSha256,
+      'hashAlgorithm': 'SHA256',
+      'certificateFormat': 'HCV',
+      'singleContentEntry': true,
     };
 
-    final archive = Archive();
-
-    archive.addFile(
-      ArchiveFile(
-        "video.mp4",
-        videoBytes.length,
-        videoBytes,
-      ),
-    );
-
-    archive.addFile(
-      ArchiveFile(
-        "certificate.hcv",
+    final archive = Archive()
+      ..addFile(ArchiveFile(
+        archiveContentPath,
+        contentBytes.length,
+        contentBytes,
+      ))
+      ..addFile(ArchiveFile(
+        'certificate.hcv',
         hcvBytes.length,
         hcvBytes,
-      ),
-    );
+      ));
 
     final metaBytes = utf8.encode(
-      const JsonEncoder.withIndent("  ").convert(meta),
+      const JsonEncoder.withIndent('  ').convert(meta),
     );
-
-    archive.addFile(
-      ArchiveFile(
-        "meta.json",
-        metaBytes.length,
-        metaBytes,
-      ),
-    );
+    archive.addFile(ArchiveFile('meta.json', metaBytes.length, metaBytes));
 
     final zipBytes = ZipEncoder().encode(archive);
-
-    if (zipBytes == null) {
-      throw Exception("Errore creazione ZIP HCVPACK");
-    }
+    if (zipBytes == null) throw Exception('Errore creazione HCVPACK');
 
     final outputDir = await _getOutputDirectory();
-
-    if (!await outputDir.exists()) {
-      await outputDir.create(recursive: true);
-    }
-
+    if (!await outputDir.exists()) await outputDir.create(recursive: true);
+    final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '');
     final outputPath = p.join(
       outputDir.path,
-      "package_${DateTime.now().millisecondsSinceEpoch}.hcvpack",
+      safeId.isEmpty
+          ? 'package_${DateTime.now().millisecondsSinceEpoch}.hcvpack'
+          : 'hcvpack_$safeId.hcvpack',
     );
-
-    final outputFile = File(outputPath);
-    await outputFile.writeAsBytes(zipBytes);
-
+    await File(outputPath).writeAsBytes(zipBytes, flush: true);
     return outputPath;
   }
 
   Future<Directory> _getOutputDirectory() async {
     if (Platform.isAndroid) {
-      return Directory("/storage/emulated/0/Download");
+      return Directory('/storage/emulated/0/Download');
     }
-
     if (Platform.isWindows) {
-      final userProfile = Platform.environment["USERPROFILE"];
-
+      final userProfile = Platform.environment['USERPROFILE'];
       if (userProfile != null && userProfile.isNotEmpty) {
-        return Directory(p.join(userProfile, "Documents"));
+        return Directory(p.join(userProfile, 'Documents'));
       }
     }
-
-    return Directory.systemTemp;
+    return getApplicationDocumentsDirectory();
   }
 }

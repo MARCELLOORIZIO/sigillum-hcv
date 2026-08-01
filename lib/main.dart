@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 // import 'package:media_kit/media_kit.dart';
 
 import 'home_page.dart';
+import 'sigillum_edition.dart';
+import 'sigillum_theme.dart';
+import 'user_home_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,12 +19,12 @@ class HCVApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SIGILLUM',
+      title: SigillumBuildConfig.appTitle,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-      ),
-      home: const HomePage(),
+      theme: SigillumBuildConfig.isLab
+          ? ThemeData(useMaterial3: true)
+          : SigillumTheme.userTheme(),
+      home: SigillumBuildConfig.isLab ? const HomePage() : const UserHomePage(),
     );
   }
 }

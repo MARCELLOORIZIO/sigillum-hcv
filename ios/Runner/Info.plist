@@ -14,12 +14,21 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>SIGILLUM salva video verificati nella libreria.</string>
 
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>SIGILLUM usa la rete locale per collegarsi al server AI Trainer durante i test.</string>
+
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>SIGILLUM</string>
+	<string>$(SIGILLUM_APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,13 +36,28 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>SIGILLUM</string>
+	<string>$(SIGILLUM_APP_DISPLAY_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(SIGILLUM_URL_SCHEME)</string>
+			</array>
+		</dict>
+	</array>
+	<key>SIGILLUMAppGroupId</key>
+	<string>$(SIGILLUM_APP_GROUP_ID)</string>
+	<key>SIGILLUMURLScheme</key>
+	<string>$(SIGILLUM_URL_SCHEME)</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -87,12 +111,17 @@
 	<array>
 	<dict>
 		<key>CFBundleTypeName</key>
-		<string>Video</string>
+		<string>SIGILLUM Verifiable Media</string>
 		<key>LSItemContentTypes</key>
 		<array>
 		<string>public.movie</string>
 		<string>public.mpeg-4</string>
 		<string>com.apple.quicktime-movie</string>
+		<string>public.image</string>
+		<string>public.jpeg</string>
+		<string>public.png</string>
+		<string>public.plain-text</string>
+		<string>public.text</string>
 		</array>
 		<key>LSHandlerRank</key>
 		<string>Owner</string>

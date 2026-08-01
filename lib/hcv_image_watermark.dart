@@ -3,10 +3,13 @@ import 'dart:io';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import 'hcv_capture_timestamp.dart';
+
 class HCVImageWatermark {
   Future<String> createPublishedPhoto({
     required String inputPath,
     required String hcvId,
+    required DateTime capturedAt,
   }) async {
     final inputFile = File(inputPath);
 
@@ -22,46 +25,43 @@ class HCVImageWatermark {
       throw Exception('Invalid image');
     }
 
-    final overlayHeight = 92;
+    const overlayHeight = 78;
 
-    final topY = image.height - overlayHeight - 28;
+    const topY = 18;
 
     img.fillRect(
       image,
       x1: 0,
       y1: topY,
       x2: image.width,
-      y2: image.height,
-      color: img.ColorRgba8(0, 0, 0, 140),
+      y2: topY + overlayHeight,
+      color: img.ColorRgba8(0, 0, 0, 118),
     );
-
-    final titleSize = (image.width * 0.035).toInt();
-    final smallSize = (image.width * 0.018).toInt();
 
     img.drawString(
       image,
-      'SIGILLUM',
+      'SIGILLUM CAPTURE',
       font: img.arial14,
-      x: 28,
-      y: topY + 12,
+      x: 20,
+      y: topY + 10,
       color: img.ColorRgb8(255, 255, 255),
     );
 
     img.drawString(
       image,
-      'HUMAN VERIFIED',
+      HCVCaptureTimestamp.format(capturedAt),
       font: img.arial14,
-      x: 28,
-      y: topY + 38,
+      x: 20,
+      y: topY + 30,
       color: img.ColorRgb8(220, 220, 220),
     );
 
     img.drawString(
       image,
       hcvId,
-      font: img.arial14,
-      x: 28,
-      y: topY + 60,
+      font: img.arial24,
+      x: 20,
+      y: topY + 48,
       color: img.ColorRgb8(255, 215, 0),
     );
 
