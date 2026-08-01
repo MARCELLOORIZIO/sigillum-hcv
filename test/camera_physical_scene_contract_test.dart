@@ -13,9 +13,12 @@ void main() {
     expect(source, contains('"physicalSceneClass"'));
     expect(source, contains('"geometryChallenge"'));
     expect(source, contains('MUOVI LEGGERMENTE IL TELEFONO LATERALMENTE'));
+    expect(source, contains('combinePhotoDisplayRiskFromPreCaptureEvidence'));
+    expect(source, contains('liveCaptureOnly: true'));
+    expect(source, contains('_hasLiveTemporalScreenCorroboration'));
     expect(
       source,
-      contains('HCVDisplayRiskFusion.combine(analyses, liveCaptureOnly: true)'),
+      contains("'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY'"),
     );
   });
 }
