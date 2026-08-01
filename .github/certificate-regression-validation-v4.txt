@@ -1,0 +1,2 @@
+Temporary validation trigger v4: formatting-independent perspective and photo corroboration patch.
+No application source is changed by this validation-only branch.
