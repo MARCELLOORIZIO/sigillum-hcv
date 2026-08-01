@@ -17,12 +17,13 @@ workflows:
         script: python3 tool/run_ios_share_handoff_fix.py
       - name: Apply document import and Messenger OCR fixes
         script: python3 tool/apply_file_import_and_ocr_fix.py
-      - name: Apply planar parallax monitor fix, safe capture and coordinates
+      - name: Apply certificate-based monitor, capture, coordinates and Registry recovery
         script: |
           python3 tool/apply_safe_capture_location_fix.py
           python3 tool/apply_mixed_scene_monitor_fix.py
           python3 tool/apply_planar_parallax_compile_safety.py
-          dart format lib/camera_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart
+          python3 tool/apply_certificate_regression_fix.py
+          dart format lib/camera_page.dart lib/registry_verify_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_projective_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart test/photo_display_risk_policy_test.dart test/monitor_certificate_regression_test.dart test/hcv_projective_motion_model_test.dart test/registry_local_republish_contract_test.dart
       - name: Flutter pub get
         script: flutter pub get
       - name: Verify source and tests
