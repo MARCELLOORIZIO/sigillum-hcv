@@ -140,25 +140,22 @@ class HCVAuthService {
         .toList(growable: false);
   }
 
-  Future<void> logout() async {
+  Future<void> logout({bool allDevices = false}) async {
     final token = await HCVSecureStore.read(_sessionTokenKey);
     try {
       if (token != null && token.isNotEmpty) {
-        await _request('POST', '/api/auth/logout', token: token);
+        await _request(
+          'POST',
+          allDevices ? '/api/auth/logout-all' : '/api/auth/logout',
+          token: token,
+        );
       }
     } finally {
       await HCVSecureStore.delete(_sessionTokenKey);
     }
   }
 
-  Future<void> logoutAll() async {
-    final token = await _requiredToken();
-    try {
-      await _request('POST', '/api/auth/logout-all', token: token);
-    } finally {
-      await HCVSecureStore.delete(_sessionTokenKey);
-    }
-  }
+  Future<void> logoutAll() => logout(allDevices: true);
 
   Future<void> deleteAccount({
     required String password,
