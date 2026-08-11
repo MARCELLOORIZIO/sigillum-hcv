@@ -13,6 +13,20 @@ workflows:
     integrations:
       app_store_connect: Codemagic-HCV
     scripts:
+      - name: Guard commercial changes from frozen capture engine
+        script: |
+          git diff --exit-code f810af479546075ffe84c3ea2411dcc6300c0bb3..HEAD -- \
+            lib/camera_page.dart \
+            lib/text_cert_page.dart \
+            lib/hcv_engine.dart \
+            lib/hcv_live_screen_probe.dart \
+            lib/hcv_live_screen_probe_core.dart \
+            lib/hcv_live_screen_probe_geometry.dart \
+            lib/hcv_scene_geometry_classifier.dart \
+            lib/hcv_scene_decision_fusion.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_planar_motion_model.dart \
+            lib/hcv_projective_motion_model.dart
       - name: Apply reliable iOS share handoff
         script: python3 tool/run_ios_share_handoff_fix.py
       - name: Apply document import and Messenger OCR fixes
@@ -36,6 +50,10 @@ workflows:
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
+      - name: Apply commercial Registry authorization
+        script: |
+          python3 tool/apply_commercial_registry_auth.py
+          dart format lib/hcv_registry_service.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/main.dart
       - name: Flutter pub get
         script: flutter pub get
       - name: Verify source and tests
@@ -58,7 +76,7 @@ workflows:
         script: |
           cat > /Users/builder/export_options.plist <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key>
