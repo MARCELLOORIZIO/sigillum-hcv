@@ -20,9 +20,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Guard commercial changes from capture engine
-        if: github.ref_name == 'commercial/prelaunch-20260811'
         run: |
           git diff --exit-code f810af479546075ffe84c3ea2411dcc6300c0bb3..HEAD -- \
             lib/camera_page.dart \
@@ -58,12 +59,14 @@ jobs:
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
           if [ -f tool/apply_commercial_registry_auth.py ]; then python3 tool/apply_commercial_registry_auth.py; fi
+          if [ -f tool/apply_commercial_profile_shell.py ]; then python3 tool/apply_commercial_profile_shell.py; fi
 
       - name: Format generated sources
         run: |
           dart format \
             lib/camera_page.dart \
             lib/account_page.dart \
+            lib/user_home_page.dart \
             lib/text_cert_page.dart \
             lib/hcv_text_integrity.dart \
             lib/text_social_verify_page.dart \
@@ -84,6 +87,7 @@ jobs:
             lib/commercial_account_service.dart \
             lib/commercial_billing_service.dart \
             lib/commercial_gate.dart \
+            lib/commercial_profile_page.dart \
             lib/main.dart \
             test/camera_physical_scene_contract_test.dart \
             test/photo_pre_capture_only_contract_test.dart \
