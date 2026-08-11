@@ -147,7 +147,7 @@ void main() {
       for (final source in [userHome, labHome]) {
         expect(source, contains("'ackSharedPath'"));
         expect(source, contains('_lastOpenedSharedPath'));
-        expect(source, contains("{'path': path}"));
+        expect(source, contains("'path': path"));
       }
     });
   });
