@@ -8,7 +8,11 @@ import 'hcv_keystore_signer.dart';
 import 'hcv_secure_store.dart';
 
 class CommercialAccountException implements Exception {
-  const CommercialAccountException(this.message, {this.statusCode, this.code});
+  const CommercialAccountException(
+    this.message, {
+    this.statusCode,
+    this.code,
+  });
 
   final String message;
   final int? statusCode;
@@ -20,7 +24,10 @@ class CommercialAccountException implements Exception {
 
 class CommercialAccountService {
   const CommercialAccountService({
-    this.baseUrl = 'https://hcv-registry-server.onrender.com',
+    this.baseUrl = const String.fromEnvironment(
+      'SIGILLUM_API_BASE_URL',
+      defaultValue: 'https://hcv-registry-server.onrender.com',
+    ),
   });
 
   static const _sessionTokenKey = 'sigillum.auth.session.v1';
@@ -30,8 +37,10 @@ class CommercialAccountService {
 
   final String baseUrl;
 
+  HCVAuthService get _auth => HCVAuthService(baseUrl: baseUrl);
+
   Future<Map<String, dynamic>?> restoreAccount() async {
-    return const HCVAuthService().restoreSession();
+    return _auth.restoreSession();
   }
 
   Future<void> register({
@@ -61,7 +70,10 @@ class CommercialAccountService {
     );
   }
 
-  Future<void> verifyEmail({required String email, required String code}) async {
+  Future<void> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
     await _request(
       'POST',
       '/api/auth/verify-email',
@@ -81,7 +93,7 @@ class CommercialAccountService {
     required String email,
     required String password,
   }) {
-    return const HCVAuthService().login(email: email, password: password);
+    return _auth.login(email: email, password: password);
   }
 
   Future<void> forgotPassword(String email) async {
@@ -120,12 +132,43 @@ class CommercialAccountService {
     return _authorizedRequest('GET', '/api/billing/status');
   }
 
-  Future<void> logout() => const HCVAuthService().logout();
+  Future<Map<String, dynamic>> verifyApplePurchase({
+    required String productId,
+    String? transactionId,
+    required String receiptData,
+  }) async {
+    if (productId.isEmpty) {
+      throw const CommercialAccountException(
+        'Prodotto App Store non valido.',
+      );
+    }
+    if ((transactionId == null || transactionId.trim().isEmpty) &&
+        receiptData.trim().isEmpty) {
+      throw const CommercialAccountException(
+        'Dati App Store insufficienti per verificare l’acquisto.',
+      );
+    }
+    return _authorizedRequest(
+      'POST',
+      '/api/billing/apple/verify',
+      body: {
+        'productId': productId,
+        if (transactionId != null && transactionId.trim().isNotEmpty)
+          'transactionId': transactionId.trim(),
+        if (receiptData.trim().isNotEmpty) 'receiptData': receiptData,
+      },
+    );
+  }
+
+  Future<void> logout() => _auth.logout();
 
   Future<String> _token() async {
     final token = await HCVSecureStore.read(_sessionTokenKey);
     if (token == null || token.isEmpty) {
-      throw const CommercialAccountException('Accedi per continuare.', statusCode: 401);
+      throw const CommercialAccountException(
+        'Accedi per continuare.',
+        statusCode: 401,
+      );
     }
     return token;
   }
@@ -140,7 +183,8 @@ class CommercialAccountService {
 
   Future<Map<String, dynamic>> _deviceProof() async {
     final identity = await HCVIdentity().loadIdentity();
-    final fingerprint = identity['devicePublicKeyFingerprint']?.toString() ?? '';
+    final fingerprint =
+        identity['devicePublicKeyFingerprint']?.toString() ?? '';
     final rawPublicKey = identity['publicKey'];
     if (fingerprint.isEmpty ||
         fingerprint == 'UNAVAILABLE' ||
@@ -183,7 +227,10 @@ class CommercialAccountService {
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (token != null && token.isNotEmpty) {
-        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer $token',
+        );
       }
       if (body != null) request.write(jsonEncode(body));
       final response = await request.close().timeout(_timeout);
@@ -208,11 +255,17 @@ class CommercialAccountService {
     } on CommercialAccountException {
       rethrow;
     } on TimeoutException {
-      throw const CommercialAccountException('Tempo di risposta del server scaduto.');
+      throw const CommercialAccountException(
+        'Tempo di risposta del server scaduto.',
+      );
     } on SocketException catch (error) {
-      throw CommercialAccountException('Registry non raggiungibile: ${error.message}');
+      throw CommercialAccountException(
+        'Registry non raggiungibile: ${error.message}',
+      );
     } on HandshakeException {
-      throw const CommercialAccountException('Connessione sicura non disponibile.');
+      throw const CommercialAccountException(
+        'Connessione sicura non disponibile.',
+      );
     } finally {
       client.close(force: true);
     }
