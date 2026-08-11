@@ -17,24 +17,35 @@ void main() {
     });
 
     test('certificate writes carry the authenticated Creator session', () {
-      expect(
-        registry,
-        contains("HCVSecureStore.read('sigillum.auth.session.v1')"),
+      final uploadStart = registry.indexOf(
+        'Future<Map<String, dynamic>> uploadCertificateFile',
       );
-      expect(registry, contains('HttpHeaders.authorizationHeader'));
+      final fetchStart = registry.indexOf(
+        'Future<Map<String, dynamic>> fetchCertificate',
+      );
+      expect(uploadStart, greaterThanOrEqualTo(0));
+      expect(fetchStart, greaterThan(uploadStart));
+      final uploadBody = registry.substring(uploadStart, fetchStart);
+      expect(uploadBody, contains('HCVSecureStore.read('));
+      expect(uploadBody, contains('sigillum.auth.session.v1'));
+      expect(uploadBody, contains('HttpHeaders.authorizationHeader'));
+      expect(uploadBody, contains("'Bearer \$sessionToken'"));
     });
 
     test('public certificate fetch remains publicly readable', () {
       final fetchStart = registry.indexOf(
         'Future<Map<String, dynamic>> fetchCertificate',
       );
-      expect(fetchStart, greaterThanOrEqualTo(0));
-      final fetchBody = registry.substring(fetchStart);
-      expect(fetchBody, contains('client.getUrl(uri)'));
-      expect(
-        fetchBody,
-        isNot(contains("HCVSecureStore.read('sigillum.auth.session.v1')")),
+      final queueStart = registry.indexOf(
+        'Future<void> enqueueCertificateFile',
+        fetchStart,
       );
+      expect(fetchStart, greaterThanOrEqualTo(0));
+      expect(queueStart, greaterThan(fetchStart));
+      final fetchBody = registry.substring(fetchStart, queueStart);
+      expect(fetchBody, contains('client.getUrl(uri)'));
+      expect(fetchBody, isNot(contains('HCVSecureStore.read(')));
+      expect(fetchBody, isNot(contains('HttpHeaders.authorizationHeader')));
     });
   });
 }
