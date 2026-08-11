@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 // import 'package:media_kit/media_kit.dart';
 
+import 'commercial_gate.dart';
 import 'home_page.dart';
 import 'sigillum_edition.dart';
 import 'sigillum_theme.dart';
-import 'user_home_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +24,7 @@ class HCVApp extends StatelessWidget {
       theme: SigillumBuildConfig.isLab
           ? ThemeData(useMaterial3: true)
           : SigillumTheme.userTheme(),
-      home: SigillumBuildConfig.isLab ? const HomePage() : const UserHomePage(),
+      home: SigillumBuildConfig.isLab ? const HomePage() : const CommercialGate(),
     );
   }
 }
