@@ -9,6 +9,7 @@ void main() {
     final secureStore = File('lib/hcv_secure_store.dart').readAsStringSync();
     final identity = File('lib/hcv_identity.dart').readAsStringSync();
     final home = File('lib/user_home_page.dart').readAsStringSync();
+    final commercialProfile = File('lib/commercial_profile_page.dart').readAsStringSync();
     final localization =
         File('lib/sigillum_localization.dart').readAsStringSync();
     final swift = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
@@ -16,17 +17,19 @@ void main() {
       'android/app/src/main/kotlin/com/example/hcv_app/MainActivity.kt',
     ).readAsStringSync();
 
-    test('home exposes an explicit and visible Account action', () {
-      expect(home, contains("import 'account_page.dart';"));
+    test('home exposes an explicit and visible commercial Account action', () {
+      expect(home, contains("import 'commercial_profile_page.dart';"));
       expect(home, contains("title: _t('accountTitle')"));
       expect(home, contains("subtitle: _t('accountSubtitle')"));
       expect(home, contains('Icons.manage_accounts_rounded'));
-      expect(home, contains('AccountPage('));
+      expect(home, contains('CommercialProfilePage('));
+      expect(home, isNot(contains('AccountPage(')));
       expect(home, contains('onLanguageChanged: _setLanguage'));
+      expect(commercialProfile, contains('Identità'));
       expect(localization, contains("'accountTitle': 'ACCOUNT'"));
     });
 
-    test('account supports registration login and active session controls', () {
+    test('legacy account supports registration login and active session controls', () {
       expect(account, contains('_auth.register('));
       expect(account, contains('_auth.login('));
       expect(account, contains("'createAccount': 'CREA ACCOUNT ONLINE'"));
@@ -37,7 +40,7 @@ void main() {
       expect(account, isNot(contains("'logoutUnavailable'")));
     });
 
-    test('profile identity KYC password and devices remain manageable', () {
+    test('legacy profile identity KYC password and devices remain manageable', () {
       expect(account, contains('HCVIdentity().saveCreatorName(name)'));
       expect(account, contains('DropdownButtonFormField<String>'));
       expect(account, contains('IdentityPage(languageCode: _languageCode)'));
