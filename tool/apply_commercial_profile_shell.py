@@ -34,9 +34,9 @@ new_account = """CommercialProfilePage(
                       onSessionInvalidated: widget.onSessionInvalidated ?? () {},
                     )"""
 count = home.count(old_account)
-if count not in (0, 2):
-    raise RuntimeError(f'expected two AccountPage anchors or none, found {count}')
-if count == 2:
+if count not in (0, 1, 2):
+    raise RuntimeError(f'unexpected AccountPage anchor count: {count}')
+if count:
     home = home.replace(old_account, new_account)
 
 if 'AccountPage(' in home or "import 'account_page.dart';" in home:
