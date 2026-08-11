@@ -50,10 +50,11 @@ workflows:
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
-      - name: Apply commercial Registry authorization
+      - name: Apply commercial access shell
         script: |
           python3 tool/apply_commercial_registry_auth.py
-          dart format lib/hcv_registry_service.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/main.dart
+          python3 tool/apply_commercial_profile_shell.py
+          dart format lib/hcv_registry_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart
       - name: Flutter pub get
         script: flutter pub get
       - name: Verify source and tests
