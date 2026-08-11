@@ -60,6 +60,7 @@ jobs:
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
           if [ -f tool/apply_commercial_registry_auth.py ]; then python3 tool/apply_commercial_registry_auth.py; fi
           if [ -f tool/apply_commercial_profile_shell.py ]; then python3 tool/apply_commercial_profile_shell.py; fi
+          if [ -f tool/apply_server_verified_billing_gate.py ]; then python3 tool/apply_server_verified_billing_gate.py; fi
 
       - name: Format generated sources
         run: |
@@ -88,6 +89,7 @@ jobs:
             lib/commercial_billing_service.dart \
             lib/commercial_gate.dart \
             lib/commercial_profile_page.dart \
+            lib/hcv_auth_service.dart \
             lib/main.dart \
             test/camera_physical_scene_contract_test.dart \
             test/photo_pre_capture_only_contract_test.dart \
@@ -103,7 +105,8 @@ jobs:
             test/account_success_feedback_contract_test.dart \
             test/hcv_text_integrity_test.dart \
             test/text_social_workflow_contract_test.dart \
-            test/text_keyboard_registry_photo_arm_contract_test.dart
+            test/text_keyboard_registry_photo_arm_contract_test.dart \
+            test/commercial_billing_server_verification_contract_test.dart
 
       - name: Resolve dependencies
         run: flutter pub get
