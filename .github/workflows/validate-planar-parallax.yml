@@ -1,14 +1,16 @@
-name: Validate planar parallax correction
+name: Validate SIGILLUM commercial prelaunch
 
 on:
   push:
     branches:
       - fix/reality-monitor-geometry-20260725
       - feature/text-social-verification-20260801
+      - commercial/prelaunch-20260811
   pull_request:
     branches:
       - fix/reality-monitor-geometry-20260725
       - feature/text-social-verification-20260801
+      - commercial/prelaunch-20260811
   workflow_dispatch:
 
 jobs:
@@ -18,6 +20,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Guard commercial changes from capture engine
+        if: github.ref_name == 'commercial/prelaunch-20260811'
+        run: |
+          git diff --exit-code f810af479546075ffe84c3ea2411dcc6300c0bb3..HEAD -- \
+            lib/camera_page.dart \
+            lib/text_cert_page.dart \
+            lib/hcv_engine.dart \
+            lib/hcv_live_screen_probe.dart \
+            lib/hcv_live_screen_probe_core.dart \
+            lib/hcv_live_screen_probe_geometry.dart \
+            lib/hcv_scene_geometry_classifier.dart \
+            lib/hcv_scene_decision_fusion.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_planar_motion_model.dart \
+            lib/hcv_projective_motion_model.dart
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -39,6 +57,7 @@ jobs:
           python3 tool/apply_account_success_feedback.py
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          if [ -f tool/apply_commercial_registry_auth.py ]; then python3 tool/apply_commercial_registry_auth.py; fi
 
       - name: Format generated sources
         run: |
@@ -49,6 +68,7 @@ jobs:
             lib/hcv_text_integrity.dart \
             lib/text_social_verify_page.dart \
             lib/registry_verify_page.dart \
+            lib/hcv_registry_service.dart \
             lib/hcv_capture_location.dart \
             lib/hcv_location_image_watermark.dart \
             lib/hcv_location_video_watermark.dart \
@@ -61,6 +81,10 @@ jobs:
             lib/hcv_scene_decision_fusion.dart \
             lib/hcv_display_risk_fusion.dart \
             lib/hcv_live_screen_probe_core.dart \
+            lib/commercial_account_service.dart \
+            lib/commercial_billing_service.dart \
+            lib/commercial_gate.dart \
+            lib/main.dart \
             test/camera_physical_scene_contract_test.dart \
             test/photo_pre_capture_only_contract_test.dart \
             test/registry_verify_hcv_id16_contract_test.dart \
@@ -102,7 +126,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: planar-parallax-diagnostics
+          name: sigillum-commercial-diagnostics
           path: |
             analyze.log
             test.log
