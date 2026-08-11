@@ -32,26 +32,35 @@ class CommercialBillingService {
   }
 
   void startListening() {
-    _subscription ??= _iap.purchaseStream.listen((items) async {
-      _purchaseController.add(items);
-      for (final purchase in items) {
-        if (purchase.pendingCompletePurchase &&
-            (purchase.status == PurchaseStatus.purchased ||
-                purchase.status == PurchaseStatus.restored)) {
-          await _iap.completePurchase(purchase);
-        }
-      }
-    });
+    _subscription ??= _iap.purchaseStream.listen(
+      _purchaseController.add,
+      onError: _purchaseController.addError,
+    );
   }
 
   Future<bool> purchase(ProductDetails product) async {
     if (!productIds.contains(product.id)) {
       throw StateError('Prodotto SIGILLUM non riconosciuto.');
     }
-    return _iap.buyNonConsumable(purchaseParam: PurchaseParam(productDetails: product));
+    return _iap.buyNonConsumable(
+      purchaseParam: PurchaseParam(productDetails: product),
+    );
   }
 
   Future<void> restore() => _iap.restorePurchases();
+
+  Future<void> completeVerifiedPurchase(PurchaseDetails purchase) async {
+    if (!productIds.contains(purchase.productID)) {
+      throw StateError('Prodotto SIGILLUM non riconosciuto.');
+    }
+    if (purchase.status != PurchaseStatus.purchased &&
+        purchase.status != PurchaseStatus.restored) {
+      throw StateError('Acquisto SIGILLUM non completato.');
+    }
+    if (purchase.pendingCompletePurchase) {
+      await _iap.completePurchase(purchase);
+    }
+  }
 
   Future<void> dispose() async {
     await _subscription?.cancel();
