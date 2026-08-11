@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 home_path = Path('lib/user_home_page.dart')
 home = home_path.read_text(encoding='utf-8')
@@ -24,23 +25,24 @@ new_widget = """class UserHomePage extends StatefulWidget {
 if old_widget in home:
     home = home.replace(old_widget, new_widget, 1)
 
-old_account = """AccountPage(
-                      languageCode: languageCode,
-                      onLanguageChanged: _setLanguage,
-                    )"""
+account_pattern = re.compile(
+    r"AccountPage\(\s*"
+    r"languageCode:\s*languageCode,\s*"
+    r"onLanguageChanged:\s*_setLanguage,?\s*"
+    r"\)",
+    re.DOTALL,
+)
 new_account = """CommercialProfilePage(
                       languageCode: languageCode,
                       onLanguageChanged: _setLanguage,
                       onSessionInvalidated: widget.onSessionInvalidated ?? () {},
                     )"""
-count = home.count(old_account)
-if count not in (0, 1, 2):
-    raise RuntimeError(f'unexpected AccountPage anchor count: {count}')
-if count:
-    home = home.replace(old_account, new_account)
+home, _ = account_pattern.subn(new_account, home)
 
 if 'AccountPage(' in home or "import 'account_page.dart';" in home:
     raise RuntimeError('technical AccountPage remains exposed from user home')
+if 'CommercialProfilePage(' not in home:
+    raise RuntimeError('commercial profile was not routed from user home')
 
 home_path.write_text(home, encoding='utf-8')
 
