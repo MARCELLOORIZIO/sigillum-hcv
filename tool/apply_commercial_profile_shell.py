@@ -37,8 +37,13 @@ new_account = """CommercialProfilePage(
                       onLanguageChanged: _setLanguage,
                       onSessionInvalidated: widget.onSessionInvalidated ?? () {},
                     )"""
-home, _ = account_pattern.subn(new_account, home)
+home, replaced = account_pattern.subn(new_account, home)
 
+# Idempotent by design: on a fresh source replace every technical AccountPage
+# occurrence that matches the public routing shape; on an already-patched source
+# zero replacements are valid as long as the commercial route is present.
+if replaced == 0 and 'CommercialProfilePage(' not in home:
+    raise RuntimeError('commercial Account route anchor missing')
 if 'AccountPage(' in home or "import 'account_page.dart';" in home:
     raise RuntimeError('technical AccountPage remains exposed from user home')
 if 'CommercialProfilePage(' not in home:
@@ -64,6 +69,8 @@ if old_gate in gate:
     gate = gate.replace(old_gate, new_gate, 1)
 if 'return const UserHomePage();' in gate:
     raise RuntimeError('commercial gate still lacks session invalidation callback')
+if 'onSessionInvalidated:' not in gate:
+    raise RuntimeError('commercial gate callback missing')
 gate_path.write_text(gate, encoding='utf-8')
 
-print('Simplified commercial profile routed without capture changes')
+print(f'Simplified commercial profile routed without capture changes ({replaced} route replacements)')
