@@ -105,3 +105,102 @@ workflows:
       - build/ios/ipa/*.ipa
       - build/ios/archive/*.xcarchive
       - /tmp/xcodebuild_logs/*.log
+
+  ios-testflight:
+    name: SIGILLUM iOS TestFlight
+    max_build_duration: 120
+    environment:
+      flutter: stable
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sigillum.hcv
+      vars:
+        APP_STORE_APPLE_ID: "6800755999"
+    integrations:
+      app_store_connect: Codemagic-HCV
+    scripts:
+      - name: Guard commercial changes from frozen capture engine
+        script: |
+          git diff --exit-code f810af479546075ffe84c3ea2411dcc6300c0bb3..HEAD -- \
+            lib/camera_page.dart \
+            lib/text_cert_page.dart \
+            lib/hcv_engine.dart \
+            lib/hcv_live_screen_probe.dart \
+            lib/hcv_live_screen_probe_core.dart \
+            lib/hcv_live_screen_probe_geometry.dart \
+            lib/hcv_scene_geometry_classifier.dart \
+            lib/hcv_scene_decision_fusion.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_planar_motion_model.dart \
+            lib/hcv_projective_motion_model.dart
+      - name: Apply reliable iOS share handoff
+        script: python3 tool/run_ios_share_handoff_fix.py
+      - name: Apply document import and Messenger OCR fixes
+        script: python3 tool/apply_file_import_and_ocr_fix.py
+      - name: Apply certificate-based monitor, capture, coordinates and Registry recovery
+        script: |
+          python3 tool/apply_safe_capture_location_fix.py
+          python3 tool/apply_mixed_scene_monitor_fix.py
+          python3 tool/apply_planar_parallax_compile_safety.py
+          python3 tool/apply_certificate_regression_fix.py
+          python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
+          dart format lib/camera_page.dart lib/registry_verify_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_projective_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/camera_physical_scene_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/registry_verify_hcv_id16_contract_test.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart test/photo_display_risk_policy_test.dart test/monitor_certificate_regression_test.dart test/hcv_projective_motion_model_test.dart test/registry_local_republish_contract_test.dart
+      - name: Apply isolated Account success feedback
+        script: |
+          python3 tool/apply_account_success_feedback.py
+          dart format lib/account_page.dart test/account_success_feedback_contract_test.dart
+      - name: Apply persistent text, Registry recovery and manual photo arming
+        script: |
+          python3 tool/apply_text_social_verification.py
+          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
+      - name: Apply commercial access shell
+        script: |
+          python3 tool/apply_commercial_registry_auth.py
+          python3 tool/apply_commercial_profile_shell.py
+          python3 tool/apply_server_verified_billing_gate.py
+          dart format lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Verify source and tests
+        script: |
+          echo "Building commit $(git rev-parse HEAD)"
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+      - name: Configure SIGILLUM User edition for App Store
+        script: |
+          cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
+          SIGILLUM_APP_DISPLAY_NAME=Fotocamera Sigillum
+          SIGILLUM_BUNDLE_ID=com.sigillum.hcv
+          SIGILLUM_SHARE_BUNDLE_ID=com.sigillum.hcv.share
+          SIGILLUM_APP_GROUP_ID=group.com.sigillum.hcv
+          SIGILLUM_URL_SCHEME=sigillum
+          SIGILLUM_APP_PROFILE=SIGILLUM HCV App Store
+          SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share App Store
+          XCCONFIG
+      - name: Apply App Store signing profiles
+        script: |
+          xcode-project use-profiles
+      - name: Build TestFlight IPA
+        script: |
+          BUILD_COMMIT="$(git rev-parse HEAD)"
+          LATEST_BUILD_NUMBER="$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)"
+          if ! [[ "$LATEST_BUILD_NUMBER" =~ ^[0-9]+$ ]]; then LATEST_BUILD_NUMBER=0; fi
+          BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          echo "App Store build number: $BUILD_NUMBER"
+          flutter build ipa --release \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=SIGILLUM_EDITION=user \
+            --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com \
+            --dart-define=GIT_COMMIT="$BUILD_COMMIT" \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
