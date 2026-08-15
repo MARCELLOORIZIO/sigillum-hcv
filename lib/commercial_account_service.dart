@@ -92,8 +92,16 @@ class CommercialAccountService {
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-  }) {
-    return _auth.login(email: email, password: password);
+  }) async {
+    try {
+      return await _auth.login(email: email, password: password);
+    } on HCVAuthException catch (error) {
+      throw CommercialAccountException(
+        error.message,
+        statusCode: error.statusCode,
+        code: error.code,
+      );
+    }
   }
 
   Future<void> forgotPassword(String email) async {
