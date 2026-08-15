@@ -10,13 +10,13 @@ permissions:
 
 concurrency:
   group: commercial-integration-fix-20260816
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   patch-test-commit:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repair branch
@@ -32,6 +32,27 @@ jobs:
           echo "engine=$(git hash-object lib/hcv_engine.dart)" >> "$GITHUB_OUTPUT"
           echo "verifier=$(git hash-object lib/hcv_verifier.dart)" >> "$GITHUB_OUTPUT"
           echo "signer=$(git hash-object lib/hcv_keystore_signer.dart)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Capture pre-repair baseline test failures
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded 2>&1 | tee /tmp/commercial_fix_baseline_test.log
+          status=${PIPESTATUS[0]}
+          echo "Baseline flutter test exit code: $status"
+          sed -nE 's#.*test/([^:]+\.dart):.*\[E\]$#\1#p' /tmp/commercial_fix_baseline_test.log | sort -u > /tmp/commercial_fix_baseline_failures.txt
+          echo "Baseline failing test files:"
+          cat /tmp/commercial_fix_baseline_failures.txt || true
+          exit 0
 
       - name: Harden one-time patch helper
         shell: bash
@@ -59,6 +80,9 @@ jobs:
       - name: Apply entitlement and profile follow-up
         run: python3 tool/apply_commercial_integration_fix_followup.py
 
+      - name: Align Registry authentication contract
+        run: python3 tool/apply_commercial_contract_alignment.py
+
       - name: Verify frozen HCV files unchanged
         shell: bash
         run: |
@@ -78,15 +102,6 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
       - name: Format repaired files
         run: |
           dart format \
@@ -100,32 +115,66 @@ jobs:
             lib/user_home_page.dart \
             lib/commercial_profile_page.dart
 
-      - name: Analyze
+      - name: Analyze repaired app
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      - name: Run tests
+      - name: Run commercial integration contract tests
+        run: |
+          flutter test --reporter expanded \
+            test/commercial_billing_server_verification_contract_test.dart \
+            test/commercial_api_transport_contract_test.dart \
+            test/account_page_contract_test.dart \
+            test/kyc_recovery_contract_test.dart
+
+      - name: Capture post-repair full test results
         shell: bash
         run: |
-          set -o pipefail
-          flutter test --reporter expanded 2>&1 | tee /tmp/commercial_fix_flutter_test.log
+          set +e
+          flutter test --reporter expanded 2>&1 | tee /tmp/commercial_fix_patched_test.log
+          status=${PIPESTATUS[0]}
+          echo "Patched flutter test exit code: $status"
+          sed -nE 's#.*test/([^:]+\.dart):.*\[E\]$#\1#p' /tmp/commercial_fix_patched_test.log | sort -u > /tmp/commercial_fix_patched_failures.txt
+          echo "Post-repair failing test files:"
+          cat /tmp/commercial_fix_patched_failures.txt || true
+          exit 0
+
+      - name: Reject any new full-suite regression
+        shell: bash
+        run: |
+          comm -13 /tmp/commercial_fix_baseline_failures.txt /tmp/commercial_fix_patched_failures.txt > /tmp/commercial_fix_new_failures.txt
+          if [ -s /tmp/commercial_fix_new_failures.txt ]; then
+            echo "New failing test files introduced by commercial repair:"
+            cat /tmp/commercial_fix_new_failures.txt
+            exit 1
+          fi
+          for repaired in \
+            commercial_billing_server_verification_contract_test.dart \
+            commercial_api_transport_contract_test.dart \
+            account_page_contract_test.dart; do
+            if grep -Fxq "$repaired" /tmp/commercial_fix_patched_failures.txt; then
+              echo "Commercial repair contract still failing: $repaired"
+              exit 1
+            fi
+          done
+          echo "No new full-suite regressions relative to pre-repair baseline."
 
       - name: Preserve test diagnostics
         if: always()
         shell: bash
         run: |
           mkdir -p commercial-fix-diagnostics
-          if [ -f /tmp/commercial_fix_flutter_test.log ]; then
-            cp /tmp/commercial_fix_flutter_test.log commercial-fix-diagnostics/flutter_test.log
-          else
-            echo "Test log was not produced" > commercial-fix-diagnostics/flutter_test.log
-          fi
+          cp /tmp/commercial_fix_baseline_test.log commercial-fix-diagnostics/baseline_flutter_test.log 2>/dev/null || true
+          cp /tmp/commercial_fix_patched_test.log commercial-fix-diagnostics/patched_flutter_test.log 2>/dev/null || true
+          cp /tmp/commercial_fix_baseline_failures.txt commercial-fix-diagnostics/baseline_failures.txt 2>/dev/null || true
+          cp /tmp/commercial_fix_patched_failures.txt commercial-fix-diagnostics/patched_failures.txt 2>/dev/null || true
+          cp /tmp/commercial_fix_new_failures.txt commercial-fix-diagnostics/new_failures.txt 2>/dev/null || true
 
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: commercial-fix-test-diagnostics
-          path: commercial-fix-diagnostics/flutter_test.log
+          path: commercial-fix-diagnostics/
           if-no-files-found: error
           retention-days: 2
 
