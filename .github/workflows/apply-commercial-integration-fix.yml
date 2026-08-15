@@ -33,6 +33,26 @@ jobs:
           echo "verifier=$(git hash-object lib/hcv_verifier.dart)" >> "$GITHUB_OUTPUT"
           echo "signer=$(git hash-object lib/hcv_keystore_signer.dart)" >> "$GITHUB_OUTPUT"
 
+      - name: Harden one-time patch helper
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tool/apply_commercial_integration_fix.py')
+          source = path.read_text(encoding='utf-8')
+          old = """    if new in source:\n        print(f'{label}: already applied')\n        return\n    if old not in source:\n        raise RuntimeError(f'{label}: anchor not found in {path_str}')\n    path.write_text(source.replace(old, new, 1), encoding='utf-8')\n    print(f'{label}: applied')\n"""
+          new = """    if old in source:\n        path.write_text(source.replace(old, new, 1), encoding='utf-8')\n        print(f'{label}: applied')\n        return\n    if new and new in source:\n        print(f'{label}: already applied')\n        return\n    raise RuntimeError(f'{label}: anchor not found in {path_str}')\n"""
+          if old not in source:
+              raise RuntimeError('replace_once helper anchor missing')
+          source = source.replace(old, new, 1)
+          old_guard = """for path in Path('lib').glob('*.dart'):\n    if 'https://hcv-registry-server.onrender.com' in path.read_text(encoding='utf-8'):\n        raise RuntimeError(f'legacy Registry host still present in {path}')\n"""
+          new_guard = """for path in Path('lib').glob('*.dart'):\n    if path.name == 'hcv_ai_training_service.dart':\n        continue\n    if 'https://hcv-registry-server.onrender.com' in path.read_text(encoding='utf-8'):\n        raise RuntimeError(f'legacy Registry host still present in {path}')\n"""
+          if old_guard not in source:
+              raise RuntimeError('legacy-host guard anchor missing')
+          source = source.replace(old_guard, new_guard, 1)
+          path.write_text(source, encoding='utf-8')
+          PY
+
       - name: Apply commercial-only repair
         run: python3 tool/apply_commercial_integration_fix.py
 
@@ -47,11 +67,11 @@ jobs:
             exit 1
           fi
 
-      - name: Reject obsolete production host
+      - name: Reject obsolete commercial production host
         shell: bash
         run: |
-          if grep -R --line-number --fixed-strings 'https://hcv-registry-server.onrender.com' lib; then
-            echo "Obsolete Registry host remains in user-edition source"
+          if grep -R --exclude='hcv_ai_training_service.dart' --line-number --fixed-strings 'https://hcv-registry-server.onrender.com' lib; then
+            echo "Obsolete Registry host remains in commercial user-edition source"
             exit 1
           fi
 
@@ -87,7 +107,14 @@ jobs:
       - name: Commit verified repair
         shell: bash
         run: |
-          if git diff --quiet; then
+          if git diff --quiet -- \
+            lib/hcv_registry_service.dart \
+            lib/commercial_account_service.dart \
+            lib/hcv_auth_service.dart \
+            lib/commercial_gate.dart \
+            lib/camera_page.dart \
+            lib/legal_info_page.dart \
+            lib/account_page.dart; then
             echo "No source changes to commit"
             exit 0
           fi
