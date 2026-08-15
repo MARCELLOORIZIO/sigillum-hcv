@@ -62,7 +62,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'ANNULLA',
       'confirm': 'CONFERMA',
       'deleteTitle': 'Elimina account',
-      'deleteBody': 'Inserisci la password per eliminare definitivamente l’account. I record tecnici dei certificati già emessi possono restare disponibili in forma minimizzata per preservarne la verificabilità.',
+      'deleteBody':
+          'Inserisci la password per eliminare definitivamente l’account. I record tecnici dei certificati già emessi possono restare disponibili in forma minimizzata per preservarne la verificabilità.',
       'saved': 'Profilo aggiornato.',
       'passwordChanged': 'Password aggiornata.',
       'noDevices': 'Nessun dispositivo disponibile.',
@@ -95,7 +96,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'CANCEL',
       'confirm': 'CONFIRM',
       'deleteTitle': 'Delete account',
-      'deleteBody': 'Enter your password to permanently delete the account. Technical records for already-issued certificates may remain in minimized form to preserve verification.',
+      'deleteBody':
+          'Enter your password to permanently delete the account. Technical records for already-issued certificates may remain in minimized form to preserve verification.',
       'saved': 'Profile updated.',
       'passwordChanged': 'Password updated.',
       'noDevices': 'No devices available.',
@@ -314,7 +316,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
             child: Text(_t('cancel')),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: SigillumTheme.danger),
+            style:
+                FilledButton.styleFrom(backgroundColor: SigillumTheme.danger),
             onPressed: () => Navigator.pop(context, password.text),
             child: Text(_t('delete')),
           ),
@@ -349,8 +352,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
 
     final identityVerified = _account['kycStatus'] == 'verified' ||
         _account['legalIdentityVerified'] == true;
-    final subscriptionActive = _billing['status'] == 'active' ||
-        _billing['status'] == 'development_allowed';
+    final subscriptionActive =
+        _billing['status'] == 'active' || _billing['status'] == 'grace';
 
     return Scaffold(
       appBar: AppBar(title: Text(_t('title'))),
@@ -370,7 +373,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
                   _account['creatorName']?.toString().isNotEmpty == true
                       ? _account['creatorName'].toString()
                       : 'SIGILLUM Creator',
-                  style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                      fontSize: 23, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -490,7 +494,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
                 onPressed: _busy ? null : _deleteAccount,
                 icon: const Icon(Icons.delete_forever_outlined),
                 label: Text(_t('delete')),
-                style: TextButton.styleFrom(foregroundColor: SigillumTheme.danger),
+                style:
+                    TextButton.styleFrom(foregroundColor: SigillumTheme.danger),
               ),
             ],
           ),
@@ -517,7 +522,9 @@ class _StatusRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: good ? SigillumTheme.verified : SigillumTheme.muted),
+        Icon(icon,
+            size: 20,
+            color: good ? SigillumTheme.verified : SigillumTheme.muted),
         const SizedBox(width: 9),
         Expanded(child: Text(label)),
         Text(
@@ -549,7 +556,9 @@ class _Section extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           const SizedBox(height: 13),
           ...children,
         ],

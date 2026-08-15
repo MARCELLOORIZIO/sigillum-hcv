@@ -26,7 +26,7 @@ class CommercialAccountService {
   const CommercialAccountService({
     this.baseUrl = const String.fromEnvironment(
       'SIGILLUM_API_BASE_URL',
-      defaultValue: 'https://hcv-registry-server.onrender.com',
+      defaultValue: 'https://sigillum-registry-production.onrender.com',
     ),
   });
 

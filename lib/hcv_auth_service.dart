@@ -21,13 +21,12 @@ class HCVAuthService {
   const HCVAuthService({
     this.baseUrl = const String.fromEnvironment(
       'SIGILLUM_API_BASE_URL',
-      defaultValue: 'https://hcv-registry-server.onrender.com',
+      defaultValue: 'https://sigillum-registry-production.onrender.com',
     ),
   });
 
   static const String _sessionTokenKey = 'sigillum.auth.session.v1';
-  static const String _authProofPurpose =
-      'SIGILLUM_AUTH_DEVICE_BINDING_V1';
+  static const String _authProofPurpose = 'SIGILLUM_AUTH_DEVICE_BINDING_V1';
   static const Duration _timeout = Duration(seconds: 20);
 
   final String baseUrl;
@@ -223,9 +222,8 @@ class HCVAuthService {
 
   Map<String, dynamic> _accountEnvelope(Map<String, dynamic> response) {
     final raw = response['account'];
-    final account = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : <String, dynamic>{};
+    final account =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     return {
       'ok': response['ok'] == true,
       'expiresAt': response['expiresAt'],

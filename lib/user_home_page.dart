@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'camera_page.dart';
 import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
-import 'account_page.dart';
+import 'commercial_profile_page.dart';
 import 'import_page.dart';
 import 'legal_info_page.dart';
 import 'registry_verify_page.dart';
@@ -14,7 +14,9 @@ import 'sigillum_theme.dart';
 import 'text_cert_page.dart';
 
 class UserHomePage extends StatefulWidget {
-  const UserHomePage({super.key});
+  const UserHomePage({super.key, this.onSessionInvalidated});
+
+  final VoidCallback? onSessionInvalidated;
 
   @override
   State<UserHomePage> createState() => _UserHomePageState();
@@ -129,9 +131,11 @@ class _UserHomePageState extends State<UserHomePage> {
                   languageCode: languageCode,
                   onLanguageChanged: _setLanguage,
                   onIdentity: () => _open(
-                    AccountPage(
+                    CommercialProfilePage(
                       languageCode: languageCode,
                       onLanguageChanged: _setLanguage,
+                      onSessionInvalidated:
+                          widget.onSessionInvalidated ?? () {},
                     ),
                   ),
                 ),
@@ -174,9 +178,11 @@ class _UserHomePageState extends State<UserHomePage> {
                     subtitle: _t('accountSubtitle'),
                     filled: false,
                     onPressed: () => _open(
-                      AccountPage(
+                      CommercialProfilePage(
                         languageCode: languageCode,
                         onLanguageChanged: _setLanguage,
+                        onSessionInvalidated:
+                            widget.onSessionInvalidated ?? () {},
                       ),
                     ),
                   ),
