@@ -47,5 +47,22 @@ void main() {
       expect(fetchBody, isNot(contains('HCVSecureStore.read(')));
       expect(fetchBody, isNot(contains('HttpHeaders.authorizationHeader')));
     });
+
+    test('commercial login preserves backend auth error code for gate routing', () {
+      final loginStart = commercial.indexOf(
+        'Future<Map<String, dynamic>> login',
+      );
+      final forgotStart = commercial.indexOf(
+        'Future<void> forgotPassword',
+        loginStart,
+      );
+      expect(loginStart, greaterThanOrEqualTo(0));
+      expect(forgotStart, greaterThan(loginStart));
+      final loginBody = commercial.substring(loginStart, forgotStart);
+      expect(loginBody, contains('on HCVAuthException catch (error)'));
+      expect(loginBody, contains('CommercialAccountException('));
+      expect(loginBody, contains('statusCode: error.statusCode'));
+      expect(loginBody, contains('code: error.code'));
+    });
   });
 }
