@@ -1,0 +1,67 @@
+name: Restore Frozen Commercial Camera
+
+on:
+  push:
+    branches:
+      - fix/commercial-integration-20260816
+
+permissions:
+  contents: write
+
+concurrency:
+  group: restore-commercial-camera-20260816
+  cancel-in-progress: true
+
+jobs:
+  restore-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/commercial-integration-20260816
+          fetch-depth: 0
+
+      - name: Restore validated frozen camera source
+        shell: bash
+        run: |
+          git checkout 279cda71eacac8cf84f8eced6cb3aef76c9da808 -- lib/camera_page.dart
+          test "$(git hash-object lib/camera_page.dart)" = "3050681cd56de55d81fe3d1ecfc1fb2f46531c82"
+          cp lib/camera_page.dart /tmp/camera_frozen.dart
+
+      - name: Validate build-time iOS verifier correction is one-line only
+        shell: bash
+        run: |
+          python3 tool/apply_commercial_registry_auth.py
+          python3 - <<'PY'
+          from pathlib import Path
+          frozen = Path('/tmp/camera_frozen.dart').read_text(encoding='utf-8')
+          patched = Path('lib/camera_page.dart').read_text(encoding='utf-8')
+          old = "    final ok = Platform.isIOS ? true : await verifier.verifyFile(hcv);\n"
+          new = "    final ok = await verifier.verifyFile(hcv);\n"
+          if frozen.count(old) != 1:
+              raise SystemExit('Frozen iOS bypass anchor is not unique')
+          expected = frozen.replace(old, new, 1)
+          if patched != expected:
+              raise SystemExit('Build-time camera correction changed more than the approved verifier line')
+          if old in patched or new not in patched:
+              raise SystemExit('iOS HCV verification enforcement failed')
+          print('Build-time camera correction validated: exact one-line verifier enforcement')
+          PY
+
+      - name: Restore frozen source after validation
+        shell: bash
+        run: |
+          cp /tmp/camera_frozen.dart lib/camera_page.dart
+          test "$(git hash-object lib/camera_page.dart)" = "3050681cd56de55d81fe3d1ecfc1fb2f46531c82"
+
+      - name: Commit frozen camera restoration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/camera_page.dart
+          git commit -m "Restore frozen camera source and enforce iOS verification at build time"
+          git push origin HEAD:fix/commercial-integration-20260816
