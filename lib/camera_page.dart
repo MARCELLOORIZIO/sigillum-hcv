@@ -811,7 +811,7 @@ class _CameraPageState extends State<CameraPage> {
     print("HCV FILE GENERATED:");
     print(hcv);
     print(await File(hcv).exists());
-    final ok = Platform.isIOS ? true : await verifier.verifyFile(hcv);
+    final ok = await verifier.verifyFile(hcv);
 
     String? pack;
     String? detectedId;
@@ -896,15 +896,25 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      await registry.enqueueCertificateFile(currentPath);
-      final report = await registry.retryPendingUploads();
-      final currentUploaded = report.uploadedPaths.contains(currentPath);
+      final response = await registry.uploadCertificateFile(currentPath);
       setState(() {
-        registryStatus = currentUploaded
-            ? 'Registry OK: ${hcvId ?? 'certificato pubblicato'}'
-            : 'Certificato salvato: pubblicazione Registry in attesa';
+        registryStatus =
+            'Registry OK: ${response['hcvId'] ?? hcvId ?? 'certificato pubblicato'}';
       });
+    } on HCVRegistryException catch (e) {
+      if (e.isRetryable) {
+        await registry.enqueueCertificateFile(currentPath);
+        setState(() {
+          registryStatus =
+              'Certificato salvato: pubblicazione Registry in attesa (${e.message})';
+        });
+      } else {
+        setState(() {
+          registryStatus = 'Pubblicazione Registry rifiutata: ${e.message}';
+        });
+      }
     } catch (e) {
+      await registry.enqueueCertificateFile(currentPath);
       setState(() {
         registryStatus =
             'Certificato salvato localmente. Registry non raggiungibile: $e';

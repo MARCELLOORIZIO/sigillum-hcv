@@ -91,7 +91,8 @@ class _AccountPageState extends State<AccountPage> {
       'deleted': 'Account e dati personali eliminati.',
       'currentPassword': 'Password attuale',
       'newPassword': 'Nuova password',
-      'passwordChanged': 'Password aggiornata. Le altre sessioni sono state revocate.',
+      'passwordChanged':
+          'Password aggiornata. Le altre sessioni sono state revocate.',
       'noDevices': 'Nessun dispositivo disponibile.',
       'currentDevice': 'Questo dispositivo',
       'lastSeen': 'Ultimo accesso',
@@ -405,9 +406,8 @@ class _AccountPageState extends State<AccountPage> {
 
   void _applyEnvelope(Map<String, dynamic> envelope) {
     final raw = envelope['account'];
-    final account = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : <String, dynamic>{};
+    final account =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     if (!mounted) return;
     final returnedExpiry = envelope['expiresAt']?.toString() ?? '';
     setState(() {
@@ -536,7 +536,9 @@ class _AccountPageState extends State<AccountPage> {
                           current ? Icons.phone_iphone_rounded : Icons.devices,
                         ),
                         title: Text(
-                          current ? _t('currentDevice') : _short(device['fingerprint']?.toString()),
+                          current
+                              ? _t('currentDevice')
+                              : _short(device['fingerprint']?.toString()),
                         ),
                         subtitle: Text(
                           '${_t('lastSeen')}: ${_formatDate(device['lastSeenAt']?.toString())}',
@@ -642,9 +644,8 @@ class _AccountPageState extends State<AccountPage> {
 
     final localKycStatus = _identity['kycStatus']?.toString() ?? 'not_started';
     final onlineKycStatus = _account['kycStatus']?.toString();
-    final kycStatus = onlineKycStatus?.isNotEmpty == true
-        ? onlineKycStatus!
-        : localKycStatus;
+    final kycStatus =
+        onlineKycStatus?.isNotEmpty == true ? onlineKycStatus! : localKycStatus;
     final verified = kycStatus == 'verified';
     final creatorName = _nameController.text.trim();
 
@@ -768,9 +769,8 @@ class _AccountPageState extends State<AccountPage> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: SigillumTheme.danger,
                   side: BorderSide(
-                    color: _signedIn
-                        ? SigillumTheme.danger
-                        : SigillumTheme.muted,
+                    color:
+                        _signedIn ? SigillumTheme.danger : SigillumTheme.muted,
                   ),
                 ),
               ),
@@ -838,7 +838,9 @@ class _AccountPageState extends State<AccountPage> {
             onPressed: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
             icon: Icon(
-              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              _obscurePassword
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
             ),
           ),
         ),
@@ -861,7 +863,8 @@ class _AccountPageState extends State<AccountPage> {
   List<Widget> _signedInSecurityChildren() {
     return [
       _DetailRow(label: _t('session'), value: _t('active')),
-      _DetailRow(label: _t('email'), value: _account['email']?.toString() ?? '—'),
+      _DetailRow(
+          label: _t('email'), value: _account['email']?.toString() ?? '—'),
       _DetailRow(
         label: _t('deviceCount'),
         value: _account['deviceCount']?.toString() ?? '1',
@@ -952,7 +955,8 @@ class _AccountSummary extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: verified ? SigillumTheme.verified : SigillumTheme.muted,
+                    color:
+                        verified ? SigillumTheme.verified : SigillumTheme.muted,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),

@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'commercial_account_service.dart';
 import 'commercial_billing_service.dart';
+import 'hcv_identity.dart';
 import 'import_page.dart';
 import 'legal_info_page.dart';
 import 'sigillum_theme.dart';
@@ -30,12 +30,6 @@ enum _GateStage {
 }
 
 class _CommercialGateState extends State<CommercialGate> {
-  static const bool _prelaunchBillingBypass = bool.fromEnvironment(
-    'SIGILLUM_PRELAUNCH_BILLING_BYPASS',
-    defaultValue: false,
-  );
-  static const _localPurchaseKey = 'sigillum_local_creator_purchase_observed_v1';
-
   final CommercialAccountService _account = const CommercialAccountService();
   final _name = TextEditingController();
   final _email = TextEditingController();
@@ -53,8 +47,6 @@ class _CommercialGateState extends State<CommercialGate> {
   bool _adult = false;
   bool _obscure = true;
   bool _storeAvailable = false;
-  bool _billingEnforced = false;
-  bool _localPurchaseObserved = false;
   List<ProductDetails> _products = const [];
   String _message = '';
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
@@ -63,7 +55,8 @@ class _CommercialGateState extends State<CommercialGate> {
   void initState() {
     super.initState();
     CommercialBillingService.instance.startListening();
-    _purchaseSub = CommercialBillingService.instance.purchases.listen(_onPurchases);
+    _purchaseSub =
+        CommercialBillingService.instance.purchases.listen(_onPurchases);
     _bootstrap();
   }
 
@@ -80,8 +73,6 @@ class _CommercialGateState extends State<CommercialGate> {
 
   Future<void> _bootstrap() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _localPurchaseObserved = prefs.getBool(_localPurchaseKey) ?? false;
       final envelope = await _account.restoreAccount();
       if (!mounted) return;
       if (envelope == null) {
@@ -104,6 +95,25 @@ class _CommercialGateState extends State<CommercialGate> {
     }
   }
 
+  Future<void> _persistKycResult(Map<String, dynamic> result) async {
+    final status = result['status']?.toString() ?? 'unknown';
+    final sessionId = result['sessionId']?.toString() ?? '';
+    final provider = result['provider']?.toString() ?? 'stripe_identity';
+    if (sessionId.isNotEmpty) {
+      await HCVIdentity().saveKycSession(
+        sessionId: sessionId,
+        provider: provider,
+        status: status,
+      );
+    }
+    final rawOutputs = result['verifiedOutputs'];
+    await HCVIdentity().saveKycStatus(
+      status,
+      verifiedOutputs:
+          rawOutputs is Map ? Map<String, dynamic>.from(rawOutputs) : null,
+    );
+  }
+
   Future<void> _routeAuthenticated() async {
     final verifiedEmail = _accountData['emailVerified'] == true;
     if (!verifiedEmail) {
@@ -115,13 +125,10 @@ class _CommercialGateState extends State<CommercialGate> {
     try {
       billing = await _account.billingStatus();
     } catch (_) {}
-    _billingEnforced = billing['enforced'] == true;
-    final serverActive = billing['status'] == 'active';
-    final paid = serverActive ||
-        (!_billingEnforced && _localPurchaseObserved) ||
-        (!_billingEnforced && _prelaunchBillingBypass);
+    final serverStatus = billing['status']?.toString() ?? '';
+    final serverActive = serverStatus == 'active' || serverStatus == 'grace';
 
-    if (!paid) {
+    if (!serverActive) {
       await _prepareBilling();
       if (mounted) setState(() => _stage = _GateStage.billing);
       return;
@@ -130,6 +137,29 @@ class _CommercialGateState extends State<CommercialGate> {
     final kyc = _accountData['kycStatus']?.toString() ?? 'not_started';
     if (kyc != 'verified') {
       if (mounted) setState(() => _stage = _GateStage.identity);
+      return;
+    }
+
+    try {
+      final remoteKyc = await _account.refreshIdentityVerification();
+      if (remoteKyc['status'] != 'verified') {
+        if (mounted) {
+          setState(() {
+            _stage = _GateStage.identity;
+            _message =
+                'La verifica identità deve essere confermata dal server prima di certificare.';
+          });
+        }
+        return;
+      }
+      await _persistKycResult(remoteKyc);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _stage = _GateStage.identity;
+          _message = 'Impossibile sincronizzare la verifica identità: $error';
+        });
+      }
       return;
     }
 
@@ -150,19 +180,47 @@ class _CommercialGateState extends State<CommercialGate> {
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
-      if (!CommercialBillingService.productIds.contains(purchase.productID)) continue;
+      if (!CommercialBillingService.productIds.contains(purchase.productID)) {
+        continue;
+      }
       if (purchase.status == PurchaseStatus.purchased ||
           purchase.status == PurchaseStatus.restored) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(_localPurchaseKey, true);
-        _localPurchaseObserved = true;
-        if (!mounted) return;
-        setState(() => _message = 'Abbonamento rilevato.');
-        await _routeAuthenticated();
-        return;
+        if (mounted) {
+          setState(() {
+            _busy = true;
+            _message = 'Verifica abbonamento con App Store...';
+          });
+        }
+        try {
+          final verified = await _account.verifyApplePurchase(
+            productId: purchase.productID,
+            transactionId: purchase.purchaseID,
+            receiptData: purchase.verificationData.serverVerificationData,
+          );
+          final status = verified['status']?.toString() ?? '';
+          if (status != 'active' && status != 'grace') {
+            throw const CommercialAccountException(
+              'L’abbonamento non risulta attivo sul server.',
+            );
+          }
+          await CommercialBillingService.instance
+              .completeVerifiedPurchase(purchase);
+          if (!mounted) return;
+          setState(() => _message = 'Abbonamento verificato.');
+          await _routeAuthenticated();
+          return;
+        } catch (error) {
+          if (mounted) {
+            setState(
+                () => _message = 'Verifica abbonamento non riuscita: $error');
+          }
+        } finally {
+          if (mounted) setState(() => _busy = false);
+        }
       }
       if (purchase.status == PurchaseStatus.error && mounted) {
-        setState(() => _message = purchase.error?.message ?? 'Acquisto non completato.');
+        setState(() =>
+            _message = purchase.error?.message ?? 'Acquisto non completato.');
       }
     }
   }
@@ -186,11 +244,13 @@ class _CommercialGateState extends State<CommercialGate> {
     if (_name.text.trim().isEmpty ||
         !_email.text.contains('@') ||
         _password.text.length < 12) {
-      setState(() => _message = 'Inserisci nome, email valida e una password di almeno 12 caratteri.');
+      setState(() => _message =
+          'Inserisci nome, email valida e una password di almeno 12 caratteri.');
       return;
     }
     if (!_acceptTerms || !_ackPrivacy || !_adult) {
-      setState(() => _message = 'Per creare un account Creator devi completare le tre conferme richieste.');
+      setState(() => _message =
+          'Per creare un account Creator devi completare le tre conferme richieste.');
       return;
     }
     await _run(() async {
@@ -217,7 +277,8 @@ class _CommercialGateState extends State<CommercialGate> {
     }
     await _run(() async {
       await _account.verifyEmail(email: _email.text, code: _code.text);
-      final envelope = await _account.login(email: _email.text, password: _password.text);
+      final envelope =
+          await _account.login(email: _email.text, password: _password.text);
       _applyEnvelope(envelope);
       await _routeAuthenticated();
     });
@@ -225,9 +286,21 @@ class _CommercialGateState extends State<CommercialGate> {
 
   Future<void> _login() async {
     await _run(() async {
-      final envelope = await _account.login(email: _email.text, password: _password.text);
-      _applyEnvelope(envelope);
-      await _routeAuthenticated();
+      try {
+        final envelope =
+            await _account.login(email: _email.text, password: _password.text);
+        _applyEnvelope(envelope);
+        await _routeAuthenticated();
+      } on CommercialAccountException catch (error) {
+        if (error.code != 'EMAIL_NON_VERIFICATA') rethrow;
+        await _account.resendEmailCode(_email.text);
+        if (!mounted) return;
+        setState(() {
+          _stage = _GateStage.verifyEmail;
+          _message =
+              'Email non ancora verificata. Ti abbiamo inviato un nuovo codice.';
+        });
+      }
     });
   }
 
@@ -236,10 +309,12 @@ class _CommercialGateState extends State<CommercialGate> {
       if (_code.text.trim().isEmpty) {
         await _account.forgotPassword(_email.text);
         if (!mounted) return;
-        setState(() => _message = 'Codice di recupero inviato. Inseriscilo qui sotto.');
+        setState(() =>
+            _message = 'Codice di recupero inviato. Inseriscilo qui sotto.');
       } else {
         if (_newPassword.text.length < 12) {
-          throw const CommercialAccountException('La nuova password deve contenere almeno 12 caratteri.');
+          throw const CommercialAccountException(
+              'La nuova password deve contenere almeno 12 caratteri.');
         }
         await _account.resetPassword(
           email: _email.text,
@@ -261,28 +336,46 @@ class _CommercialGateState extends State<CommercialGate> {
   Future<void> _startKyc() async {
     await _run(() async {
       final result = await _account.startIdentityVerification();
+      await _persistKycResult(result);
       final url = result['url']?.toString() ?? '';
       if (result['status'] == 'verified') {
         await _refreshAfterKyc();
         return;
       }
-      if (url.isEmpty) throw StateError('Link di verifica identità non disponibile.');
-      final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (url.isEmpty)
+        throw StateError('Link di verifica identità non disponibile.');
+      final opened =
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       if (!opened) throw StateError('Impossibile aprire la verifica identità.');
-      if (mounted) setState(() => _message = 'Completa la verifica e poi torna in SIGILLUM.');
+      if (mounted)
+        setState(
+            () => _message = 'Completa la verifica e poi torna in SIGILLUM.');
     });
   }
 
   Future<void> _refreshAfterKyc() async {
     await _run(() async {
       final result = await _account.refreshIdentityVerification();
+      await _persistKycResult(result);
       if (result['status'] != 'verified') {
-        if (mounted) setState(() => _message = 'Verifica ancora in corso: ${result['status'] ?? 'unknown'}');
+        if (mounted)
+          setState(() => _message =
+              'Verifica ancora in corso: ${result['status'] ?? 'unknown'}');
         return;
       }
       final envelope = await _account.restoreAccount();
       if (envelope != null) _applyEnvelope(envelope);
       if (mounted) setState(() => _stage = _GateStage.creator);
+    });
+  }
+
+  void _onSessionInvalidated() {
+    if (!mounted) return;
+    setState(() {
+      _accountData = const {};
+      _password.clear();
+      _code.clear();
+      _stage = _GateStage.landing;
     });
   }
 
@@ -307,13 +400,16 @@ class _CommercialGateState extends State<CommercialGate> {
   void _openLegal() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const LegalInfoPage(languageCode: 'it')),
+      MaterialPageRoute(
+          builder: (_) => const LegalInfoPage(languageCode: 'it')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_stage == _GateStage.creator) return const UserHomePage();
+    if (_stage == _GateStage.creator) {
+      return UserHomePage(onSessionInvalidated: _onSessionInvalidated);
+    }
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -361,15 +457,18 @@ class _CommercialGateState extends State<CommercialGate> {
             color: SigillumTheme.ivory,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(Icons.security_rounded, color: SigillumTheme.ink, size: 38),
+          child: const Icon(Icons.security_rounded,
+              color: SigillumTheme.ink, size: 38),
         ),
         const SizedBox(height: 16),
-        const Text('SIGILLUM', style: TextStyle(fontSize: 31, fontWeight: FontWeight.w900)),
+        const Text('SIGILLUM',
+            style: TextStyle(fontSize: 31, fontWeight: FontWeight.w900)),
         const SizedBox(height: 6),
         Text(
           subtitle ?? 'Human Content Verification',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: SigillumTheme.muted, fontSize: 16, height: 1.3),
+          style: const TextStyle(
+              color: SigillumTheme.muted, fontSize: 16, height: 1.3),
         ),
       ],
     );
@@ -379,7 +478,9 @@ class _CommercialGateState extends State<CommercialGate> {
     return Column(
       key: const ValueKey('landing'),
       children: [
-        _brand(subtitle: 'Verifica gratuitamente contenuti certificati oppure diventa un Creator verificato.'),
+        _brand(
+            subtitle:
+                'Verifica gratuitamente contenuti certificati oppure diventa un Creator verificato.'),
         const SizedBox(height: 34),
         FilledButton.icon(
           onPressed: _openVerify,
@@ -393,7 +494,9 @@ class _CommercialGateState extends State<CommercialGate> {
           label: const Text('DIVENTA CREATOR'),
         ),
         const SizedBox(height: 18),
-        TextButton(onPressed: _openLegal, child: const Text('Privacy, Termini e informazioni')),
+        TextButton(
+            onPressed: _openLegal,
+            child: const Text('Privacy, Termini e informazioni')),
       ],
     );
   }
@@ -403,13 +506,27 @@ class _CommercialGateState extends State<CommercialGate> {
       key: const ValueKey('auth'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _brand(subtitle: _forgotMode ? 'Recupera il tuo account' : (_loginMode ? 'Accedi al tuo account Creator' : 'Crea il tuo account Creator')),
+        _brand(
+            subtitle: _forgotMode
+                ? 'Recupera il tuo account'
+                : (_loginMode
+                    ? 'Accedi al tuo account Creator'
+                    : 'Crea il tuo account Creator')),
         const SizedBox(height: 24),
         if (!_loginMode && !_forgotMode) ...[
-          TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Nome', border: OutlineInputBorder())),
+          TextField(
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                  labelText: 'Nome', border: OutlineInputBorder())),
           const SizedBox(height: 12),
         ],
-        TextField(controller: _email, keyboardType: TextInputType.emailAddress, autocorrect: false, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder())),
+        TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: const InputDecoration(
+                labelText: 'Email', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         if (!_forgotMode)
           TextField(
@@ -421,27 +538,42 @@ class _CommercialGateState extends State<CommercialGate> {
               labelText: 'Password',
               helperText: 'Almeno 12 caratteri',
               border: const OutlineInputBorder(),
-              suffixIcon: IconButton(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined)),
+              suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(_obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined)),
             ),
           ),
         if (_forgotMode) ...[
-          TextField(controller: _code, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Codice ricevuto (lascia vuoto per inviarlo)', border: OutlineInputBorder())),
+          TextField(
+              controller: _code,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'Codice ricevuto (lascia vuoto per inviarlo)',
+                  border: OutlineInputBorder())),
           const SizedBox(height: 12),
-          TextField(controller: _newPassword, obscureText: true, decoration: const InputDecoration(labelText: 'Nuova password', border: OutlineInputBorder())),
+          TextField(
+              controller: _newPassword,
+              obscureText: true,
+              decoration: const InputDecoration(
+                  labelText: 'Nuova password', border: OutlineInputBorder())),
         ],
         if (!_loginMode && !_forgotMode) ...[
           const SizedBox(height: 14),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _acceptTerms,
-            onChanged: _busy ? null : (v) => setState(() => _acceptTerms = v == true),
+            onChanged:
+                _busy ? null : (v) => setState(() => _acceptTerms = v == true),
             title: const Text('Accetto i Termini di Servizio'),
             controlAffinity: ListTileControlAffinity.leading,
           ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _ackPrivacy,
-            onChanged: _busy ? null : (v) => setState(() => _ackPrivacy = v == true),
+            onChanged:
+                _busy ? null : (v) => setState(() => _ackPrivacy = v == true),
             title: const Text('Ho preso visione dell’Informativa Privacy'),
             controlAffinity: ListTileControlAffinity.leading,
           ),
@@ -452,30 +584,51 @@ class _CommercialGateState extends State<CommercialGate> {
             title: const Text('Confermo di avere almeno 18 anni'),
             controlAffinity: ListTileControlAffinity.leading,
           ),
-          TextButton(onPressed: _openLegal, child: const Text('LEGGI PRIVACY E TERMINI')),
+          TextButton(
+              onPressed: _openLegal,
+              child: const Text('LEGGI PRIVACY E TERMINI')),
         ],
         const SizedBox(height: 10),
         if (_busy) const LinearProgressIndicator(),
         if (_message.isNotEmpty) ...[
           const SizedBox(height: 10),
-          Text(_message, textAlign: TextAlign.center, style: const TextStyle(color: SigillumTheme.accent)),
+          Text(_message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: SigillumTheme.accent)),
         ],
         const SizedBox(height: 14),
         FilledButton(
-          onPressed: _busy ? null : (_forgotMode ? _forgot : (_loginMode ? _login : _register)),
-          child: Text(_forgotMode ? (_code.text.trim().isEmpty ? 'INVIA CODICE' : 'REIMPOSTA PASSWORD') : (_loginMode ? 'ACCEDI' : 'CREA ACCOUNT')),
+          onPressed: _busy
+              ? null
+              : (_forgotMode ? _forgot : (_loginMode ? _login : _register)),
+          child: Text(_forgotMode
+              ? (_code.text.trim().isEmpty
+                  ? 'INVIA CODICE'
+                  : 'REIMPOSTA PASSWORD')
+              : (_loginMode ? 'ACCEDI' : 'CREA ACCOUNT')),
         ),
         if (!_forgotMode) ...[
           const SizedBox(height: 8),
           TextButton(
-            onPressed: _busy ? null : () => setState(() => _loginMode = !_loginMode),
-            child: Text(_loginMode ? 'Non hai un account? CREA ACCOUNT' : 'Hai già un account? ACCEDI'),
+            onPressed:
+                _busy ? null : () => setState(() => _loginMode = !_loginMode),
+            child: Text(_loginMode
+                ? 'Non hai un account? CREA ACCOUNT'
+                : 'Hai già un account? ACCEDI'),
           ),
           if (_loginMode)
-            TextButton(onPressed: _busy ? null : () => setState(() => _forgotMode = true), child: const Text('PASSWORD DIMENTICATA?')),
+            TextButton(
+                onPressed:
+                    _busy ? null : () => setState(() => _forgotMode = true),
+                child: const Text('PASSWORD DIMENTICATA?')),
         ] else
-          TextButton(onPressed: _busy ? null : () => setState(() => _forgotMode = false), child: const Text('TORNA ALL’ACCESSO')),
-        TextButton(onPressed: () => setState(() => _stage = _GateStage.landing), child: const Text('INDIETRO')),
+          TextButton(
+              onPressed:
+                  _busy ? null : () => setState(() => _forgotMode = false),
+              child: const Text('TORNA ALL’ACCESSO')),
+        TextButton(
+            onPressed: () => setState(() => _stage = _GateStage.landing),
+            child: const Text('INDIETRO')),
       ],
     );
   }
@@ -487,14 +640,31 @@ class _CommercialGateState extends State<CommercialGate> {
       children: [
         _brand(subtitle: 'Verifica il tuo indirizzo email'),
         const SizedBox(height: 22),
-        Text('Abbiamo inviato un codice a ${_email.text}.', textAlign: TextAlign.center),
+        Text('Abbiamo inviato un codice a ${_email.text}.',
+            textAlign: TextAlign.center),
         const SizedBox(height: 18),
-        TextField(controller: _code, keyboardType: TextInputType.number, maxLength: 6, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, letterSpacing: 8), decoration: const InputDecoration(labelText: 'Codice di 6 cifre', border: OutlineInputBorder())),
+        TextField(
+            controller: _code,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 28, letterSpacing: 8),
+            decoration: const InputDecoration(
+                labelText: 'Codice di 6 cifre', border: OutlineInputBorder())),
         if (_busy) const LinearProgressIndicator(),
-        if (_message.isNotEmpty) Text(_message, textAlign: TextAlign.center, style: const TextStyle(color: SigillumTheme.accent)),
+        if (_message.isNotEmpty)
+          Text(_message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: SigillumTheme.accent)),
         const SizedBox(height: 12),
-        FilledButton(onPressed: _busy ? null : _verifyEmail, child: const Text('CONFERMA EMAIL')),
-        TextButton(onPressed: _busy ? null : () => _run(() => _account.resendEmailCode(_email.text)), child: const Text('INVIA NUOVO CODICE')),
+        FilledButton(
+            onPressed: _busy ? null : _verifyEmail,
+            child: const Text('CONFERMA EMAIL')),
+        TextButton(
+            onPressed: _busy
+                ? null
+                : () => _run(() => _account.resendEmailCode(_email.text)),
+            child: const Text('INVIA NUOVO CODICE')),
       ],
     );
   }
@@ -514,7 +684,9 @@ class _CommercialGateState extends State<CommercialGate> {
         if (_products.isEmpty)
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(border: Border.all(color: SigillumTheme.muted), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                border: Border.all(color: SigillumTheme.muted),
+                borderRadius: BorderRadius.circular(10)),
             child: Text(
               _storeAvailable
                   ? 'I prodotti App Store non sono ancora configurati per questo account di test.'
@@ -525,17 +697,28 @@ class _CommercialGateState extends State<CommercialGate> {
         else
           for (final product in _products) ...[
             FilledButton(
-              onPressed: _busy ? null : () => _run(() async { await CommercialBillingService.instance.purchase(product); }),
-              child: Text('${product.id == CommercialBillingService.annualProductId ? 'ANNUALE' : 'MENSILE'} — ${product.price}'),
+              onPressed: _busy
+                  ? null
+                  : () => _run(() async {
+                        await CommercialBillingService.instance
+                            .purchase(product);
+                      }),
+              child: Text(
+                  '${product.id == CommercialBillingService.annualProductId ? 'ANNUALE' : 'MENSILE'} — ${product.price}'),
             ),
             const SizedBox(height: 10),
           ],
-        OutlinedButton(onPressed: _busy ? null : () => CommercialBillingService.instance.restore(), child: const Text('RIPRISTINA ACQUISTI')),
-        if (_prelaunchBillingBypass && !_billingEnforced) ...[
-          const SizedBox(height: 8),
-          TextButton(onPressed: () async { _localPurchaseObserved = true; await _routeAuthenticated(); }, child: const Text('CONTINUA TEST PRE-LANCIO')),
-        ],
-        if (_message.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_message, textAlign: TextAlign.center, style: const TextStyle(color: SigillumTheme.accent))),
+        OutlinedButton(
+            onPressed: _busy
+                ? null
+                : () => CommercialBillingService.instance.restore(),
+            child: const Text('RIPRISTINA ACQUISTI')),
+        if (_message.isNotEmpty)
+          Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(_message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: SigillumTheme.accent))),
         const SizedBox(height: 12),
         TextButton(onPressed: _logout, child: const Text('ESCI DALL’ACCOUNT')),
       ],
@@ -555,13 +738,28 @@ class _CommercialGateState extends State<CommercialGate> {
           style: TextStyle(color: SigillumTheme.muted, height: 1.4),
         ),
         const SizedBox(height: 18),
-        FilledButton.icon(onPressed: _busy ? null : _startKyc, icon: const Icon(Icons.badge_outlined), label: const Text('VERIFICA IDENTITÀ')),
+        FilledButton.icon(
+            onPressed: _busy ? null : _startKyc,
+            icon: const Icon(Icons.badge_outlined),
+            label: const Text('VERIFICA IDENTITÀ')),
         const SizedBox(height: 10),
-        OutlinedButton(onPressed: _busy ? null : _refreshAfterKyc, child: const Text('HO COMPLETATO — CONTROLLA STATO')),
-        if (_busy) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator()),
-        if (_message.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_message, textAlign: TextAlign.center, style: const TextStyle(color: SigillumTheme.accent))),
+        OutlinedButton(
+            onPressed: _busy ? null : _refreshAfterKyc,
+            child: const Text('HO COMPLETATO — CONTROLLA STATO')),
+        if (_busy)
+          const Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: LinearProgressIndicator()),
+        if (_message.isNotEmpty)
+          Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(_message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: SigillumTheme.accent))),
         const SizedBox(height: 12),
-        TextButton(onPressed: _openLegal, child: const Text('PRIVACY E INFORMAZIONI SULLA VERIFICA')),
+        TextButton(
+            onPressed: _openLegal,
+            child: const Text('PRIVACY E INFORMAZIONI SULLA VERIFICA')),
         TextButton(onPressed: _logout, child: const Text('ESCI DALL’ACCOUNT')),
       ],
     );

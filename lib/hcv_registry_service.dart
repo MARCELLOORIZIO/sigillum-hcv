@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'hcv_keystore_signer.dart';
+import 'hcv_secure_store.dart';
 
 enum HCVRegistryFailureKind {
   notFound,
@@ -57,7 +58,10 @@ class HCVRegistryService {
   final String baseUrl;
 
   const HCVRegistryService({
-    this.baseUrl = 'https://hcv-registry-server.onrender.com',
+    this.baseUrl = const String.fromEnvironment(
+      'SIGILLUM_API_BASE_URL',
+      defaultValue: 'https://sigillum-registry-production.onrender.com',
+    ),
   });
 
   Future<Map<String, dynamic>> uploadCertificateFile(String hcvPath) async {
@@ -102,6 +106,19 @@ class HCVRegistryService {
       final uri = Uri.parse('$baseUrl/api/certificate');
       final req = await client.postUrl(uri).timeout(_requestTimeout);
       req.headers.contentType = ContentType.json;
+      final sessionToken =
+          await HCVSecureStore.read('sigillum.auth.session.v1');
+      if (sessionToken == null || sessionToken.isEmpty) {
+        throw const HCVRegistryException(
+          HCVRegistryFailureKind.invalidResponse,
+          'Sessione Creator non disponibile per pubblicare nel Registry.',
+          statusCode: 401,
+        );
+      }
+      req.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer $sessionToken',
+      );
 
       req.write(jsonEncode({
         'hcvId': hcvId,
