@@ -56,6 +56,9 @@ jobs:
       - name: Apply commercial-only repair
         run: python3 tool/apply_commercial_integration_fix.py
 
+      - name: Apply entitlement and profile follow-up
+        run: python3 tool/apply_commercial_integration_fix_followup.py
+
       - name: Verify frozen HCV files unchanged
         shell: bash
         run: |
@@ -93,7 +96,9 @@ jobs:
             lib/commercial_gate.dart \
             lib/camera_page.dart \
             lib/legal_info_page.dart \
-            lib/account_page.dart
+            lib/account_page.dart \
+            lib/user_home_page.dart \
+            lib/commercial_profile_page.dart
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -137,7 +142,9 @@ jobs:
             lib/commercial_gate.dart \
             lib/camera_page.dart \
             lib/legal_info_page.dart \
-            lib/account_page.dart; then
+            lib/account_page.dart \
+            lib/user_home_page.dart \
+            lib/commercial_profile_page.dart; then
             echo "No source changes to commit"
             exit 0
           fi
@@ -150,6 +157,8 @@ jobs:
             lib/commercial_gate.dart \
             lib/camera_page.dart \
             lib/legal_info_page.dart \
-            lib/account_page.dart
+            lib/account_page.dart \
+            lib/user_home_page.dart \
+            lib/commercial_profile_page.dart
           git commit -m "Fix commercial billing KYC and Registry integration"
           git push origin HEAD:fix/commercial-integration-20260816
