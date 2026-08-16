@@ -131,3 +131,11 @@ if complete_pos <= verify_pos:
 
 path.write_text(source, encoding='utf-8')
 print('Server-verified App Store entitlement enforced in commercial gate')
+
+extra_patch = Path('tool/apply_prelaunch_ux_kyc_identity_fix.py')
+if not extra_patch.exists():
+    raise RuntimeError('commercial UX/KYC identity patch missing')
+exec(
+    compile(extra_patch.read_text(encoding='utf-8'), str(extra_patch), 'exec'),
+    {'__name__': '__main__'},
+)
