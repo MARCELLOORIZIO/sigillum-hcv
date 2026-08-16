@@ -14,7 +14,6 @@ void main() {
   test('camera UX is capped at 10x and video waits for explicit REC', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
     expect(source, contains('deviceMaxZoom.clamp(minZoom, 10.0)'));
-    expect(source, contains('minimumSize: const Size(230, 58)'));
     expect(source, contains('PRONTO — PREMI REGISTRA PER INIZIARE'));
     expect(source, contains('bool _videoArmed = false;'));
 
@@ -28,13 +27,18 @@ void main() {
     expect(record, greaterThan(ready));
   });
 
-  test('consumer theme and iOS associated domains are configured', () {
+  test('consumer theme enlarges primary CTAs and iOS domains are configured', () {
     final theme = File('lib/sigillum_theme.dart').readAsStringSync();
     final entitlements =
         File('ios/Runner/Runner.entitlements').readAsStringSync();
 
     expect(theme, contains('static const Color accentAlt'));
     expect(theme, contains('InputDecorationTheme('));
+    expect(theme, contains('minimumSize: const Size.fromHeight(58)'));
+    expect(
+      theme,
+      contains('padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)'),
+    );
     expect(theme, contains('borderRadius: BorderRadius.circular(18)'));
     expect(theme, contains('DialogThemeData('));
     expect(entitlements, contains('webcredentials:sigillum-hcv.com'));
