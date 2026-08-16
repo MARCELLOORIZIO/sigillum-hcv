@@ -90,6 +90,7 @@ class SigillumTheme {
           backgroundColor: accent,
           foregroundColor: ink,
           minimumSize: const Size.fromHeight(58),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: rounded,
           elevation: 0,
           textStyle: const TextStyle(
@@ -103,6 +104,7 @@ class SigillumTheme {
           foregroundColor: ivory,
           side: const BorderSide(color: Color(0xAA6E607D)),
           minimumSize: const Size.fromHeight(56),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
           shape: rounded,
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
