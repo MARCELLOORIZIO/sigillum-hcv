@@ -92,21 +92,22 @@ gate_path.write_text(gate, encoding='utf-8')
 camera_path = Path('lib/camera_page.dart')
 camera = camera_path.read_text(encoding='utf-8')
 
-# Device zoom can be very large on iOS. Expose a predictable user range only.
-zoom_old = """      minZoom = await controller!.getMinZoomLevel();
-      maxZoom = await controller!.getMaxZoomLevel();
-"""
-zoom_new = """      minZoom = await controller!.getMinZoomLevel();
-      final deviceMaxZoom = await controller!.getMaxZoomLevel();
+# Device zoom can be very large on iOS. Earlier build-time patches can leave
+# one or more initialization sites, so cap every remaining raw max-zoom read
+# instead of assuming a fixed number of anchors.
+zoom_assignment = "      maxZoom = await controller!.getMaxZoomLevel();\n"
+zoom_replacement = """      final deviceMaxZoom = await controller!.getMaxZoomLevel();
       maxZoom = deviceMaxZoom.clamp(minZoom, 10.0).toDouble();
       currentZoom = currentZoom.clamp(minZoom, maxZoom).toDouble();
       await controller!.setZoomLevel(currentZoom);
 """
-count = camera.count(zoom_old)
-if count != 2 and camera.count('deviceMaxZoom.clamp(minZoom, 10.0)') != 2:
-    raise RuntimeError(f'zoom anchors: expected 2, found {count}')
-if count == 2:
-    camera = camera.replace(zoom_old, zoom_new)
+raw_zoom_count = camera.count(zoom_assignment)
+if raw_zoom_count == 0 and 'deviceMaxZoom.clamp(minZoom, 10.0)' not in camera:
+    raise RuntimeError('zoom max assignment anchor missing')
+if raw_zoom_count:
+    camera = camera.replace(zoom_assignment, zoom_replacement)
+if zoom_assignment in camera:
+    raise RuntimeError('uncapped camera max zoom remains')
 
 # Video arming state is adjacent to the already-isolated photo arming state.
 video_state_old = """  int? _armedPhotoCameraIndex;
