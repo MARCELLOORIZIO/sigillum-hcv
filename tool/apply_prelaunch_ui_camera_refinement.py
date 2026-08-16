@@ -86,8 +86,9 @@ gate_path.write_text(gate, encoding='utf-8')
 # Camera interaction refinement ONLY.
 # This intentionally does not change HCVEngine, display-risk analysis,
 # evidence, hashes, signatures, claims, Registry payloads or verifier logic.
-# It only caps the user zoom control at 10x, enlarges the existing PROSEGUI
-# CTA, and separates VIDEO probe/arming from the explicit start-recording tap.
+# It only caps the user zoom control at 10x and separates VIDEO probe/arming
+# from the explicit start-recording tap. The refreshed global theme makes the
+# existing PROSEGUI/primary CTA taller, wider-padded and rounded.
 # ---------------------------------------------------------------------------
 camera_path = Path('lib/camera_page.dart')
 camera = camera_path.read_text(encoding='utf-8')
@@ -125,37 +126,6 @@ camera = replace_once(
     video_state_old,
     video_state_new,
     'video arming state',
-)
-
-# Make the existing confirmation CTA an obvious primary action.
-proceed_old = """          FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext),
-            icon: const Icon(Icons.check_rounded),
-            label: Text(
-              italian ? 'ORA PUOI PROCEDERE' : 'PROCEED NOW',
-            ),
-          ),
-"""
-proceed_new = """          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(230, 58),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-            onPressed: () => Navigator.pop(dialogContext),
-            icon: const Icon(Icons.check_rounded),
-            label: Text(
-              italian ? 'ORA PUOI PROCEDERE' : 'PROCEED NOW',
-            ),
-          ),
-"""
-camera = replace_once(
-    camera,
-    proceed_old,
-    proceed_new,
-    'larger proceed CTA',
 )
 
 # Replace only the VIDEO start-control method. The same pre-capture probe and
@@ -322,7 +292,6 @@ camera = replace_once(
 
 required_camera_tokens = [
     'deviceMaxZoom.clamp(minZoom, 10.0)',
-    'minimumSize: const Size(230, 58)',
     'PRONTO — PREMI REGISTRA PER INIZIARE',
     'bool _videoArmed = false;',
     'pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();',
@@ -341,4 +310,4 @@ for forbidden in [
         raise RuntimeError(f'unexpected engine mutation marker: {forbidden}')
 
 camera_path.write_text(camera, encoding='utf-8')
-print('Prelaunch password, zoom, proceed and explicit video REC UX refinement applied')
+print('Prelaunch password, zoom and explicit video REC UX refinement applied')
