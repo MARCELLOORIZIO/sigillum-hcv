@@ -139,3 +139,11 @@ exec(
     compile(extra_patch.read_text(encoding='utf-8'), str(extra_patch), 'exec'),
     {'__name__': '__main__'},
 )
+
+refinement_patch = Path('tool/apply_prelaunch_ui_camera_refinement.py')
+if not refinement_patch.exists():
+    raise RuntimeError('prelaunch UI/camera refinement patch missing')
+exec(
+    compile(refinement_patch.read_text(encoding='utf-8'), str(refinement_patch), 'exec'),
+    {'__name__': '__main__'},
+)

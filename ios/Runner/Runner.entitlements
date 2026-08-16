@@ -6,5 +6,10 @@
 	<array>
 		<string>$(SIGILLUM_APP_GROUP_ID)</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>webcredentials:sigillum-hcv.com</string>
+		<string>applinks:sigillum-hcv.com</string>
+	</array>
 </dict>
 </plist>
