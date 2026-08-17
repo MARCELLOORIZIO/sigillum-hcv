@@ -73,18 +73,45 @@ for token in [
         raise RuntimeError(f'approved CTA contract token missing: {token}')
 legacy_contract.write_text(contract, encoding='utf-8')
 
-# Apply the approved high-fidelity landing composition after all account and
-# commercial patches. Presentation only: capture/HCV/Registry code is untouched.
-landing_visual_patch = Path('tool/apply_prelaunch_landing_visual_match.py')
-if not landing_visual_patch.exists():
+# Apply the approved high-fidelity consumer landing composition after all older
+# commercial patches have run, so legacy generated UI cannot overwrite it.
+visual_patch = Path('tool/apply_prelaunch_landing_visual_match.py')
+if not visual_patch.exists():
     raise RuntimeError('approved landing visual patch missing')
 exec(
     compile(
-        landing_visual_patch.read_text(encoding='utf-8'),
-        str(landing_visual_patch),
+        visual_patch.read_text(encoding='utf-8'),
+        str(visual_patch),
         'exec',
     ),
     {'__name__': '__main__'},
 )
 
-print('Shared text routing, CTA contract and approved landing composition aligned')
+# Normalize the presentation-only demo HCV-ID literal generated above.
+visual_compile_fix = Path('tool/apply_prelaunch_landing_visual_compile_fix.py')
+if not visual_compile_fix.exists():
+    raise RuntimeError('approved landing visual compile fix missing')
+exec(
+    compile(
+        visual_compile_fix.read_text(encoding='utf-8'),
+        str(visual_compile_fix),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+gate_source = Path('lib/commercial_gate.dart').read_text(encoding='utf-8')
+for token in [
+    'Benvenuto in SIGILLUM!',
+    'Verifica in pochi secondi',
+    'VERIFICA CONTENUTO GRATIS',
+    'Accedi al tuo account',
+    'Crea account',
+    'Diventa creator',
+    'Insieme costruiamo fiducia',
+    'ID SIGILLUM\\nF80B0A573FBB4940',
+]:
+    if token not in gate_source:
+        raise RuntimeError(f'approved landing visual token missing: {token}')
+
+print('Shared text routing, CTA contract and approved landing visual aligned')
