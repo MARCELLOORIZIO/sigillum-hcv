@@ -171,3 +171,15 @@ exec(
     ),
     {'__name__': '__main__'},
 )
+
+final_refinement = Path('tool/apply_prelaunch_visual_caption_refinement_20260818.py')
+if not final_refinement.exists():
+    raise RuntimeError('final visual/caption refinement patch missing')
+exec(
+    compile(
+        final_refinement.read_text(encoding='utf-8'),
+        str(final_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
