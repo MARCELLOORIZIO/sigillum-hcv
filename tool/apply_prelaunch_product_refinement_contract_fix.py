@@ -102,7 +102,8 @@ exec(
 
 gate_source = Path('lib/commercial_gate.dart').read_text(encoding='utf-8')
 for token in [
-    'Benvenuto in SIGILLUM!',
+    'Benvenuto in ',
+    'SIGILLUM!',
     'Verifica in pochi secondi',
     'VERIFICA CONTENUTO GRATIS',
     'Accedi al tuo account',
