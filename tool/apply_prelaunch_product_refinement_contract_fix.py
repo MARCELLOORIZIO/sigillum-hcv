@@ -51,17 +51,26 @@ for token in [
 
 home_path.write_text(home, encoding='utf-8')
 
-# The approved CTA height is 62px. Align the older generated contract with it.
+# Align the older generated UI contract with the approved larger Pancake-style
+# controls instead of shrinking the implementation back to the old values.
 legacy_contract = Path('test/prelaunch_ui_camera_refinement_contract_test.dart')
 if not legacy_contract.exists():
     raise RuntimeError('legacy prelaunch UI contract missing')
 contract = legacy_contract.read_text(encoding='utf-8')
-contract = contract.replace(
-    'minimumSize: const Size.fromHeight(58)',
+replacements = {
+    'minimumSize: const Size.fromHeight(58)':
+        'minimumSize: const Size.fromHeight(62)',
+    'padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)':
+        'padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18)',
+}
+for old, new in replacements.items():
+    contract = contract.replace(old, new)
+for token in [
     'minimumSize: const Size.fromHeight(62)',
-)
-if 'minimumSize: const Size.fromHeight(62)' not in contract:
-    raise RuntimeError('approved CTA height contract missing')
+    'padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18)',
+]:
+    if token not in contract:
+        raise RuntimeError(f'approved CTA contract token missing: {token}')
 legacy_contract.write_text(contract, encoding='utf-8')
 
 print('Shared text routing and approved CTA contract aligned')
