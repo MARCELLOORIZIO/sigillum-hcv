@@ -115,9 +115,8 @@ for token in [
     if token not in gate_source:
         raise RuntimeError(f'approved landing visual token missing: {token}')
 
-# Normalize only the presentation of the existing capture-ready dialog so the
-# final styling patch can enlarge its CTA deterministically. This does not
-# alter capture evidence, detector logic, HCV claims or Registry behavior.
+# Double only the established compact camera confirmation CTA. Capture,
+# detector, evidence and HCV logic stay untouched.
 proceed_normalizer = Path('tool/apply_prelaunch_proceed_anchor_normalization.py')
 if not proceed_normalizer.exists():
     raise RuntimeError('camera proceed normalization patch missing')
@@ -125,6 +124,20 @@ exec(
     compile(
         proceed_normalizer.read_text(encoding='utf-8'),
         str(proceed_normalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Prepare the final visual/caption patch so it preserves that compact top
+# banner instead of replacing it, and align the generated safety contracts.
+final_prepare = Path('tool/prepare_prelaunch_visual_caption_refinement_20260818.py')
+if not final_prepare.exists():
+    raise RuntimeError('final visual/caption preparation patch missing')
+exec(
+    compile(
+        final_prepare.read_text(encoding='utf-8'),
+        str(final_prepare),
         'exec',
     ),
     {'__name__': '__main__'},
