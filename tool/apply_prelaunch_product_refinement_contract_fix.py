@@ -73,4 +73,18 @@ for token in [
         raise RuntimeError(f'approved CTA contract token missing: {token}')
 legacy_contract.write_text(contract, encoding='utf-8')
 
-print('Shared text routing and approved CTA contract aligned')
+# Apply the approved high-fidelity landing composition after all account and
+# commercial patches. Presentation only: capture/HCV/Registry code is untouched.
+landing_visual_patch = Path('tool/apply_prelaunch_landing_visual_match.py')
+if not landing_visual_patch.exists():
+    raise RuntimeError('approved landing visual patch missing')
+exec(
+    compile(
+        landing_visual_patch.read_text(encoding='utf-8'),
+        str(landing_visual_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+print('Shared text routing, CTA contract and approved landing composition aligned')
