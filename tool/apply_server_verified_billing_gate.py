@@ -159,3 +159,15 @@ exec(
     ),
     {'__name__': '__main__'},
 )
+
+product_contract_fix = Path('tool/apply_prelaunch_product_refinement_contract_fix.py')
+if not product_contract_fix.exists():
+    raise RuntimeError('prelaunch product contract/routing fix missing')
+exec(
+    compile(
+        product_contract_fix.read_text(encoding='utf-8'),
+        str(product_contract_fix),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
