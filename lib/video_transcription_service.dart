@@ -43,7 +43,7 @@ class VideoTranscriptionService {
 
   Future<VideoTranscriptionResult> transcribe(String videoPath) async {
     if (!Platform.isIOS) {
-      throw const PlatformException(
+      throw PlatformException(
         code: 'TRANSCRIPTION_UNAVAILABLE',
         message: 'La trascrizione automatica è disponibile su iPhone.',
       );
@@ -54,7 +54,7 @@ class VideoTranscriptionService {
       {'path': videoPath},
     );
     if (raw == null) {
-      throw const PlatformException(
+      throw PlatformException(
         code: 'TRANSCRIPTION_EMPTY',
         message: 'Nessuna trascrizione restituita.',
       );
@@ -70,7 +70,7 @@ class VideoTranscriptionService {
     }
 
     if (text.isEmpty && segments.isEmpty) {
-      throw const PlatformException(
+      throw PlatformException(
         code: 'NO_SPEECH',
         message: 'Non è stato rilevato parlato nel video.',
       );
