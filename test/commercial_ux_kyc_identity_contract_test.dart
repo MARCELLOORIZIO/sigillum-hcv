@@ -3,13 +3,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('commercial landing exposes verify, login, account creation and creator registration', () {
+  test('commercial landing exposes verify, login and one creator registration entry', () {
     final source = File('lib/commercial_gate.dart').readAsStringSync();
 
     expect(source, contains('VERIFICA CONTENUTO GRATIS'));
     expect(source, contains('Accedi al tuo account'));
-    expect(source, contains('Crea account'));
     expect(source, contains('Diventa creator'));
+    expect(source, isNot(contains("title: 'Crea account'")));
   });
 
   test('commercial authentication opts into iOS AutoFill semantics', () {
