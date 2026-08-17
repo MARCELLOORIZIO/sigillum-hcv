@@ -147,3 +147,15 @@ exec(
     compile(refinement_patch.read_text(encoding='utf-8'), str(refinement_patch), 'exec'),
     {'__name__': '__main__'},
 )
+
+product_refinement_patch = Path('tool/apply_prelaunch_product_refinement_20260817.py')
+if not product_refinement_patch.exists():
+    raise RuntimeError('prelaunch account/text/transcription refinement patch missing')
+exec(
+    compile(
+        product_refinement_patch.read_text(encoding='utf-8'),
+        str(product_refinement_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
