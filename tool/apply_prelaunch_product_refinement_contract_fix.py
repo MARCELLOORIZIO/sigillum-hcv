@@ -115,4 +115,19 @@ for token in [
     if token not in gate_source:
         raise RuntimeError(f'approved landing visual token missing: {token}')
 
+# Normalize only the presentation of the existing capture-ready dialog so the
+# final styling patch can enlarge its CTA deterministically. This does not
+# alter capture evidence, detector logic, HCV claims or Registry behavior.
+proceed_normalizer = Path('tool/apply_prelaunch_proceed_anchor_normalization.py')
+if not proceed_normalizer.exists():
+    raise RuntimeError('camera proceed normalization patch missing')
+exec(
+    compile(
+        proceed_normalizer.read_text(encoding='utf-8'),
+        str(proceed_normalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
 print('Shared text routing, CTA contract and approved landing visual aligned')
