@@ -276,14 +276,15 @@ files_replacement = r'''  Widget _createdFilesCard() {
   Widget _actionButtons()'''
 source = replace_regex(source, files_pattern, files_replacement, 'friendly Files card')
 
-# Keep help one tap away inside the camera itself.
+# The result page always exposes GUIDA RAPIDA. Add an app-bar help icon only if
+# the generated camera app bar still matches the legacy anchor; do not fail if
+# another presentation patch has already reshaped the app bar.
 actions_anchor = r'''        actions: [
           IconButton(
             icon: Icon(
               currentFlashMode == FlashMode.off'''
-if "tooltip: 'Guida rapida'" not in source:
-    source = replace_once(
-        source,
+if "tooltip: 'Guida rapida'" not in source and actions_anchor in source:
+    source = source.replace(
         actions_anchor,
         r'''        actions: [
           IconButton(
@@ -294,7 +295,7 @@ if "tooltip: 'Guida rapida'" not in source:
           IconButton(
             icon: Icon(
               currentFlashMode == FlashMode.off''',
-        'camera help action',
+        1,
     )
 
 for token in [
