@@ -15,7 +15,12 @@ workflows:
     scripts:
       - name: Guard commercial changes from frozen capture engine
         script: |
-          git diff --exit-code f810af479546075ffe84c3ea2411dcc6300c0bb3..HEAD -- \
+          FROZEN_BASE="f810af479546075ffe84c3ea2411dcc6300c0bb3"
+          if ! git cat-file -e "$FROZEN_BASE^{commit}" 2>/dev/null; then
+            echo "Frozen base missing from shallow clone; fetching $FROZEN_BASE"
+            git fetch --no-tags origin "$FROZEN_BASE"
+          fi
+          git diff --exit-code "$FROZEN_BASE"..HEAD -- \
             lib/camera_page.dart \
             lib/text_cert_page.dart \
             lib/hcv_engine.dart \
@@ -122,7 +127,12 @@ workflows:
     scripts:
       - name: Guard commercial changes from frozen capture engine
         script: |
-          git diff --exit-code f810af479546075ffe84c3ea2411dcc6300c0bb3..HEAD -- \
+          FROZEN_BASE="f810af479546075ffe84c3ea2411dcc6300c0bb3"
+          if ! git cat-file -e "$FROZEN_BASE^{commit}" 2>/dev/null; then
+            echo "Frozen base missing from shallow clone; fetching $FROZEN_BASE"
+            git fetch --no-tags origin "$FROZEN_BASE"
+          fi
+          git diff --exit-code "$FROZEN_BASE"..HEAD -- \
             lib/camera_page.dart \
             lib/text_cert_page.dart \
             lib/hcv_engine.dart \
