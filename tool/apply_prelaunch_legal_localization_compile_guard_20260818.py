@@ -57,9 +57,36 @@ gate = re.sub(
     gate,
     flags=re.S,
 )
+gate = gate.replace(
+    'throw const CommercialAccountException(\n              _t(',
+    'throw CommercialAccountException(\n              _t(',
+)
 
-# Also handle formatted multi-line constructor calls with a trailing comma.
-gate = gate.replace('throw const CommercialAccountException(\n              _t(', 'throw CommercialAccountException(\n              _t(')
+# Later commercial refinements rewrite _register(). Ensure every registration
+# call carries the selected language to the server-side clickwrap record.
+def add_register_language(match):
+    block = match.group(0)
+    if 'languageCode:' in block:
+        return block
+    return block.replace(
+        'adultConfirmed: _adult,',
+        'adultConfirmed: _adult,\n          languageCode: _languageCode,',
+        1,
+    )
+
+gate = re.sub(
+    r"await _account\.register\(.*?adultConfirmed:\s*_adult,.*?\);",
+    add_register_language,
+    gate,
+    flags=re.S,
+)
+
+# All commercial routes reachable before or during onboarding use the same
+# selected language. This includes the quick guide introduced by a later patch.
+gate = gate.replace(
+    "const SigillumQuickGuidePage(languageCode: 'it')",
+    'SigillumQuickGuidePage(languageCode: _languageCode)',
+)
 
 # Guard against accidental recursion/invalid expressions inside the const map.
 map_match = re.search(
@@ -89,5 +116,20 @@ for required in required_tokens:
     if required not in gate:
         raise RuntimeError(f'compile guard required token missing: {required}')
 
+register_calls = re.findall(r"await _account\.register\((.*?)\);", gate, re.S)
+if not register_calls:
+    raise RuntimeError('commercial registration call missing')
+for block in register_calls:
+    if 'languageCode: _languageCode' not in block:
+        raise RuntimeError('registration call missing selected language')
+
+for forbidden in [
+    "SigillumQuickGuidePage(languageCode: 'it')",
+    "ImportPage(languageCode: 'it')",
+    "LegalInfoPage(languageCode: 'it')",
+]:
+    if forbidden in gate:
+        raise RuntimeError(f'hard-coded Italian commercial route remains: {forbidden}')
+
 GATE.write_text(gate, encoding='utf-8')
-print('Commercial localization compile guard applied; translation table remains const and HCV engine untouched')
+print('Commercial localization compile guard applied; selected language propagates through onboarding and HCV engine remains untouched')
