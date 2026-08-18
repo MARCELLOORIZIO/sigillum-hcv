@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   validate-localization:
@@ -15,6 +16,19 @@ jobs:
     timeout-minutes: 35
 
     steps:
+      - name: Mark validation pending
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -fsS -L \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d '{"state":"pending","context":"sigillum/commercial-localization","description":"Validating localization and frozen HCV core"}'
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -123,3 +137,31 @@ jobs:
 
       - name: Run full regression suite
         run: flutter test
+
+      - name: Mark validation success
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -fsS -L \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d '{"state":"success","context":"sigillum/commercial-localization","description":"Localization valid; protected HCV files unchanged"}'
+
+      - name: Mark validation failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sS -L \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d '{"state":"failure","context":"sigillum/commercial-localization","description":"Localization validation failed; do not deploy"}' || true
