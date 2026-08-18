@@ -54,7 +54,10 @@ class VideoTranscriptionService {
 
   static const MethodChannel _channel = MethodChannel('hcv.media');
 
-  Future<VideoTranscriptionResult> transcribe(String videoPath) async {
+  Future<VideoTranscriptionResult> transcribe(
+    String videoPath, {
+    String languageCode = 'it',
+  }) async {
     if (!Platform.isIOS) {
       throw PlatformException(
         code: 'TRANSCRIPTION_UNAVAILABLE',
@@ -64,7 +67,10 @@ class VideoTranscriptionService {
 
     final raw = await _channel.invokeMapMethod<String, dynamic>(
       'transcribeVideo',
-      {'path': videoPath},
+      {
+        'path': videoPath,
+        'languageCode': languageCode,
+      },
     );
     if (raw == null) {
       throw PlatformException(
@@ -152,6 +158,7 @@ class VideoTranscriptionService {
       ];
     }
 
+    final ordered = [...words]..sort((a, b) => a.start.compareTo(b.start));
     final captions = <VideoTranscriptSegment>[];
     var currentText = '';
     var currentStart = 0.0;
@@ -164,32 +171,37 @@ class VideoTranscriptionService {
         VideoTranscriptSegment(
           text: clean,
           start: currentStart,
-          duration: (currentEnd - currentStart).clamp(0.7, 4.0).toDouble(),
+          duration: (currentEnd - currentStart).clamp(0.9, 4.6).toDouble(),
         ),
       );
       currentText = '';
+      currentStart = 0;
+      currentEnd = 0;
     }
 
-    for (final word in words) {
+    for (final word in ordered) {
       final token = word.text.trim();
       if (token.isEmpty) continue;
-      final proposed = _appendWord(currentText, token);
+
       final wordEnd = word.end;
+      final pause = currentText.isEmpty ? 0.0 : word.start - currentEnd;
+      final proposed = _appendWord(currentText, token);
       final proposedStart = currentText.isEmpty ? word.start : currentStart;
       final proposedDuration = wordEnd - proposedStart;
+      final sentenceBoundary = currentText.isNotEmpty &&
+          RegExp(r'[.!?…]$').hasMatch(currentText.trim());
       final mustSplit = currentText.isNotEmpty &&
-          (proposed.length > 44 || proposedDuration > 3.2);
+          (pause > 0.75 ||
+              proposed.length > 64 ||
+              proposedDuration > 4.2 ||
+              sentenceBoundary);
 
       if (mustSplit) {
         flush();
-        currentStart = word.start;
-        currentEnd = wordEnd;
-        currentText = token;
-      } else {
-        if (currentText.isEmpty) currentStart = word.start;
-        currentText = proposed;
-        currentEnd = wordEnd;
       }
+      if (currentText.isEmpty) currentStart = word.start;
+      currentText = _appendWord(currentText, token);
+      currentEnd = wordEnd;
     }
     flush();
 
