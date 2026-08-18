@@ -11,6 +11,16 @@ def replace_regex(source: str, pattern: str, replacement: str, label: str) -> st
     raise RuntimeError(f'{label}: regex anchor missing')
 
 
+# Normalize presentation-only Dart escaping produced by the preceding regex
+# patch before the formatter/analyzer sees the generated camera page.
+escape_fix = Path('tool/apply_prelaunch_camera_generated_escape_fix_20260818.py')
+if not escape_fix.exists():
+    raise RuntimeError('camera generated escape fix missing')
+exec(
+    compile(escape_fix.read_text(encoding='utf-8'), str(escape_fix), 'exec'),
+    {'__name__': '__main__'},
+)
+
 path = Path('ios/Runner/SceneDelegate.swift')
 source = path.read_text(encoding='utf-8')
 
