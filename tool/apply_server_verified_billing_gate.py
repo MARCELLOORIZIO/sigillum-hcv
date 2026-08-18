@@ -220,7 +220,22 @@ exec(
     {'__name__': '__main__'},
 )
 
-# Legal/localization must run last so earlier commercial refinements cannot
+# The approved visual landing changes the first child in _brand(). Bridge only
+# that presentation anchor so the generic legal/localization patch can remain
+# isolated and deterministic.
+visual_anchor_patch = Path('tool/apply_prelaunch_legal_localization_visual_anchor_20260818.py')
+if not visual_anchor_patch.exists():
+    raise RuntimeError('prelaunch legal/localization visual anchor patch missing')
+exec(
+    compile(
+        visual_anchor_patch.read_text(encoding='utf-8'),
+        str(visual_anchor_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Legal/localization must run after the commercial refinements so they cannot
 # re-introduce hard-coded Italian onboarding or legal routes.
 legal_localization_patch = Path('tool/apply_prelaunch_legal_localization_20260818.py')
 if not legal_localization_patch.exists():
@@ -234,7 +249,7 @@ exec(
     {'__name__': '__main__'},
 )
 
-# Repair only const/localization interactions introduced by the final patch.
+# Repair only const/localization interactions introduced by the generic patch.
 # This guard writes commercial_gate.dart only and never touches HCV/camera code.
 legal_compile_guard = Path('tool/apply_prelaunch_legal_localization_compile_guard_20260818.py')
 if not legal_compile_guard.exists():
@@ -243,6 +258,20 @@ exec(
     compile(
         legal_compile_guard.read_text(encoding='utf-8'),
         str(legal_compile_guard),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Finally localize the approved first-launch visual composition itself. This
+# is presentation-only and does not write capture/HCV/Registry files.
+landing_localization_patch = Path('tool/apply_prelaunch_landing_localization_20260818.py')
+if not landing_localization_patch.exists():
+    raise RuntimeError('approved landing localization patch missing')
+exec(
+    compile(
+        landing_localization_patch.read_text(encoding='utf-8'),
+        str(landing_localization_patch),
         'exec',
     ),
     {'__name__': '__main__'},
