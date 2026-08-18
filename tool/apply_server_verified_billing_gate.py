@@ -183,3 +183,39 @@ exec(
     ),
     {'__name__': '__main__'},
 )
+
+account_help_refinement = Path('tool/apply_prelaunch_account_help_refinement_20260818.py')
+if not account_help_refinement.exists():
+    raise RuntimeError('account/help refinement patch missing')
+exec(
+    compile(
+        account_help_refinement.read_text(encoding='utf-8'),
+        str(account_help_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+camera_files_refinement = Path('tool/apply_prelaunch_camera_files_subtitle_ui_fix_20260818.py')
+if not camera_files_refinement.exists():
+    raise RuntimeError('camera/files subtitle refinement patch missing')
+exec(
+    compile(
+        camera_files_refinement.read_text(encoding='utf-8'),
+        str(camera_files_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+speech_refinement = Path('tool/apply_prelaunch_speech_recognition_robustness_20260818.py')
+if not speech_refinement.exists():
+    raise RuntimeError('speech robustness refinement patch missing')
+exec(
+    compile(
+        speech_refinement.read_text(encoding='utf-8'),
+        str(speech_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
