@@ -72,15 +72,20 @@ if not map_match:
 if '_t(' in map_match.group(0):
     raise RuntimeError('dynamic translation call remains inside const translation table')
 
-for required in [
+required_tokens = [
     "'it': {",
     "'en': {",
     "'es': {",
     "'ru': {",
     'Widget _languageSelector()',
     'languageCode: _languageCode',
-    "_t('landingSubtitle')",
-]:
+]
+# The simple legacy landing uses landingSubtitle directly. The approved visual
+# landing is localized by the dedicated presentation patch that runs next.
+if "ValueKey('landing-visual-v2')" not in gate:
+    required_tokens.append("_t('landingSubtitle')")
+
+for required in required_tokens:
     if required not in gate:
         raise RuntimeError(f'compile guard required token missing: {required}')
 
