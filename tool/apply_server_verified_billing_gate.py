@@ -219,3 +219,17 @@ exec(
     ),
     {'__name__': '__main__'},
 )
+
+# Legal/localization must run last so earlier commercial refinements cannot
+# re-introduce hard-coded Italian onboarding or legal routes.
+legal_localization_patch = Path('tool/apply_prelaunch_legal_localization_20260818.py')
+if not legal_localization_patch.exists():
+    raise RuntimeError('prelaunch legal/localization patch missing')
+exec(
+    compile(
+        legal_localization_patch.read_text(encoding='utf-8'),
+        str(legal_localization_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
