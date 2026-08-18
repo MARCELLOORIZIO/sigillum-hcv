@@ -114,7 +114,6 @@ if 'String _lv(String key)' not in source:
         raise RuntimeError('landing translation helper anchor missing')
     source = source.replace(anchor, helper + anchor, 1)
 
-# Put the selector at the top of the first page, before any account action.
 first_page_anchor = """            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
               child: Column(
@@ -164,8 +163,6 @@ for old, new in replacements.items():
     if old in source:
         source = source.replace(old, new, 1)
 
-# Once dynamic text is introduced, keep immutable style objects const while the
-# surrounding Text/Row widgets remain non-const.
 source = source.replace("style: TextStyle(\n                              color: SigillumTheme.accentAlt,", "style: const TextStyle(\n                              color: SigillumTheme.accentAlt,")
 source = source.replace("style: TextStyle(\n                      color: SigillumTheme.ink,\n                      fontSize: 17,", "style: const TextStyle(\n                      color: SigillumTheme.ink,\n                      fontSize: 17,")
 source = source.replace("style: TextStyle(\n                            color: SigillumTheme.ink,\n                            fontSize: 23,", "style: const TextStyle(\n                            color: SigillumTheme.ink,\n                            fontSize: 23,")
@@ -189,8 +186,6 @@ for required in [
     if required not in source:
         raise RuntimeError(f'localized approved landing token missing: {required}')
 
-# No Italian-only visible copy from the approved landing may remain. Italian
-# strings remain only inside the translation dictionary, not as UI literals.
 landing_start = source.index("ValueKey('landing-visual-v2')")
 for forbidden in [
     "'Verifica. Condividi. Proteggi.'",
@@ -207,9 +202,6 @@ for forbidden in [
 
 PATH.write_text(source, encoding='utf-8')
 
-# The pre-existing visual contract is generated before localization. Update only
-# its landing assertions so it verifies the same approved visual shell through
-# dynamic language keys instead of requiring Italian literals.
 test_path = Path('test/prelaunch_visual_caption_refinement_contract_test.dart')
 if test_path.exists():
     test = test_path.read_text(encoding='utf-8')
@@ -228,3 +220,17 @@ if test_path.exists():
     test_path.write_text(test, encoding='utf-8')
 
 print('Approved first-launch landing localized in IT/EN/ES/RU; visual contract updated and HCV/capture untouched')
+
+# Final user-facing language/help refinement. This executes after every other
+# commercial patch, so no later patch can restore IT/EN-only help copy.
+user_help_patch = Path('tool/apply_prelaunch_user_language_help_refinement_20260818.py')
+if not user_help_patch.exists():
+    raise RuntimeError('final user language/help refinement patch missing')
+exec(
+    compile(
+        user_help_patch.read_text(encoding='utf-8'),
+        str(user_help_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
