@@ -13,9 +13,12 @@ void main() {
     final text = File('lib/text_cert_page.dart').readAsStringSync();
 
     test('local StoreKit observation never grants Creator entitlement', () {
-      expect(gate, isNot(contains('SharedPreferences.getInstance()')));
+      // SharedPreferences is allowed for UI preferences such as the selected
+      // language. It must never be used as a local purchase/Creator entitlement.
+      expect(gate, contains("'sigillum_language'"));
       expect(gate, isNot(contains('_localPurchaseObserved')));
       expect(gate, isNot(contains('_localPurchaseKey')));
+      expect(gate, isNot(contains("setBool('sigillum.creator")));
       expect(gate, contains('verifyApplePurchase('));
       expect(gate, contains("serverStatus == 'active' || serverStatus == 'grace'"));
     });
