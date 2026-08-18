@@ -233,3 +233,17 @@ exec(
     ),
     {'__name__': '__main__'},
 )
+
+# Repair only const/localization interactions introduced by the final patch.
+# This guard writes commercial_gate.dart only and never touches HCV/camera code.
+legal_compile_guard = Path('tool/apply_prelaunch_legal_localization_compile_guard_20260818.py')
+if not legal_compile_guard.exists():
+    raise RuntimeError('prelaunch legal/localization compile guard missing')
+exec(
+    compile(
+        legal_compile_guard.read_text(encoding='utf-8'),
+        str(legal_compile_guard),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
