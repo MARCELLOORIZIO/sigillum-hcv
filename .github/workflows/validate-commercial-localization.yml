@@ -1,0 +1,125 @@
+name: Validate commercial localization
+
+on:
+  push:
+    branches:
+      - commercial/prelaunch-20260811
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-localization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Snapshot protected HCV files
+        shell: bash
+        run: |
+          PROTECTED=(
+            lib/camera_page.dart
+            lib/camera_service.dart
+            lib/hcv_engine.dart
+            lib/hcv_crypto.dart
+            lib/hcv_package.dart
+            lib/hcv_verifier.dart
+            lib/hcv_keystore_signer.dart
+            lib/hcv_live_screen_probe.dart
+            lib/hcv_live_screen_probe_core.dart
+            lib/hcv_live_screen_probe_geometry.dart
+            lib/hcv_live_screen_probe_sampling.dart
+            lib/hcv_display_risk_fusion.dart
+            lib/hcv_scene_geometry_classifier.dart
+            lib/hcv_scene_decision_fusion.dart
+            lib/hcv_screen_replay_analyzer.dart
+            lib/hcv_planar_motion_model.dart
+            lib/hcv_projective_motion_model.dart
+            lib/hcv_temporal_capture_probe.dart
+            lib/hcv_social_fingerprint.dart
+            lib/hcv_trust_analyzer.dart
+          )
+          : > /tmp/hcv-before.sha256
+          for file in "${PROTECTED[@]}"; do
+            if [[ -f "$file" ]]; then sha256sum "$file" >> /tmp/hcv-before.sha256; fi
+          done
+
+      - name: Apply only legal and language changes
+        run: |
+          python3 tool/apply_prelaunch_legal_localization_20260818.py
+          python3 tool/apply_prelaunch_legal_localization_compile_guard_20260818.py
+          dart format \
+            lib/commercial_gate.dart \
+            lib/commercial_account_service.dart \
+            lib/commercial_profile_page.dart \
+            lib/legal_info_page.dart \
+            test/prelaunch_legal_localization_contract_test.dart
+
+      - name: Prove HCV engine is byte-for-byte unchanged
+        shell: bash
+        run: |
+          PROTECTED=(
+            lib/camera_page.dart
+            lib/camera_service.dart
+            lib/hcv_engine.dart
+            lib/hcv_crypto.dart
+            lib/hcv_package.dart
+            lib/hcv_verifier.dart
+            lib/hcv_keystore_signer.dart
+            lib/hcv_live_screen_probe.dart
+            lib/hcv_live_screen_probe_core.dart
+            lib/hcv_live_screen_probe_geometry.dart
+            lib/hcv_live_screen_probe_sampling.dart
+            lib/hcv_display_risk_fusion.dart
+            lib/hcv_scene_geometry_classifier.dart
+            lib/hcv_scene_decision_fusion.dart
+            lib/hcv_screen_replay_analyzer.dart
+            lib/hcv_planar_motion_model.dart
+            lib/hcv_projective_motion_model.dart
+            lib/hcv_temporal_capture_probe.dart
+            lib/hcv_social_fingerprint.dart
+            lib/hcv_trust_analyzer.dart
+          )
+          : > /tmp/hcv-after.sha256
+          for file in "${PROTECTED[@]}"; do
+            if [[ -f "$file" ]]; then sha256sum "$file" >> /tmp/hcv-after.sha256; fi
+          done
+          diff -u /tmp/hcv-before.sha256 /tmp/hcv-after.sha256
+
+      - name: Verify only permitted app source files changed
+        shell: bash
+        run: |
+          git diff --name-only > /tmp/changed-files.txt
+          cat /tmp/changed-files.txt
+          while IFS= read -r file; do
+            case "$file" in
+              lib/commercial_gate.dart|lib/commercial_account_service.dart|lib/commercial_profile_page.dart|lib/legal_info_page.dart|test/prelaunch_legal_localization_contract_test.dart)
+                ;;
+              *)
+                echo "Unexpected file changed by localization validation: $file"
+                exit 1
+                ;;
+            esac
+          done < /tmp/changed-files.txt
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run localization contract tests
+        run: flutter test test/prelaunch_legal_localization_contract_test.dart
+
+      - name: Run full regression suite
+        run: flutter test
