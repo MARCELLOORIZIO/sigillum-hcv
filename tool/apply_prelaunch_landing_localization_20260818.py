@@ -140,7 +140,7 @@ replacements = {
     "                      const Expanded(\n                        child: Column(": "                      Expanded(\n                        child: Column(",
     "                              'Verifica. Condividi. Proteggi.',": "                              _lv('tagline'),",
     "                        tooltip: 'Informazioni',": "                        tooltip: _lv('info'),",
-    "                        const TextSpan(text: 'Benvenuto in '),": "                        TextSpan(text: _lv('welcomePrefix')) ,",
+    "                        const TextSpan(text: 'Benvenuto in '),": "                        TextSpan(text: _lv('welcomePrefix')),",
     "                  const Text(\n                    'Verifica l’autenticità dei contenuti digitali e condividi con fiducia.',": "                  Text(\n                    _lv('heroSubtitle'),",
     "                        const Text(\n                          'Verifica in pochi secondi',": "                        Text(\n                          _lv('verifySeconds'),",
     "                        const Text(\n                          'Scansiona un codice SIGILLUM o inserisci l’HCV-ID per controllare foto, video, documenti e messaggi.',": "                        Text(\n                          _lv('scanDescription'),",
@@ -164,8 +164,8 @@ for old, new in replacements.items():
     if old in source:
         source = source.replace(old, new, 1)
 
-# Once dynamic text is introduced, remove const from the specific Text widgets
-# whose const context would otherwise reject _lv(...). Styles may remain const.
+# Once dynamic text is introduced, keep immutable style objects const while the
+# surrounding Text/Row widgets remain non-const.
 source = source.replace("style: TextStyle(\n                              color: SigillumTheme.accentAlt,", "style: const TextStyle(\n                              color: SigillumTheme.accentAlt,")
 source = source.replace("style: TextStyle(\n                      color: SigillumTheme.ink,\n                      fontSize: 17,", "style: const TextStyle(\n                      color: SigillumTheme.ink,\n                      fontSize: 17,")
 source = source.replace("style: TextStyle(\n                            color: SigillumTheme.ink,\n                            fontSize: 23,", "style: const TextStyle(\n                            color: SigillumTheme.ink,\n                            fontSize: 23,")
@@ -189,7 +189,9 @@ for required in [
     if required not in source:
         raise RuntimeError(f'localized approved landing token missing: {required}')
 
-# No Italian-only visible copy from the approved landing may remain.
+# No Italian-only visible copy from the approved landing may remain. Italian
+# strings remain only inside the translation dictionary, not as UI literals.
+landing_start = source.index("ValueKey('landing-visual-v2')")
 for forbidden in [
     "'Verifica. Condividi. Proteggi.'",
     "'Benvenuto in '",
@@ -200,8 +202,29 @@ for forbidden in [
     "'Diventa creator'",
     "'Insieme costruiamo fiducia'",
 ]:
-    if forbidden in source[source.index("ValueKey('landing-visual-v2')"):]:
+    if forbidden in source[landing_start:]:
         raise RuntimeError(f'Italian-only approved landing copy remains: {forbidden}')
 
 PATH.write_text(source, encoding='utf-8')
-print('Approved first-launch landing localized in IT/EN/ES/RU; HCV/capture untouched')
+
+# The pre-existing visual contract is generated before localization. Update only
+# its landing assertions so it verifies the same approved visual shell through
+# dynamic language keys instead of requiring Italian literals.
+test_path = Path('test/prelaunch_visual_caption_refinement_contract_test.dart')
+if test_path.exists():
+    test = test_path.read_text(encoding='utf-8')
+    test = test.replace(
+        "expect(gate, contains(\"title: 'Accedi al tuo account'\"));",
+        "expect(gate, contains(\"title: _lv('loginTitle')\"));",
+    )
+    test = test.replace(
+        "expect(gate, contains(\"title: 'Diventa creator'\"));",
+        "expect(gate, contains(\"title: _lv('creatorTitle')\"));",
+    )
+    test = test.replace(
+        "expect(gate, isNot(contains(\"title: 'Crea account'\")));",
+        "expect(gate, isNot(contains(\"title: _lv('createTitle')\")));",
+    )
+    test_path.write_text(test, encoding='utf-8')
+
+print('Approved first-launch landing localized in IT/EN/ES/RU; visual contract updated and HCV/capture untouched')
