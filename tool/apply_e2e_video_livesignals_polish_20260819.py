@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -79,7 +80,9 @@ if reset_token not in camera:
 
 # Small E2E polish already observed: photo HCVPACKs were valid but inherited
 # the hcv_video_ filename prefix. Change naming only; package bytes and format
-# are untouched.
+# are untouched. Earlier prelaunch patches can reformat the method before this
+# script runs, so locate the method and assignments semantically rather than by
+# a byte-for-byte multiline anchor.
 package_signature_old = """  Future<String> movePackageToUnifiedName({
     required String currentPath,
     required String hcvId,
@@ -98,41 +101,77 @@ camera = replace_once(
     'HCVPACK content-kind parameter',
 )
 
-package_name_old = """    final newPath = p.join(
-      dir.path,
-      'hcv_video_$safeId.hcvpack',
-    );
-"""
-package_name_new = """    final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';
+method_marker = '  Future<String> movePackageToUnifiedName({' 
+method_start = camera.find(method_marker)
+if method_start < 0:
+    raise RuntimeError('HCVPACK naming method missing')
+
+method_tail_start = method_start + len(method_marker)
+next_method = re.search(
+    r'\n  (?:Future<[^\n]+>|Future<void>|Widget|void|String|bool|int|double)\s+[_A-Za-z]\w*\s*\(',
+    camera[method_tail_start:],
+)
+method_end = (
+    method_tail_start + next_method.start()
+    if next_method is not None
+    else len(camera)
+)
+package_method = camera[method_start:method_end]
+
+if "final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';" not in package_method:
+    new_path_match = re.search(
+        r'final\s+newPath\s*=\s*p\.join\(',
+        package_method,
+    )
+    if new_path_match is None:
+        raise RuntimeError('HCVPACK newPath assignment missing')
+    assignment_start = new_path_match.start()
+    assignment_end = package_method.find(');', new_path_match.end())
+    if assignment_end < 0:
+        raise RuntimeError('HCVPACK newPath assignment is incomplete')
+    assignment_end += 2
+    old_assignment = package_method[assignment_start:assignment_end]
+    if 'hcvpack' not in old_assignment.lower():
+        raise RuntimeError('HCVPACK newPath assignment does not target hcvpack')
+
+    replacement_assignment = """final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';
     final newPath = p.join(
       dir.path,
       '${contentPrefix}_$safeId.hcvpack',
-    );
-"""
-camera = replace_once(
-    camera,
-    package_name_old,
-    package_name_new,
-    'HCVPACK unified filename',
-)
+    );"""
+    package_method = (
+        package_method[:assignment_start]
+        + replacement_assignment
+        + package_method[assignment_end:]
+    )
+    camera = camera[:method_start] + package_method + camera[method_end:]
 
-photo_package_old = """        pack = await movePackageToUnifiedName(
-          currentPath: pack,
-          hcvId: preparedHcvId,
-        );
-"""
-photo_package_new = """        pack = await movePackageToUnifiedName(
-          currentPath: pack,
-          hcvId: preparedHcvId,
-          contentKind: 'photo',
-        );
-"""
-camera = replace_once(
-    camera,
-    photo_package_old,
-    photo_package_new,
-    'photo HCVPACK naming call',
-)
+# Mark only the photo package call. Locate it after the published-photo context
+# so the video package call keeps the default contentKind='video'.
+if "contentKind: 'photo'," not in camera:
+    photo_context = camera.find('publishedPhoto')
+    if photo_context < 0:
+        raise RuntimeError('photo HCVPACK context missing')
+    photo_call_start = camera.find('movePackageToUnifiedName(', photo_context)
+    if photo_call_start < 0:
+        raise RuntimeError('photo HCVPACK naming call missing')
+    photo_call_end = camera.find(');', photo_call_start)
+    if photo_call_end < 0:
+        raise RuntimeError('photo HCVPACK naming call is incomplete')
+    photo_call_end += 2
+    photo_call = camera[photo_call_start:photo_call_end]
+    if 'hcvId' not in photo_call or 'preparedHcvId' not in photo_call:
+        raise RuntimeError('photo HCVPACK naming call has unexpected arguments')
+
+    hcv_arg = re.search(r'hcvId\s*:\s*preparedHcvId\s*,?', photo_call)
+    if hcv_arg is None:
+        raise RuntimeError('photo HCVPACK hcvId argument missing')
+    photo_call = (
+        photo_call[:hcv_arg.end()]
+        + "\n          contentKind: 'photo',"
+        + photo_call[hcv_arg.end():]
+    )
+    camera = camera[:photo_call_start] + photo_call + camera[photo_call_end:]
 
 # Postconditions: the repair must remain narrow and deterministic.
 required_camera = [
@@ -149,6 +188,8 @@ for token in required_camera:
 
 if camera.count('lastLiveSignals = await liveSignals.stopAndBuildSummary();') != 1:
     raise RuntimeError('video live-signals finalization must occur exactly once')
+if camera.count("contentKind: 'photo',") != 1:
+    raise RuntimeError('photo HCVPACK content kind must be applied exactly once')
 
 stop_pos = camera.index('final file = await controller!.stopVideoRecording();')
 summary_pos = camera.index('lastLiveSignals = await liveSignals.stopAndBuildSummary();')
