@@ -38,22 +38,44 @@ camera = replace_once(
     'video live-signals finalization',
 )
 
-# Do not allow a previous recording summary to leak into a new recording if
-# camera startup fails before a fresh summary can be built.
-start_anchor = """    try {
+# Do not allow a previous recording summary to leak into a new recording. The
+# repository source has a one-step start(), while the final prelaunch generator
+# rewrites it to the approved two-step arm -> REC flow. Support both shapes
+# without changing either flow.
+reset_token = "lastLiveSignals = null;\n\n    setState(() {\n      recording = true;"
+if reset_token not in camera:
+    generated_start_anchor = """    _videoArmZoom = null;
+
+    setState(() {
+      recording = true;
+"""
+    generated_start_replacement = """    _videoArmZoom = null;
+    lastLiveSignals = null;
+
+    setState(() {
+      recording = true;
+"""
+    if generated_start_anchor in camera:
+        camera = camera.replace(
+            generated_start_anchor,
+            generated_start_replacement,
+            1,
+        )
+    else:
+        source_start_anchor = """    try {
       pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
 """
-start_replacement = """    lastLiveSignals = null;
+        source_start_replacement = """    lastLiveSignals = null;
 
     try {
       pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
 """
-camera = replace_once(
-    camera,
-    start_anchor,
-    start_replacement,
-    'video live-signals reset',
-)
+        camera = replace_once(
+            camera,
+            source_start_anchor,
+            source_start_replacement,
+            'video live-signals reset',
+        )
 
 # Small E2E polish already observed: photo HCVPACKs were valid but inherited
 # the hcv_video_ filename prefix. Change naming only; package bytes and format
@@ -115,6 +137,7 @@ camera = replace_once(
 # Postconditions: the repair must remain narrow and deterministic.
 required_camera = [
     'lastLiveSignals = await liveSignals.stopAndBuildSummary();',
+    'lastLiveSignals = null;',
     "String contentKind = 'video',",
     "contentKind: 'photo',",
     "final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';",
