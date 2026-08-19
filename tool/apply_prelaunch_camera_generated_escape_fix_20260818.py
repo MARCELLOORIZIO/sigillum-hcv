@@ -18,3 +18,14 @@ if fixed not in source:
 
 path.write_text(source, encoding='utf-8')
 print(f'Camera generated status newline escaping normalized ({count} replacement(s))')
+
+# User-authorized E2E repair: execute only after the generated camera source has
+# reached its final prelaunch shape. The repair itself owns strict invariants and
+# writes only camera_page.dart plus presentation copy in registry_verify_page.dart.
+e2e_repair = Path('tool/apply_e2e_video_livesignals_polish_20260819.py')
+if not e2e_repair.exists():
+    raise RuntimeError('authorized E2E video live-signals repair missing')
+exec(
+    compile(e2e_repair.read_text(encoding='utf-8'), str(e2e_repair), 'exec'),
+    {'__name__': '__main__'},
+)
