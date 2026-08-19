@@ -152,7 +152,7 @@ if camera.count('lastLiveSignals = await liveSignals.stopAndBuildSummary();') !=
 
 stop_pos = camera.index('final file = await controller!.stopVideoRecording();')
 summary_pos = camera.index('lastLiveSignals = await liveSignals.stopAndBuildSummary();')
-process_pos = camera.index('await processVideo(file.path', stop_pos)
+process_pos = camera.index('await processVideo(', stop_pos)
 if not (stop_pos < summary_pos < process_pos):
     raise RuntimeError('video live-signals summary is not finalized before certification')
 
