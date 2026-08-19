@@ -1,0 +1,106 @@
+name: Validate E2E video live signals
+
+on:
+  push:
+    branches:
+      - commercial/prelaunch-20260811
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate-e2e-video-repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Mark validation pending
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -fsS -L \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d '{"state":"pending","context":"sigillum/e2e-video-repair","description":"Validating authorized live-signals lifecycle repair"}'
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prove protected camera source was not committed directly
+        shell: bash
+        run: |
+          FROZEN_BASE="f810af479546075ffe84c3ea2411dcc6300c0bb3"
+          if ! git cat-file -e "$FROZEN_BASE^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$FROZEN_BASE"
+          fi
+          git diff --exit-code "$FROZEN_BASE"..HEAD -- lib/camera_page.dart
+
+      - name: Apply authorized E2E repair
+        run: python3 tool/apply_e2e_video_livesignals_polish_20260819.py
+
+      - name: Verify patch write scope and invariants
+        shell: bash
+        run: |
+          git diff --name-only > /tmp/e2e-changed.txt
+          cat /tmp/e2e-changed.txt
+          sort /tmp/e2e-changed.txt > /tmp/e2e-changed.sorted.txt
+          printf '%s\n' lib/camera_page.dart lib/registry_verify_page.dart | sort > /tmp/e2e-expected.txt
+          diff -u /tmp/e2e-expected.txt /tmp/e2e-changed.sorted.txt
+
+          grep -Fq "lastLiveSignals = await liveSignals.stopAndBuildSummary();" lib/camera_page.dart
+          grep -Fq "contentKind: 'photo'," lib/camera_page.dart
+          grep -Fq "final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';" lib/camera_page.dart
+          grep -Fq "Il media è collegato al certificato" lib/registry_verify_page.dart
+          ! grep -Fq "Il media e collegato al certificato" lib/registry_verify_page.dart
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Format repaired files
+        run: dart format lib/camera_page.dart lib/registry_verify_page.dart
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run full regression suite
+        run: flutter test
+
+      - name: Mark validation success
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -fsS -L \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d '{"state":"success","context":"sigillum/e2e-video-repair","description":"Authorized live-signals repair and polish validated"}'
+
+      - name: Mark validation failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sS -L \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d '{"state":"failure","context":"sigillum/e2e-video-repair","description":"Authorized E2E video repair failed validation"}' || true
