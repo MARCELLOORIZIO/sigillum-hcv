@@ -161,15 +161,41 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
     }
   }
 
-  Future<void> _verifyTextPackage() async {
-    if (_busy) return;
-    final selected = await FilePicker.platform.pickFiles(
+  Future<FilePickerResult?> _pickTextHcvPackage() {
+    if (Platform.isIOS) {
+      // iOS can display unknown custom extensions as disabled when the picker
+      // is restricted to an undeclared UTI. Let Files return the selected
+      // document and enforce the .hcvpack extension immediately afterwards.
+      return FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+    }
+    return FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['hcvpack'],
       allowMultiple: false,
     );
+  }
+
+  Future<void> _verifyTextPackage() async {
+    if (_busy) return;
+    final selected = await _pickTextHcvPackage();
     final packagePath = selected?.files.single.path;
     if (packagePath == null || packagePath.isEmpty) return;
+
+    if (p.extension(packagePath).toLowerCase() != '.hcvpack') {
+      setState(() {
+        _status = _label(
+          'Seleziona un file HCVPACK (.hcvpack).',
+          'Select an HCVPACK file (.hcvpack).',
+        );
+        _match = null;
+        _signatureValid = null;
+        _source = null;
+      });
+      return;
+    }
 
     setState(() {
       _busy = true;
