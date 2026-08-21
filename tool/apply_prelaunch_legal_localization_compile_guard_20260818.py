@@ -133,3 +133,18 @@ for forbidden in [
 
 GATE.write_text(gate, encoding='utf-8')
 print('Commercial localization compile guard applied; selected language propagates through onboarding and HCV engine remains untouched')
+
+# Billing lifecycle is deliberately applied after localization has stabilized
+# the commercial gate. The isolated patch only rewrites the StoreKit purchase
+# handler and never touches capture/HCV/Registry core files.
+billing_lifecycle_patch = Path('tool/apply_storekit_transaction_lifecycle_fix_20260821.py')
+if not billing_lifecycle_patch.exists():
+    raise RuntimeError('StoreKit transaction lifecycle patch missing')
+exec(
+    compile(
+        billing_lifecycle_patch.read_text(encoding='utf-8'),
+        str(billing_lifecycle_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
