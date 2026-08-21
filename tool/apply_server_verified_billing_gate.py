@@ -276,3 +276,17 @@ exec(
     ),
     {'__name__': '__main__'},
 )
+
+# Billing lifecycle must be the final commercial transformation so earlier
+# presentation/localization refinements cannot restore the old purchase handler.
+storekit_lifecycle_patch = Path('tool/apply_storekit_transaction_lifecycle_fix_20260821.py')
+if not storekit_lifecycle_patch.exists():
+    raise RuntimeError('StoreKit transaction lifecycle patch missing')
+exec(
+    compile(
+        storekit_lifecycle_patch.read_text(encoding='utf-8'),
+        str(storekit_lifecycle_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
