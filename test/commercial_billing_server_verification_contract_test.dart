@@ -20,13 +20,20 @@ void main() {
       expect(gate, isNot(contains('_localPurchaseKey')));
       expect(gate, isNot(contains("setBool('sigillum.creator")));
       expect(gate, contains('verifyApplePurchase('));
-      expect(gate, contains("serverStatus == 'active' || serverStatus == 'grace'"));
+      expect(
+        gate,
+        contains("serverStatus == 'active' || serverStatus == 'grace'"),
+      );
     });
 
     test('purchase is verified by backend before StoreKit completion', () {
-      final verifyIndex = gate.indexOf('verifyApplePurchase(');
+      final handlerStart = gate.indexOf(
+        'Future<void> _onPurchases(List<PurchaseDetails> purchases)',
+      );
+      final verifyIndex = gate.indexOf('verifyApplePurchase(', handlerStart);
       final completeIndex = gate.indexOf('completeVerifiedPurchase(', verifyIndex);
-      expect(verifyIndex, greaterThanOrEqualTo(0));
+      expect(handlerStart, greaterThanOrEqualTo(0));
+      expect(verifyIndex, greaterThan(handlerStart));
       expect(completeIndex, greaterThan(verifyIndex));
       expect(gate, contains('purchase.purchaseID'));
       expect(
@@ -36,6 +43,35 @@ void main() {
       expect(account, contains("'/api/billing/apple/verify'"));
       expect(account, contains("'transactionId': transactionId.trim()"));
       expect(account, contains("'receiptData': receiptData"));
+    });
+
+    test('unfinished StoreKit2 transaction is verified before manual finish', () {
+      expect(billing, contains('SK2Transaction.unfinishedTransactions()'));
+      expect(billing, contains('SK2Transaction.finish(numericId)'));
+      final recoveryStart =
+          gate.indexOf('Future<bool> _recoverUnfinishedAppleTransactions()');
+      final verifyIndex = gate.indexOf('verifyApplePurchase(', recoveryStart);
+      final finishIndex =
+          gate.indexOf('finishUnfinishedAppleTransaction(', verifyIndex);
+      expect(recoveryStart, greaterThanOrEqualTo(0));
+      expect(verifyIndex, greaterThan(recoveryStart));
+      expect(finishIndex, greaterThan(verifyIndex));
+      expect(gate, contains("if (verified['verified'] != true)"));
+      expect(
+        gate,
+        contains("if (status == 'active' || status == 'grace')"),
+      );
+    });
+
+    test('purchase stream events are never dropped just because UI is busy', () {
+      final handlerStart = gate.indexOf(
+        'Future<void> _onPurchases(List<PurchaseDetails> purchases)',
+      );
+      final handlerEnd = gate.indexOf('Future<void> _run', handlerStart);
+      expect(handlerStart, greaterThanOrEqualTo(0));
+      expect(handlerEnd, greaterThan(handlerStart));
+      final handler = gate.substring(handlerStart, handlerEnd);
+      expect(handler, isNot(contains('if (_busy) continue')));
     });
 
     test('billing service does not auto-complete unverified purchases', () {
