@@ -137,7 +137,16 @@ class CommercialAccountService {
   }
 
   Future<Map<String, dynamic>> billingStatus() async {
-    return _authorizedRequest('GET', '/api/billing/status');
+    final billing = await _authorizedRequest('GET', '/api/billing/status');
+    final status = billing['status']?.toString() ?? '';
+    if (status != 'active') return billing;
+
+    final rawExpiresAt = billing['expiresAt']?.toString() ?? '';
+    final expiresAt = DateTime.tryParse(rawExpiresAt)?.toUtc();
+    if (expiresAt == null || !expiresAt.isAfter(DateTime.now().toUtc())) {
+      return <String, dynamic>{...billing, 'status': 'expired'};
+    }
+    return billing;
   }
 
   Future<Map<String, dynamic>> verifyApplePurchase({
