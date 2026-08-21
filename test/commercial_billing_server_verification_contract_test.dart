@@ -26,6 +26,14 @@ void main() {
       );
     });
 
+    test('server active status must still have a future expiration', () {
+      expect(account, contains("final status = billing['status']?.toString() ?? '';"));
+      expect(account, contains("final rawExpiresAt = billing['expiresAt']?.toString() ?? '';"));
+      expect(account, contains('DateTime.tryParse(rawExpiresAt)?.toUtc()'));
+      expect(account, contains('!expiresAt.isAfter(DateTime.now().toUtc())'));
+      expect(account, contains("<String, dynamic>{...billing, 'status': 'expired'}"));
+    });
+
     test('purchase is verified by backend before StoreKit completion', () {
       final handlerStart = gate.indexOf(
         'Future<void> _onPurchases(List<PurchaseDetails> purchases)',
