@@ -1,8 +1,9 @@
 from pathlib import Path
 import re
 
-SCRIPT = Path('tool/apply_storekit_transaction_lifecycle_fix_20260821.py')
 GATE = Path('lib/commercial_gate.dart')
+if GATE.as_posix() != 'lib/commercial_gate.dart':
+    raise RuntimeError('StoreKit lifecycle patch target escaped commercial allowlist')
 source = GATE.read_text(encoding='utf-8')
 
 pattern = re.compile(
@@ -104,16 +105,6 @@ entitlement_pos = source.index('final entitlementActive = status ==', complete_p
 route_pos = source.index('await _routeAuthenticated();', entitlement_pos)
 if not (verify_pos < complete_pos < entitlement_pos < route_pos):
     raise RuntimeError('StoreKit authenticity/completion/entitlement order invalid')
-
-script_source = SCRIPT.read_text(encoding='utf-8')
-for forbidden in [
-    "GATE = Path('lib/camera_page.dart')",
-    "GATE = Path('lib/text_cert_page.dart')",
-    "GATE = Path('lib/hcv_engine.dart')",
-    "GATE = Path('lib/hcv_package.dart')",
-]:
-    if forbidden in script_source:
-        raise RuntimeError(f'billing lifecycle patch escaped commercial scope: {forbidden}')
 
 GATE.write_text(source, encoding='utf-8')
 print('StoreKit verified transaction lifecycle fixed; inactive entitlement remains blocked')
