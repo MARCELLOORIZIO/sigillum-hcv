@@ -277,8 +277,8 @@ exec(
     {'__name__': '__main__'},
 )
 
-# Billing lifecycle must be the final commercial transformation so earlier
-# presentation/localization refinements cannot restore the old purchase handler.
+# Billing lifecycle must run after presentation/localization refinements so
+# earlier transformations cannot restore the old purchase handler.
 storekit_lifecycle_patch = Path('tool/apply_storekit_transaction_lifecycle_fix_20260821.py')
 if not storekit_lifecycle_patch.exists():
     raise RuntimeError('StoreKit transaction lifecycle patch missing')
@@ -286,6 +286,21 @@ exec(
     compile(
         storekit_lifecycle_patch.read_text(encoding='utf-8'),
         str(storekit_lifecycle_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Restored sessions with an expired/inactive entitlement must return to the
+# public landing page so free verification remains accessible. Explicit
+# Creator/login flows keep the normal paywall behavior.
+public_home_patch = Path('tool/apply_public_home_unpaid_restore_fix_20260822.py')
+if not public_home_patch.exists():
+    raise RuntimeError('public-home unpaid restore routing patch missing')
+exec(
+    compile(
+        public_home_patch.read_text(encoding='utf-8'),
+        str(public_home_patch),
         'exec',
     ),
     {'__name__': '__main__'},
