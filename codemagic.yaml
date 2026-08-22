@@ -60,7 +60,8 @@ workflows:
           python3 tool/apply_commercial_registry_auth.py
           python3 tool/apply_commercial_profile_shell.py
           python3 tool/apply_server_verified_billing_gate.py
-          dart format lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart test/media_specific_verification_picker_contract_test.dart
       - name: Flutter pub get
         script: flutter pub get
       - name: Verify source and tests
@@ -172,7 +173,8 @@ workflows:
           python3 tool/apply_commercial_registry_auth.py
           python3 tool/apply_commercial_profile_shell.py
           python3 tool/apply_server_verified_billing_gate.py
-          dart format lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart test/media_specific_verification_picker_contract_test.dart
       - name: Flutter pub get
         script: flutter pub get
       - name: Verify source and tests
