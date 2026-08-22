@@ -47,3 +47,18 @@ if source.count('returnToLandingIfUnpaid: true') != 1:
 
 GATE.write_text(source, encoding='utf-8')
 print('Expired/restored Creator sessions return to public home; Creator entry remains paywalled')
+
+# Keep the verification-picker correction in the same commercial/prelaunch
+# transformation chain so Codemagic applies it automatically after the
+# commercial shell without touching the frozen HCV/camera engine.
+picker_patch = Path('tool/apply_media_specific_verification_picker_fix_20260822.py')
+if not picker_patch.exists():
+    raise RuntimeError('media-specific verification picker patch missing')
+exec(
+    compile(
+        picker_patch.read_text(encoding='utf-8'),
+        str(picker_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
