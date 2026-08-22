@@ -74,6 +74,11 @@ workflows:
           grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
           flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart
+          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
+          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
+          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
       - name: Configure SIGILLUM User edition
         script: |
           cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
@@ -192,6 +197,11 @@ workflows:
           grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
           flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart
+          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
+          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
+          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
       - name: Configure SIGILLUM User edition for App Store
         script: |
           cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
