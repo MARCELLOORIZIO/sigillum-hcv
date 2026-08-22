@@ -67,6 +67,11 @@ workflows:
       - name: Verify source and tests
         script: |
           echo "Building commit $(git rev-parse HEAD)"
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
+          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
+          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
+          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
           flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
       - name: Configure SIGILLUM User edition
@@ -180,6 +185,11 @@ workflows:
       - name: Verify source and tests
         script: |
           echo "Building commit $(git rev-parse HEAD)"
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
+          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
+          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
+          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
           flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
       - name: Configure SIGILLUM User edition for App Store
