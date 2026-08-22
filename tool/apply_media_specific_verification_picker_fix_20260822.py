@@ -1,7 +1,41 @@
 from pathlib import Path
 import re
+import subprocess
 
 path = Path('lib/import_page.dart')
+
+required = [
+    "import 'package:image_picker/image_picker.dart';",
+    "pickImage(source: ImageSource.gallery)",
+    "pickVideo(source: ImageSource.gallery)",
+    "allowedExtensions: const ['hcvpack', 'hcv', 'txt', 'pdf']",
+    'onPressed: pickDocument',
+    'onPressed: pickPhoto',
+    'onPressed: pickVideo',
+]
+
+# The branch now carries the approved picker implementation directly in Git.
+# Tests in this repository may temporarily rewrite lib/import_page.dart while
+# running. Always prefer the committed HEAD version when it already satisfies
+# the approved media-picker contract. This makes the patch deterministic and
+# safe to invoke both before and after the parallel Flutter test suite.
+try:
+    committed = subprocess.check_output(
+        ['git', 'show', 'HEAD:lib/import_page.dart'],
+        text=True,
+    )
+except (subprocess.CalledProcessError, FileNotFoundError):
+    committed = ''
+
+if (
+    committed
+    and all(token in committed for token in required)
+    and 'type: FileType.any' not in committed
+):
+    path.write_text(committed, encoding='utf-8')
+    print('Media-specific verification pickers restored from committed HEAD source')
+    raise SystemExit(0)
+
 source = path.read_text(encoding='utf-8')
 
 if "import 'package:image_picker/image_picker.dart';" not in source:
@@ -11,7 +45,8 @@ if "import 'package:image_picker/image_picker.dart';" not in source:
         1,
     )
 
-# Replace the single generic FileType.any picker with media-specific pickers.
+# Legacy fallback: replace the single generic FileType.any picker with
+# media-specific pickers when building from an older source shape.
 method_pattern = re.compile(
     r"  Future<void> pickFile\(\) async \{.*?\n  \}\n\n  bool isSupported",
     re.S,
@@ -87,7 +122,6 @@ source, count = method_pattern.subn(method_replacement, source, count=1)
 if count != 1 and 'Future<void> pickPhoto() async' not in source:
     raise RuntimeError('generic verification picker anchor missing')
 
-# Replace the one generic SELECT FILE button with explicit media choices.
 button_pattern = re.compile(
     r"              ElevatedButton\(\n"
     r"                onPressed: pickFile,\n"
@@ -122,15 +156,6 @@ source, button_count = button_pattern.subn(buttons, source, count=1)
 if button_count != 1 and 'onPressed: pickPhoto' not in source:
     raise RuntimeError('verification picker button anchor missing')
 
-required = [
-    "import 'package:image_picker/image_picker.dart';",
-    "pickImage(source: ImageSource.gallery)",
-    "pickVideo(source: ImageSource.gallery)",
-    "allowedExtensions: const ['hcvpack', 'hcv', 'txt', 'pdf']",
-    'onPressed: pickDocument',
-    'onPressed: pickPhoto',
-    'onPressed: pickVideo',
-]
 for token in required:
     if token not in source:
         raise RuntimeError(f'media-specific picker token missing: {token}')
