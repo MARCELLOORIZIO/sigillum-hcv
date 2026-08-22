@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'hcv_import_router_page.dart';
 import 'sigillum_localization.dart';
@@ -28,49 +29,69 @@ class _ImportPageState extends State<ImportPage> {
     status = _t('selectFileToVerify');
   }
 
-  Future<void> pickFile() async {
+  Future<void> _openPickedPath(String path) async {
+    if (!mounted) return;
+    setState(() {
+      selectedPath = path;
+      status = "${_t('fileSelected')}:\n$path";
+    });
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HCVImportRouterPage(
+          path: path,
+          languageCode: widget.languageCode,
+        ),
+      ),
+    );
+  }
+
+  Future<void> pickDocument() async {
     try {
       final res = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: const ['hcvpack', 'hcv', 'txt', 'pdf'],
         allowMultiple: false,
       );
-
       if (res == null) {
-        setState(() {
-          status = _t('noFileSelected');
-        });
+        if (mounted) setState(() => status = _t('noFileSelected'));
         return;
       }
-
       final path = res.files.single.path;
-
       if (path == null) {
-        setState(() {
-          status = _t('filePathUnavailable');
-        });
+        if (mounted) setState(() => status = _t('filePathUnavailable'));
         return;
       }
-
-      setState(() {
-        selectedPath = path;
-        status = "${_t('fileSelected')}:\n$path";
-      });
-
-      if (!mounted) return;
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HCVImportRouterPage(
-            path: path,
-            languageCode: widget.languageCode,
-          ),
-        ),
-      );
+      await _openPickedPath(path);
     } catch (e) {
-      setState(() {
-        status = "${_t('importError')}: $e";
-      });
+      if (mounted) setState(() => status = "${_t('importError')}: $e");
+    }
+  }
+
+  Future<void> pickPhoto() async {
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (file == null) {
+        if (mounted) setState(() => status = _t('noFileSelected'));
+        return;
+      }
+      await _openPickedPath(file.path);
+    } catch (e) {
+      if (mounted) setState(() => status = "${_t('importError')}: $e");
+    }
+  }
+
+  Future<void> pickVideo() async {
+    try {
+      final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
+      if (file == null) {
+        if (mounted) setState(() => status = _t('noFileSelected'));
+        return;
+      }
+      await _openPickedPath(file.path);
+    } catch (e) {
+      if (mounted) setState(() => status = "${_t('importError')}: $e");
     }
   }
 
@@ -114,7 +135,7 @@ class _ImportPageState extends State<ImportPage> {
               Text(
                 _t('verifyContentHeading'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
@@ -123,7 +144,7 @@ class _ImportPageState extends State<ImportPage> {
               Text(
                 _t('supportedFiles'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 30),
               Text(
@@ -131,9 +152,28 @@ class _ImportPageState extends State<ImportPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: pickFile,
-                child: Text(_t('selectFile')),
+              ElevatedButton.icon(
+                onPressed: pickDocument,
+                icon: const Icon(Icons.description_outlined),
+                label: Text(widget.languageCode == 'it'
+                    ? 'VERIFICA TESTO / DOCUMENTO'
+                    : 'VERIFY TEXT / DOCUMENT'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: pickPhoto,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: Text(widget.languageCode == 'it'
+                    ? 'VERIFICA FOTO'
+                    : 'VERIFY PHOTO'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: pickVideo,
+                icon: const Icon(Icons.video_library_outlined),
+                label: Text(widget.languageCode == 'it'
+                    ? 'VERIFICA VIDEO'
+                    : 'VERIFY VIDEO'),
               ),
               if (selectedPath != null) ...[
                 const SizedBox(height: 20),
