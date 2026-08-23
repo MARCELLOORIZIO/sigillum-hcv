@@ -3,6 +3,14 @@ from pathlib import Path
 path = Path('lib/registry_verify_page.dart')
 source = path.read_text(encoding='utf-8')
 
+# Keep the Registry verification screen on the exact public SIGILLUM theme.
+theme_import = "import 'sigillum_theme.dart';\n"
+if theme_import not in source:
+    anchor = "import 'sigillum_localization.dart';\n"
+    if anchor not in source:
+        raise RuntimeError('SIGILLUM theme import anchor missing')
+    source = source.replace(anchor, anchor + theme_import, 1)
+
 old_times = """    final times = [
       '00:00:00.2',
       '00:00:00.8',
@@ -33,8 +41,6 @@ if loop_old in source:
 elif loop_new not in source:
     raise RuntimeError('video OCR loop anchor missing')
 
-# Avoid loading complete media files into RAM when the user selects a new file
-# from the verification page.
 if 'withData: true,' in source:
     source = source.replace('withData: true,', 'withData: false,', 1)
 elif 'withData: false,' not in source:
@@ -55,7 +61,6 @@ if old_missing in source:
 elif new_missing not in source:
     raise RuntimeError('missing HCV-ID status anchor missing')
 
-# A missing HCV-ID is a clean negative pre-check, not a red forensic verdict.
 negative_result_old = """result = 'NOT ANALYZED';
           status = 'Contenuto non certificato SIGILLUM.';"""
 negative_result_new = """result = null;
@@ -63,14 +68,13 @@ negative_result_new = """result = null;
 if negative_result_old in source:
     source = source.replace(negative_result_old, negative_result_new, 1)
 
-# Consumer-facing verification shell: match the public SIGILLUM visual language
-# without altering Registry, signature, hash or fingerprint verification logic.
+# Exact visual shell used by the first public pages.
 scaffold_old = """    return Scaffold(
       appBar: AppBar(
         title: Text(_t('verifyContentHeading')),
       ),
       body: Center("""
-scaffold_new = """    return Scaffold(
+scaffold_legacy = """    return Scaffold(
       backgroundColor: const Color(0xFFF8F7FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -85,12 +89,22 @@ scaffold_new = """    return Scaffold(
         ),
       ),
       body: Center("""
+scaffold_new = """    return Scaffold(
+      backgroundColor: SigillumTheme.deep,
+      appBar: AppBar(
+        backgroundColor: SigillumTheme.panel,
+        foregroundColor: SigillumTheme.ink,
+        elevation: 0,
+        title: Text(_t('verifyContentHeading')),
+      ),
+      body: Center("""
 if scaffold_old in source:
     source = source.replace(scaffold_old, scaffold_new, 1)
+elif scaffold_legacy in source:
+    source = source.replace(scaffold_legacy, scaffold_new, 1)
 elif scaffold_new not in source:
     raise RuntimeError('verification scaffold visual anchor missing')
 
-# Do not expose iOS sandbox paths to the user.
 media_path_block = """              if (mediaPath != null) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -107,7 +121,7 @@ select_button_old = """              ElevatedButton(
                 onPressed: loading ? null : pickMedia,
                 child: Text(_t('selectOriginalMedia')),
               ),"""
-select_button_new = """              SizedBox(
+select_button_custom = """              SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -126,8 +140,14 @@ select_button_new = """              SizedBox(
                   child: Text(_t('selectOriginalMedia')),
                 ),
               ),"""
+select_button_new = """              FilledButton(
+                onPressed: loading ? null : pickMedia,
+                child: Text(_t('selectOriginalMedia')),
+              ),"""
 if select_button_old in source:
     source = source.replace(select_button_old, select_button_new, 1)
+elif select_button_custom in source:
+    source = source.replace(select_button_custom, select_button_new, 1)
 elif select_button_new not in source:
     raise RuntimeError('select-media button visual anchor missing')
 
@@ -137,7 +157,7 @@ verify_button_old = """              ElevatedButton(
                   loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
                 ),
               ),"""
-verify_button_new = """              SizedBox(
+verify_button_custom = """              SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -158,8 +178,16 @@ verify_button_new = """              SizedBox(
                   ),
                 ),
               ),"""
+verify_button_new = """              FilledButton(
+                onPressed: loading ? null : verifyFromRegistry,
+                child: Text(
+                  loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
+                ),
+              ),"""
 if verify_button_old in source:
     source = source.replace(verify_button_old, verify_button_new, 1)
+elif verify_button_custom in source:
+    source = source.replace(verify_button_custom, verify_button_new, 1)
 elif verify_button_new not in source:
     raise RuntimeError('verify button visual anchor missing')
 
@@ -168,7 +196,7 @@ card_old = """      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),"""
-card_new = """      decoration: BoxDecoration(
+card_custom = """      decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE8E3F0)),
@@ -180,10 +208,27 @@ card_new = """      decoration: BoxDecoration(
           ),
         ],
       ),"""
+card_new = """      decoration: BoxDecoration(
+        color: SigillumTheme.panel,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: SigillumTheme.border),
+      ),"""
 if card_old in source:
     source = source.replace(card_old, card_new, 1)
+elif card_custom in source:
+    source = source.replace(card_custom, card_new, 1)
 elif card_new not in source:
     raise RuntimeError('verification card visual anchor missing')
+
+# Axis-card typography should use the same ink/muted colors as the public pages.
+source = source.replace(
+    "style: const TextStyle(\n                    fontSize: 13,\n                    color: Colors.grey,",
+    "style: const TextStyle(\n                    fontSize: 13,\n                    color: SigillumTheme.muted,",
+)
+source = source.replace(
+    "style: const TextStyle(fontSize: 14, height: 1.25),",
+    "style: const TextStyle(\n                    color: SigillumTheme.ink,\n                    fontSize: 14,\n                    height: 1.25,\n                  ),",
+)
 
 required = [
     "'00:00:00.2'",
@@ -192,9 +237,12 @@ required = [
     'withData: false,',
     "status = 'Controllo rapido SIGILLUM in corso...';",
     "status = 'Contenuto non certificato SIGILLUM.';",
-    'backgroundColor: const Color(0xFFF8F7FB),',
-    'backgroundColor: const Color(0xFF25C2CE),',
-    'borderRadius: BorderRadius.circular(20),',
+    "import 'sigillum_theme.dart';",
+    'backgroundColor: SigillumTheme.deep,',
+    'backgroundColor: SigillumTheme.panel,',
+    'FilledButton(',
+    'borderRadius: BorderRadius.circular(28),',
+    'border: Border.all(color: SigillumTheme.border),',
 ]
 for token in required:
     if token not in source:
@@ -213,4 +261,4 @@ for forbidden in [
         raise RuntimeError(f'slow/technical verification token still present: {forbidden}')
 
 path.write_text(source, encoding='utf-8')
-print('Fast uncertified-media pre-check and consumer verification shell applied')
+print('Fast media pre-check and Registry verification shell aligned to SIGILLUM public theme')
