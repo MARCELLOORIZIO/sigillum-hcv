@@ -74,7 +74,8 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
       final decoded = img.decodeImage(bytes);
       if (decoded == null) return null;
 
-      final cropHeight = (decoded.height * 0.46).round().clamp(1, decoded.height);
+      final cropHeight =
+          (decoded.height * 0.46).round().clamp(1, decoded.height).toInt();
       var crop = img.copyCrop(
         decoded,
         x: 0,
@@ -106,7 +107,8 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
       if (!mounted) return null;
       final inputPath = preparedPath ?? sourcePath;
       recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-      final recognized = await recognizer.processImage(InputImage.fromFilePath(inputPath));
+      final recognized =
+          await recognizer.processImage(InputImage.fromFilePath(inputPath));
       if (!mounted) return null;
       return _extractHcvId(recognized.text);
     } catch (_) {
@@ -151,9 +153,13 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
     final lower = widget.path.toLowerCase();
 
     if (detectedId == null) {
-      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png')) {
+      if (lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.png')) {
         detectedId = await _ocrImage(widget.path);
-      } else if (lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.m4v')) {
+      } else if (lower.endsWith('.mp4') ||
+          lower.endsWith('.mov') ||
+          lower.endsWith('.m4v')) {
         detectedId = await _checkVideo();
       }
     }
@@ -228,16 +234,22 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
                     width: 82,
                     height: 82,
                     decoration: BoxDecoration(
-                      color: (_notCertified ? Colors.red : cyan).withValues(alpha: 0.12),
+                      color: (_notCertified ? Colors.red : cyan)
+                          .withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: _checking
                         ? const Padding(
                             padding: EdgeInsets.all(23),
-                            child: CircularProgressIndicator(color: purple, strokeWidth: 4),
+                            child: CircularProgressIndicator(
+                              color: purple,
+                              strokeWidth: 4,
+                            ),
                           )
                         : Icon(
-                            _notCertified ? Icons.shield_outlined : Icons.verified_outlined,
+                            _notCertified
+                                ? Icons.shield_outlined
+                                : Icons.verified_outlined,
                             size: 46,
                             color: _notCertified ? Colors.red : purple,
                           ),
@@ -287,7 +299,11 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
                           ),
                         ),
                         onPressed: () => Navigator.of(context).pop(),
-                        child: Text(_isItalian ? 'TORNA ALLA VERIFICA' : 'BACK TO VERIFY'),
+                        child: Text(
+                          _isItalian
+                              ? 'TORNA ALLA VERIFICA'
+                              : 'BACK TO VERIFY',
+                        ),
                       ),
                     ),
                   ],
