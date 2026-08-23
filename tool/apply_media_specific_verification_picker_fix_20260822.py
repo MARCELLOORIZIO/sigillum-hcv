@@ -14,6 +14,17 @@ required = [
     'onPressed: pickVideo',
 ]
 
+
+def apply_fast_media_precheck():
+    patch = Path('tool/apply_fast_uncertified_media_precheck_20260823.py')
+    if not patch.exists():
+        raise RuntimeError('fast uncertified-media precheck patch missing')
+    exec(
+        compile(patch.read_text(encoding='utf-8'), str(patch), 'exec'),
+        {'__name__': '__main__'},
+    )
+
+
 # The branch now carries the approved picker implementation directly in Git.
 # Tests in this repository may temporarily rewrite lib/import_page.dart while
 # running. Always prefer the committed HEAD version when it already satisfies
@@ -34,6 +45,7 @@ if (
 ):
     path.write_text(committed, encoding='utf-8')
     print('Media-specific verification pickers restored from committed HEAD source')
+    apply_fast_media_precheck()
     raise SystemExit(0)
 
 source = path.read_text(encoding='utf-8')
@@ -165,3 +177,4 @@ if 'type: FileType.any' in source:
 
 path.write_text(source, encoding='utf-8')
 print('Media-specific verification pickers applied: documents use Files, photos/videos use Photos')
+apply_fast_media_precheck()
