@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'registry_verify_page.dart';
+import 'sigillum_theme.dart';
 
 class QuickHcvMediaGatePage extends StatefulWidget {
   const QuickHcvMediaGatePage({
@@ -193,76 +194,95 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
     );
   }
 
+  Widget _brand() {
+    return Column(
+      children: [
+        Container(
+          width: 66,
+          height: 66,
+          decoration: BoxDecoration(
+            color: SigillumTheme.panelSoft,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.security_rounded,
+            color: SigillumTheme.ink,
+            size: 38,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'SIGILLUM',
+          style: TextStyle(
+            color: SigillumTheme.ink,
+            fontSize: 31,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _isItalian ? 'Verifica contenuto' : 'Verify content',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: SigillumTheme.muted,
+            fontSize: 16,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const purple = Color(0xFF35106F);
-    const cyan = Color(0xFF25C2CE);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7FB),
+      backgroundColor: SigillumTheme.deep,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: purple,
+        backgroundColor: SigillumTheme.panel,
+        foregroundColor: SigillumTheme.ink,
         elevation: 0,
-        title: Text(
-          _isItalian ? 'Verifica contenuto' : 'Verify content',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: Text(_isItalian ? 'Verifica contenuto' : 'Verify content'),
       ),
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x12000000),
-                    blurRadius: 18,
-                    offset: Offset(0, 7),
-                  ),
-                ],
-              ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 36),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 82,
-                    height: 82,
-                    decoration: BoxDecoration(
-                      color: (_notCertified ? Colors.red : cyan)
-                          .withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
+                  _brand(),
+                  const SizedBox(height: 32),
+                  if (_checking) ...[
+                    const Center(
+                      child: SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: CircularProgressIndicator(strokeWidth: 4),
+                      ),
                     ),
-                    child: _checking
-                        ? const Padding(
-                            padding: EdgeInsets.all(23),
-                            child: CircularProgressIndicator(
-                              color: purple,
-                              strokeWidth: 4,
-                            ),
-                          )
-                        : Icon(
-                            _notCertified
-                                ? Icons.shield_outlined
-                                : Icons.verified_outlined,
-                            size: 46,
-                            color: _notCertified ? Colors.red : purple,
-                          ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 22),
+                  ] else ...[
+                    Icon(
+                      _notCertified
+                          ? Icons.shield_outlined
+                          : Icons.verified_outlined,
+                      size: 48,
+                      color: _notCertified
+                          ? SigillumTheme.danger
+                          : SigillumTheme.verified,
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   Text(
                     _status,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: purple,
+                      color: SigillumTheme.ink,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      height: 1.2,
+                      height: 1.25,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -276,34 +296,19 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
                             : 'No valid HCV-ID was detected in the selected content.'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Color(0xFF625A70),
-                      fontSize: 15,
-                      height: 1.4,
+                      color: SigillumTheme.muted,
+                      fontSize: 16,
+                      height: 1.35,
                     ),
                   ),
                   if (_notCertified) ...[
                     const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: cyan,
-                          foregroundColor: purple,
-                          minimumSize: const Size.fromHeight(58),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 17,
-                          ),
-                        ),
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text(
-                          _isItalian
-                              ? 'TORNA ALLA VERIFICA'
-                              : 'BACK TO VERIFY',
-                        ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        _isItalian
+                            ? 'TORNA ALLA VERIFICA'
+                            : 'BACK TO VERIFY',
                       ),
                     ),
                   ],
