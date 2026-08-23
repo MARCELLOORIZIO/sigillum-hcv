@@ -55,6 +55,136 @@ if old_missing in source:
 elif new_missing not in source:
     raise RuntimeError('missing HCV-ID status anchor missing')
 
+# A missing HCV-ID is a clean negative pre-check, not a red forensic verdict.
+negative_result_old = """result = 'NOT ANALYZED';
+          status = 'Contenuto non certificato SIGILLUM.';"""
+negative_result_new = """result = null;
+          status = 'Contenuto non certificato SIGILLUM.';"""
+if negative_result_old in source:
+    source = source.replace(negative_result_old, negative_result_new, 1)
+
+# Consumer-facing verification shell: match the public SIGILLUM visual language
+# without altering Registry, signature, hash or fingerprint verification logic.
+scaffold_old = """    return Scaffold(
+      appBar: AppBar(
+        title: Text(_t('verifyContentHeading')),
+      ),
+      body: Center("""
+scaffold_new = """    return Scaffold(
+      backgroundColor: const Color(0xFFF8F7FB),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF35106F),
+        elevation: 0,
+        title: Text(
+          _t('verifyContentHeading'),
+          style: const TextStyle(
+            color: Color(0xFF35106F),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      body: Center("""
+if scaffold_old in source:
+    source = source.replace(scaffold_old, scaffold_new, 1)
+elif scaffold_new not in source:
+    raise RuntimeError('verification scaffold visual anchor missing')
+
+# Do not expose iOS sandbox paths to the user.
+media_path_block = """              if (mediaPath != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  mediaPath!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ],
+"""
+if media_path_block in source:
+    source = source.replace(media_path_block, '', 1)
+
+select_button_old = """              ElevatedButton(
+                onPressed: loading ? null : pickMedia,
+                child: Text(_t('selectOriginalMedia')),
+              ),"""
+select_button_new = """              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25C2CE),
+                    foregroundColor: const Color(0xFF35106F),
+                    minimumSize: const Size.fromHeight(58),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                    ),
+                  ),
+                  onPressed: loading ? null : pickMedia,
+                  child: Text(_t('selectOriginalMedia')),
+                ),
+              ),"""
+if select_button_old in source:
+    source = source.replace(select_button_old, select_button_new, 1)
+elif select_button_new not in source:
+    raise RuntimeError('select-media button visual anchor missing')
+
+verify_button_old = """              ElevatedButton(
+                onPressed: loading ? null : verifyFromRegistry,
+                child: Text(
+                  loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
+                ),
+              ),"""
+verify_button_new = """              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25C2CE),
+                    foregroundColor: const Color(0xFF35106F),
+                    minimumSize: const Size.fromHeight(58),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                    ),
+                  ),
+                  onPressed: loading ? null : verifyFromRegistry,
+                  child: Text(
+                    loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
+                  ),
+                ),
+              ),"""
+if verify_button_old in source:
+    source = source.replace(verify_button_old, verify_button_new, 1)
+elif verify_button_new not in source:
+    raise RuntimeError('verify button visual anchor missing')
+
+card_old = """      decoration: BoxDecoration(
+        color: const Color(0xFF111A17),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),"""
+card_new = """      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8E3F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 14,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),"""
+if card_old in source:
+    source = source.replace(card_old, card_new, 1)
+elif card_new not in source:
+    raise RuntimeError('verification card visual anchor missing')
+
 required = [
     "'00:00:00.2'",
     "'00:00:00.8'",
@@ -62,10 +192,13 @@ required = [
     'withData: false,',
     "status = 'Controllo rapido SIGILLUM in corso...';",
     "status = 'Contenuto non certificato SIGILLUM.';",
+    'backgroundColor: const Color(0xFFF8F7FB),',
+    'backgroundColor: const Color(0xFF25C2CE),',
+    'borderRadius: BorderRadius.circular(20),',
 ]
 for token in required:
     if token not in source:
-        raise RuntimeError(f'fast media pre-check token missing: {token}')
+        raise RuntimeError(f'fast media/verification-shell token missing: {token}')
 
 for forbidden in [
     "'00:00:01.5'",
@@ -74,9 +207,10 @@ for forbidden in [
     "'00:00:06.0'",
     "'00:00:08.0'",
     'withData: true,',
+    'mediaPath!,\n                  textAlign: TextAlign.center,\n                  style: const TextStyle(fontSize: 11)',
 ]:
     if forbidden in source:
-        raise RuntimeError(f'slow media pre-check token still present: {forbidden}')
+        raise RuntimeError(f'slow/technical verification token still present: {forbidden}')
 
 path.write_text(source, encoding='utf-8')
-print('Fast uncertified-media pre-check applied: max two early video frames, no full-file RAM load')
+print('Fast uncertified-media pre-check and consumer verification shell applied')
