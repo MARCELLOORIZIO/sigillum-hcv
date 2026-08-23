@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'hcv_import_router_page.dart';
 import 'sigillum_localization.dart';
+import 'sigillum_theme.dart';
 
 class ImportPage extends StatefulWidget {
   const ImportPage({
@@ -18,8 +19,7 @@ class ImportPage extends StatefulWidget {
 }
 
 class _ImportPageState extends State<ImportPage> {
-  String status = "";
-  String? selectedPath;
+  String status = '';
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
@@ -31,10 +31,7 @@ class _ImportPageState extends State<ImportPage> {
 
   Future<void> _openPickedPath(String path) async {
     if (!mounted) return;
-    setState(() {
-      selectedPath = path;
-      status = "${_t('fileSelected')}:\n$path";
-    });
+    setState(() => status = _t('analyzingFile'));
 
     await Navigator.push(
       context,
@@ -45,6 +42,8 @@ class _ImportPageState extends State<ImportPage> {
         ),
       ),
     );
+
+    if (mounted) setState(() => status = _t('selectFileToVerify'));
   }
 
   Future<void> pickDocument() async {
@@ -97,93 +96,134 @@ class _ImportPageState extends State<ImportPage> {
 
   bool isSupported(String path) {
     final lower = path.toLowerCase();
+    return lower.endsWith('.hcvpack') ||
+        lower.endsWith('.hcv') ||
+        lower.endsWith('.txt') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.pdf') ||
+        lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v');
+  }
 
-    return lower.endsWith(".hcvpack") ||
-        lower.endsWith(".hcv") ||
-        lower.endsWith(".txt") ||
-        lower.endsWith(".jpg") ||
-        lower.endsWith(".jpeg") ||
-        lower.endsWith(".png") ||
-        lower.endsWith(".pdf") ||
-        lower.endsWith(".mp4") ||
-        lower.endsWith(".mov") ||
-        lower.endsWith(".m4v");
+  Widget _brand() {
+    return Column(
+      children: [
+        Container(
+          width: 66,
+          height: 66,
+          decoration: BoxDecoration(
+            color: SigillumTheme.panelSoft,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.verified_user_rounded,
+            color: SigillumTheme.ink,
+            size: 38,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'SIGILLUM',
+          style: TextStyle(
+            color: SigillumTheme.ink,
+            fontSize: 31,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _t('verifyContentHeading'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: SigillumTheme.muted,
+            fontSize: 16,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: SigillumTheme.deep,
       appBar: AppBar(
+        backgroundColor: SigillumTheme.panel,
+        foregroundColor: SigillumTheme.ink,
+        elevation: 0,
         title: Text(_t('verifyContentHeading')),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.file_open,
-                size: 72,
-                color: Colors.green,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 36),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _brand(),
+                  const SizedBox(height: 28),
+                  Text(
+                    widget.languageCode == 'it'
+                        ? 'Scegli il tipo di contenuto da verificare.'
+                        : 'Choose the type of content to verify.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: SigillumTheme.muted,
+                      fontSize: 16,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: pickDocument,
+                    icon: const Icon(Icons.description_outlined),
+                    label: Text(widget.languageCode == 'it'
+                        ? 'VERIFICA TESTO / DOCUMENTO'
+                        : 'VERIFY TEXT / DOCUMENT'),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: pickPhoto,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(widget.languageCode == 'it'
+                        ? 'VERIFICA FOTO'
+                        : 'VERIFY PHOTO'),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: pickVideo,
+                    icon: const Icon(Icons.video_library_outlined),
+                    label: Text(widget.languageCode == 'it'
+                        ? 'VERIFICA VIDEO'
+                        : 'VERIFY VIDEO'),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    status,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: SigillumTheme.muted,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _t('supportedFiles'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: SigillumTheme.muted,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                _t('verifyContentHeading'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _t('supportedFiles'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 30),
-              Text(
-                status,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: pickDocument,
-                icon: const Icon(Icons.description_outlined),
-                label: Text(widget.languageCode == 'it'
-                    ? 'VERIFICA TESTO / DOCUMENTO'
-                    : 'VERIFY TEXT / DOCUMENT'),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: pickPhoto,
-                icon: const Icon(Icons.photo_library_outlined),
-                label: Text(widget.languageCode == 'it'
-                    ? 'VERIFICA FOTO'
-                    : 'VERIFY PHOTO'),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: pickVideo,
-                icon: const Icon(Icons.video_library_outlined),
-                label: Text(widget.languageCode == 'it'
-                    ? 'VERIFICA VIDEO'
-                    : 'VERIFY VIDEO'),
-              ),
-              if (selectedPath != null) ...[
-                const SizedBox(height: 20),
-                Text(
-                  selectedPath!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
