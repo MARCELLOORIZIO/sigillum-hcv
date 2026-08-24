@@ -1,5 +1,5 @@
 name: Verify SIGILLUM TestFlight RC 20260824
-# Mirrors Codemagic ios-testflight through analyze/test with stage markers.
+# Mirrors Codemagic ios-testflight through analyze/test; retry after Registry anchor compatibility fix.
 
 on:
   push:
