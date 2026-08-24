@@ -26,9 +26,28 @@ new_times = """    // Fast pre-check only: SIGILLUM watermark/HCV-ID should be v
       '00:00:00.2',
       '00:00:00.8',
     ];"""
+compact_fast_times = "final times = ['00:00:00.2', '00:00:00.8'];"
 if old_times in source:
     source = source.replace(old_times, new_times, 1)
-elif new_times not in source:
+elif new_times in source or compact_fast_times in source:
+    pass
+elif (
+    "'00:00:00.2'" in source
+    and "'00:00:00.8'" in source
+    and all(
+        token not in source
+        for token in [
+            "'00:00:01.5'",
+            "'00:00:02.5'",
+            "'00:00:04.0'",
+            "'00:00:06.0'",
+            "'00:00:08.0'",
+        ]
+    )
+):
+    # dart format may compact the already-correct two-item list.
+    pass
+else:
     raise RuntimeError('video OCR time-list anchor missing')
 
 loop_old = """    for (final time in times) {
