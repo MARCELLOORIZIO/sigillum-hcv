@@ -1,5 +1,4 @@
-name: Diagnose TestFlight analyzer errors
-# Re-run after Registry finalizer newline escape correction.
+name: Diagnose remaining TestFlight analyzer error
 
 on:
   push:
@@ -21,7 +20,7 @@ jobs:
     steps:
       - name: Mark diagnostic pending
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-analyzer-diagnostic"}'
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-analyzer-location"}'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -54,35 +53,54 @@ jobs:
           flutter pub get
           python3 tool/apply_media_specific_verification_picker_fix_20260822.py
           dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
-      - name: Run analyzer and publish exact errors
+      - name: Run analyzer and publish exact location/source
         run: |
           set +e
           flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.log 2>&1
-          code=$?
           cat analyze.log
           python3 <<'PY'
           import json, os, re, urllib.request
           from pathlib import Path
+
           text = Path('analyze.log').read_text(encoding='utf-8', errors='replace')
-          lines = [line.strip() for line in text.splitlines() if re.match(r'^\s*error\s+[•-]', line)]
-          if not lines:
-              lines = [line.strip() for line in text.splitlines() if ' error ' in f' {line.lower()} ' or 'error •' in line.lower()]
+          errors = [line.strip() for line in text.splitlines() if re.match(r'^\s*error\s+[•-]', line)]
           token = os.environ['GH_TOKEN']
           repo = os.environ['GITHUB_REPOSITORY']
           sha = os.environ['GITHUB_SHA']
           url = f'https://api.github.com/repos/{repo}/statuses/{sha}'
-          for i, line in enumerate(lines[:8], 1):
-              safe = re.sub(r'[^A-Za-z0-9_.:/-]+', '-', line).strip('-')[:78]
-              payload = json.dumps({'state':'failure','context':f'sigillum/analyze-{i}-{safe}'}).encode()
+
+          def post(state, context):
+              payload = json.dumps({'state': state, 'context': context[:140]}).encode()
               req = urllib.request.Request(url, data=payload, method='POST', headers={
                   'Authorization': f'Bearer {token}',
                   'Accept': 'application/vnd.github+json',
                   'Content-Type': 'application/json',
               })
               urllib.request.urlopen(req).read()
-          overall = {'state':'success' if not lines and 'No issues found!' in text else 'failure', 'context':'sigillum/tf-analyzer-diagnostic'}
-          req = urllib.request.Request(url, data=json.dumps(overall).encode(), method='POST', headers={
-              'Authorization': f'Bearer {token}', 'Accept':'application/vnd.github+json', 'Content-Type':'application/json'})
-          urllib.request.urlopen(req).read()
+
+          if not errors:
+              post('success', 'sigillum/tf-analyzer-location-clean')
+              raise SystemExit(0)
+
+          line = errors[0]
+          # Analyzer format: error • message • path:line:column • code
+          parts = [p.strip() for p in line.split('•')]
+          location = next((p for p in parts if re.search(r'\.dart:\d+:\d+$', p)), 'location-not-found')
+          safe_loc = re.sub(r'[^A-Za-z0-9_.:/-]+', '-', location)
+          post('failure', f'sigillum/analyzer-location-{safe_loc}')
+
+          message = parts[1] if len(parts) > 1 else line
+          safe_msg = re.sub(r'[^A-Za-z0-9_.:/-]+', '-', message).strip('-')
+          for i in range(0, min(len(safe_msg), 300), 90):
+              post('failure', f'sigillum/analyzer-msg-{i//90+1}-{safe_msg[i:i+90]}')
+
+          m = re.search(r'(.+\.dart):(\d+):(\d+)$', location)
+          if m:
+              path, row, col = m.group(1), int(m.group(2)), int(m.group(3))
+              lines = Path(path).read_text(encoding='utf-8', errors='replace').splitlines()
+              for r in range(max(1, row-2), min(len(lines), row+2)+1):
+                  src = re.sub(r'[^A-Za-z0-9_().?:,./<>!=+\-\[\] ]+', '-', lines[r-1]).strip()
+                  post('failure', f'sigillum/src-{r}-{src[:105]}')
+          post('failure', 'sigillum/tf-analyzer-location')
           PY
           exit 0
