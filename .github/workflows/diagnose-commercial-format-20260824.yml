@@ -1,4 +1,5 @@
 name: Diagnose commercial billing gate failure
+# Retry after accepting the formatter-produced one-line missing-ID status.
 
 on:
   push:
