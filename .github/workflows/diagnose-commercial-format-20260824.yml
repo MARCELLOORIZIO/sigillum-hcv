@@ -1,0 +1,97 @@
+name: Diagnose commercial Codemagic format
+
+on:
+  push:
+    branches:
+      - release/testflight-rc-20260824
+    paths:
+      - .github/workflows/diagnose-commercial-format-20260824.yml
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Materialize through text stage
+        run: |
+          python3 tool/run_ios_share_handoff_fix.py
+          python3 tool/apply_file_import_and_ocr_fix.py
+          python3 tool/apply_safe_capture_location_fix.py
+          python3 tool/apply_mixed_scene_monitor_fix.py
+          python3 tool/apply_planar_parallax_compile_safety.py
+          python3 tool/apply_certificate_regression_fix.py
+          python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
+          dart format lib/camera_page.dart lib/registry_verify_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_projective_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/camera_physical_scene_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/registry_verify_hcv_id16_contract_test.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart test/photo_display_risk_policy_test.dart test/monitor_certificate_regression_test.dart test/hcv_projective_motion_model_test.dart test/registry_local_republish_contract_test.dart
+          python3 tool/apply_account_success_feedback.py
+          dart format lib/account_page.dart test/account_success_feedback_contract_test.dart
+          python3 tool/apply_text_social_verification.py
+          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
+      - name: Apply commercial patchers
+        run: |
+          python3 tool/apply_commercial_registry_auth.py
+          python3 tool/apply_commercial_profile_shell.py
+          python3 tool/apply_server_verified_billing_gate.py
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+      - name: Mark commercial patchers
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-commercial-patchers"}'
+      - name: Format import page
+        run: dart format lib/import_page.dart
+      - name: Mark import
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-import"}'
+      - name: Format Registry service
+        run: dart format lib/hcv_registry_service.dart
+      - name: Mark Registry service
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-registry"}'
+      - name: Format auth service
+        run: dart format lib/hcv_auth_service.dart
+      - name: Mark auth
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-auth"}'
+      - name: Format user home
+        run: dart format lib/user_home_page.dart
+      - name: Mark user home
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-home"}'
+      - name: Format commercial account
+        run: dart format lib/commercial_account_service.dart
+      - name: Mark account service
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-account-service"}'
+      - name: Format commercial billing
+        run: dart format lib/commercial_billing_service.dart
+      - name: Mark billing service
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-billing"}'
+      - name: Format commercial gate
+        run: dart format lib/commercial_gate.dart
+      - name: Mark gate
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-gate"}'
+      - name: Format commercial profile
+        run: dart format lib/commercial_profile_page.dart
+      - name: Mark profile
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-profile"}'
+      - name: Format main
+        run: dart format lib/main.dart
+      - name: Mark main
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-main"}'
+      - name: Format billing contract test
+        run: dart format test/commercial_billing_server_verification_contract_test.dart
+      - name: Mark billing test
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-billing-test"}'
+      - name: Format media contract test
+        run: dart format test/media_specific_verification_picker_contract_test.dart
+      - name: Mark media test
+        run: curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-media-test"}'
