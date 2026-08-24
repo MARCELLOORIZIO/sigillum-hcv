@@ -1,5 +1,4 @@
-name: Diagnose remaining TestFlight analyzer error
-# Re-run after Registry presentation-helper null-safety correction.
+name: Diagnose TestFlight Flutter test failures
 
 on:
   push:
@@ -15,13 +14,13 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Mark diagnostic pending
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-analyzer-location"}'
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-test-diagnostic"}'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -29,7 +28,7 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Materialize exactly through pre-test state
+      - name: Materialize exactly through test state
         run: |
           python3 tool/run_ios_share_handoff_fix.py
           python3 tool/apply_file_import_and_ocr_fix.py
@@ -54,17 +53,26 @@ jobs:
           flutter pub get
           python3 tool/apply_media_specific_verification_picker_fix_20260822.py
           dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
-      - name: Run analyzer and publish exact location/source
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Run tests and publish failures
         run: |
           set +e
-          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.log 2>&1
-          cat analyze.log
+          flutter test --reporter expanded > test.log 2>&1
+          code=$?
+          cat test.log
           python3 <<'PY'
           import json, os, re, urllib.request
           from pathlib import Path
 
-          text = Path('analyze.log').read_text(encoding='utf-8', errors='replace')
-          errors = [line.strip() for line in text.splitlines() if re.match(r'^\s*error\s+[•-]', line)]
+          text = Path('test.log').read_text(encoding='utf-8', errors='replace')
+          lines = text.splitlines()
+          failures = [line.strip() for line in lines if '[E]' in line]
+          details = []
+          for line in lines:
+              s = line.strip()
+              if s.startswith(('Expected:', 'Actual:', 'Which:', 'package:', 'test/')) or 'Test failed.' in s:
+                  details.append(s)
+
           token = os.environ['GH_TOKEN']
           repo = os.environ['GITHUB_REPOSITORY']
           sha = os.environ['GITHUB_SHA']
@@ -79,28 +87,19 @@ jobs:
               })
               urllib.request.urlopen(req).read()
 
-          if not errors:
-              post('success', 'sigillum/tf-analyzer-location-clean')
+          def safe(value):
+              return re.sub(r'[^A-Za-z0-9_.:/+\-]+', '-', value).strip('-')
+
+          if not failures and code == 0:
+              post('success', 'sigillum/tf-test-diagnostic-clean')
               raise SystemExit(0)
 
-          line = errors[0]
-          parts = [p.strip() for p in line.split('•')]
-          location = next((p for p in parts if re.search(r'\.dart:\d+:\d+$', p)), 'location-not-found')
-          safe_loc = re.sub(r'[^A-Za-z0-9_.:/-]+', '-', location)
-          post('failure', f'sigillum/analyzer-location-{safe_loc}')
-
-          message = parts[1] if len(parts) > 1 else line
-          safe_msg = re.sub(r'[^A-Za-z0-9_.:/-]+', '-', message).strip('-')
-          for i in range(0, min(len(safe_msg), 300), 90):
-              post('failure', f'sigillum/analyzer-msg-{i//90+1}-{safe_msg[i:i+90]}')
-
-          m = re.search(r'(.+\.dart):(\d+):(\d+)$', location)
-          if m:
-              path, row, col = m.group(1), int(m.group(2)), int(m.group(3))
-              lines = Path(path).read_text(encoding='utf-8', errors='replace').splitlines()
-              for r in range(max(1, row-2), min(len(lines), row+2)+1):
-                  src = re.sub(r'[^A-Za-z0-9_().?:,./<>!=+\-\[\] ]+', '-', lines[r-1]).strip()
-                  post('failure', f'sigillum/src-{r}-{src[:105]}')
-          post('failure', 'sigillum/tf-analyzer-location')
+          for i, line in enumerate(failures[:6], 1):
+              val = safe(line)
+              for j in range(0, min(len(val), 300), 90):
+                  post('failure', f'sigillum/test-{i}-{j//90+1}-{val[j:j+90]}')
+          for i, line in enumerate(details[:10], 1):
+              post('failure', f'sigillum/test-detail-{i}-{safe(line)[:105]}')
+          post('failure', 'sigillum/tf-test-diagnostic')
           PY
           exit 0
