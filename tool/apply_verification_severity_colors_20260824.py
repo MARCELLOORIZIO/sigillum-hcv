@@ -80,6 +80,8 @@ elif new_result_color not in source:
     raise RuntimeError('verification result text color anchor missing')
 
 # The scene axis must follow risk severity independently of the selected language.
+# Accept both the hand-written and dart-format variants so this finalizer is
+# safe when Codemagic materializes the same final source more than once.
 old_scene_color = "color: _axisColor(_effectiveSceneState),"
 new_scene_color = """color: _isStrongDisplayRisk
                       ? Colors.red
@@ -88,8 +90,14 @@ new_scene_color = """color: _isStrongDisplayRisk
                           : _axisColor(_effectiveSceneState),"""
 if old_scene_color in source:
     source = source.replace(old_scene_color, new_scene_color, 1)
-elif new_scene_color not in source:
-    raise RuntimeError('scene severity color anchor missing')
+else:
+    normalized = ' '.join(source.split())
+    normalized_scene_color = (
+        'color: _isStrongDisplayRisk ? Colors.red : _isDisplayNonConclusive '
+        '? Colors.orange : _axisColor(_effectiveSceneState),'
+    )
+    if normalized_scene_color not in normalized:
+        raise RuntimeError('scene severity color anchor missing')
 
 required = [
     '_hasSevereVerificationIssue',
