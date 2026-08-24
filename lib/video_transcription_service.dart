@@ -98,7 +98,11 @@ class VideoTranscriptionService {
       );
     }
 
-    final captions = _captionSegments(wordSegments, fallbackText: text);
+    final captions = _captionSegmentsWithFullCoverage(
+      wordSegments,
+      fullText: text,
+      mediaDuration: (raw['duration'] as num?)?.toDouble(),
+    );
     final directory = await getApplicationDocumentsDirectory();
     final base = p.basenameWithoutExtension(videoPath).replaceAll(
           RegExp(r'[^A-Za-z0-9_-]'),
@@ -142,6 +146,93 @@ class VideoTranscriptionService {
       subtitlePath: subtitlePath,
       captionedVideoPath: returnedPath,
     );
+  }
+
+  List<VideoTranscriptSegment> _captionSegmentsWithFullCoverage(
+    List<VideoTranscriptSegment> words, {
+    required String fullText,
+    double? mediaDuration,
+  }) {
+    final normalCaptions = _captionSegments(words, fallbackText: fullText);
+    final complete = fullText.trim();
+    if (complete.isEmpty) return normalCaptions;
+
+    final captionText = normalCaptions.map((segment) => segment.text).join(' ');
+    final fullTokens = _normalizedTokens(complete);
+    final captionTokens = _normalizedTokens(captionText);
+    if (fullTokens.isEmpty) return normalCaptions;
+
+    final covered = _orderedCoverage(fullTokens, captionTokens);
+    if (covered >= 0.97) return normalCaptions;
+
+    // Apple Speech may revise partial hypotheses. The cumulative `text` is the
+    // most complete recognizer result, while timed segments can occasionally
+    // omit words that were present in an earlier/later hypothesis. If timing
+    // coverage is incomplete, rebuild captions from the complete transcript
+    // rather than silently dropping spoken words.
+    final start = words.isEmpty ? 0.0 : words.first.start.clamp(0.0, 359999.0);
+    var end = words.isEmpty ? 0.0 : words.map((word) => word.end).reduce((a, b) => a > b ? a : b);
+    if (mediaDuration != null && mediaDuration > end) end = mediaDuration;
+    if (end <= start) end = start + 10.0;
+
+    return _captionsFromFullText(complete, start: start, end: end);
+  }
+
+  List<String> _normalizedTokens(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ')
+        .split(RegExp(r'\s+'))
+        .where((token) => token.isNotEmpty)
+        .toList();
+  }
+
+  double _orderedCoverage(List<String> expected, List<String> actual) {
+    if (expected.isEmpty) return 1.0;
+    var actualIndex = 0;
+    var matched = 0;
+    for (final token in expected) {
+      while (actualIndex < actual.length && actual[actualIndex] != token) {
+        actualIndex++;
+      }
+      if (actualIndex < actual.length) {
+        matched++;
+        actualIndex++;
+      }
+    }
+    return matched / expected.length;
+  }
+
+  List<VideoTranscriptSegment> _captionsFromFullText(
+    String text, {
+    required double start,
+    required double end,
+  }) {
+    final words = text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+    if (words.isEmpty) return const [];
+
+    final groups = <String>[];
+    var current = <String>[];
+    for (final word in words) {
+      final proposed = [...current, word].join(' ');
+      if (current.isNotEmpty && (current.length >= 7 || proposed.length > 58)) {
+        groups.add(current.join(' '));
+        current = <String>[];
+      }
+      current.add(word);
+    }
+    if (current.isNotEmpty) groups.add(current.join(' '));
+
+    final totalDuration = (end - start).clamp(1.0, 359999.0).toDouble();
+    final perGroup = totalDuration / groups.length;
+    return [
+      for (var i = 0; i < groups.length; i++)
+        VideoTranscriptSegment(
+          text: groups[i],
+          start: start + (perGroup * i),
+          duration: perGroup.clamp(0.9, 5.0).toDouble(),
+        ),
+    ];
   }
 
   List<VideoTranscriptSegment> _captionSegments(
