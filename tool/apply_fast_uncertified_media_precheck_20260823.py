@@ -55,9 +55,12 @@ elif new_start not in source:
 
 old_missing = """status =
               'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';"""
+old_missing_formatted = "status = 'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';"
 new_missing = """status = 'Contenuto non certificato SIGILLUM.';"""
 if old_missing in source:
     source = source.replace(old_missing, new_missing, 1)
+elif old_missing_formatted in source:
+    source = source.replace(old_missing_formatted, new_missing, 1)
 elif new_missing not in source:
     raise RuntimeError('missing HCV-ID status anchor missing')
 
