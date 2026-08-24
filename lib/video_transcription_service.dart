@@ -162,16 +162,17 @@ class VideoTranscriptionService {
     final captionTokens = _normalizedTokens(captionText);
     if (fullTokens.isEmpty) return normalCaptions;
 
-    final covered = _orderedCoverage(fullTokens, captionTokens);
+    final covered = _tokenCoverage(fullTokens, captionTokens);
     if (covered >= 0.97) return normalCaptions;
 
-    // Apple Speech may revise partial hypotheses. The cumulative `text` is the
-    // most complete recognizer result, while timed segments can occasionally
-    // omit words that were present in an earlier/later hypothesis. If timing
-    // coverage is incomplete, rebuild captions from the complete transcript
-    // rather than silently dropping spoken words.
+    // Apple Speech can revise partial hypotheses. Keep the most complete
+    // cumulative transcript as the source of truth for wording: if timed
+    // segments omit words, rebuild timed captions from the complete text so
+    // spoken words are not silently lost from the derived subtitle video.
     final start = words.isEmpty ? 0.0 : words.first.start.clamp(0.0, 359999.0);
-    var end = words.isEmpty ? 0.0 : words.map((word) => word.end).reduce((a, b) => a > b ? a : b);
+    var end = words.isEmpty
+        ? 0.0
+        : words.map((word) => word.end).reduce((a, b) => a > b ? a : b);
     if (mediaDuration != null && mediaDuration > end) end = mediaDuration;
     if (end <= start) end = start + 10.0;
 
@@ -181,23 +182,24 @@ class VideoTranscriptionService {
   List<String> _normalizedTokens(String value) {
     return value
         .toLowerCase()
-        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9à-öø-ÿ]+', caseSensitive: false), ' ')
         .split(RegExp(r'\s+'))
         .where((token) => token.isNotEmpty)
         .toList();
   }
 
-  double _orderedCoverage(List<String> expected, List<String> actual) {
+  double _tokenCoverage(List<String> expected, List<String> actual) {
     if (expected.isEmpty) return 1.0;
-    var actualIndex = 0;
+    final available = <String, int>{};
+    for (final token in actual) {
+      available[token] = (available[token] ?? 0) + 1;
+    }
     var matched = 0;
     for (final token in expected) {
-      while (actualIndex < actual.length && actual[actualIndex] != token) {
-        actualIndex++;
-      }
-      if (actualIndex < actual.length) {
+      final count = available[token] ?? 0;
+      if (count > 0) {
         matched++;
-        actualIndex++;
+        available[token] = count - 1;
       }
     }
     return matched / expected.length;
@@ -208,7 +210,8 @@ class VideoTranscriptionService {
     required double start,
     required double end,
   }) {
-    final words = text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+    final words =
+        text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
     if (words.isEmpty) return const [];
 
     final groups = <String>[];
@@ -318,7 +321,8 @@ class VideoTranscriptionService {
     final buffer = StringBuffer();
     for (var index = 0; index < segments.length; index++) {
       final segment = segments[index];
-      final end = segment.start + (segment.duration <= 0 ? 1.0 : segment.duration);
+      final end =
+          segment.start + (segment.duration <= 0 ? 1.0 : segment.duration);
       buffer
         ..writeln(index + 1)
         ..writeln('${_time(segment.start)} --> ${_time(end)}')
