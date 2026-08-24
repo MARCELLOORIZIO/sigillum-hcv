@@ -1,4 +1,4 @@
-name: Diagnose commercial Codemagic format
+name: Diagnose commercial billing gate failure
 
 on:
   push:
@@ -14,13 +14,13 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 35
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Mark diagnostic started
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-format-diagnostic"}'
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-billing-diagnostic"}'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -45,155 +45,28 @@ jobs:
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
-      - name: Mark text stage
+          python3 tool/apply_commercial_registry_auth.py
+          python3 tool/apply_commercial_profile_shell.py
+      - name: Run billing gate and expose exact failure
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-text-stage"}'
-
-      - id: patch_registry_auth
-        name: Apply commercial Registry auth
-        continue-on-error: true
-        run: python3 tool/apply_commercial_registry_auth.py
-      - name: Mark Registry auth patch
-        if: always()
-        env:
-          OUTCOME: ${{ steps.patch_registry_auth.outcome }}
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-patch-registry-auth\"}"
-      - id: patch_profile
-        name: Apply commercial profile shell
-        continue-on-error: true
-        run: python3 tool/apply_commercial_profile_shell.py
-      - name: Mark profile patch
-        if: always()
-        env:
-          OUTCOME: ${{ steps.patch_profile.outcome }}
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-patch-profile\"}"
-      - id: patch_billing_gate
-        name: Apply server verified billing gate
-        continue-on-error: true
-        run: python3 tool/apply_server_verified_billing_gate.py
-      - name: Mark billing gate patch
-        if: always()
-        env:
-          OUTCOME: ${{ steps.patch_billing_gate.outcome }}
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-patch-billing-gate\"}"
-      - id: patch_media
-        name: Apply media verification finalizers
-        continue-on-error: true
-        run: python3 tool/apply_media_specific_verification_picker_fix_20260822.py
-      - name: Mark media finalizer patch
-        if: always()
-        env:
-          OUTCOME: ${{ steps.patch_media.outcome }}
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-patch-media\"}"
-
-      - id: fmt_import
-        continue-on-error: true
-        run: dart format lib/import_page.dart
-      - name: Mark import
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_import.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-import\"}"
-      - id: fmt_registry
-        continue-on-error: true
-        run: dart format lib/hcv_registry_service.dart
-      - name: Mark Registry service
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_registry.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-registry\"}"
-      - id: fmt_auth
-        continue-on-error: true
-        run: dart format lib/hcv_auth_service.dart
-      - name: Mark auth
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_auth.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-auth\"}"
-      - id: fmt_home
-        continue-on-error: true
-        run: dart format lib/user_home_page.dart
-      - name: Mark home
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_home.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-home\"}"
-      - id: fmt_account_service
-        continue-on-error: true
-        run: dart format lib/commercial_account_service.dart
-      - name: Mark account service
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_account_service.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-account-service\"}"
-      - id: fmt_billing
-        continue-on-error: true
-        run: dart format lib/commercial_billing_service.dart
-      - name: Mark billing service
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_billing.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-billing\"}"
-      - id: fmt_gate
-        continue-on-error: true
-        run: dart format lib/commercial_gate.dart
-      - name: Mark gate
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_gate.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-gate\"}"
-      - id: fmt_profile
-        continue-on-error: true
-        run: dart format lib/commercial_profile_page.dart
-      - name: Mark profile
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_profile.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-profile\"}"
-      - id: fmt_main
-        continue-on-error: true
-        run: dart format lib/main.dart
-      - name: Mark main
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_main.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-main\"}"
-      - id: fmt_billing_test
-        continue-on-error: true
-        run: dart format test/commercial_billing_server_verification_contract_test.dart
-      - name: Mark billing test
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_billing_test.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-billing-test\"}"
-      - id: fmt_media_test
-        continue-on-error: true
-        run: dart format test/media_specific_verification_picker_contract_test.dart
-      - name: Mark media test
-        if: always()
-        env: { OUTCOME: "${{ steps.fmt_media_test.outcome }}" }
-        run: |
-          state=success; [ "$OUTCOME" = success ] || state=failure
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d "{\"state\":\"$state\",\"context\":\"sigillum/tf-fmt-media-test\"}"
+          set +e
+          python3 tool/apply_server_verified_billing_gate.py > billing-gate.log 2>&1
+          code=$?
+          cat billing-gate.log
+          if [ "$code" -eq 0 ]; then
+            context="sigillum/tf-billing-gate-ok"
+            state="success"
+          else
+            last="$(tail -n 1 billing-gate.log | tr -d '\r' | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g' | cut -c1-80)"
+            context="sigillum/tf-billing-${last}"
+            state="failure"
+          fi
+          python3 - "$state" "$context" > status.json <<'PY'
+          import json, sys
+          print(json.dumps({'state': sys.argv[1], 'context': sys.argv[2]}))
+          PY
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" --data-binary @status.json
+          exit 0
       - name: Mark diagnostic complete
-        if: always()
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-format-diagnostic"}'
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-billing-diagnostic"}'
