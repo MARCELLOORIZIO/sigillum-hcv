@@ -22,7 +22,7 @@ if start >= 0:
     end = source.find(end_marker, start)
     if end < 0:
         raise RuntimeError('Registry technical block end anchor missing')
-    compact = """              if (hcvTrustLevel != null ||
+    compact = r"""              if (hcvTrustLevel != null ||
                   liveCaptureTrust != null ||
                   screenReplayRisk != null) ...[
                 const SizedBox(height: 14),
