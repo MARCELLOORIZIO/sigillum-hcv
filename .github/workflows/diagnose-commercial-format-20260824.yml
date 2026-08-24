@@ -1,4 +1,5 @@
 name: Diagnose TestFlight Flutter test failures
+# Re-run current RC diagnostics after analyzer/finalizer compatibility fixes.
 
 on:
   push:
