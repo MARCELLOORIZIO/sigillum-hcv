@@ -38,6 +38,32 @@ def apply_verification_refinement():
             {'__name__': '__main__'},
         )
 
+    # RC2: format the materialized Dart source after ALL build-time finalizers.
+    # This is also a fast syntax check before flutter analyze/test.
+    final_dart_files = [
+        'lib/import_page.dart',
+        'lib/quick_hcv_media_gate_page.dart',
+        'lib/hcv_import_router_page.dart',
+        'lib/hcvpack_player_page.dart',
+        'lib/registry_verify_page.dart',
+        'lib/camera_page.dart',
+        'lib/camera_ui_copy.dart',
+        'lib/hcv_ml_screen_replay_classifier.dart',
+        'lib/hcv_ml_model_store.dart',
+    ]
+    subprocess.run(['dart', 'format', *final_dart_files], check=True)
+
+    # The first audit inside the language finalizer sees the pre-format source.
+    # Re-run it now so the final section of the diagnostic log fingerprints the
+    # exact formatted source that proceeds to analysis/tests and the IPA build.
+    audit = Path('tool/verify_postpatch_release_20260825.py')
+    if not audit.exists():
+        raise RuntimeError('RC2 post-format release audit missing')
+    exec(
+        compile(audit.read_text(encoding='utf-8'), str(audit), 'exec'),
+        {'__name__': '__main__'},
+    )
+
 
 # The branch now carries the approved picker implementation directly in Git.
 # Tests in this repository may temporarily rewrite lib/import_page.dart while
