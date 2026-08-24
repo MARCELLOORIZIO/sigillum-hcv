@@ -43,10 +43,10 @@ if start >= 0:
                     childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
                     children: [
                       Text(
-                        'HCV: ${hcvTrustLevel ?? '-'}\n'
-                        '${_v('scene')}: ${_localizedAxisState('scene', _effectiveSceneState)}\n'
-                        'Display: ${displayRiskDecision ?? '-'} / ${screenReplayRisk ?? '-'} / ${screenReplayRiskScore ?? '-'}\n'
-                        'Live probe: ${liveProbeAnalysisStatus ?? '-'} / ${liveProbeRisk ?? '-'}\n'
+                        'HCV: ${hcvTrustLevel ?? '-'}\\n'
+                        '${_v('scene')}: ${_localizedAxisState('scene', _effectiveSceneState)}\\n'
+                        'Display: ${displayRiskDecision ?? '-'} / ${screenReplayRisk ?? '-'} / ${screenReplayRiskScore ?? '-'}\\n'
+                        'Live probe: ${liveProbeAnalysisStatus ?? '-'} / ${liveProbeRisk ?? '-'}\\n'
                         'AI: ${aiProofLevel ?? '-'}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
