@@ -1,4 +1,5 @@
 name: Diagnose remaining TestFlight analyzer error
+# Re-run after Registry presentation-helper null-safety correction.
 
 on:
   push:
@@ -83,7 +84,6 @@ jobs:
               raise SystemExit(0)
 
           line = errors[0]
-          # Analyzer format: error • message • path:line:column • code
           parts = [p.strip() for p in line.split('•')]
           location = next((p for p in parts if re.search(r'\.dart:\d+:\d+$', p)), 'location-not-found')
           safe_loc = re.sub(r'[^A-Za-z0-9_.:/-]+', '-', location)
