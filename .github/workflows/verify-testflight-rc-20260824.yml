@@ -1,5 +1,5 @@
 name: Verify SIGILLUM TestFlight RC 20260824
-# Final Codemagic-equivalent retry after formatted missing-ID and compact Scaffold compatibility fixes.
+# Final Codemagic-equivalent run after Registry finalizer analyzer corrections.
 
 on:
   push:
