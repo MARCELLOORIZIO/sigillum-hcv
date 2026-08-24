@@ -1,5 +1,5 @@
 name: Diagnose commercial billing gate failure
-# Retry after accepting the formatter-produced one-line missing-ID status.
+# Expose Registry anchors before the billing gate reaches the media finalizer.
 
 on:
   push:
@@ -48,27 +48,25 @@ jobs:
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
           python3 tool/apply_commercial_registry_auth.py
           python3 tool/apply_commercial_profile_shell.py
-      - name: Expose materialized no-ID branch
+      - name: Expose materialized Registry scaffold
         run: |
-          python3 > noid.txt <<'PY'
+          python3 > scaffold.txt <<'PY'
           from pathlib import Path
           src = Path('lib/registry_verify_page.dart').read_text(encoding='utf-8')
-          marker = 'if (detectedId == null || detectedId.isEmpty) {'
-          start = src.find(marker)
+          start = src.find('return Scaffold(')
           if start < 0:
-              print('BRANCH-NOT-FOUND')
+              print('SCAFFOLD-NOT-FOUND')
           else:
-              end = src.find('return;', start)
-              print(src[start:end + len('return;')])
+              print(src[start:start + 520])
           PY
-          cat noid.txt
-          norm="$(tr '\n' ' ' < noid.txt | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g')"
-          for n in 1 2 3 4; do
+          cat scaffold.txt
+          norm="$(tr '\n' ' ' < scaffold.txt | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g')"
+          for n in 1 2 3 4 5 6; do
             start=$(( (n-1)*70 + 1 ))
             end=$(( n*70 ))
             chunk="$(printf '%s' "$norm" | cut -c${start}-${end})"
             [ -n "$chunk" ] || continue
-            context="sigillum/noid-${n}-${chunk}"
+            context="sigillum/scaffold-${n}-${chunk}"
             python3 - "$context" > status.json <<'PY'
           import json, sys
           print(json.dumps({'state': 'success', 'context': sys.argv[1]}))
