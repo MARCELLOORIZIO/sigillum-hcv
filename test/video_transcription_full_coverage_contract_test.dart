@@ -25,9 +25,10 @@ void main() {
     expect(speechPatch, contains('audioDuration + 20.0'));
   });
 
-  test('verification text action stays on one short label', () {
+  test('verification text action stays short and follows selected language', () {
     final source = File('lib/import_page.dart').readAsStringSync();
-    expect(source, contains("? 'VERIFICA TESTO'"));
+    expect(source, contains("_v('verifyText')"));
+    expect(source, contains('VerificationUiCopy.t(widget.languageCode, key)'));
     expect(source, isNot(contains('VERIFICA TESTO / DOCUMENTO')));
   });
 }
