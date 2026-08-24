@@ -8,8 +8,12 @@ void main() {
     expect(source, contains("import 'sigillum_theme.dart';"));
     expect(source, contains('backgroundColor: SigillumTheme.deep'));
     expect(source, contains('constraints: const BoxConstraints(maxWidth: 560)'));
-    expect(source, contains('EdgeInsets.fromLTRB(22, 24, 22, 36)'));
+    expect(source, contains('EdgeInsets.fromLTRB(22, 16, 22, 36)'));
     expect(source, contains('FilledButton.icon'));
+    expect(source, contains("import 'verification_ui_copy.dart';"));
+    expect(source, contains("_v('verifyText')"));
+    expect(source, contains("_v('verifyPhoto')"));
+    expect(source, contains("_v('verifyVideo')"));
     expect(source, isNot(contains('selectedPath!')));
   });
 
@@ -20,6 +24,7 @@ void main() {
     expect(source, contains('constraints: const BoxConstraints(maxWidth: 560)'));
     expect(source, contains('EdgeInsets.fromLTRB(22, 24, 22, 36)'));
     expect(source, contains('FilledButton('));
+    expect(source, contains("import 'verification_ui_copy.dart';"));
   });
 
   test('Registry shell patch reuses SIGILLUM theme tokens', () {
