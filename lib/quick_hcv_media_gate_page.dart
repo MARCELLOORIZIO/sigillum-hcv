@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'registry_verify_page.dart';
 import 'sigillum_theme.dart';
+import 'verification_ui_copy.dart';
 
 class QuickHcvMediaGatePage extends StatefulWidget {
   const QuickHcvMediaGatePage({
@@ -29,13 +30,14 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
 
   bool _checking = true;
   bool _notCertified = false;
-  String _status = 'Controllo rapido SIGILLUM...';
+  String _status = '';
 
-  bool get _isItalian => widget.languageCode == 'it';
+  String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
     super.initState();
+    _status = _v('fastCheck');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _runPrecheck();
     });
@@ -171,17 +173,13 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
       setState(() {
         _checking = false;
         _notCertified = true;
-        _status = _isItalian
-            ? 'Contenuto non certificato SIGILLUM'
-            : 'Content not certified by SIGILLUM';
+        _status = _v('notCertified');
       });
       return;
     }
 
     setState(() {
-      _status = _isItalian
-          ? 'HCV-ID rilevato. Verifica certificato in corso...'
-          : 'HCV-ID detected. Verifying certificate...';
+      _status = _v('idDetected');
     });
 
     await Navigator.of(context).pushReplacement(
@@ -221,7 +219,7 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
         ),
         const SizedBox(height: 6),
         Text(
-          _isItalian ? 'Verifica contenuto' : 'Verify content',
+          _v('verifyTitle'),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: SigillumTheme.muted,
@@ -241,7 +239,7 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
         backgroundColor: SigillumTheme.panel,
         foregroundColor: SigillumTheme.ink,
         elevation: 0,
-        title: Text(_isItalian ? 'Verifica contenuto' : 'Verify content'),
+        title: Text(_v('verifyTitle')),
       ),
       body: SafeArea(
         child: Center(
@@ -287,13 +285,7 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _checking
-                        ? (_isItalian
-                            ? 'Cerco subito il marchio HCV e il codice. Se non sono presenti, il controllo si ferma qui.'
-                            : 'Checking immediately for the HCV mark and code. If absent, verification stops here.')
-                        : (_isItalian
-                            ? 'Non è stato rilevato un HCV-ID valido nel contenuto selezionato.'
-                            : 'No valid HCV-ID was detected in the selected content.'),
+                    _checking ? _v('fastHelp') : _v('noId'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: SigillumTheme.muted,
@@ -305,11 +297,7 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
                     const SizedBox(height: 28),
                     FilledButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        _isItalian
-                            ? 'TORNA ALLA VERIFICA'
-                            : 'BACK TO VERIFY',
-                      ),
+                      child: Text(_v('backVerify')),
                     ),
                   ],
                 ],
