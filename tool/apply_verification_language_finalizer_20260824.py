@@ -45,7 +45,7 @@ source = source.replace(
     "label: Text(_v('verifyText')),",
 )
 source = source.replace(
-    "label: Text(widget.languageCode == 'it'\n                    ? 'VERIFICA FOTO'\n                    : 'VERIFY FOTO'),",
+    "label: Text(widget.languageCode == 'it'\n                    ? 'VERIFICA FOTO'\n                    : 'VERIFY PHOTO'),",
     "label: Text(_v('verifyPhoto')),",
 )
 source = source.replace(
