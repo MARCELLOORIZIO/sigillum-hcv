@@ -16,6 +16,40 @@ required = [
 
 
 def apply_fast_media_precheck():
+    # The legacy 23/08 patch uses byte-for-byte anchors and was never designed
+    # to run again after the 24/08 finalizers plus dart format. Codemagic does
+    # invoke this wrapper repeatedly. If the final semantic contract already
+    # holds, do not re-enter the legacy transformer merely because formatting
+    # changed its source shape.
+    registry_path = Path('lib/registry_verify_page.dart')
+    registry = registry_path.read_text(encoding='utf-8')
+    semantic_required = [
+        "'00:00:00.2'",
+        "'00:00:00.8'",
+        'if (!mounted) return null;',
+        'withData: false,',
+        "status = 'Controllo rapido SIGILLUM in corso...';",
+        "status = 'Contenuto non certificato SIGILLUM.';",
+        "import 'sigillum_theme.dart';",
+        'backgroundColor: SigillumTheme.deep,',
+        'FilledButton(',
+        'border: Border.all(color: SigillumTheme.border),',
+    ]
+    semantic_forbidden = [
+        "'00:00:01.5'",
+        "'00:00:02.5'",
+        "'00:00:04.0'",
+        "'00:00:06.0'",
+        "'00:00:08.0'",
+        'withData: true,',
+    ]
+    if (
+        all(token in registry for token in semantic_required)
+        and all(token not in registry for token in semantic_forbidden)
+    ):
+        print('Fast media pre-check already satisfies final semantic contract')
+        return
+
     patch = Path('tool/apply_fast_uncertified_media_precheck_20260823.py')
     if not patch.exists():
         raise RuntimeError('fast uncertified-media precheck patch missing')
@@ -48,6 +82,7 @@ def apply_verification_refinement():
         'lib/registry_verify_page.dart',
         'lib/camera_page.dart',
         'lib/camera_ui_copy.dart',
+        'lib/camera_ui_extended_copy.dart',
         'lib/hcv_ml_screen_replay_classifier.dart',
         'lib/hcv_ml_model_store.dart',
     ]
