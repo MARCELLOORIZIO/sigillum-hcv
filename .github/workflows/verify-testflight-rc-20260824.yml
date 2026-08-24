@@ -1,5 +1,5 @@
 name: Verify SIGILLUM TestFlight RC 20260824
-# Mirrors Codemagic ios-testflight through analyze/test; retry after Registry anchor compatibility fix.
+# Final Codemagic-equivalent retry after formatted missing-ID and compact Scaffold compatibility fixes.
 
 on:
   push:
