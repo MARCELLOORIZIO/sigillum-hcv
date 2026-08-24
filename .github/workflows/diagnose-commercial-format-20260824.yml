@@ -18,6 +18,9 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Mark diagnostic started
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-format-diagnostic"}'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -42,6 +45,9 @@ jobs:
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
+      - name: Mark text stage
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-text-stage"}'
       - name: Apply commercial patchers
         run: |
           python3 tool/apply_commercial_registry_auth.py
@@ -106,3 +112,6 @@ jobs:
       - name: Mark media test
         run: |
           curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-fmt-media-test"}'
+      - name: Mark diagnostic success
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-format-diagnostic"}'
