@@ -63,6 +63,26 @@ for token in ["_v('verifyText')", "_v('verifyPhoto')", "_v('verifyVideo')"]:
         raise RuntimeError(f'verification hub translation token missing: {token}')
 path.write_text(source, encoding='utf-8')
 
+# The 18/08 visual-caption patch generates its own contract before the later
+# media-picker/language finalizers run. Align only that generated test with the
+# final approved three-action multilingual verification hub.
+visual_contract = Path('test/prelaunch_visual_caption_refinement_contract_test.dart')
+if visual_contract.exists():
+    contract = visual_contract.read_text(encoding='utf-8')
+    contract = contract.replace(
+        "expect(page, contains('VERIFICA TESTO PUBBLICATO'));",
+        "expect(page, contains(\"_v('verifyText')\"));",
+    )
+    contract = contract.replace(
+        "expect(page, contains('TextSocialVerifyPage('));",
+        "expect(page, contains('onPressed: pickDocument'));",
+    )
+    contract = contract.replace(
+        "expect(page, contains('Verifica foto, video o documento'));",
+        "expect(page, contains('onPressed: pickPhoto'));\n    expect(page, contains('onPressed: pickVideo'));",
+    )
+    visual_contract.write_text(contract, encoding='utf-8')
+
 # Ensure the quick gate contains no residual binary IT/EN selector.
 quick = Path('lib/quick_hcv_media_gate_page.dart')
 quick_source = quick.read_text(encoding='utf-8')
