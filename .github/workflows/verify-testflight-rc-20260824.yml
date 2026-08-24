@@ -1,4 +1,5 @@
 name: Verify SIGILLUM TestFlight RC 20260824
+# Full retry after verification reapply idempotence validation.
 
 on:
   push:
