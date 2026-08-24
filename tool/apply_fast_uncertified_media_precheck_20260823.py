@@ -77,6 +77,9 @@ scaffold_old = """    return Scaffold(
         title: Text(_t('verifyContentHeading')),
       ),
       body: Center("""
+scaffold_formatted = """    return Scaffold(
+      appBar: AppBar(title: Text(_t('verifyContentHeading'))),
+      body: Center("""
 scaffold_legacy = """    return Scaffold(
       backgroundColor: const Color(0xFFF8F7FB),
       appBar: AppBar(
@@ -103,6 +106,8 @@ scaffold_new = """    return Scaffold(
       body: Center("""
 if scaffold_old in source:
     source = source.replace(scaffold_old, scaffold_new, 1)
+elif scaffold_formatted in source:
+    source = source.replace(scaffold_formatted, scaffold_new, 1)
 elif scaffold_legacy in source:
     source = source.replace(scaffold_legacy, scaffold_new, 1)
 elif scaffold_new not in source:
