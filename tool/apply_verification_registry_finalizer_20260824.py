@@ -3,6 +3,14 @@ from pathlib import Path
 path = Path('lib/registry_verify_page.dart')
 source = path.read_text(encoding='utf-8')
 
+# The clarity patch adds this presentation-only helper before the final UI
+# pass. Keep its nullable certificate access analyzer-safe after materializing.
+source = source.replace(
+    "final claims = cert is Map ? cert['claims'] : null;",
+    "final claims = cert?['claims'];",
+    1,
+)
+
 # Replace either the legacy giant diagnostic dump or the intermediate wrapped
 # version with one compact, collapsed technical disclosure. The public result
 # remains the four understandable verification axes.
@@ -80,6 +88,7 @@ for token in [
     "_v('sceneHint')",
     "_v('derivationHint')",
     '_signedRealityScene',
+    "final claims = cert?['claims'];",
 ]:
     if token not in source:
         raise RuntimeError(f'Registry final UI token missing: {token}')
