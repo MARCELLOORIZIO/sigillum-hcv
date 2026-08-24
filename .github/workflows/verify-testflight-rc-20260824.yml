@@ -1,5 +1,5 @@
 name: Verify SIGILLUM TestFlight RC 20260824
-# Final Codemagic-equivalent run after Registry finalizer analyzer corrections.
+# Full Codemagic-equivalent run after final verification-contract alignment.
 
 on:
   push:
