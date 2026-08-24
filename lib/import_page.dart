@@ -119,7 +119,7 @@ class _ImportPageState extends State<ImportPage> {
             borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(
-            Icons.verified_user_rounded,
+            Icons.security_rounded,
             color: SigillumTheme.ink,
             size: 38,
           ),
@@ -135,7 +135,9 @@ class _ImportPageState extends State<ImportPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          _t('verifyContentHeading'),
+          widget.languageCode == 'it'
+              ? 'Verifica gratuitamente un contenuto certificato'
+              : 'Verify a certified content for free',
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: SigillumTheme.muted,
@@ -151,41 +153,33 @@ class _ImportPageState extends State<ImportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: SigillumTheme.deep,
-      appBar: AppBar(
-        backgroundColor: SigillumTheme.panel,
-        foregroundColor: SigillumTheme.ink,
-        elevation: 0,
-        title: Text(_t('verifyContentHeading')),
-      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 24, 22, 36),
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 36),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _brand(),
-                  const SizedBox(height: 28),
-                  Text(
-                    widget.languageCode == 'it'
-                        ? 'Scegli il tipo di contenuto da verificare.'
-                        : 'Choose the type of content to verify.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: SigillumTheme.muted,
-                      fontSize: 16,
-                      height: 1.35,
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      color: SigillumTheme.ink,
+                      iconSize: 30,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
+                  _brand(),
+                  const SizedBox(height: 34),
                   FilledButton.icon(
                     onPressed: pickDocument,
                     icon: const Icon(Icons.description_outlined),
                     label: Text(widget.languageCode == 'it'
-                        ? 'VERIFICA TESTO / DOCUMENTO'
-                        : 'VERIFY TEXT / DOCUMENT'),
+                        ? 'VERIFICA TESTO'
+                        : 'VERIFY TEXT'),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
@@ -203,22 +197,13 @@ class _ImportPageState extends State<ImportPage> {
                         ? 'VERIFICA VIDEO'
                         : 'VERIFY VIDEO'),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   Text(
                     status,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: SigillumTheme.muted,
                       fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _t('supportedFiles'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: SigillumTheme.muted,
-                      fontSize: 13,
                     ),
                   ),
                 ],
