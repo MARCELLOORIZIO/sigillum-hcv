@@ -1,5 +1,4 @@
-name: Diagnose commercial billing gate failure
-# Expose Registry anchors before the billing gate reaches the media finalizer.
+name: Diagnose pre-media Registry scaffold
 
 on:
   push:
@@ -21,7 +20,7 @@ jobs:
     steps:
       - name: Mark diagnostic started
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-billing-diagnostic"}'
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-premedia-diagnostic"}'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -29,7 +28,7 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Materialize through text stage
+      - name: Materialize through commercial profile
         run: |
           python3 tool/run_ios_share_handoff_fix.py
           python3 tool/apply_file_import_and_ocr_fix.py
@@ -48,7 +47,36 @@ jobs:
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
           python3 tool/apply_commercial_registry_auth.py
           python3 tool/apply_commercial_profile_shell.py
-      - name: Expose materialized Registry scaffold
+      - name: Disable only nested media call in runner copy
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('tool/apply_public_home_unpaid_restore_fix_20260822.py')
+          s = p.read_text(encoding='utf-8')
+          marker = '# Keep the verification-picker correction'
+          pos = s.find(marker)
+          if pos < 0:
+              raise SystemExit('public-home media marker missing')
+          p.write_text(s[:pos] + "print('Public-home routing applied; media call skipped for diagnostic')\n", encoding='utf-8')
+          PY
+      - name: Run billing gate without final media call
+        run: |
+          set +e
+          python3 tool/apply_server_verified_billing_gate.py > billing-pre-media.log 2>&1
+          code=$?
+          cat billing-pre-media.log
+          if [ "$code" -ne 0 ]; then
+            last="$(tail -n 1 billing-pre-media.log | tr -d '\r' | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g' | cut -c1-80)"
+            context="sigillum/premedia-billing-${last}"
+            python3 - "$context" > status.json <<'PY'
+          import json, sys
+          print(json.dumps({'state': 'failure', 'context': sys.argv[1]}))
+          PY
+            curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" --data-binary @status.json
+            exit 0
+          fi
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/premedia-billing-ok"}'
+      - name: Expose pre-media Registry scaffold
         run: |
           python3 > scaffold.txt <<'PY'
           from pathlib import Path
@@ -57,42 +85,22 @@ jobs:
           if start < 0:
               print('SCAFFOLD-NOT-FOUND')
           else:
-              print(src[start:start + 520])
+              print(src[start:start + 650])
           PY
           cat scaffold.txt
           norm="$(tr '\n' ' ' < scaffold.txt | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g')"
-          for n in 1 2 3 4 5 6; do
+          for n in 1 2 3 4 5 6 7 8; do
             start=$(( (n-1)*70 + 1 ))
             end=$(( n*70 ))
             chunk="$(printf '%s' "$norm" | cut -c${start}-${end})"
             [ -n "$chunk" ] || continue
-            context="sigillum/scaffold-${n}-${chunk}"
+            context="sigillum/premedia-scaffold-${n}-${chunk}"
             python3 - "$context" > status.json <<'PY'
           import json, sys
           print(json.dumps({'state': 'success', 'context': sys.argv[1]}))
           PY
             curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" --data-binary @status.json
           done
-      - name: Run billing gate and expose exact failure
-        run: |
-          set +e
-          python3 tool/apply_server_verified_billing_gate.py > billing-gate.log 2>&1
-          code=$?
-          cat billing-gate.log
-          if [ "$code" -eq 0 ]; then
-            context="sigillum/tf-billing-gate-ok"
-            state="success"
-          else
-            last="$(tail -n 1 billing-gate.log | tr -d '\r' | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g' | cut -c1-80)"
-            context="sigillum/tf-billing-${last}"
-            state="failure"
-          fi
-          python3 - "$state" "$context" > status.json <<'PY'
-          import json, sys
-          print(json.dumps({'state': sys.argv[1], 'context': sys.argv[2]}))
-          PY
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" --data-binary @status.json
-          exit 0
       - name: Mark diagnostic complete
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-billing-diagnostic"}'
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-premedia-diagnostic"}'
