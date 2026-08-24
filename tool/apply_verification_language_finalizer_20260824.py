@@ -10,6 +10,16 @@ exec(
     {'__name__': '__main__'},
 )
 
+# A compatible derivative is a valid SIGILLUM-linked result but not equivalent
+# to a byte-identical certified original, so its public severity is intermediate.
+severity_finalizer = Path('tool/apply_verification_social_severity_fix_20260824.py')
+if not severity_finalizer.exists():
+    raise RuntimeError('Verification severity finalizer missing')
+exec(
+    compile(severity_finalizer.read_text(encoding='utf-8'), str(severity_finalizer), 'exec'),
+    {'__name__': '__main__'},
+)
+
 # Verification hub buttons must follow the selected IT/EN/ES/RU language.
 path = Path('lib/import_page.dart')
 source = path.read_text(encoding='utf-8')
