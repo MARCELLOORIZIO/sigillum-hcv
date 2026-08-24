@@ -39,11 +39,16 @@ if old_body_arrow in import_page:
 # ---------------------------------------------------------------------------
 camera = text('lib/camera_page.dart')
 for token in [
-    "import 'camera_ui_copy.dart';",
-    'CameraUiCopy.t(widget.languageCode, key)',
+    "import 'camera_ui_extended_copy.dart';",
+    'CameraUiExtendedCopy.t(widget.languageCode, key)',
     "_c('physicalProbe')",
+    "_c('verificationCompleteTitle')",
+    "_c('armedVideoReady')",
+    "_c('armedPhotoReady')",
     "_c('analyzingScreen')",
     "_c('registryPublishing')",
+    "_c('createCaptionedVideo')",
+    "_c('filesWhere')",
     "_c('humanVerified')",
 ]:
     if token not in camera:
@@ -59,9 +64,26 @@ for forbidden in [
     "status = 'ADDING SIGILLUM LOGO...'",
     "status = 'CREATING HCV CERTIFICATE...'",
     "status = 'DONE'",
+    "'VERIFICA COMPLETATA'",
+    "'PRONTO — PREMI REGISTRA PER INIZIARE'",
+    "'INQUADRA E PREMI IL PULSANTE DI SCATTO'",
+    "'TRASCRIZIONE AUDIO...'",
+    "'TRASCRIZIONE IN CORSO...'",
+    "'CREA VIDEO CON SOTTOTITOLI'",
+    "'DOVE TROVI I FILE'",
 ]:
     if forbidden in camera:
         raise RuntimeError(f'camera mixed-language public status survived: {forbidden}')
+
+# Both catalogs must carry all four languages.
+for copy_file in [
+    'lib/camera_ui_copy.dart',
+    'lib/camera_ui_extended_copy.dart',
+]:
+    copy_source = text(copy_file)
+    for language in ["'it'", "'en'", "'es'", "'ru'"]:
+        if language not in copy_source:
+            raise RuntimeError(f'{copy_file}: language missing: {language}')
 
 # ---------------------------------------------------------------------------
 # Registry must expose complete signed diagnostics while keeping the public
@@ -145,6 +167,8 @@ if package_config.exists():
 # ---------------------------------------------------------------------------
 critical_files = [
     'lib/camera_page.dart',
+    'lib/camera_ui_copy.dart',
+    'lib/camera_ui_extended_copy.dart',
     'lib/text_cert_page.dart',
     'lib/hcv_engine.dart',
     'lib/hcv_live_screen_probe.dart',
