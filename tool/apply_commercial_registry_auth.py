@@ -54,6 +54,20 @@ for token in required:
 
 registry_path.write_text(source, encoding='utf-8')
 
+# Keep reads backward-compatible with certificates stored on the historical
+# Registry host. Production remains authoritative for writes and first reads.
+compatibility_patch = Path('tool/apply_registry_read_compatibility_20260824.py')
+if not compatibility_patch.exists():
+    raise RuntimeError('Registry read compatibility patch missing')
+exec(
+    compile(
+        compatibility_patch.read_text(encoding='utf-8'),
+        str(compatibility_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
 # camera_page.dart is frozen in the commercial branch and must stay byte-for-byte
 # identical to the validated capture baseline in Git. The production build step is
 # allowed to remove only the historical iOS verifier bypass after the source guard.
@@ -74,4 +88,4 @@ if 'final ok = await verifier.verifyFile(hcv);' not in camera:
     raise RuntimeError('HCV verification is not enforced on iOS')
 
 camera_path.write_text(camera, encoding='utf-8')
-print('Commercial Registry authorization, production API and iOS HCV verification enforced')
+print('Commercial Registry authorization, production API, legacy-read compatibility and iOS HCV verification enforced')
