@@ -18,17 +18,32 @@ void main() {
 
   test('RC2 camera runtime copy follows selected IT EN ES RU language', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    final copy = File('lib/camera_ui_copy.dart').readAsStringSync();
+    final baseCopy = File('lib/camera_ui_copy.dart').readAsStringSync();
+    final extendedCopy =
+        File('lib/camera_ui_extended_copy.dart').readAsStringSync();
 
-    expect(camera, contains('CameraUiCopy.t(widget.languageCode, key)'));
+    expect(
+      camera,
+      contains('CameraUiExtendedCopy.t(widget.languageCode, key)'),
+    );
     expect(camera, contains("_c('physicalProbe')"));
+    expect(camera, contains("_c('verificationCompleteTitle')"));
+    expect(camera, contains("_c('armedVideoReady')"));
+    expect(camera, contains("_c('armedPhotoReady')"));
     expect(camera, contains("_c('analyzingScreen')"));
     expect(camera, contains("_c('registryPublishing')"));
+    expect(camera, contains("_c('createCaptionedVideo')"));
+    expect(camera, contains("_c('filesWhere')"));
     expect(camera, isNot(contains("status = 'STARTING...'")));
     expect(camera, isNot(contains("status = 'SCATTO FOTO...'")));
+    expect(
+      camera,
+      isNot(contains("widget.languageCode.toLowerCase().startsWith('it')")),
+    );
 
     for (final language in ["'it'", "'en'", "'es'", "'ru'"]) {
-      expect(copy, contains(language));
+      expect(baseCopy, contains(language));
+      expect(extendedCopy, contains(language));
     }
   });
 
