@@ -25,6 +25,16 @@ def apply_fast_media_precheck():
     )
 
 
+def apply_verification_refinement():
+    patch = Path('tool/apply_verification_clarity_localization_ml_fix_20260824.py')
+    if not patch.exists():
+        raise RuntimeError('verification clarity/localization/ML patch missing')
+    exec(
+        compile(patch.read_text(encoding='utf-8'), str(patch), 'exec'),
+        {'__name__': '__main__'},
+    )
+
+
 # The branch now carries the approved picker implementation directly in Git.
 # Tests in this repository may temporarily rewrite lib/import_page.dart while
 # running. Always prefer the committed HEAD version when it already satisfies
@@ -46,6 +56,7 @@ if (
     path.write_text(committed, encoding='utf-8')
     print('Media-specific verification pickers restored from committed HEAD source')
     apply_fast_media_precheck()
+    apply_verification_refinement()
     raise SystemExit(0)
 
 source = path.read_text(encoding='utf-8')
@@ -145,8 +156,8 @@ buttons = r'''              ElevatedButton.icon(
                 onPressed: pickDocument,
                 icon: const Icon(Icons.description_outlined),
                 label: Text(widget.languageCode == 'it'
-                    ? 'VERIFICA TESTO / DOCUMENTO'
-                    : 'VERIFY TEXT / DOCUMENT'),
+                    ? 'VERIFICA TESTO'
+                    : 'VERIFY TEXT'),
               ),
               const SizedBox(height: 10),
               ElevatedButton.icon(
@@ -178,3 +189,4 @@ if 'type: FileType.any' in source:
 path.write_text(source, encoding='utf-8')
 print('Media-specific verification pickers applied: documents use Files, photos/videos use Photos')
 apply_fast_media_precheck()
+apply_verification_refinement()
