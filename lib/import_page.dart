@@ -23,6 +23,25 @@ class _ImportPageState extends State<ImportPage> {
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
+  String _l({
+    required String it,
+    required String en,
+    required String es,
+    required String ru,
+  }) {
+    switch (widget.languageCode.toLowerCase()) {
+      case 'es':
+        return es;
+      case 'ru':
+        return ru;
+      case 'en':
+        return en;
+      case 'it':
+      default:
+        return it;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -151,30 +170,34 @@ class _ImportPageState extends State<ImportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: SigillumTheme.deep,
+      appBar: AppBar(
+        backgroundColor: SigillumTheme.panel,
+        foregroundColor: SigillumTheme.ink,
+        elevation: 0,
+        title: Text(_t('verifyContentHeading')),
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 36),
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 36),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      color: SigillumTheme.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   _brand(),
                   const SizedBox(height: 28),
                   Text(
-                    widget.languageCode == 'it'
-                        ? 'Scegli il tipo di contenuto da verificare.'
-                        : 'Choose the type of content to verify.',
+                    _l(
+                      it: 'Scegli il tipo di contenuto da verificare.',
+                      en: 'Choose the type of content to verify.',
+                      es: 'Elige el tipo de contenido que quieres verificar.',
+                      ru: 'Выберите тип контента для проверки.',
+                    ),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: SigillumTheme.muted,
@@ -186,25 +209,40 @@ class _ImportPageState extends State<ImportPage> {
                   FilledButton.icon(
                     onPressed: pickDocument,
                     icon: const Icon(Icons.description_outlined),
-                    label: Text(widget.languageCode == 'it'
-                        ? 'VERIFICA TESTO'
-                        : 'VERIFY TEXT'),
+                    label: Text(
+                      _l(
+                        it: 'VERIFICA TESTO',
+                        en: 'VERIFY TEXT',
+                        es: 'VERIFICAR TEXTO',
+                        ru: 'ПРОВЕРИТЬ ТЕКСТ',
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: pickPhoto,
                     icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(widget.languageCode == 'it'
-                        ? 'VERIFICA FOTO'
-                        : 'VERIFY PHOTO'),
+                    label: Text(
+                      _l(
+                        it: 'VERIFICA FOTO',
+                        en: 'VERIFY PHOTO',
+                        es: 'VERIFICAR FOTO',
+                        ru: 'ПРОВЕРИТЬ ФОТО',
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: pickVideo,
                     icon: const Icon(Icons.video_library_outlined),
-                    label: Text(widget.languageCode == 'it'
-                        ? 'VERIFICA VIDEO'
-                        : 'VERIFY VIDEO'),
+                    label: Text(
+                      _l(
+                        it: 'VERIFICA VIDEO',
+                        en: 'VERIFY VIDEO',
+                        es: 'VERIFICAR VIDEO',
+                        ru: 'ПРОВЕРИТЬ ВИДЕО',
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 22),
                   Text(
