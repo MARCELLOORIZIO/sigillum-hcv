@@ -55,9 +55,12 @@ elif new_start not in source:
 
 old_missing = """status =
               'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';"""
+old_missing_formatted = "status = 'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';"
 new_missing = """status = 'Contenuto non certificato SIGILLUM.';"""
 if old_missing in source:
     source = source.replace(old_missing, new_missing, 1)
+elif old_missing_formatted in source:
+    source = source.replace(old_missing_formatted, new_missing, 1)
 elif new_missing not in source:
     raise RuntimeError('missing HCV-ID status anchor missing')
 
@@ -73,6 +76,9 @@ scaffold_old = """    return Scaffold(
       appBar: AppBar(
         title: Text(_t('verifyContentHeading')),
       ),
+      body: Center("""
+scaffold_formatted = """    return Scaffold(
+      appBar: AppBar(title: Text(_t('verifyContentHeading'))),
       body: Center("""
 scaffold_legacy = """    return Scaffold(
       backgroundColor: const Color(0xFFF8F7FB),
@@ -100,6 +106,8 @@ scaffold_new = """    return Scaffold(
       body: Center("""
 if scaffold_old in source:
     source = source.replace(scaffold_old, scaffold_new, 1)
+elif scaffold_formatted in source:
+    source = source.replace(scaffold_formatted, scaffold_new, 1)
 elif scaffold_legacy in source:
     source = source.replace(scaffold_legacy, scaffold_new, 1)
 elif scaffold_new not in source:
@@ -144,11 +152,17 @@ select_button_new = """              FilledButton(
                 onPressed: loading ? null : pickMedia,
                 child: Text(_t('selectOriginalMedia')),
               ),"""
+select_button_final = """              FilledButton(
+                onPressed: loading ? null : pickMedia,
+                child: Text(_v('selectOriginal')),
+              ),"""
 if select_button_old in source:
     source = source.replace(select_button_old, select_button_new, 1)
 elif select_button_custom in source:
     source = source.replace(select_button_custom, select_button_new, 1)
-elif select_button_new not in source:
+elif select_button_new in source or select_button_final in source:
+    pass
+else:
     raise RuntimeError('select-media button visual anchor missing')
 
 verify_button_old = """              ElevatedButton(
@@ -184,11 +198,19 @@ verify_button_new = """              FilledButton(
                   loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
                 ),
               ),"""
+verify_button_final = """              FilledButton(
+                onPressed: loading ? null : verifyFromRegistry,
+                child: Text(
+                  loading ? _v('verifying') : _v('verifyRegistry'),
+                ),
+              ),"""
 if verify_button_old in source:
     source = source.replace(verify_button_old, verify_button_new, 1)
 elif verify_button_custom in source:
     source = source.replace(verify_button_custom, verify_button_new, 1)
-elif verify_button_new not in source:
+elif verify_button_new in source or verify_button_final in source:
+    pass
+else:
     raise RuntimeError('verify button visual anchor missing')
 
 card_old = """      decoration: BoxDecoration(
@@ -213,11 +235,20 @@ card_new = """      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: SigillumTheme.border),
       ),"""
+# The 24/08 Registry finalizer deliberately refines the same card to this
+# final public shape. A later Codemagic re-application of this 23/08 patch must
+# accept it as already valid rather than treating it as a missing anchor.
+card_final = """      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: SigillumTheme.border),"""
 if card_old in source:
     source = source.replace(card_old, card_new, 1)
 elif card_custom in source:
     source = source.replace(card_custom, card_new, 1)
-elif card_new not in source:
+elif card_new in source or card_final in source:
+    pass
+else:
     raise RuntimeError('verification card visual anchor missing')
 
 # Axis-card typography should use the same ink/muted colors as the public pages.
@@ -241,12 +272,14 @@ required = [
     'backgroundColor: SigillumTheme.deep,',
     'backgroundColor: SigillumTheme.panel,',
     'FilledButton(',
-    'borderRadius: BorderRadius.circular(28),',
     'border: Border.all(color: SigillumTheme.border),',
 ]
 for token in required:
     if token not in source:
         raise RuntimeError(f'fast media/verification-shell token missing: {token}')
+
+if card_new not in source and card_final not in source:
+    raise RuntimeError('fast media/verification-shell token missing: approved Registry card shape')
 
 for forbidden in [
     "'00:00:01.5'",
