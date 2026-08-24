@@ -213,11 +213,20 @@ card_new = """      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: SigillumTheme.border),
       ),"""
+# The 24/08 Registry finalizer deliberately refines the same card to this
+# final public shape. A later Codemagic re-application of this 23/08 patch must
+# accept it as already valid rather than treating it as a missing anchor.
+card_final = """      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: SigillumTheme.border),"""
 if card_old in source:
     source = source.replace(card_old, card_new, 1)
 elif card_custom in source:
     source = source.replace(card_custom, card_new, 1)
-elif card_new not in source:
+elif card_new in source or card_final in source:
+    pass
+else:
     raise RuntimeError('verification card visual anchor missing')
 
 # Axis-card typography should use the same ink/muted colors as the public pages.
@@ -241,12 +250,14 @@ required = [
     'backgroundColor: SigillumTheme.deep,',
     'backgroundColor: SigillumTheme.panel,',
     'FilledButton(',
-    'borderRadius: BorderRadius.circular(28),',
     'border: Border.all(color: SigillumTheme.border),',
 ]
 for token in required:
     if token not in source:
         raise RuntimeError(f'fast media/verification-shell token missing: {token}')
+
+if card_new not in source and card_final not in source:
+    raise RuntimeError('fast media/verification-shell token missing: approved Registry card shape')
 
 for forbidden in [
     "'00:00:01.5'",
