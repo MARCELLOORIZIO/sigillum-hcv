@@ -45,7 +45,7 @@ source = source.replace(
     "label: Text(_v('verifyText')),",
 )
 source = source.replace(
-    "label: Text(widget.languageCode == 'it'\n                    ? 'VERIFICA FOTO'\n                    : 'VERIFY PHOTO'),",
+    "label: Text(widget.languageCode == 'it'\n                    ? 'VERIFICA FOTO'\n                    : 'VERIFY FOTO'),",
     "label: Text(_v('verifyPhoto')),",
 )
 source = source.replace(
@@ -79,6 +79,19 @@ for file_name in [
     if "VerificationUiCopy.t(widget.languageCode, key)" not in text:
         raise RuntimeError(f'{file_name}: selected-language verification copy missing')
 
+# Remove any residual raw Italian status from the public localized result.
+result_copy_finalizer = Path('tool/apply_verification_result_copy_finalizer_20260824.py')
+if not result_copy_finalizer.exists():
+    raise RuntimeError('Verification result-copy finalizer missing')
+exec(
+    compile(
+        result_copy_finalizer.read_text(encoding='utf-8'),
+        str(result_copy_finalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
 # Apply severity colors only after the localized public Registry UI is final.
 severity_finalizer = Path('tool/apply_verification_severity_colors_20260824.py')
 if not severity_finalizer.exists():
@@ -92,4 +105,4 @@ exec(
     {'__name__': '__main__'},
 )
 
-print('Verification language and severity now propagate through hub, quick check, Registry, router and HCVPACK')
+print('Verification language, public result copy and severity now propagate through hub, quick check, Registry, router and HCVPACK')
