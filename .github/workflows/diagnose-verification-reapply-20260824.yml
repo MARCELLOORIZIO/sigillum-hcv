@@ -1,5 +1,5 @@
 name: Diagnose verification finalizer reapply
-# Retry after 23/08 precheck idempotence fix.
+# Retry after final Registry button/card idempotence fixes.
 
 on:
   push:
