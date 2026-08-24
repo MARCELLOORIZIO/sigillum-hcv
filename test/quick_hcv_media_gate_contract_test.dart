@@ -11,8 +11,16 @@ void main() {
     expect(router, contains('QuickHcvMediaGatePage('));
     expect(gate, contains("'seconds': 0.2"));
     expect(gate, isNot(contains("'seconds': 0.8")));
-    expect(gate, contains('Contenuto non certificato SIGILLUM'));
-    expect(gate, contains('HCV-ID rilevato. Verifica certificato in corso...'));
+    expect(gate, contains("import 'verification_ui_copy.dart';"));
+    expect(
+      gate,
+      contains(
+        'String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);',
+      ),
+    );
+    expect(gate, contains("_status = _v('notCertified');"));
+    expect(gate, contains("_status = _v('idDetected');"));
+    expect(gate, isNot(contains('_isItalian')));
     expect(gate, contains('cropHeight'));
     expect(gate, contains('width: 1280'));
     expect(gate, isNot(contains('/private/var/mobile/')));
