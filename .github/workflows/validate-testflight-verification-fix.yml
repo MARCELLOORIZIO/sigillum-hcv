@@ -40,3 +40,16 @@ jobs:
         run: |
           flutter test test/verification_localization_contract_test.dart --reporter expanded || \
           flutter test --reporter expanded
+
+      - name: Publish validation status
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$JOB_STATUS" = "success" ]; then STATE=success; else STATE=failure; fi
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -d "{\"state\":\"${STATE}\",\"context\":\"sigillum/testflight-verification-fix\",\"description\":\"Verification UI, localization and severity validation\"}"
