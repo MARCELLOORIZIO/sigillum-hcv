@@ -1,0 +1,70 @@
+name: Diagnose verification finalizer reapply
+
+on:
+  push:
+    branches:
+      - release/testflight-rc-20260824
+    paths:
+      - .github/workflows/diagnose-verification-reapply-20260824.yml
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Materialize through commercial shell
+        run: |
+          python3 tool/run_ios_share_handoff_fix.py
+          python3 tool/apply_file_import_and_ocr_fix.py
+          python3 tool/apply_safe_capture_location_fix.py
+          python3 tool/apply_mixed_scene_monitor_fix.py
+          python3 tool/apply_planar_parallax_compile_safety.py
+          python3 tool/apply_certificate_regression_fix.py
+          python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
+          python3 tool/apply_account_success_feedback.py
+          python3 tool/apply_text_social_verification.py
+          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          python3 tool/apply_commercial_registry_auth.py
+          python3 tool/apply_commercial_profile_shell.py
+          python3 tool/apply_server_verified_billing_gate.py
+      - name: Mark commercial baseline
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/verify-reapply-baseline"}'
+      - name: Restore committed media picker
+        run: |
+          git show HEAD:lib/import_page.dart > lib/import_page.dart
+          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
+          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
+      - name: Mark picker restore
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/verify-reapply-picker"}'
+      - name: Reapply fast precheck
+        run: python3 tool/apply_fast_uncertified_media_precheck_20260823.py
+      - name: Mark fast precheck
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/verify-reapply-fast"}'
+      - name: Reapply clarity localization ML
+        run: python3 tool/apply_verification_clarity_localization_ml_fix_20260824.py
+      - name: Mark clarity ML
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/verify-reapply-clarity"}'
+      - name: Reapply language finalizer
+        run: python3 tool/apply_verification_language_finalizer_20260824.py
+      - name: Mark language finalizer
+        run: |
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/verify-reapply-language"}'
