@@ -70,7 +70,7 @@ class _VerifyPageState extends State<VerifyPage> {
 
     setState(() {
       filePath = path;
-      status = "File HCV selezionato";
+      status = _t('fileSelected');
       result = null;
       verifiedCreatorName = null;
       verifiedTrustLevel = null;
@@ -109,7 +109,7 @@ class _VerifyPageState extends State<VerifyPage> {
       });
     } catch (e) {
       setState(() {
-        status = "ERRORE: $e";
+        status = "${_t('importError')}: $e";
         result = "INVALID ❌";
         verifiedCreatorName = null;
         verifiedTrustLevel = null;
@@ -144,7 +144,7 @@ class _VerifyPageState extends State<VerifyPage> {
       }
 
       verifiedCreatorName =
-          (identity["creatorName"] ?? "Unknown Creator").toString();
+          (identity["creatorName"] ?? _t('identityUnavailable')).toString();
 
       verifiedTrustLevel = (identity["trustLevel"] ?? "UNKNOWN").toString();
 
@@ -247,14 +247,6 @@ class _VerifyPageState extends State<VerifyPage> {
                   ),
                 ),
               buildIdentityBlock(),
-              if (filePath != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  filePath!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
             ],
           ),
         ),
