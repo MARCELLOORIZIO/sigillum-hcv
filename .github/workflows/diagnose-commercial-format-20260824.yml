@@ -1,4 +1,4 @@
-name: Diagnose full commercial billing and media chain
+name: Diagnose TestFlight analyzer errors
 
 on:
   push:
@@ -14,13 +14,13 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Mark diagnostic started
+      - name: Mark diagnostic pending
         run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-full-commercial-diagnostic"}'
+          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"pending","context":"sigillum/tf-analyzer-diagnostic"}'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -28,7 +28,7 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Materialize through commercial profile
+      - name: Materialize exactly through pre-test state
         run: |
           python3 tool/run_ios_share_handoff_fix.py
           python3 tool/apply_file_import_and_ocr_fix.py
@@ -47,52 +47,42 @@ jobs:
           dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
           python3 tool/apply_commercial_registry_auth.py
           python3 tool/apply_commercial_profile_shell.py
-      - name: Run full billing gate
-        id: billing
-        continue-on-error: true
+          python3 tool/apply_server_verified_billing_gate.py
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart test/media_specific_verification_picker_contract_test.dart
+          flutter pub get
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
+      - name: Run analyzer and publish exact errors
         run: |
-          python3 tool/apply_server_verified_billing_gate.py > billing.log 2>&1
-          cat billing.log
-      - name: Publish billing result
-        if: always()
-        env:
-          OUTCOME: ${{ steps.billing.outcome }}
-        run: |
-          if [ "$OUTCOME" = success ]; then
-            context="sigillum/tf-full-billing-ok"; state=success
-          else
-            last="$(tail -n 1 billing.log | tr -d '\r' | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g' | cut -c1-80)"
-            context="sigillum/tf-full-billing-${last}"; state=failure
-          fi
-          python3 - "$state" "$context" > status.json <<'PY'
-          import json, sys
-          print(json.dumps({'state': sys.argv[1], 'context': sys.argv[2]}))
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.log 2>&1
+          code=$?
+          cat analyze.log
+          python3 <<'PY'
+          import json, os, re, urllib.request
+          from pathlib import Path
+          text = Path('analyze.log').read_text(encoding='utf-8', errors='replace')
+          lines = [line.strip() for line in text.splitlines() if re.match(r'^\s*error\s+[•-]', line)]
+          if not lines:
+              # Fallback: publish useful lines containing known analyzer error wording.
+              lines = [line.strip() for line in text.splitlines() if ' error ' in f' {line.lower()} ' or 'error •' in line.lower()]
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['GITHUB_SHA']
+          url = f'https://api.github.com/repos/{repo}/statuses/{sha}'
+          for i, line in enumerate(lines[:8], 1):
+              safe = re.sub(r'[^A-Za-z0-9_.:/-]+', '-', line).strip('-')[:78]
+              payload = json.dumps({'state':'failure','context':f'sigillum/analyze-{i}-{safe}'}).encode()
+              req = urllib.request.Request(url, data=payload, method='POST', headers={
+                  'Authorization': f'Bearer {token}',
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json',
+              })
+              urllib.request.urlopen(req).read()
+          overall = {'state':'success' if not lines and 'No issues found!' in text else 'failure', 'context':'sigillum/tf-analyzer-diagnostic'}
+          req = urllib.request.Request(url, data=json.dumps(overall).encode(), method='POST', headers={
+              'Authorization': f'Bearer {token}', 'Accept':'application/vnd.github+json', 'Content-Type':'application/json'})
+          urllib.request.urlopen(req).read()
           PY
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" --data-binary @status.json
-      - name: Run explicit media finalizer after billing
-        id: media
-        if: steps.billing.outcome == 'success'
-        continue-on-error: true
-        run: |
-          python3 tool/apply_media_specific_verification_picker_fix_20260822.py > media.log 2>&1
-          cat media.log
-      - name: Publish media result
-        if: always() && steps.billing.outcome == 'success'
-        env:
-          OUTCOME: ${{ steps.media.outcome }}
-        run: |
-          if [ "$OUTCOME" = success ]; then
-            context="sigillum/tf-full-media-ok"; state=success
-          else
-            last="$(tail -n 1 media.log | tr -d '\r' | sed 's/[^A-Za-z0-9_.-]/-/g' | sed 's/-\+/-/g' | cut -c1-80)"
-            context="sigillum/tf-full-media-${last}"; state=failure
-          fi
-          python3 - "$state" "$context" > status.json <<'PY'
-          import json, sys
-          print(json.dumps({'state': sys.argv[1], 'context': sys.argv[2]}))
-          PY
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" --data-binary @status.json
-      - name: Mark diagnostic complete
-        if: always()
-        run: |
-          curl -fsS -L -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}" -d '{"state":"success","context":"sigillum/tf-full-commercial-diagnostic"}'
+          exit 0
