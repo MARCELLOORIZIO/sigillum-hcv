@@ -26,13 +26,17 @@ def apply_fast_media_precheck():
 
 
 def apply_verification_refinement():
-    patch = Path('tool/apply_verification_clarity_localization_ml_fix_20260824.py')
-    if not patch.exists():
-        raise RuntimeError('verification clarity/localization/ML patch missing')
-    exec(
-        compile(patch.read_text(encoding='utf-8'), str(patch), 'exec'),
-        {'__name__': '__main__'},
-    )
+    for patch_name in [
+        'tool/apply_verification_clarity_localization_ml_fix_20260824.py',
+        'tool/apply_verification_language_finalizer_20260824.py',
+    ]:
+        patch = Path(patch_name)
+        if not patch.exists():
+            raise RuntimeError(f'verification refinement patch missing: {patch_name}')
+        exec(
+            compile(patch.read_text(encoding='utf-8'), str(patch), 'exec'),
+            {'__name__': '__main__'},
+        )
 
 
 # The branch now carries the approved picker implementation directly in Git.
