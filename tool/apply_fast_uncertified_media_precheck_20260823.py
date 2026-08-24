@@ -144,11 +144,17 @@ select_button_new = """              FilledButton(
                 onPressed: loading ? null : pickMedia,
                 child: Text(_t('selectOriginalMedia')),
               ),"""
+select_button_final = """              FilledButton(
+                onPressed: loading ? null : pickMedia,
+                child: Text(_v('selectOriginal')),
+              ),"""
 if select_button_old in source:
     source = source.replace(select_button_old, select_button_new, 1)
 elif select_button_custom in source:
     source = source.replace(select_button_custom, select_button_new, 1)
-elif select_button_new not in source:
+elif select_button_new in source or select_button_final in source:
+    pass
+else:
     raise RuntimeError('select-media button visual anchor missing')
 
 verify_button_old = """              ElevatedButton(
@@ -184,11 +190,19 @@ verify_button_new = """              FilledButton(
                   loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
                 ),
               ),"""
+verify_button_final = """              FilledButton(
+                onPressed: loading ? null : verifyFromRegistry,
+                child: Text(
+                  loading ? _v('verifying') : _v('verifyRegistry'),
+                ),
+              ),"""
 if verify_button_old in source:
     source = source.replace(verify_button_old, verify_button_new, 1)
 elif verify_button_custom in source:
     source = source.replace(verify_button_custom, verify_button_new, 1)
-elif verify_button_new not in source:
+elif verify_button_new in source or verify_button_final in source:
+    pass
+else:
     raise RuntimeError('verify button visual anchor missing')
 
 card_old = """      decoration: BoxDecoration(
