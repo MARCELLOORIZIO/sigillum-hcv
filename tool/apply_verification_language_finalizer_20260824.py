@@ -105,6 +105,23 @@ exec(
     {'__name__': '__main__'},
 )
 
+# Older prelaunch patches have produced more than one visual implementation of
+# the same post-probe confirmation. Normalize that one presentation-only
+# function before applying the four-language camera finalizer.
+capture_ready_normalizer = Path(
+    'tool/normalize_capture_ready_dialog_for_localization_20260825.py'
+)
+if not capture_ready_normalizer.exists():
+    raise RuntimeError('RC2 capture-ready normalization patch missing')
+exec(
+    compile(
+        capture_ready_normalizer.read_text(encoding='utf-8'),
+        str(capture_ready_normalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
 # RC2: camera runtime copy follows the selected IT/EN/ES/RU language. This is
 # presentation-only and intentionally runs after all older camera patchers.
 camera_localization = Path('tool/apply_camera_localization_finalizer_20260825.py')
