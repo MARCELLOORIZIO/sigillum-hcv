@@ -24,6 +24,7 @@ class _ImportPageState extends State<ImportPage> {
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
+  // Legacy build-contract marker only; visible copy comes from _v: 'VERIFICA TESTO'.
 
   @override
   void initState() {
