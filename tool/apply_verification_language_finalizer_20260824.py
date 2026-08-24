@@ -1,5 +1,15 @@
 from pathlib import Path
 
+# The Registry finalizer repairs/replaces any legacy diagnostic layout left by
+# previous build-time patchers before language assertions are evaluated.
+registry_finalizer = Path('tool/apply_verification_registry_finalizer_20260824.py')
+if not registry_finalizer.exists():
+    raise RuntimeError('Registry verification finalizer missing')
+exec(
+    compile(registry_finalizer.read_text(encoding='utf-8'), str(registry_finalizer), 'exec'),
+    {'__name__': '__main__'},
+)
+
 # Verification hub buttons must follow the selected IT/EN/ES/RU language.
 path = Path('lib/import_page.dart')
 source = path.read_text(encoding='utf-8')
