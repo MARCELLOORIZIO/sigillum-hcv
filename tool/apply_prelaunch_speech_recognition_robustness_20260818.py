@@ -110,6 +110,13 @@ replacement = r'''  private func speechLocaleIdentifier(_ languageCode: String) 
         var bestCoverage = -1.0
         var bestCharacterCount = 0
 
+        // Partial hypotheses from Apple Speech may revise themselves while the
+        // file is still being processed. Keep a timestamped timeline as well
+        // as the best cumulative hypothesis so words from an earlier portion
+        // of the video cannot disappear simply because a later partial result
+        // starts farther forward.
+        var timeline = [Int: [String: Any]]()
+
         func capture(_ response: SFSpeechRecognitionResult) {
           let transcription = response.bestTranscription
           let text = transcription.formattedString.trimmingCharacters(
@@ -122,6 +129,19 @@ replacement = r'''  private func speechLocaleIdentifier(_ languageCode: String) 
               "duration": segment.duration,
             ] as [String: Any]
           }
+
+          for segment in transcription.segments {
+            // 80 ms buckets absorb small timestamp shifts between successive
+            // hypotheses. Newer recognizer output replaces the same moment;
+            // moments omitted by a later partial remain preserved.
+            let bucket = Int((segment.timestamp / 0.08).rounded())
+            timeline[bucket] = [
+              "text": segment.substring,
+              "start": segment.timestamp,
+              "duration": segment.duration,
+            ]
+          }
+
           let coverage = transcription.segments.last.map {
             $0.timestamp + $0.duration
           } ?? 0
@@ -136,16 +156,42 @@ replacement = r'''  private func speechLocaleIdentifier(_ languageCode: String) 
           }
         }
 
+        func mergedTimeline() -> [[String: Any]] {
+          return timeline.values.sorted { left, right in
+            let a = left["start"] as? Double ?? 0
+            let b = right["start"] as? Double ?? 0
+            return a < b
+          }
+        }
+
+        func mergedText(_ segments: [[String: Any]]) -> String {
+          return segments.compactMap { item in
+            (item["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+          }.filter { !$0.isEmpty }.joined(separator: " ")
+        }
+
         func finishSuccess() {
           if completed { return }
           completed = true
           try? FileManager.default.removeItem(at: audioURL)
           self.speechTask = nil
+
+          let timelineSegments = mergedTimeline()
+          let timelineText = mergedText(timelineSegments)
+          let selectedSegments = timelineSegments.count >= bestSegments.count
+            ? timelineSegments
+            : bestSegments
+          let selectedText = timelineText.count >= bestText.count
+            ? timelineText
+            : bestText
+          let sourceDuration = AVURLAsset(url: videoURL).duration.seconds
+
           DispatchQueue.main.async {
             result([
-              "text": bestText,
-              "segments": bestSegments,
+              "text": selectedText,
+              "segments": selectedSegments,
               "locale": localeIdentifier,
+              "duration": sourceDuration.isFinite ? sourceDuration : 0,
             ])
           }
         }
@@ -161,7 +207,7 @@ replacement = r'''  private func speechLocaleIdentifier(_ languageCode: String) 
             }
           }
           if let error = error {
-            if !bestText.isEmpty || !bestSegments.isEmpty {
+            if !bestText.isEmpty || !bestSegments.isEmpty || !timeline.isEmpty {
               finishSuccess()
               return
             }
@@ -178,14 +224,14 @@ replacement = r'''  private func speechLocaleIdentifier(_ languageCode: String) 
           }
         }
 
-        // Some file recognitions emit a useful cumulative partial result but no
-        // final callback. Preserve the most complete result rather than only
-        // the first words or an indefinite wait.
+        // File recognition should be allowed to cover the whole source. Some
+        // recognitions return useful cumulative partials without a final event,
+        // so finish only after a duration-based grace period.
         let audioDuration = AVURLAsset(url: audioURL).duration.seconds
-        let timeout = max(12.0, min(90.0, audioDuration + 15.0))
+        let timeout = max(12.0, min(120.0, audioDuration + 20.0))
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
           if completed { return }
-          if !bestText.isEmpty || !bestSegments.isEmpty {
+          if !bestText.isEmpty || !bestSegments.isEmpty || !timeline.isEmpty {
             self.speechTask?.finish()
             finishSuccess()
           } else {
@@ -212,11 +258,14 @@ for token in [
     'request.shouldReportPartialResults = true',
     'request.taskHint = .dictation',
     'bestCoverage',
-    'audioDuration + 15.0',
+    'var timeline = [Int: [String: Any]]()',
+    'segment.timestamp / 0.08',
+    'audioDuration + 20.0',
+    '"duration": sourceDuration.isFinite ? sourceDuration : 0',
     '(args["languageCode"] as? String) ?? "it"',
 ]:
     if token not in source:
         raise RuntimeError(f'Apple Speech robustness token missing: {token}')
 
 path.write_text(source, encoding='utf-8')
-print('Apple Speech now uses app language and preserves the most complete cumulative transcript')
+print('Apple Speech preserves cumulative text plus a complete timestamped timeline across partial revisions')
