@@ -105,4 +105,20 @@ exec(
     {'__name__': '__main__'},
 )
 
-print('Verification language, public result copy and severity now propagate through hub, quick check, Registry, router and HCVPACK')
+# Final compile safety and generated-contract alignment. This must run last,
+# because older visual patchers can recreate transient legacy test contracts.
+compile_contract_finalizer = Path(
+    'tool/apply_verification_compile_contract_finalizer_20260824.py'
+)
+if not compile_contract_finalizer.exists():
+    raise RuntimeError('Verification compile/contract finalizer missing')
+exec(
+    compile(
+        compile_contract_finalizer.read_text(encoding='utf-8'),
+        str(compile_contract_finalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+print('Verification language, public result copy, severity and compile contracts finalized')
