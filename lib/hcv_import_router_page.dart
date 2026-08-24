@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'hcvpack_player_page.dart';
+import 'quick_hcv_media_gate_page.dart';
 import 'verify_page.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
@@ -74,7 +75,22 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
       return;
     }
 
-    if (_isMediaOrTextFile(lower)) {
+    if (_isPhotoOrVideo(lower)) {
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuickHcvMediaGatePage(
+            path: path,
+            languageCode: widget.languageCode,
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_isOtherMediaOrTextFile(lower)) {
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -94,14 +110,17 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
     });
   }
 
-  bool _isMediaOrTextFile(String lower) {
+  bool _isPhotoOrVideo(String lower) {
     return lower.endsWith(".mp4") ||
         lower.endsWith(".mov") ||
         lower.endsWith(".m4v") ||
         lower.endsWith(".jpg") ||
         lower.endsWith(".jpeg") ||
-        lower.endsWith(".png") ||
-        lower.endsWith(".txt") ||
+        lower.endsWith(".png");
+  }
+
+  bool _isOtherMediaOrTextFile(String lower) {
+    return lower.endsWith(".txt") ||
         lower.endsWith(".pdf") ||
         lower.endsWith(".mp3") ||
         lower.endsWith(".wav");

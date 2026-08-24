@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
@@ -10,21 +10,27 @@ class LegalInfoPage extends StatelessWidget {
     required this.languageCode,
   });
 
-  static const privacyUrl = 'https://hcv-registry-server.onrender.com/privacy';
-  static const termsUrl = 'https://hcv-registry-server.onrender.com/terms';
-  static const supportUrl = 'https://hcv-registry-server.onrender.com/support';
-  static const deleteDataUrl =
-      'https://hcv-registry-server.onrender.com/delete-data';
+  static const _apiBase = String.fromEnvironment(
+    'SIGILLUM_API_BASE_URL',
+    defaultValue: 'https://sigillum-registry-production.onrender.com',
+  );
+  static String get privacyUrl => '$_apiBase/privacy';
+  static String get termsUrl => '$_apiBase/terms';
+  static const supportUrl = 'mailto:marcelloorizio@legalmail.it';
+  static String get deleteDataUrl => '$_apiBase/delete-data';
 
   final String languageCode;
 
   String _t(String key) => SigillumCopy.t(languageCode, key);
 
-  Future<void> _copy(BuildContext context, String value) async {
-    await Clipboard.setData(ClipboardData(text: value));
-    if (!context.mounted) return;
+  Future<void> _open(BuildContext context, String value) async {
+    final opened = await launchUrl(
+      Uri.parse(value),
+      mode: LaunchMode.externalApplication,
+    );
+    if (opened || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_t('copied')}: $value')),
+      const SnackBar(content: Text('Impossibile aprire questa risorsa.')),
     );
   }
 
@@ -90,28 +96,28 @@ class LegalInfoPage extends StatelessWidget {
             icon: Icons.privacy_tip_outlined,
             title: _t('privacyPolicy'),
             value: privacyUrl,
-            onPressed: () => _copy(context, privacyUrl),
+            onPressed: () => _open(context, privacyUrl),
           ),
           const SizedBox(height: 10),
           _LinkButton(
             icon: Icons.gavel_outlined,
             title: _t('terms'),
             value: termsUrl,
-            onPressed: () => _copy(context, termsUrl),
+            onPressed: () => _open(context, termsUrl),
           ),
           const SizedBox(height: 10),
           _LinkButton(
             icon: Icons.support_agent_rounded,
             title: _t('support'),
             value: supportUrl,
-            onPressed: () => _copy(context, supportUrl),
+            onPressed: () => _open(context, supportUrl),
           ),
           const SizedBox(height: 10),
           _LinkButton(
             icon: Icons.delete_outline_rounded,
             title: _t('deleteData'),
             value: deleteDataUrl,
-            onPressed: () => _copy(context, deleteDataUrl),
+            onPressed: () => _open(context, deleteDataUrl),
           ),
         ],
       ),

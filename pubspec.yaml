@@ -42,6 +42,8 @@ dependencies:
   image: ^4.3.0
   tflite_flutter: ^0.12.1
   google_mlkit_text_recognition: ^0.15.0
+  in_app_purchase: ^3.3.0
+  in_app_purchase_storekit: ^0.4.11+1
 
   
 
@@ -56,6 +58,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/ml/sigillum_screen_replay_v2.tflite
+    - assets/ml/sigillum_screen_replay_v1.tflite
     - assets/ml/sigillum_screen_replay_v1_labels.json
 flutter_launcher_icons:
   android: true

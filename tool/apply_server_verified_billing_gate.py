@@ -1,0 +1,307 @@
+from pathlib import Path
+import re
+
+path = Path('lib/commercial_gate.dart')
+source = path.read_text(encoding='utf-8')
+
+source = re.sub(
+    r"^import 'package:shared_preferences/shared_preferences\.dart';\s*\n",
+    '',
+    source,
+    flags=re.M,
+)
+source = re.sub(r'^\s*static const _localPurchaseKey\s*=.*?;\s*\n', '', source, flags=re.M)
+source = re.sub(r'^\s*bool _localPurchaseObserved\s*=.*?;\s*\n', '', source, flags=re.M)
+source = re.sub(r'^\s*final prefs = await SharedPreferences\.getInstance\(\);\s*\n', '', source, flags=re.M)
+source = re.sub(r'^\s*_localPurchaseObserved\s*=\s*prefs\.getBool\(_localPurchaseKey\)\s*\?\?\s*false;\s*\n', '', source, flags=re.M)
+
+billing_pattern = re.compile(
+    r"    _billingEnforced = billing\['enforced'\] == true;\s*\n"
+    r".*?"
+    r"\n    if \(!paid\) \{",
+    re.S,
+)
+billing_replacement = """    _billingEnforced = billing['enforced'] == true;
+    final serverStatus = billing['status']?.toString() ?? 'inactive';
+    final serverActive = serverStatus == 'active' || serverStatus == 'grace';
+    final paid = serverActive ||
+        (!_billingEnforced && _prelaunchBillingBypass);
+
+    if (!paid) {"""
+source, billing_count = billing_pattern.subn(billing_replacement, source, count=1)
+if billing_count != 1 and "serverStatus == 'active' || serverStatus == 'grace'" not in source:
+    raise RuntimeError('billing route anchor missing')
+
+method_pattern = re.compile(
+    r"  Future<void> _onPurchases\(List<PurchaseDetails> purchases\) async \{.*?\n  \}\n\n  Future<void> _run",
+    re.S,
+)
+method_replacement = r'''  Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      if (!CommercialBillingService.productIds.contains(purchase.productID)) {
+        continue;
+      }
+
+      if (purchase.status == PurchaseStatus.purchased ||
+          purchase.status == PurchaseStatus.restored) {
+        if (_busy) continue;
+        if (mounted) {
+          setState(() {
+            _busy = true;
+            _message = 'Verifica dell’abbonamento con App Store in corso…';
+          });
+        }
+        try {
+          final verified = await _account.verifyApplePurchase(
+            productId: purchase.productID,
+            transactionId: purchase.purchaseID,
+            receiptData: purchase.verificationData.serverVerificationData,
+          );
+          final status = verified['status']?.toString() ?? 'inactive';
+          if (verified['verified'] != true ||
+              (status != 'active' && status != 'grace')) {
+            throw const CommercialAccountException(
+              'L’abbonamento non risulta attivo dopo la verifica App Store.',
+            );
+          }
+
+          // StoreKit viene completato soltanto dopo la verifica server-side.
+          await CommercialBillingService.instance.completeVerifiedPurchase(
+            purchase,
+          );
+
+          if (!mounted) return;
+          setState(() {
+            _message = 'Abbonamento verificato.';
+          });
+          await _routeAuthenticated();
+          return;
+        } catch (error) {
+          if (!mounted) return;
+          setState(() {
+            _message = 'Verifica abbonamento non riuscita: $error';
+          });
+        } finally {
+          if (mounted) setState(() => _busy = false);
+        }
+      }
+
+      if (purchase.status == PurchaseStatus.error && mounted) {
+        setState(() {
+          _message = purchase.error?.message ?? 'Acquisto non completato.';
+        });
+      }
+    }
+  }
+
+  Future<void> _run'''
+source, count = method_pattern.subn(method_replacement, source, count=1)
+if count != 1 and 'verifyApplePurchase(' not in source:
+    raise RuntimeError('purchase handler anchor missing')
+
+# Remove any residual local-entitlement statements left by formatting variants.
+source = re.sub(r'^.*_localPurchaseObserved.*\n', '', source, flags=re.M)
+source = re.sub(r'^.*_localPurchaseKey.*\n', '', source, flags=re.M)
+source = re.sub(r'^.*SharedPreferences\.getInstance\(\).*\n', '', source, flags=re.M)
+
+for forbidden in [
+    'SharedPreferences.getInstance()',
+    '_localPurchaseKey',
+    '_localPurchaseObserved',
+    'setBool(',
+]:
+    if forbidden in source:
+        raise RuntimeError(f'local billing entitlement remains: {forbidden}')
+
+required = [
+    'verifyApplePurchase(',
+    'purchase.verificationData.serverVerificationData',
+    'purchase.purchaseID',
+    'completeVerifiedPurchase(',
+    "serverStatus == 'active' || serverStatus == 'grace'",
+]
+for token in required:
+    if token not in source:
+        raise RuntimeError(f'server-verified billing token missing: {token}')
+
+verify_pos = source.index('verifyApplePurchase(')
+complete_pos = source.index('completeVerifiedPurchase(', verify_pos)
+if complete_pos <= verify_pos:
+    raise RuntimeError('StoreKit completion precedes backend verification')
+
+path.write_text(source, encoding='utf-8')
+print('Server-verified App Store entitlement enforced in commercial gate')
+
+extra_patch = Path('tool/apply_prelaunch_ux_kyc_identity_fix.py')
+if not extra_patch.exists():
+    raise RuntimeError('commercial UX/KYC identity patch missing')
+exec(
+    compile(extra_patch.read_text(encoding='utf-8'), str(extra_patch), 'exec'),
+    {'__name__': '__main__'},
+)
+
+refinement_patch = Path('tool/apply_prelaunch_ui_camera_refinement.py')
+if not refinement_patch.exists():
+    raise RuntimeError('prelaunch UI/camera refinement patch missing')
+exec(
+    compile(refinement_patch.read_text(encoding='utf-8'), str(refinement_patch), 'exec'),
+    {'__name__': '__main__'},
+)
+
+product_refinement_patch = Path('tool/apply_prelaunch_product_refinement_20260817.py')
+if not product_refinement_patch.exists():
+    raise RuntimeError('prelaunch account/text/transcription refinement patch missing')
+exec(
+    compile(
+        product_refinement_patch.read_text(encoding='utf-8'),
+        str(product_refinement_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+product_contract_fix = Path('tool/apply_prelaunch_product_refinement_contract_fix.py')
+if not product_contract_fix.exists():
+    raise RuntimeError('prelaunch product contract/routing fix missing')
+exec(
+    compile(
+        product_contract_fix.read_text(encoding='utf-8'),
+        str(product_contract_fix),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+final_refinement = Path('tool/apply_prelaunch_visual_caption_refinement_20260818.py')
+if not final_refinement.exists():
+    raise RuntimeError('final visual/caption refinement patch missing')
+exec(
+    compile(
+        final_refinement.read_text(encoding='utf-8'),
+        str(final_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+account_help_refinement = Path('tool/apply_prelaunch_account_help_refinement_20260818.py')
+if not account_help_refinement.exists():
+    raise RuntimeError('account/help refinement patch missing')
+exec(
+    compile(
+        account_help_refinement.read_text(encoding='utf-8'),
+        str(account_help_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+camera_files_refinement = Path('tool/apply_prelaunch_camera_files_subtitle_ui_fix_20260818.py')
+if not camera_files_refinement.exists():
+    raise RuntimeError('camera/files subtitle refinement patch missing')
+exec(
+    compile(
+        camera_files_refinement.read_text(encoding='utf-8'),
+        str(camera_files_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+speech_refinement = Path('tool/apply_prelaunch_speech_recognition_robustness_20260818.py')
+if not speech_refinement.exists():
+    raise RuntimeError('speech robustness refinement patch missing')
+exec(
+    compile(
+        speech_refinement.read_text(encoding='utf-8'),
+        str(speech_refinement),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# The approved visual landing changes the first child in _brand(). Bridge only
+# that presentation anchor so the generic legal/localization patch can remain
+# isolated and deterministic.
+visual_anchor_patch = Path('tool/apply_prelaunch_legal_localization_visual_anchor_20260818.py')
+if not visual_anchor_patch.exists():
+    raise RuntimeError('prelaunch legal/localization visual anchor patch missing')
+exec(
+    compile(
+        visual_anchor_patch.read_text(encoding='utf-8'),
+        str(visual_anchor_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Legal/localization must run after the commercial refinements so they cannot
+# re-introduce hard-coded Italian onboarding or legal routes.
+legal_localization_patch = Path('tool/apply_prelaunch_legal_localization_20260818.py')
+if not legal_localization_patch.exists():
+    raise RuntimeError('prelaunch legal/localization patch missing')
+exec(
+    compile(
+        legal_localization_patch.read_text(encoding='utf-8'),
+        str(legal_localization_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Repair only const/localization interactions introduced by the generic patch.
+# This guard writes commercial_gate.dart only and never touches HCV/camera code.
+legal_compile_guard = Path('tool/apply_prelaunch_legal_localization_compile_guard_20260818.py')
+if not legal_compile_guard.exists():
+    raise RuntimeError('prelaunch legal/localization compile guard missing')
+exec(
+    compile(
+        legal_compile_guard.read_text(encoding='utf-8'),
+        str(legal_compile_guard),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Finally localize the approved first-launch visual composition itself. This
+# is presentation-only and does not write capture/HCV/Registry files.
+landing_localization_patch = Path('tool/apply_prelaunch_landing_localization_20260818.py')
+if not landing_localization_patch.exists():
+    raise RuntimeError('approved landing localization patch missing')
+exec(
+    compile(
+        landing_localization_patch.read_text(encoding='utf-8'),
+        str(landing_localization_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Billing lifecycle must run after presentation/localization refinements so
+# earlier transformations cannot restore the old purchase handler.
+storekit_lifecycle_patch = Path('tool/apply_storekit_transaction_lifecycle_fix_20260821.py')
+if not storekit_lifecycle_patch.exists():
+    raise RuntimeError('StoreKit transaction lifecycle patch missing')
+exec(
+    compile(
+        storekit_lifecycle_patch.read_text(encoding='utf-8'),
+        str(storekit_lifecycle_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+# Restored sessions with an expired/inactive entitlement must return to the
+# public landing page so free verification remains accessible. Explicit
+# Creator/login flows keep the normal paywall behavior.
+public_home_patch = Path('tool/apply_public_home_unpaid_restore_fix_20260822.py')
+if not public_home_patch.exists():
+    raise RuntimeError('public-home unpaid restore routing patch missing')
+exec(
+    compile(
+        public_home_patch.read_text(encoding='utf-8'),
+        str(public_home_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)

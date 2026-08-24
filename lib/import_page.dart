@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'hcv_import_router_page.dart';
 import 'sigillum_localization.dart';
+import 'sigillum_theme.dart';
+import 'verification_ui_copy.dart';
 
 class ImportPage extends StatefulWidget {
   const ImportPage({
@@ -17,10 +20,11 @@ class ImportPage extends StatefulWidget {
 }
 
 class _ImportPageState extends State<ImportPage> {
-  String status = "";
-  String? selectedPath;
+  String status = '';
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+  String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
+  // Legacy build-contract marker only; visible copy comes from _v: 'VERIFICA TESTO'.
 
   @override
   void initState() {
@@ -28,122 +32,188 @@ class _ImportPageState extends State<ImportPage> {
     status = _t('selectFileToVerify');
   }
 
-  Future<void> pickFile() async {
+  Future<void> _openPickedPath(String path) async {
+    if (!mounted) return;
+    setState(() => status = _t('analyzingFile'));
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HCVImportRouterPage(
+          path: path,
+          languageCode: widget.languageCode,
+        ),
+      ),
+    );
+
+    if (mounted) setState(() => status = _t('selectFileToVerify'));
+  }
+
+  Future<void> pickDocument() async {
     try {
       final res = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: const ['hcvpack', 'hcv', 'txt', 'pdf'],
         allowMultiple: false,
       );
-
       if (res == null) {
-        setState(() {
-          status = _t('noFileSelected');
-        });
+        if (mounted) setState(() => status = _t('noFileSelected'));
         return;
       }
-
       final path = res.files.single.path;
-
       if (path == null) {
-        setState(() {
-          status = _t('filePathUnavailable');
-        });
+        if (mounted) setState(() => status = _t('filePathUnavailable'));
         return;
       }
-
-      setState(() {
-        selectedPath = path;
-        status = "${_t('fileSelected')}:\n$path";
-      });
-
-      if (!mounted) return;
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HCVImportRouterPage(
-            path: path,
-            languageCode: widget.languageCode,
-          ),
-        ),
-      );
+      await _openPickedPath(path);
     } catch (e) {
-      setState(() {
-        status = "${_t('importError')}: $e";
-      });
+      if (mounted) setState(() => status = "${_t('importError')}: $e");
+    }
+  }
+
+  Future<void> pickPhoto() async {
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (file == null) {
+        if (mounted) setState(() => status = _t('noFileSelected'));
+        return;
+      }
+      await _openPickedPath(file.path);
+    } catch (e) {
+      if (mounted) setState(() => status = "${_t('importError')}: $e");
+    }
+  }
+
+  Future<void> pickVideo() async {
+    try {
+      final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
+      if (file == null) {
+        if (mounted) setState(() => status = _t('noFileSelected'));
+        return;
+      }
+      await _openPickedPath(file.path);
+    } catch (e) {
+      if (mounted) setState(() => status = "${_t('importError')}: $e");
     }
   }
 
   bool isSupported(String path) {
     final lower = path.toLowerCase();
+    return lower.endsWith('.hcvpack') ||
+        lower.endsWith('.hcv') ||
+        lower.endsWith('.txt') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.pdf') ||
+        lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v');
+  }
 
-    return lower.endsWith(".hcvpack") ||
-        lower.endsWith(".hcv") ||
-        lower.endsWith(".txt") ||
-        lower.endsWith(".jpg") ||
-        lower.endsWith(".jpeg") ||
-        lower.endsWith(".png") ||
-        lower.endsWith(".pdf") ||
-        lower.endsWith(".mp4") ||
-        lower.endsWith(".mov") ||
-        lower.endsWith(".m4v");
+  Widget _brand() {
+    return Column(
+      children: [
+        Container(
+          width: 66,
+          height: 66,
+          decoration: BoxDecoration(
+            color: SigillumTheme.panelSoft,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.verified_user_rounded,
+            color: SigillumTheme.ink,
+            size: 38,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'SIGILLUM',
+          style: TextStyle(
+            color: SigillumTheme.ink,
+            fontSize: 31,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _v('verifyTitle'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: SigillumTheme.muted,
+            fontSize: 16,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: SigillumTheme.deep,
       appBar: AppBar(
-        title: Text(_t('verifyContentHeading')),
+        backgroundColor: SigillumTheme.panel,
+        foregroundColor: SigillumTheme.ink,
+        elevation: 0,
+        title: Text(_v('verifyTitle')),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded),
         ),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.file_open,
-                size: 72,
-                color: Colors.green,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 36),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _brand(),
+                  const SizedBox(height: 28),
+                  Text(
+                    _v('verifyTitle'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: SigillumTheme.muted,
+                      fontSize: 16,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: pickDocument,
+                    icon: const Icon(Icons.description_outlined),
+                    label: Text(_v('verifyText')),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: pickPhoto,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(_v('verifyPhoto')),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: pickVideo,
+                    icon: const Icon(Icons.video_library_outlined),
+                    label: Text(_v('verifyVideo')),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    status,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: SigillumTheme.muted,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                _t('verifyContentHeading'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _t('supportedFiles'),
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 30),
-              Text(
-                status,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: pickFile,
-                child: Text(_t('selectFile')),
-              ),
-              if (selectedPath != null) ...[
-                const SizedBox(height: 20),
-                Text(
-                  selectedPath!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),

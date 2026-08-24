@@ -19,12 +19,14 @@ class HCVAuthException implements Exception {
 
 class HCVAuthService {
   const HCVAuthService({
-    this.baseUrl = 'https://hcv-registry-server.onrender.com',
+    this.baseUrl = const String.fromEnvironment(
+      'SIGILLUM_API_BASE_URL',
+      defaultValue: 'https://sigillum-registry-production.onrender.com',
+    ),
   });
 
   static const String _sessionTokenKey = 'sigillum.auth.session.v1';
-  static const String _authProofPurpose =
-      'SIGILLUM_AUTH_DEVICE_BINDING_V1';
+  static const String _authProofPurpose = 'SIGILLUM_AUTH_DEVICE_BINDING_V1';
   static const Duration _timeout = Duration(seconds: 20);
 
   final String baseUrl;
@@ -129,12 +131,12 @@ class HCVAuthService {
       '/api/auth/devices',
       token: token,
     );
-    final devices = response['devices'];
-    if (devices is! List) return const [];
-    return devices
+    final raw = response['devices'];
+    if (raw is! List) return const [];
+    return raw
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
-        .toList();
+        .toList(growable: false);
   }
 
   Future<void> logout({bool allDevices = false}) async {
@@ -152,7 +154,11 @@ class HCVAuthService {
     }
   }
 
-  Future<void> deleteAccount({required String password}) async {
+  Future<void> logoutAll() => logout(allDevices: true);
+
+  Future<void> deleteAccount({
+    required String password,
+  }) async {
     final token = await _requiredToken();
     await _request(
       'POST',
@@ -164,44 +170,13 @@ class HCVAuthService {
       },
     );
     await HCVSecureStore.delete(_sessionTokenKey);
-    await HCVIdentity().clearPersonalData();
-  }
-
-  Future<Map<String, dynamic>> _createDeviceProof() async {
-    final identity = await HCVIdentity().loadIdentity();
-    final fingerprint =
-        identity['devicePublicKeyFingerprint']?.toString() ?? '';
-    final publicKeyRaw = identity['publicKey'];
-    if (fingerprint.isEmpty ||
-        fingerprint == 'UNAVAILABLE' ||
-        publicKeyRaw is! Map) {
-      throw const HCVAuthException(
-        'Chiave sicura del dispositivo non disponibile.',
-      );
-    }
-
-    final publicKey = Map<String, dynamic>.from(publicKeyRaw);
-    final signedAt = DateTime.now().toUtc().toIso8601String();
-    final statement = jsonEncode({
-      'purpose': _authProofPurpose,
-      'deviceKeyFingerprint': fingerprint,
-      'signedAt': signedAt,
-    });
-
-    return {
-      'creatorId': identity['creatorId']?.toString() ?? '',
-      'deviceKeyFingerprint': fingerprint,
-      'publicKey': publicKey,
-      'signedAt': signedAt,
-      'signature': await HCVKeystoreSigner.sign(statement),
-    };
   }
 
   Future<String> _requiredToken() async {
     final token = await HCVSecureStore.read(_sessionTokenKey);
     if (token == null || token.isEmpty) {
       throw const HCVAuthException(
-        'Accedi al tuo account per continuare.',
+        'Nessuna sessione attiva',
         statusCode: 401,
         code: 'SESSIONE_MANCANTE',
       );
@@ -209,22 +184,50 @@ class HCVAuthService {
     return token;
   }
 
+  Future<Map<String, dynamic>> _createDeviceProof() async {
+    final identity = await HCVIdentity().loadIdentity();
+    final fingerprint =
+        identity['devicePublicKeyFingerprint']?.toString() ?? '';
+    final rawPublicKey = identity['publicKey'];
+
+    if (fingerprint.isEmpty ||
+        fingerprint == 'UNAVAILABLE' ||
+        rawPublicKey is! Map) {
+      throw const HCVAuthException('Chiave dispositivo non disponibile');
+    }
+
+    final publicKey = Map<String, dynamic>.from(rawPublicKey);
+    final signedAt = DateTime.now().toUtc().toIso8601String();
+    final statement = jsonEncode({
+      'purpose': _authProofPurpose,
+      'deviceKeyFingerprint': fingerprint,
+      'signedAt': signedAt,
+    });
+    final signature = await HCVKeystoreSigner.sign(statement);
+
+    return {
+      'creatorId': identity['creatorId']?.toString() ?? '',
+      'deviceKeyFingerprint': fingerprint,
+      'publicKey': publicKey,
+      'signedAt': signedAt,
+      'signature': signature,
+    };
+  }
+
   Future<void> _storeReturnedToken(Map<String, dynamic> response) async {
     final token = response['token']?.toString() ?? '';
-    if (token.isEmpty) {
-      throw const HCVAuthException('Il server non ha restituito una sessione.');
-    }
+    if (token.isEmpty) return;
     await HCVSecureStore.write(_sessionTokenKey, token);
   }
 
   Map<String, dynamic> _accountEnvelope(Map<String, dynamic> response) {
     final raw = response['account'];
-    if (raw is! Map) {
-      throw const HCVAuthException('Dati account mancanti nella risposta.');
-    }
+    final account =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     return {
-      'account': Map<String, dynamic>.from(raw),
-      'expiresAt': response['expiresAt']?.toString() ?? '',
+      'ok': response['ok'] == true,
+      'expiresAt': response['expiresAt'],
+      'account': account,
     };
   }
 
@@ -235,53 +238,41 @@ class HCVAuthService {
     Map<String, dynamic>? body,
   }) async {
     final client = HttpClient()..connectionTimeout = _timeout;
+
     try {
       final uri = Uri.parse('$baseUrl$path');
-      late final HttpClientRequest request;
-      switch (method) {
-        case 'GET':
-          request = await client.getUrl(uri).timeout(_timeout);
-          break;
-        case 'DELETE':
-          request = await client.deleteUrl(uri).timeout(_timeout);
-          break;
-        default:
-          request = await client.postUrl(uri).timeout(_timeout);
+      late HttpClientRequest request;
+      if (method == 'GET') {
+        request = await client.getUrl(uri).timeout(_timeout);
+      } else {
+        request = await client.postUrl(uri).timeout(_timeout);
       }
-
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (token != null && token.isNotEmpty) {
-        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer $token',
+        );
       }
       if (body != null) request.write(jsonEncode(body));
 
       final response = await request.close().timeout(_timeout);
       final raw = await utf8.decoder.bind(response).join().timeout(_timeout);
-      Map<String, dynamic> decoded;
+
+      Map<String, dynamic> decoded = const {};
       try {
         final parsed = jsonDecode(raw.isEmpty ? '{}' : raw);
-        decoded = parsed is Map
-            ? Map<String, dynamic>.from(parsed)
-            : <String, dynamic>{};
-      } catch (_) {
-        decoded = <String, dynamic>{};
-      }
+        if (parsed is Map) decoded = Map<String, dynamic>.from(parsed);
+      } catch (_) {}
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        final serverError = decoded['error']?.toString() ?? '';
-        final serverMessage = decoded['message']?.toString() ?? '';
-        final missingAccountEndpoint = response.statusCode == 404 &&
-            (serverError == 'Endpoint non trovato' ||
-                serverError == 'ENDPOINT_ACCOUNT_NON_TROVATO');
         throw HCVAuthException(
-          missingAccountEndpoint
-              ? 'Il server Account non è ancora aggiornato. Attendi il completamento del deploy Registry e riprova.'
-              : serverMessage.isNotEmpty
-                  ? serverMessage
-                  : serverError.isNotEmpty
-                      ? serverError
-                      : 'Operazione account non disponibile.',
+          decoded['message']?.toString().isNotEmpty == true
+              ? decoded['message'].toString()
+              : decoded['error']?.toString().isNotEmpty == true
+                  ? decoded['error'].toString()
+                  : 'Operazione account non riuscita',
           statusCode: response.statusCode,
           code: decoded['error']?.toString(),
         );
@@ -290,15 +281,11 @@ class HCVAuthService {
     } on HCVAuthException {
       rethrow;
     } on TimeoutException {
-      throw const HCVAuthException('Tempo di risposta del server scaduto.');
+      throw const HCVAuthException('Tempo di risposta del server scaduto');
     } on SocketException catch (error) {
-      throw HCVAuthException(
-        'Registry non raggiungibile: ${error.message}',
-      );
+      throw HCVAuthException('Server non raggiungibile: ${error.message}');
     } on HandshakeException {
-      throw const HCVAuthException(
-        'Connessione sicura al Registry non disponibile.',
-      );
+      throw const HCVAuthException('Connessione sicura non disponibile');
     } finally {
       client.close(force: true);
     }

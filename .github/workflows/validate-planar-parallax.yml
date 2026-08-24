@@ -1,14 +1,16 @@
-name: Validate planar parallax correction
+name: Validate SIGILLUM commercial prelaunch
 
 on:
   push:
     branches:
       - fix/reality-monitor-geometry-20260725
       - feature/text-social-verification-20260801
+      - commercial/prelaunch-20260811
   pull_request:
     branches:
       - fix/reality-monitor-geometry-20260725
       - feature/text-social-verification-20260801
+      - commercial/prelaunch-20260811
   workflow_dispatch:
 
 jobs:
@@ -18,6 +20,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard commercial changes from capture engine
+        run: |
+          git diff --exit-code f810af479546075ffe84c3ea2411dcc6300c0bb3..HEAD -- \
+            lib/camera_page.dart \
+            lib/text_cert_page.dart \
+            lib/hcv_engine.dart \
+            lib/hcv_live_screen_probe.dart \
+            lib/hcv_live_screen_probe_core.dart \
+            lib/hcv_live_screen_probe_geometry.dart \
+            lib/hcv_scene_geometry_classifier.dart \
+            lib/hcv_scene_decision_fusion.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_planar_motion_model.dart \
+            lib/hcv_projective_motion_model.dart
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -39,16 +58,21 @@ jobs:
           python3 tool/apply_account_success_feedback.py
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          if [ -f tool/apply_commercial_registry_auth.py ]; then python3 tool/apply_commercial_registry_auth.py; fi
+          if [ -f tool/apply_commercial_profile_shell.py ]; then python3 tool/apply_commercial_profile_shell.py; fi
+          if [ -f tool/apply_server_verified_billing_gate.py ]; then python3 tool/apply_server_verified_billing_gate.py; fi
 
       - name: Format generated sources
         run: |
           dart format \
             lib/camera_page.dart \
             lib/account_page.dart \
+            lib/user_home_page.dart \
             lib/text_cert_page.dart \
             lib/hcv_text_integrity.dart \
             lib/text_social_verify_page.dart \
             lib/registry_verify_page.dart \
+            lib/hcv_registry_service.dart \
             lib/hcv_capture_location.dart \
             lib/hcv_location_image_watermark.dart \
             lib/hcv_location_video_watermark.dart \
@@ -61,6 +85,12 @@ jobs:
             lib/hcv_scene_decision_fusion.dart \
             lib/hcv_display_risk_fusion.dart \
             lib/hcv_live_screen_probe_core.dart \
+            lib/commercial_account_service.dart \
+            lib/commercial_billing_service.dart \
+            lib/commercial_gate.dart \
+            lib/commercial_profile_page.dart \
+            lib/hcv_auth_service.dart \
+            lib/main.dart \
             test/camera_physical_scene_contract_test.dart \
             test/photo_pre_capture_only_contract_test.dart \
             test/registry_verify_hcv_id16_contract_test.dart \
@@ -75,7 +105,8 @@ jobs:
             test/account_success_feedback_contract_test.dart \
             test/hcv_text_integrity_test.dart \
             test/text_social_workflow_contract_test.dart \
-            test/text_keyboard_registry_photo_arm_contract_test.dart
+            test/text_keyboard_registry_photo_arm_contract_test.dart \
+            test/commercial_billing_server_verification_contract_test.dart
 
       - name: Resolve dependencies
         run: flutter pub get
@@ -102,7 +133,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: planar-parallax-diagnostics
+          name: sigillum-commercial-diagnostics
           path: |
             analyze.log
             test.log
