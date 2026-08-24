@@ -1,0 +1,42 @@
+name: Validate TestFlight Verification Fix
+
+on:
+  push:
+    branches:
+      - fix/testflight-verification-ui-registry-20260824
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Materialize verification build patches
+        run: |
+          python tool/apply_media_specific_verification_picker_fix_20260822.py
+          python tool/apply_media_specific_verification_picker_fix_20260822.py
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Verification UI contracts
+        run: flutter test test/testflight_verification_ui_registry_contract_test.dart --reporter expanded
+
+      - name: Existing localization contracts
+        run: |
+          flutter test test/verification_localization_contract_test.dart --reporter expanded || \
+          flutter test --reporter expanded
