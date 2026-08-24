@@ -119,7 +119,7 @@ class _ImportPageState extends State<ImportPage> {
             borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(
-            Icons.security_rounded,
+            Icons.verified_user_rounded,
             color: SigillumTheme.ink,
             size: 38,
           ),
@@ -135,9 +135,7 @@ class _ImportPageState extends State<ImportPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          widget.languageCode == 'it'
-              ? 'Verifica gratuitamente un contenuto certificato'
-              : 'Verify a certified content for free',
+          _t('verifyContentHeading'),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: SigillumTheme.muted,
@@ -168,12 +166,23 @@ class _ImportPageState extends State<ImportPage> {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.arrow_back_rounded),
                       color: SigillumTheme.ink,
-                      iconSize: 30,
                     ),
                   ),
                   const SizedBox(height: 8),
                   _brand(),
-                  const SizedBox(height: 34),
+                  const SizedBox(height: 28),
+                  Text(
+                    widget.languageCode == 'it'
+                        ? 'Scegli il tipo di contenuto da verificare.'
+                        : 'Choose the type of content to verify.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: SigillumTheme.muted,
+                      fontSize: 16,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: pickDocument,
                     icon: const Icon(Icons.description_outlined),
@@ -197,7 +206,7 @@ class _ImportPageState extends State<ImportPage> {
                         ? 'VERIFICA VIDEO'
                         : 'VERIFY VIDEO'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
                   Text(
                     status,
                     textAlign: TextAlign.center,
