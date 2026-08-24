@@ -1,0 +1,108 @@
+name: Validate SIGILLUM RC2 post-patch release
+
+on:
+  push:
+    branches:
+      - release/testflight-rc2-20260825
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-rc2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Syntax-check RC2 finalizers
+        run: |
+          python3 -m py_compile \
+            tool/apply_camera_localization_finalizer_20260825.py \
+            tool/apply_registry_full_diagnostics_20260825.py \
+            tool/apply_ml_ios_runtime_finalizer_20260825.py \
+            tool/verify_postpatch_release_20260825.py
+
+      - name: Guard committed source from frozen capture engine
+        shell: bash
+        run: |
+          FROZEN_BASE="f810af479546075ffe84c3ea2411dcc6300c0bb3"
+          git diff --exit-code "$FROZEN_BASE"..HEAD -- \
+            lib/camera_page.dart \
+            lib/text_cert_page.dart \
+            lib/hcv_engine.dart \
+            lib/hcv_live_screen_probe.dart \
+            lib/hcv_live_screen_probe_core.dart \
+            lib/hcv_live_screen_probe_geometry.dart \
+            lib/hcv_scene_geometry_classifier.dart \
+            lib/hcv_scene_decision_fusion.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_planar_motion_model.dart \
+            lib/hcv_projective_motion_model.dart
+
+      - name: Apply iOS share and import corrections
+        run: |
+          python3 tool/run_ios_share_handoff_fix.py
+          python3 tool/apply_file_import_and_ocr_fix.py
+
+      - name: Apply certificate monitor capture and Registry recovery
+        run: |
+          python3 tool/apply_safe_capture_location_fix.py
+          python3 tool/apply_mixed_scene_monitor_fix.py
+          python3 tool/apply_planar_parallax_compile_safety.py
+          python3 tool/apply_certificate_regression_fix.py
+          python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
+
+      - name: Apply account text and photo workflows
+        run: |
+          python3 tool/apply_account_success_feedback.py
+          python3 tool/apply_text_social_verification.py
+          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+
+      - name: Apply commercial shell and pre-pub RC2 finalization
+        run: |
+          python3 tool/apply_commercial_registry_auth.py
+          python3 tool/apply_commercial_profile_shell.py
+          python3 tool/apply_server_verified_billing_gate.py
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Re-materialize final source after pub get
+        run: |
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          python3 tool/verify_postpatch_release_20260825.py
+
+      - name: Flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Flutter tests
+        run: flutter test --reporter expanded
+
+      - name: Re-finalize exact release source after tests
+        run: |
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          python3 tool/verify_postpatch_release_20260825.py
+
+      - name: Upload post-patch audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigillum-rc2-postpatch-audit
+          path: /tmp/xcodebuild_logs/sigillum-postpatch-audit.log
+          if-no-files-found: warn
+          retention-days: 14
