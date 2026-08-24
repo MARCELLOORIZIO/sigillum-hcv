@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'hcv_import_router_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
+import 'verification_ui_copy.dart';
 
 class ImportPage extends StatefulWidget {
   const ImportPage({
@@ -22,25 +23,7 @@ class _ImportPageState extends State<ImportPage> {
   String status = '';
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
-
-  String _l({
-    required String it,
-    required String en,
-    required String es,
-    required String ru,
-  }) {
-    switch (widget.languageCode.toLowerCase()) {
-      case 'es':
-        return es;
-      case 'ru':
-        return ru;
-      case 'en':
-        return en;
-      case 'it':
-      default:
-        return it;
-    }
-  }
+  String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
@@ -154,7 +137,7 @@ class _ImportPageState extends State<ImportPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          _t('verifyContentHeading'),
+          _v('verifyTitle'),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: SigillumTheme.muted,
@@ -174,7 +157,7 @@ class _ImportPageState extends State<ImportPage> {
         backgroundColor: SigillumTheme.panel,
         foregroundColor: SigillumTheme.ink,
         elevation: 0,
-        title: Text(_t('verifyContentHeading')),
+        title: Text(_v('verifyTitle')),
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back_rounded),
@@ -192,12 +175,7 @@ class _ImportPageState extends State<ImportPage> {
                   _brand(),
                   const SizedBox(height: 28),
                   Text(
-                    _l(
-                      it: 'Scegli il tipo di contenuto da verificare.',
-                      en: 'Choose the type of content to verify.',
-                      es: 'Elige el tipo de contenido que quieres verificar.',
-                      ru: 'Выберите тип контента для проверки.',
-                    ),
+                    _v('verifyTitle'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: SigillumTheme.muted,
@@ -209,40 +187,19 @@ class _ImportPageState extends State<ImportPage> {
                   FilledButton.icon(
                     onPressed: pickDocument,
                     icon: const Icon(Icons.description_outlined),
-                    label: Text(
-                      _l(
-                        it: 'VERIFICA TESTO',
-                        en: 'VERIFY TEXT',
-                        es: 'VERIFICAR TEXTO',
-                        ru: 'ПРОВЕРИТЬ ТЕКСТ',
-                      ),
-                    ),
+                    label: Text(_v('verifyText')),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: pickPhoto,
                     icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(
-                      _l(
-                        it: 'VERIFICA FOTO',
-                        en: 'VERIFY PHOTO',
-                        es: 'VERIFICAR FOTO',
-                        ru: 'ПРОВЕРИТЬ ФОТО',
-                      ),
-                    ),
+                    label: Text(_v('verifyPhoto')),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: pickVideo,
                     icon: const Icon(Icons.video_library_outlined),
-                    label: Text(
-                      _l(
-                        it: 'VERIFICA VIDEO',
-                        en: 'VERIFY VIDEO',
-                        es: 'VERIFICAR VIDEO',
-                        ru: 'ПРОВЕРИТЬ ВИДЕО',
-                      ),
-                    ),
+                    label: Text(_v('verifyVideo')),
                   ),
                   const SizedBox(height: 22),
                   Text(
