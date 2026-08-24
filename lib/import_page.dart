@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'hcv_import_router_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
+import 'verification_ui_copy.dart';
 
 class ImportPage extends StatefulWidget {
   const ImportPage({
@@ -22,6 +23,7 @@ class _ImportPageState extends State<ImportPage> {
   String status = '';
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+  String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
@@ -151,30 +153,30 @@ class _ImportPageState extends State<ImportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: SigillumTheme.deep,
+      appBar: AppBar(
+        backgroundColor: SigillumTheme.deep,
+        foregroundColor: SigillumTheme.ink,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ),
       body: SafeArea(
+        top: false,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 36),
+              padding: const EdgeInsets.fromLTRB(22, 4, 22, 36),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      color: SigillumTheme.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   _brand(),
                   const SizedBox(height: 28),
                   Text(
-                    widget.languageCode == 'it'
-                        ? 'Scegli il tipo di contenuto da verificare.'
-                        : 'Choose the type of content to verify.',
+                    _v('verifyTitle'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: SigillumTheme.muted,
@@ -186,25 +188,19 @@ class _ImportPageState extends State<ImportPage> {
                   FilledButton.icon(
                     onPressed: pickDocument,
                     icon: const Icon(Icons.description_outlined),
-                    label: Text(widget.languageCode == 'it'
-                        ? 'VERIFICA TESTO'
-                        : 'VERIFY TEXT'),
+                    label: Text(_v('verifyText')),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: pickPhoto,
                     icon: const Icon(Icons.photo_library_outlined),
-                    label: Text(widget.languageCode == 'it'
-                        ? 'VERIFICA FOTO'
-                        : 'VERIFY PHOTO'),
+                    label: Text(_v('verifyPhoto')),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: pickVideo,
                     icon: const Icon(Icons.video_library_outlined),
-                    label: Text(widget.languageCode == 'it'
-                        ? 'VERIFICA VIDEO'
-                        : 'VERIFY VIDEO'),
+                    label: Text(_v('verifyVideo')),
                   ),
                   const SizedBox(height: 22),
                   Text(
