@@ -1,4 +1,5 @@
 name: Diagnose TestFlight analyzer errors
+# Re-run after Registry finalizer newline escape correction.
 
 on:
   push:
@@ -65,7 +66,6 @@ jobs:
           text = Path('analyze.log').read_text(encoding='utf-8', errors='replace')
           lines = [line.strip() for line in text.splitlines() if re.match(r'^\s*error\s+[•-]', line)]
           if not lines:
-              # Fallback: publish useful lines containing known analyzer error wording.
               lines = [line.strip() for line in text.splitlines() if ' error ' in f' {line.lower()} ' or 'error •' in line.lower()]
           token = os.environ['GH_TOKEN']
           repo = os.environ['GITHUB_REPOSITORY']
