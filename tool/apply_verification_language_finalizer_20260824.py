@@ -79,4 +79,17 @@ for file_name in [
     if "VerificationUiCopy.t(widget.languageCode, key)" not in text:
         raise RuntimeError(f'{file_name}: selected-language verification copy missing')
 
-print('Verification language now propagates through hub, quick check, Registry, router and HCVPACK')
+# Apply severity colors only after the localized public Registry UI is final.
+severity_finalizer = Path('tool/apply_verification_severity_colors_20260824.py')
+if not severity_finalizer.exists():
+    raise RuntimeError('Verification severity color finalizer missing')
+exec(
+    compile(
+        severity_finalizer.read_text(encoding='utf-8'),
+        str(severity_finalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+print('Verification language and severity now propagate through hub, quick check, Registry, router and HCVPACK')
