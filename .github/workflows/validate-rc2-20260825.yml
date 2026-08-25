@@ -32,6 +32,8 @@ jobs:
             tool/apply_camera_localization_finalizer_20260825.py \
             tool/apply_registry_full_diagnostics_20260825.py \
             tool/apply_ml_ios_runtime_finalizer_20260825.py \
+            tool/apply_rc2_photo_parallax_and_media_verify_finalizer_20260825.py \
+            tool/apply_rc2_definitive_build_finalizer_20260825.py \
             tool/finalize_testflight_release_source_20260825.py \
             tool/verify_postpatch_release_20260825.py
           bash -n tool/build_testflight_ipa_rc2_20260825.sh
@@ -87,6 +89,8 @@ jobs:
       - name: Re-materialize final source after pub get
         run: |
           python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          python3 tool/apply_rc2_photo_parallax_and_media_verify_finalizer_20260825.py
+          python3 tool/apply_rc2_definitive_build_finalizer_20260825.py
           python3 tool/verify_postpatch_release_20260825.py
 
       - name: Flutter analyze
@@ -102,6 +106,8 @@ jobs:
       - name: Re-finalize exact release source after tests
         run: |
           python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          python3 tool/apply_rc2_photo_parallax_and_media_verify_finalizer_20260825.py
+          python3 tool/apply_rc2_definitive_build_finalizer_20260825.py
           python3 tool/verify_postpatch_release_20260825.py
 
       - name: Simulate exact TestFlight pre-IPA finalization
