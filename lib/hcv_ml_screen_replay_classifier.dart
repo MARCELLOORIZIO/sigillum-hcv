@@ -29,18 +29,24 @@ class HCVMLScreenReplayClassifier {
   String? _modelVersion;
   String? _modelSha256;
   String? _modelLoadError;
+  String? _tfliteRuntimeVersion;
 
   void resetLoadedModel() {
+    _disposeInterpreterOnly();
+    _modelPolicy = 'UNKNOWN';
+    _modelLoadError = null;
+    _tfliteRuntimeVersion = null;
+  }
+
+  void _disposeInterpreterOnly() {
     try {
       _interpreter?.close();
     } catch (_) {}
     _interpreter = null;
     _classes = null;
     _modelSource = 'UNKNOWN';
-    _modelPolicy = 'UNKNOWN';
     _modelVersion = null;
     _modelSha256 = null;
-    _modelLoadError = null;
   }
 
   Future<Map<String, dynamic>> analyzeVideo(String videoPath) async {
@@ -185,6 +191,7 @@ class HCVMLScreenReplayClassifier {
         'modelPolicy': _modelPolicy,
         'modelVersion': _modelVersion,
         'modelSha256': _modelSha256,
+        'tfliteRuntimeVersion': _tfliteRuntimeVersion,
         'scanMode': 'STILL_IMAGE_ML_CLASSIFIER',
         'analysisStatus': 'ANALYZED',
         'framesAnalyzed': 1,
@@ -220,46 +227,92 @@ class HCVMLScreenReplayClassifier {
     final allowLocalModel = SigillumBuildConfig.isLab;
     _modelPolicy =
         allowLocalModel ? 'LAB_LOCAL_MODEL_ALLOWED' : 'USER_BUNDLED_MODEL_ONLY';
-    final bundle = allowLocalModel
-        ? await HCVMLModelStore.instance.loadCurrentBundle()
-        : await HCVMLModelStore.instance.loadBundledBundle();
+    final errors = <String>[];
+
+    if (allowLocalModel) {
+      try {
+        final local = await HCVMLModelStore.instance.loadCurrentBundle();
+        if (local.source == 'LOCAL_UPDATED_MODEL') {
+          await _loadBundle(local);
+          return;
+        }
+      } catch (e) {
+        errors.add('LOCAL_UPDATED_MODEL: $e');
+        _disposeInterpreterOnly();
+      }
+    }
+
     try {
-      await _loadBundle(bundle);
+      final primary = await HCVMLModelStore.instance.loadBundledBundle();
+      await _loadBundle(primary);
       return;
     } catch (e) {
-      _modelLoadError = '${bundle.source}: $e';
-      resetLoadedModel();
-      _modelPolicy = allowLocalModel
-          ? 'LAB_LOCAL_MODEL_ALLOWED'
-          : 'USER_BUNDLED_MODEL_ONLY';
-      _modelLoadError = '${bundle.source}: $e';
-    }
-
-    if (bundle.source == 'BUNDLED_ASSET_MODEL') {
-      throw Exception(_modelLoadError);
+      errors.add('BUNDLED_ASSET_MODEL_V2: $e');
+      _disposeInterpreterOnly();
     }
 
     try {
-      final fallback = await HCVMLModelStore.instance.loadBundledBundle();
+      final fallback =
+          await HCVMLModelStore.instance.loadBundledFallbackBundle();
       await _loadBundle(fallback);
+      _modelLoadError = errors.isEmpty ? null : errors.join('; ');
+      return;
     } catch (e) {
-      _modelLoadError = '${_modelLoadError ?? ''}; BUNDLED_ASSET_MODEL: $e';
-      resetLoadedModel();
-      _modelPolicy = allowLocalModel
-          ? 'LAB_LOCAL_MODEL_ALLOWED'
-          : 'USER_BUNDLED_MODEL_ONLY';
-      _modelLoadError = '${bundle.source}: unable to load local model; '
-          'BUNDLED_ASSET_MODEL: $e';
-      throw Exception(_modelLoadError);
+      errors.add('BUNDLED_ASSET_MODEL_V1_FALLBACK: $e');
+      _disposeInterpreterOnly();
+    }
+
+    _modelPolicy =
+        allowLocalModel ? 'LAB_LOCAL_MODEL_ALLOWED' : 'USER_BUNDLED_MODEL_ONLY';
+    _modelLoadError = errors.join('; ');
+    throw Exception(_modelLoadError);
+  }
+
+  String? _readTfliteRuntimeVersion() {
+    try {
+      return version;
+    } catch (_) {
+      return null;
     }
   }
 
   Future<void> _loadBundle(HCVMLModelBundle bundle) async {
-    _interpreter = Interpreter.fromFile(bundle.modelFile);
+    _tfliteRuntimeVersion = _readTfliteRuntimeVersion();
+
+    Object? bufferLoadError;
+    try {
+      final bytes = await bundle.modelFile.readAsBytes();
+      _interpreter = Interpreter.fromBuffer(bytes);
+    } catch (error) {
+      bufferLoadError = error;
+      try {
+        _interpreter = Interpreter.fromFile(bundle.modelFile);
+      } catch (fileError) {
+        throw Exception(
+          'TFLITE_INTERPRETER_CREATE_FAILED '
+          'runtime=${_tfliteRuntimeVersion ?? 'UNKNOWN'}; '
+          'source=${bundle.source}; '
+          'fromBuffer=$bufferLoadError; fromFile=$fileError',
+        );
+      }
+    }
+
+    final interpreter = _interpreter;
+    if (interpreter == null) {
+      throw Exception(
+        'TFLITE_INTERPRETER_NULL '
+        'runtime=${_tfliteRuntimeVersion ?? 'UNKNOWN'}; '
+        'source=${bundle.source}',
+      );
+    }
+
     _classes = bundle.labels;
     _modelSource = bundle.source;
-    _modelVersion =
-        bundle.source == 'BUNDLED_ASSET_MODEL' ? 'v2' : 'local-update';
+    _modelVersion = bundle.source == 'BUNDLED_ASSET_MODEL_V2'
+        ? 'v2'
+        : bundle.source == 'BUNDLED_ASSET_MODEL_V1_FALLBACK'
+            ? 'v1-fallback'
+            : 'local-update';
     _modelSha256 =
         (await sha256.bind(bundle.modelFile.openRead()).first).toString();
     _modelLoadError = null;
@@ -312,7 +365,8 @@ class HCVMLScreenReplayClassifier {
     final probabilities = output.first;
     final screenProbability = _screenProbability(classes, probabilities);
     final topIndex = _topIndex(probabilities);
-    final riskScore = (screenProbability * 100).round().clamp(0, 100).toInt();
+    final riskScore =
+        (screenProbability * 100).round().clamp(0, 100).toInt();
     return _MLImageResult(
       probabilities: probabilities,
       screenProbability: screenProbability,
@@ -379,7 +433,10 @@ class HCVMLScreenReplayClassifier {
     ];
   }
 
-  double _screenProbability(List<String> classes, List<double> probabilities) {
+  double _screenProbability(
+    List<String> classes,
+    List<double> probabilities,
+  ) {
     var score = 0.0;
     for (var i = 0; i < classes.length && i < probabilities.length; i++) {
       if (classes[i].startsWith('SCREEN_')) {
@@ -410,6 +467,7 @@ class HCVMLScreenReplayClassifier {
       'modelPolicy': _modelPolicy,
       'modelVersion': _modelVersion,
       'modelSha256': _modelSha256,
+      'tfliteRuntimeVersion': _tfliteRuntimeVersion,
     };
     if (error != null) {
       data['error'] = error.toString();
