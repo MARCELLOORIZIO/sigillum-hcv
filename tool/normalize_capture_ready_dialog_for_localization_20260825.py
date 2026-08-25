@@ -124,3 +124,17 @@ for token in [
 
 path.write_text(source, encoding='utf-8')
 print('Capture-ready presentation normalized for four-language finalization')
+
+# Normalize all remaining known IT/EN camera copy branches independently of
+# dart-format indentation before the four-language finalizer validates them.
+anchor_normalizer = Path('tool/normalize_camera_localization_anchors_20260825.py')
+if not anchor_normalizer.exists():
+    raise RuntimeError('Camera localization anchor normalizer missing')
+exec(
+    compile(
+        anchor_normalizer.read_text(encoding='utf-8'),
+        str(anchor_normalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
