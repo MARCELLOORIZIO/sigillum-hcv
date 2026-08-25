@@ -90,3 +90,27 @@ jobs:
           flutter test
           python3 tool/verify_postpatch_release_20260825.py
           echo 'MACOS_PREIPA_RELEASE_FINALIZATION=PASS'
+
+      - name: Dump materialized source context on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo '=== camera residual language selectors ==='
+          grep -n -C 6 "startsWith('it')" lib/camera_page.dart || true
+          echo '=== camera residual legacy public strings ==='
+          grep -n -E -C 3 "MUOVI LEGGERMENTE|VERIFICA COMPLETATA|PRONTO — PREMI REGISTRA|INQUADRA E PREMI|TRASCRIZIONE|DOVE TROVI I FILE" lib/camera_page.dart || true
+          echo '=== registry helper occurrences ==='
+          grep -n -C 4 "registryHelper\|Devi selezionare SOLO" lib/registry_verify_page.dart || true
+
+      - name: Upload materialized failure source
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigillum-macos-preipa-failure-source
+          path: |
+            lib/camera_page.dart
+            lib/registry_verify_page.dart
+            lib/verification_ui_copy.dart
+            /tmp/xcodebuild_logs/*.log
+          if-no-files-found: warn
+          retention-days: 7
