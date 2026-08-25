@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('TestFlight RC2 is fail-closed on the committed ML runtime contract', () {
     final codemagic = File('codemagic.yaml').readAsStringSync();
-    final buildProof =
-        File('tool/build_testflight_ipa_rc2_20260825.sh').readAsStringSync();
+    final buildProofPath = 'tool/build_testflight_ipa_rc2_20260825.sh';
+    final buildProof = File(buildProofPath).readAsStringSync();
     final classifier =
         File('lib/hcv_ml_screen_replay_classifier.dart').readAsStringSync();
     final store = File('lib/hcv_ml_model_store.dart').readAsStringSync();
@@ -48,5 +48,14 @@ void main() {
 
     expect(store, contains('BUNDLED_ASSET_MODEL_V2'));
     expect(store, contains('BUNDLED_ASSET_MODEL_V1_FALLBACK'));
+
+    if (!Platform.isWindows) {
+      final shellCheck = Process.runSync('bash', ['-n', buildProofPath]);
+      expect(
+        shellCheck.exitCode,
+        0,
+        reason: 'TestFlight build script syntax error: ${shellCheck.stderr}',
+      );
+    }
   });
 }
