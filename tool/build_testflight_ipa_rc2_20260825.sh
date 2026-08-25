@@ -172,18 +172,47 @@ for pair in \
   shasum -a 256 "$BUILT_FILE" | tee -a "$PROOF_LOG"
 done
 
-# tflite_flutter resolves the C API through RTLD_DEFAULT on iOS. Therefore the
-# required TfLite symbols must remain globally visible in the archived Runner
-# executable; otherwise an App Store/TestFlight archive is unusable at runtime.
+# tflite_flutter resolves the C API through DynamicLibrary.process() on iOS.
+# The required TfLite symbols may therefore be exported either by the Runner
+# executable or by a dynamic framework/dylib loaded into the app process. Scan
+# the complete archived process image instead of assuming one linkage shape.
 EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")"
 RUNNER_BIN="$APP/$EXECUTABLE_NAME"
 if [[ ! -f "$RUNNER_BIN" ]]; then
   log "RUNNER_BINARY_MISSING=$RUNNER_BIN"
   exit 1
 fi
-nm -gU "$RUNNER_BIN" > "$AUDIT_DIR/runner-global-symbols.log" 2>&1 || true
+
+SYMBOL_DUMP="$AUDIT_DIR/tflite-global-symbols.log"
+: > "$SYMBOL_DUMP"
+{
+  echo "=== $RUNNER_BIN ==="
+  nm -gU "$RUNNER_BIN" || true
+} >> "$SYMBOL_DUMP" 2>&1
+
+if [[ -d "$APP/Frameworks" ]]; then
+  for framework in "$APP"/Frameworks/*.framework; do
+    [[ -d "$framework" ]] || continue
+    framework_name="$(basename "$framework" .framework)"
+    framework_binary="$framework/$framework_name"
+    if [[ -f "$framework_binary" ]]; then
+      {
+        echo "=== $framework_binary ==="
+        nm -gU "$framework_binary" || true
+      } >> "$SYMBOL_DUMP" 2>&1
+    fi
+  done
+  for dylib in "$APP"/Frameworks/*.dylib; do
+    [[ -f "$dylib" ]] || continue
+    {
+      echo "=== $dylib ==="
+      nm -gU "$dylib" || true
+    } >> "$SYMBOL_DUMP" 2>&1
+  done
+fi
+
 for symbol in _TfLiteModelCreate _TfLiteInterpreterCreate _TfLiteInterpreterAllocateTensors _TfLiteInterpreterInvoke; do
-  if ! grep -Fq "$symbol" "$AUDIT_DIR/runner-global-symbols.log"; then
+  if ! grep -Fq "$symbol" "$SYMBOL_DUMP"; then
     log "TFLITE_SYMBOL_MISSING=$symbol"
     exit 1
   fi
