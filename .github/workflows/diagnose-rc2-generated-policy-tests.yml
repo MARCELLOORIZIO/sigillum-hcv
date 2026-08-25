@@ -1,0 +1,32 @@
+name: Diagnose RC2 generated policy tests
+
+on:
+  push:
+    branches:
+      - release/testflight-rc2-20260825
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialize certificate policy tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/apply_safe_capture_location_fix.py
+          python3 tool/apply_mixed_scene_monitor_fix.py
+          python3 tool/apply_planar_parallax_compile_safety.py
+          python3 tool/apply_certificate_regression_fix.py
+          python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
+          echo '=== MONITOR CERTIFICATE REGRESSION ==='
+          cat test/monitor_certificate_regression_test.dart
+          echo '=== PHOTO DISPLAY POLICY ==='
+          cat test/photo_display_risk_policy_test.dart
