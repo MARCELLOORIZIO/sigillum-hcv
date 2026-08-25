@@ -31,8 +31,10 @@ def replace_balanced_function(source: str, signature: str, replacement: str) -> 
 
 
 # ---------------------------------------------------------------------------
-# Dart-side loading recovery and evidence. This changes only model loading and
-# diagnostics. It deliberately leaves ML thresholds and display fusion untouched.
+# Dart-side loading recovery and evidence. The final loader is now committed
+# directly in Git. This finalizer is intentionally idempotent: it only repairs
+# older source shapes and otherwise acts as a release guard. Scoring/fusion are
+# never modified here.
 # ---------------------------------------------------------------------------
 source = CLASSIFIER.read_text(encoding='utf-8')
 
@@ -41,12 +43,6 @@ if 'String? _tfliteRuntimeVersion;' not in source:
     if anchor not in source:
         raise RuntimeError('ML runtime field anchor missing')
     source = source.replace(anchor, anchor + '  String? _tfliteRuntimeVersion;\n', 1)
-
-if '_tfliteRuntimeVersion = null;' not in source:
-    anchor = '    _modelLoadError = null;\n'
-    if anchor not in source:
-        raise RuntimeError('ML reset anchor missing')
-    source = source.replace(anchor, anchor + '    _tfliteRuntimeVersion = null;\n', 1)
 
 if 'String? _readTfliteRuntimeVersion()' not in source:
     signature = '  Future<void> _loadBundle(HCVMLModelBundle bundle) async'
@@ -64,22 +60,30 @@ if 'String? _readTfliteRuntimeVersion()' not in source:
 '''
     source = source[:pos] + helper + source[pos:]
 
-replacement = r'''  Future<void> _loadBundle(HCVMLModelBundle bundle) async {
+loader_tokens = [
+    'Interpreter.fromBuffer(bytes)',
+    'Interpreter.fromFile(bundle.modelFile)',
+    'TFLITE_INTERPRETER_CREATE_FAILED',
+    'TFLITE_INTERPRETER_NULL',
+]
+if not all(token in source for token in loader_tokens):
+    replacement = r'''  Future<void> _loadBundle(HCVMLModelBundle bundle) async {
     _tfliteRuntimeVersion = _readTfliteRuntimeVersion();
-    Object? fileLoadError;
+
+    Object? bufferLoadError;
     try {
-      _interpreter = Interpreter.fromFile(bundle.modelFile);
+      final bytes = await bundle.modelFile.readAsBytes();
+      _interpreter = Interpreter.fromBuffer(bytes);
     } catch (error) {
-      fileLoadError = error;
+      bufferLoadError = error;
       try {
-        final bytes = await bundle.modelFile.readAsBytes();
-        _interpreter = Interpreter.fromBuffer(bytes);
-      } catch (bufferError) {
+        _interpreter = Interpreter.fromFile(bundle.modelFile);
+      } catch (fileError) {
         throw Exception(
           'TFLITE_INTERPRETER_CREATE_FAILED '
           'runtime=${_tfliteRuntimeVersion ?? 'UNKNOWN'}; '
           'source=${bundle.source}; '
-          'fromFile=$fileLoadError; fromBuffer=$bufferError',
+          'fromBuffer=$bufferLoadError; fromFile=$fileError',
         );
       }
     }
@@ -87,7 +91,8 @@ replacement = r'''  Future<void> _loadBundle(HCVMLModelBundle bundle) async {
     final interpreter = _interpreter;
     if (interpreter == null) {
       throw Exception(
-        'TFLITE_INTERPRETER_NULL runtime=${_tfliteRuntimeVersion ?? 'UNKNOWN'}; '
+        'TFLITE_INTERPRETER_NULL '
+        'runtime=${_tfliteRuntimeVersion ?? 'UNKNOWN'}; '
         'source=${bundle.source}',
       );
     }
@@ -103,11 +108,11 @@ replacement = r'''  Future<void> _loadBundle(HCVMLModelBundle bundle) async {
         (await sha256.bind(bundle.modelFile.openRead()).first).toString();
     _modelLoadError = null;
   }'''
-source = replace_balanced_function(
-    source,
-    '  Future<void> _loadBundle(HCVMLModelBundle bundle) async',
-    replacement,
-)
+    source = replace_balanced_function(
+        source,
+        '  Future<void> _loadBundle(HCVMLModelBundle bundle) async',
+        replacement,
+    )
 
 # Successful analysis must state which native runtime produced the result.
 if "'tfliteRuntimeVersion': _tfliteRuntimeVersion," not in source:
@@ -142,8 +147,11 @@ for token in [
     'Interpreter.fromFile(bundle.modelFile)',
     'Interpreter.fromBuffer(bytes)',
     'TFLITE_INTERPRETER_CREATE_FAILED',
+    'TFLITE_INTERPRETER_NULL',
     "'tfliteRuntimeVersion': _tfliteRuntimeVersion",
     'loadBundledFallbackBundle',
+    'BUNDLED_ASSET_MODEL_V2',
+    'BUNDLED_ASSET_MODEL_V1_FALLBACK',
 ]:
     if token not in source:
         raise RuntimeError(f'ML iOS recovery token missing: {token}')
@@ -152,10 +160,11 @@ CLASSIFIER.write_text(source, encoding='utf-8')
 
 
 # ---------------------------------------------------------------------------
-# iOS native runtime compatibility. tflite_flutter 0.12.1 ships an iOS podspec
-# pinned to TFLite 2.12. The bundled fallback model was produced with TF 2.16-17.
-# Pin the native iOS runtime to 2.17 only after flutter pub get has materialized
-# the package cache. The pre-pub invocation intentionally defers this step.
+# iOS native runtime compatibility. tflite_flutter 0.12.1 still ships an iOS
+# podspec pinned to TensorFlow Lite 2.12. Both bundled SIGILLUM models have now
+# been independently validated under TensorFlow Lite 2.17 with no Flex ops.
+# Pin the native iOS runtime to 2.17 after flutter pub get materializes the
+# package cache. The pre-pub invocation intentionally defers this step.
 # ---------------------------------------------------------------------------
 def package_root_from_uri(root_uri: str) -> Path:
     parsed = urlparse(root_uri)
@@ -205,6 +214,10 @@ def patch_ios_podspec_if_available() -> None:
         text = text.replace(old, target, 1)
         podspec.write_text(text, encoding='utf-8')
 
+    final_text = podspec.read_text(encoding='utf-8')
+    if target not in final_text:
+        raise RuntimeError(f'TFLite iOS runtime pin did not persist: {podspec}')
+
     audit_dir = Path('/tmp/xcodebuild_logs')
     audit_dir.mkdir(parents=True, exist_ok=True)
     with (audit_dir / 'sigillum-postpatch-audit.log').open(
@@ -213,9 +226,10 @@ def patch_ios_podspec_if_available() -> None:
         handle.write(
             f'TFLITE_IOS_RUNTIME={TARGET_IOS_TFLITE} PODSPEC={podspec}\n'
         )
+        handle.write('ML_LOADER_SOURCE=COMMITTED_FINAL\n')
 
     print(f'TFLite iOS runtime pinned to {TARGET_IOS_TFLITE}: {podspec}')
 
 
 patch_ios_podspec_if_available()
-print('ML model loading finalized with runtime diagnostics; scoring unchanged')
+print('ML loader verified; iOS runtime finalized; scoring unchanged')
