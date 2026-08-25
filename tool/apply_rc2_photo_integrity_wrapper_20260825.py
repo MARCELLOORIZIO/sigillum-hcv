@@ -87,6 +87,14 @@ elif import_before:
 else:
     print('RC2 photo integrity already semantically finalized; patchers skipped')
 
+# createPhotoPackage() writes into Application Documents. Keep this compile
+# dependency isolated from the legacy schema patcher so a missing import never
+# causes the full HCVPACK transformation to be replayed.
+run_script(
+    'tool/apply_rc2_photo_package_import_finalizer_20260825.py',
+    'RC2 photo package compile import',
+)
+
 # A first full materialization may still need the isolated ImportPage repair if
 # another nested historical patch restores ImportPage after the full patcher.
 core_after = missing_contracts(core_required)
@@ -95,6 +103,10 @@ if core_after:
         'photo integrity core contract incomplete after finalization: '
         + ' | '.join(core_after)
     )
+
+package_source = PACKAGE.read_text(encoding='utf-8')
+if "import 'package:path_provider/path_provider.dart';" not in package_source:
+    raise RuntimeError('photo package path_provider compile contract missing')
 
 import_after = missing_contracts(import_required)
 if import_after:
