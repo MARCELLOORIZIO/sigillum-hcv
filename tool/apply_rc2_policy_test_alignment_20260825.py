@@ -13,8 +13,10 @@ def normalize_expected_policy(path: str, test_name: str) -> None:
         return
 
     source = file.read_text(encoding='utf-8')
+    # Generated tests may be synchronous or async depending on which legacy
+    # generator produced the current materialized form. Match both layouts.
     pattern = re.compile(
-        rf"  test\('{re.escape(test_name)}', \(\) \{{.*?^  \}}\);",
+        rf"  test\('{re.escape(test_name)}', \(\) (?:async )?\{{.*?^  \}}\);",
         re.MULTILINE | re.DOTALL,
     )
     match = pattern.search(source)
@@ -38,10 +40,6 @@ def normalize_expected_policy(path: str, test_name: str) -> None:
             1,
         )
 
-    # Historical one-family HIGH contracts also asserted score >= 70. Under
-    # the independent-family policy, one strong family is deliberately capped
-    # in the cautious NON_CONCLUSIVE band (45..69). Keep the score assertion
-    # strict and consistent with the public decision rather than deleting it.
     replacement = replacement.replace(
         'greaterThanOrEqualTo(70)',
         'inInclusiveRange(45, 69)',
@@ -69,9 +67,6 @@ def normalize_expected_policy(path: str, test_name: str) -> None:
     print(f'policy regression aligned to independent-family rule: {test_name}')
 
 
-# These historical generated tests encoded the superseded rule that one
-# temporal/static family could produce HIGH. RC2 now requires two independent
-# strong display families; one family remains a cautious NON_CONCLUSIVE result.
 for path, test_name in [
     (
         'test/monitor_certificate_regression_test.dart',
