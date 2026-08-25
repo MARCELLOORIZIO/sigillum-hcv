@@ -25,16 +25,23 @@ BUILD_COMMIT="$(git rev-parse HEAD)"
 log "GIT_COMMIT=$BUILD_COMMIT"
 log "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)"
 
-# The preceding Codemagic step has already materialized, analyzed and tested the
-# exact RC2 release source. Never re-run source patchers or formatters here:
-# doing so would mutate an already validated source tree and can make otherwise
-# idempotent release finalizers search for anchors that were intentionally
-# removed by the first pass. This step is proof-only for application source.
+# Materialize the exact release source inside the same step that will archive
+# it. The wrapper is resilient to the one legacy Registry layout variant that
+# can lose its helper anchor on an additional finalization pass.
+python3 tool/finalize_testflight_release_source_20260825.py
+
+# The application source has just been finalized, so validate THIS exact tree
+# before AOT. Nothing below this block is allowed to mutate Dart application
+# source. A second audit after tests proves the test suite did not change it.
+flutter analyze --no-fatal-infos --no-fatal-warnings
+flutter test --reporter expanded 2>&1 | tee "$AUDIT_DIR/flutter-tests-preipa.log"
 python3 tool/verify_postpatch_release_20260825.py
 log "PREBUILD_SOURCE_VALIDATION=PASS"
 
-# Hard semantic guards: these are exactly the pieces missing from the broken
-# TestFlight build. Do not publish if any of them disappeared.
+# Hard semantic guards: these are exactly the pieces that must be present in the
+# source compiled into TestFlight.
+require_source_token lib/camera_page.dart "import 'camera_ui_extended_copy.dart';"
+require_source_token lib/camera_page.dart "CameraUiExtendedCopy.t(widget.languageCode, key)"
 require_source_token lib/hcv_ml_screen_replay_classifier.dart "Interpreter.fromBuffer(bytes)"
 require_source_token lib/hcv_ml_screen_replay_classifier.dart "Interpreter.fromFile(bundle.modelFile)"
 require_source_token lib/hcv_ml_screen_replay_classifier.dart "TFLITE_INTERPRETER_CREATE_FAILED"
@@ -47,12 +54,8 @@ require_source_token lib/registry_verify_page.dart "_v('registryHelper')"
 require_source_token lib/registry_verify_page.dart "String get _fullTechnicalDiagnostics"
 require_source_token lib/registry_verify_page.dart "TFLite runtime:"
 
-# The tflite_flutter package is materialized by the earlier flutter pub get.
-# Re-run only the idempotent native-runtime guard and prove the package podspec
-# is actually pinned before CocoaPods resolves the archive dependencies. This
-# changes only the pub-cache podspec, not the already-tested application source.
-python3 tool/apply_ml_ios_runtime_finalizer_20260825.py
-
+# The release finalizer above pins the tflite_flutter podspec after pub get.
+# Prove that exact native runtime before CocoaPods resolves the archive.
 TFLITE_PODSPEC="$(python3 - <<'PY'
 from pathlib import Path
 import json
@@ -85,7 +88,7 @@ log "TFLITE_PODSPEC_VERSION=2.17.0"
 log "TFLITE_PODSPEC=$TFLITE_PODSPEC"
 
 # Resolve pods now and lock the exact native runtime. flutter build below uses
-# --no-pub, so the validated Dart package cache cannot be rematerialized.
+# --no-pub, so the validated Dart source/package state cannot be rematerialized.
 pushd ios >/dev/null
 pod install --repo-update
 popd >/dev/null
@@ -107,6 +110,7 @@ grep -n "TensorFlowLite" ios/Podfile.lock | tee -a "$PROOF_LOG" || true
 # Source fingerprints immediately before AOT compilation.
 log "PREBUILD_SOURCE_SHA_BEGIN"
 shasum -a 256 \
+  lib/camera_page.dart \
   lib/hcv_ml_screen_replay_classifier.dart \
   lib/hcv_ml_model_store.dart \
   lib/registry_verify_page.dart \
