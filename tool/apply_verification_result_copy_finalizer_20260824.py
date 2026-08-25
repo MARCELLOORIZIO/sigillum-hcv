@@ -137,11 +137,11 @@ helper_insertions = [
     ),
 ]
 for old, new in helper_insertions:
-    if "'registryHelper':" in copy_source and old not in copy_source:
+    if new in copy_source:
         continue
     if old in copy_source:
         copy_source = copy_source.replace(old, new, 1)
-    elif new not in copy_source:
+    else:
         raise RuntimeError(f'Registry helper localization anchor missing: {old}')
 
 for language_token in [
