@@ -123,7 +123,7 @@ if helper_marker not in registry:
     build_anchor = "  @override\n  Widget build(BuildContext context) {\n"
     helpers = r'''  bool get _signedRealityScene {
     final cert = certificate;
-    final claims = cert is Map ? cert['claims'] : null;
+    final claims = cert?['claims'];
     final live = claims is Map ? claims['liveScreenProbe'] : null;
     if (live is! Map) return false;
     final reason = live['reason']?.toString() ?? '';
