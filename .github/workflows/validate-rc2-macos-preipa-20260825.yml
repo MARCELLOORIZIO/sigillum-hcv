@@ -80,10 +80,17 @@ jobs:
               assets/ml/sigillum_screen_replay_v1.tflite
           }
           python3 tool/finalize_testflight_release_source_20260825.py
+          cp lib/registry_verify_page.dart /tmp/registry-pass1.dart
           hash_release > /tmp/pass1.sha256
           python3 tool/finalize_testflight_release_source_20260825.py
+          cp lib/registry_verify_page.dart /tmp/registry-pass2.dart
           hash_release > /tmp/pass2.sha256
-          diff -u /tmp/pass1.sha256 /tmp/pass2.sha256
+          diff -u /tmp/registry-pass1.dart /tmp/registry-pass2.dart > /tmp/registry-idempotence.diff || true
+          cat /tmp/registry-idempotence.diff
+          if ! diff -u /tmp/pass1.sha256 /tmp/pass2.sha256; then
+            echo 'RELEASE_FINALIZER_IDEMPOTENCE=FAIL'
+            exit 1
+          fi
           test "$(grep -Fc "_v('registryHelper')" lib/registry_verify_page.dart)" = "1"
           ! grep -Fq 'Il certificato viene recuperato automaticamente dal Registry HCV. Devi selezionare SOLO il file originale.' lib/registry_verify_page.dart
           flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -95,6 +102,8 @@ jobs:
         if: failure()
         shell: bash
         run: |
+          echo '=== exact Registry pass1/pass2 diff ==='
+          cat /tmp/registry-idempotence.diff 2>/dev/null || true
           echo '=== camera residual language selectors ==='
           grep -n -C 6 "startsWith('it')" lib/camera_page.dart || true
           echo '=== camera residual legacy public strings ==='
@@ -111,6 +120,11 @@ jobs:
             lib/camera_page.dart
             lib/registry_verify_page.dart
             lib/verification_ui_copy.dart
+            /tmp/registry-pass1.dart
+            /tmp/registry-pass2.dart
+            /tmp/registry-idempotence.diff
+            /tmp/pass1.sha256
+            /tmp/pass2.sha256
             /tmp/xcodebuild_logs/*.log
           if-no-files-found: warn
           retention-days: 7
