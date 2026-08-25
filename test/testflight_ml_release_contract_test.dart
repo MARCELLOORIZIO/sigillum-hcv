@@ -11,15 +11,16 @@ void main() {
         File('lib/hcv_ml_screen_replay_classifier.dart').readAsStringSync();
     final store = File('lib/hcv_ml_model_store.dart').readAsStringSync();
 
+    final testflightStart = codemagic.indexOf('  ios-testflight:');
+    expect(testflightStart, greaterThanOrEqualTo(0));
+    final testflight = codemagic.substring(testflightStart);
     expect(
-      codemagic,
-      contains(
-        'script: bash tool/build_testflight_ipa_rc2_20260825.sh',
-      ),
+      testflight,
+      contains('script: bash tool/build_testflight_ipa_rc2_20260825.sh'),
     );
     expect(
-      codemagic,
-      isNot(contains('flutter build ipa --release \\\n            --build-number=')),
+      testflight,
+      isNot(contains('LATEST_BUILD_NUMBER="$(app-store-connect')),
     );
 
     for (final token in <String>[
