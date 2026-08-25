@@ -2,6 +2,25 @@ from pathlib import Path
 import re
 
 
+# Materialize the RC2 source contract before normalizing the generated tests.
+# Codemagic runs this definitive finalizer during the pre-test wrapper as well
+# as again during the IPA build. The source materializer is idempotent, so the
+# second invocation proves the exact same Camera/Quick-Gate source survives.
+source_materializer = Path(
+    'tool/apply_rc2_photo_parallax_and_media_verify_finalizer_20260825.py'
+)
+if not source_materializer.exists():
+    raise RuntimeError('RC2 photo/parallax/media source finalizer missing')
+exec(
+    compile(
+        source_materializer.read_text(encoding='utf-8'),
+        str(source_materializer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
+
 def replace_semantic_region(
     path: str,
     start_marker: str,
@@ -291,5 +310,24 @@ for key, desired in [
     token = f"      '{key}': '{desired}',"
     if localization.count(token) != 1:
         raise RuntimeError(f'definitive localized CTA missing or duplicated: {token}')
+
+camera = Path('lib/camera_page.dart').read_text(encoding='utf-8')
+for token in [
+    'bool _parallaxRetryRequired = false;',
+    'bool _hasRequiredParallax(Map<String, dynamic> probe)',
+    "status = _c('parallaxRequired');",
+    '_parallaxRetryRequired ? Colors.redAccent : Colors.white',
+]:
+    if token not in camera:
+        raise RuntimeError(f'definitive camera source token missing: {token}')
+
+quick_gate = Path('lib/quick_hcv_media_gate_page.dart').read_text(encoding='utf-8')
+for token in [
+    "import 'hcv_media_id_ocr.dart';",
+    'HCVMediaIdOcr.extractFromImage(sourcePath)',
+    "'seconds': 0.2",
+]:
+    if token not in quick_gate:
+        raise RuntimeError(f'definitive quick-gate source token missing: {token}')
 
 print('RC2 definitive-build finalizer PASS')
