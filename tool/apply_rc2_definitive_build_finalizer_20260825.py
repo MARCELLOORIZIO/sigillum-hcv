@@ -27,7 +27,7 @@ run_python_script(
     'tool/apply_rc2_definitive_build_finalizer_legacy_20260825.py'
 )
 run_python_script('tool/apply_rc2_decision_architecture_fix_20260825.py')
-run_python_script('tool/apply_rc2_photo_integrity_finalizer_20260825.py')
+run_python_script('tool/apply_rc2_photo_integrity_wrapper_20260825.py')
 run_python_script('tool/apply_rc2_photo_package_camera_finalizer_20260825.py')
 run_python_script('tool/apply_rc2_policy_test_alignment_20260825.py')
 
