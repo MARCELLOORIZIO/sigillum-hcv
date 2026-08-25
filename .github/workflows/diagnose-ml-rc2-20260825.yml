@@ -36,5 +36,23 @@ jobs:
       - name: Install TensorFlow CPU
         run: python -m pip install --disable-pip-version-check --quiet "tensorflow-cpu==${{ matrix.tensorflow-version }}"
 
-      - name: Load both TFLite models and list operators
-        run: python tool/diagnose_tflite_models_20260825.py
+      - name: Prove expected model/runtime compatibility
+        shell: bash
+        run: |
+          set -o pipefail
+          if [[ "${{ matrix.tensorflow-version }}" == "2.17.0" ]]; then
+            python tool/diagnose_tflite_models_20260825.py
+            echo "TFLITE_2_17_COMPATIBILITY=PASS"
+          else
+            set +e
+            python tool/diagnose_tflite_models_20260825.py 2>&1 | tee /tmp/tflite-2.12.log
+            status=${PIPESTATUS[0]}
+            set -e
+            if [[ $status -eq 0 ]]; then
+              echo "Expected TFLite 2.12 incompatibility but both models loaded"
+              exit 1
+            fi
+            grep -F "FULLY_CONNECTED' version '12'" /tmp/tflite-2.12.log
+            grep -F "old TFLite binary with a newer model" /tmp/tflite-2.12.log
+            echo "TFLITE_2_12_INCOMPATIBILITY=CONFIRMED"
+          fi
