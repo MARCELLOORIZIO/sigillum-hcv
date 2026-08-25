@@ -79,6 +79,21 @@ for file_name in [
     if "VerificationUiCopy.t(widget.languageCode, key)" not in text:
         raise RuntimeError(f'{file_name}: selected-language verification copy missing')
 
+# Normalize the Registry helper before result-copy localization. Historical
+# patch chains can leave zero, one or multiple legacy/localized helper widgets;
+# release output must always contain exactly one localized widget.
+registry_helper_normalizer = Path('tool/normalize_registry_helper_20260825.py')
+if not registry_helper_normalizer.exists():
+    raise RuntimeError('Registry helper normalizer missing')
+exec(
+    compile(
+        registry_helper_normalizer.read_text(encoding='utf-8'),
+        str(registry_helper_normalizer),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
+
 # Remove any residual raw Italian status from the public localized result.
 result_copy_finalizer = Path('tool/apply_verification_result_copy_finalizer_20260824.py')
 if not result_copy_finalizer.exists():
