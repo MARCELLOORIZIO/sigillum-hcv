@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 path = Path('lib/registry_verify_page.dart')
 source = path.read_text(encoding='utf-8')
@@ -7,26 +6,32 @@ source = path.read_text(encoding='utf-8')
 status_line = "    status = _v('verificationIncomplete');"
 path_line = "    final path = widget.initialMediaPath;"
 
-if path_line not in source:
-    raise RuntimeError('Registry initial-media path anchor missing')
+lines = source.splitlines()
+try:
+    path_index = lines.index(path_line)
+except ValueError as exc:
+    raise RuntimeError('Registry initial-media path anchor missing') from exc
 
-# Legacy verification patchers insert the same localized initial status before
-# initialMediaPath on every invocation. Collapse every consecutive copy at that
-# stable boundary, then restore exactly one. This is presentation state only.
-pattern = (
-    r"(?:    status = _v\('verificationIncomplete'\);\n)*"
-    r"    final path = widget\.initialMediaPath;"
+# Older verification patchers append the same localized initial status before
+# initialMediaPath every time they run. Remove every consecutive copy directly
+# preceding that stable boundary, then restore exactly one. This operation is
+# deterministic and idempotent: N copies -> 1 copy for every N >= 0.
+start = path_index
+while start > 0 and lines[start - 1] == status_line:
+    start -= 1
+
+removed = path_index - start
+lines[start:path_index] = [status_line]
+
+# Re-resolve the boundary after the edit and prove the local invariant.
+path_index = lines.index(path_line)
+if path_index == 0 or lines[path_index - 1] != status_line:
+    raise RuntimeError('Registry initial status missing at initial-media boundary')
+if path_index > 1 and lines[path_index - 2] == status_line:
+    raise RuntimeError('Registry duplicate initial status survived normalization')
+
+path.write_text('\n'.join(lines) + ('\n' if source.endswith('\n') else ''), encoding='utf-8')
+print(
+    'Registry initial localized status normalized to exactly one assignment '
+    f'(removed={removed}, final=1)'
 )
-replacement = status_line + "\n" + path_line
-source, count = re.subn(pattern, replacement, source, count=1)
-if count != 1:
-    raise RuntimeError('Registry initial-status normalization failed')
-
-boundary = source[source.find(status_line):source.find(path_line) + len(path_line)]
-if boundary.count(status_line) != 1:
-    raise RuntimeError(
-        f'Registry initial status must occur once at initial-media boundary; got {boundary.count(status_line)}'
-    )
-
-path.write_text(source, encoding='utf-8')
-print('Registry initial localized status normalized to exactly one assignment')
