@@ -111,6 +111,46 @@ if old_helper not in source:
     raise RuntimeError('decision architecture replace_once helper anchor missing')
 source = source.replace(old_helper, new_helper, 1)
 
+# ACTIVE_PLANAR_TEMPORAL is not a single weak detector. It exists only when
+# active electronic response, resolved planar geometry and temporal structure
+# all agree. Count those constituent physical families independently, while a
+# temporal/static score by itself still cannot create HIGH.
+old_families = """    if (passiveStrong) strongDisplayFamilies.add('STATIC_OPTICAL');
+    if (mlStrong) strongDisplayFamilies.add('ML_SCREEN_CLASS');
+
+    final hasIndependentCorroboration = strongDisplayFamilies.length >= 2;
+"""
+new_families = """    if (passiveStrong) strongDisplayFamilies.add('STATIC_OPTICAL');
+    if (mlStrong) strongDisplayFamilies.add('ML_SCREEN_CLASS');
+    if (activePlanarTemporal) {
+      strongDisplayFamilies.add('ACTIVE_ILLUMINATION');
+      strongDisplayFamilies.add('PLANAR_GEOMETRY');
+      strongDisplayFamilies.add('LIVE_TEMPORAL');
+    }
+
+    final hasIndependentCorroboration = strongDisplayFamilies.length >= 2;
+"""
+if old_families not in source:
+    raise RuntimeError('independent-family active-planar anchor missing')
+source = source.replace(old_families, new_families, 1)
+
+# Preserve the strength of contradictory evidence in the score while keeping
+# the verdict cautious. Strong SCREEN ML vs physical REALITY is never HIGH; it
+# remains NON_CONCLUSIVE capped at 69 instead of being flattened to 45.
+old_conflict = """    } else if (mlStrong && geometryReality) {
+      decision = 'NON_CONCLUSIVE';
+      score = 45;
+      reasons.add('ML_GEOMETRY_CONFLICT');
+"""
+new_conflict = """    } else if (mlStrong && geometryReality) {
+      decision = 'NON_CONCLUSIVE';
+      score = max(45, min(rawScore, 69));
+      reasons.add('ML_GEOMETRY_CONFLICT');
+"""
+if old_conflict not in source:
+    raise RuntimeError('ML/geometry conflict score anchor missing')
+source = source.replace(old_conflict, new_conflict, 1)
+
 exec(
     compile(source, str(LEGACY), 'exec'),
     {'__name__': '__main__'},
