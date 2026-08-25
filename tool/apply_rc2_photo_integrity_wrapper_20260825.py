@@ -5,6 +5,10 @@ PLAYER = Path('lib/hcvpack_player_page.dart')
 IMPORT = Path('lib/import_page.dart')
 SCENE = Path('ios/Runner/SceneDelegate.swift')
 
+# Deliberately use semantic substrings that survive dart-format line wrapping.
+# The raw implementation patcher is only needed while any final contract is
+# absent; once these markers exist, repeated release finalization must be a
+# pure verification step rather than another source rewrite.
 required = {
     PACKAGE: [
         'Future<String> createPhotoPackage({',
@@ -13,9 +17,11 @@ required = {
         "'contentSha256': contentSha256",
     ],
     PLAYER: [
-        'version != 2 && version != 3',
-        'meta["contentSha256"] != contentSha256',
-        "contentFile.startsWith('photo.')",
+        'final version = (meta["version"] as num?)?.toInt();',
+        'version != 2',
+        'version != 3',
+        'meta["contentSha256"]',
+        'contentFile.startsWith',
     ],
     IMPORT: [
         "MethodChannel('hcv.media')",
@@ -30,19 +36,25 @@ required = {
     ],
 }
 
-complete = True
-for path, tokens in required.items():
-    if not path.exists():
-        complete = False
-        break
-    source = path.read_text(encoding='utf-8')
-    if any(token not in source for token in tokens):
-        complete = False
-        break
 
-if complete:
+def missing_contracts() -> list[str]:
+    missing = []
+    for path, tokens in required.items():
+        if not path.exists():
+            missing.append(f'{path}:<missing-file>')
+            continue
+        source = path.read_text(encoding='utf-8')
+        for token in tokens:
+            if token not in source:
+                missing.append(f'{path}:{token}')
+    return missing
+
+
+before = missing_contracts()
+if not before:
     print('RC2 photo integrity already semantically finalized; patcher skipped')
 else:
+    print('RC2 photo integrity materialization required: ' + ' | '.join(before))
     script = Path('tool/apply_rc2_photo_integrity_finalizer_20260825.py')
     if not script.exists():
         raise RuntimeError('RC2 photo integrity implementation missing')
@@ -52,10 +64,11 @@ else:
     )
 
 # Fail closed on the semantic outcome, independent of dart-format layout.
-for path, tokens in required.items():
-    source = path.read_text(encoding='utf-8')
-    for token in tokens:
-        if token not in source:
-            raise RuntimeError(f'photo integrity semantic contract missing in {path}: {token}')
+after = missing_contracts()
+if after:
+    raise RuntimeError(
+        'photo integrity semantic contract incomplete after finalization: '
+        + ' | '.join(after)
+    )
 
 print('RC2 photo integrity semantic wrapper PASS')
