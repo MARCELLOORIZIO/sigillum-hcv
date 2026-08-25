@@ -22,12 +22,13 @@ def run_python_script(path: str) -> None:
         print(f'Nested finalizer completed via SystemExit(0): {path}')
 
 
-# One deterministic finalization pass only. Older verification patchers are
-# still invoked by the historical chain and one of them appends the same
-# localized Registry init status on every pass. Normalize that legacy artifact
-# immediately after the chain so repeated release finalization converges to the
-# exact same source tree.
+# First materialize the complete historical RC2 chain. Then apply only the
+# post-TestFlight fixes that must survive every legacy patcher: mandatory
+# parallax acquisition before capture, robust HCV-ID OCR and evidence-neutral
+# compatible-content wording. Finally normalize the one known legacy Registry
+# init artifact and audit the exact source that proceeds to analyze/tests/IPA.
 run_python_script('tool/apply_media_specific_verification_picker_fix_20260822.py')
+run_python_script('tool/apply_rc2_photo_parallax_and_media_verify_finalizer_20260825.py')
 run_python_script('tool/normalize_registry_initial_status_20260825.py')
 run_python_script('tool/verify_postpatch_release_20260825.py')
 print('TestFlight release source finalized and verified')
