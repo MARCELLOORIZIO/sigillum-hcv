@@ -1,31 +1,26 @@
 from pathlib import Path
-import re
 
 
 def normalize_expected_policy(path: str, test_name: str) -> None:
     file = Path(path)
-    # This normalizer is called from nested patch chains before, during and
-    # after generated test materialization. Missing/intermediate generated
-    # tests are not a production-source failure; the authoritative flutter
-    # test pass later in the same release pipeline remains fail-closed.
     if not file.exists():
         print(f'policy regression not materialized yet; deferred: {path}')
         return
 
     source = file.read_text(encoding='utf-8')
-    # Generated tests may be synchronous or async depending on which legacy
-    # generator produced the current materialized form. Match both layouts.
-    pattern = re.compile(
-        rf"  test\('{re.escape(test_name)}', \(\) (?:async )?\{{.*?^  \}}\);",
-        re.MULTILINE | re.DOTALL,
-    )
-    match = pattern.search(source)
-    if match is None:
-        print(f'policy regression block not in final form yet; deferred: {test_name}')
+    title = f"'{test_name}'"
+    title_index = source.find(title)
+    if title_index < 0:
+        print(f'policy regression title not materialized yet; deferred: {test_name}')
         return
 
-    block = match.group(0)
-    replacement = block
+    # Work from the test title to the next test declaration instead of parsing
+    # generated Dart syntax. This is insensitive to sync/async callbacks,
+    # formatter layout and generator-specific indentation.
+    next_test = source.find('\n  test(', title_index + len(title))
+    segment_end = len(source) if next_test < 0 else next_test
+    segment = source[title_index:segment_end]
+    replacement = segment
 
     strong_count = replacement.count("'STRONG_DISPLAY_RISK'")
     if strong_count > 1:
@@ -58,11 +53,11 @@ def normalize_expected_policy(path: str, test_name: str) -> None:
             f'policy regression stale HIGH score contract survived: {test_name}'
         )
 
-    if replacement == block:
+    if replacement == segment:
         print(f'policy regression already aligned: {test_name}')
         return
 
-    source = source[:match.start()] + replacement + source[match.end():]
+    source = source[:title_index] + replacement + source[segment_end:]
     file.write_text(source, encoding='utf-8')
     print(f'policy regression aligned to independent-family rule: {test_name}')
 
