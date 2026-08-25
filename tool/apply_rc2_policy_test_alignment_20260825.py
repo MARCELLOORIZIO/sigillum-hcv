@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 
-def normalize_expected_decision(path: str, test_name: str) -> None:
+def normalize_expected_policy(path: str, test_name: str) -> None:
     file = Path(path)
     if not file.exists():
         raise RuntimeError(f'generated policy test missing: {path}')
@@ -17,20 +17,48 @@ def normalize_expected_decision(path: str, test_name: str) -> None:
         raise RuntimeError(f'generated policy test block missing: {test_name}')
 
     block = match.group(0)
-    if "'NON_CONCLUSIVE'" in block and "'STRONG_DISPLAY_RISK'" not in block:
-        print(f'policy regression already aligned: {test_name}')
-        return
-    if block.count("'STRONG_DISPLAY_RISK'") != 1:
+    replacement = block
+
+    strong_count = replacement.count("'STRONG_DISPLAY_RISK'")
+    if strong_count > 1:
         raise RuntimeError(
             f'policy regression unexpected decision contract: {test_name} '
-            f'(strong_count={block.count(chr(39) + "STRONG_DISPLAY_RISK" + chr(39))})'
+            f'(strong_count={strong_count})'
+        )
+    if strong_count == 1:
+        replacement = replacement.replace(
+            "'STRONG_DISPLAY_RISK'",
+            "'NON_CONCLUSIVE'",
+            1,
         )
 
-    replacement = block.replace(
-        "'STRONG_DISPLAY_RISK'",
-        "'NON_CONCLUSIVE'",
-        1,
+    # Historical one-family HIGH contracts also asserted score >= 70. Under
+    # the independent-family policy, one strong family is deliberately capped
+    # in the cautious NON_CONCLUSIVE band (45..69). Keep the score assertion
+    # strict and consistent with the public decision rather than merely
+    # deleting it.
+    replacement = replacement.replace(
+        'greaterThanOrEqualTo(70)',
+        'inInclusiveRange(45, 69)',
     )
+
+    if "'NON_CONCLUSIVE'" not in replacement:
+        raise RuntimeError(
+            f'policy regression NON_CONCLUSIVE contract missing: {test_name}'
+        )
+    if "'STRONG_DISPLAY_RISK'" in replacement:
+        raise RuntimeError(
+            f'policy regression stale STRONG_DISPLAY_RISK survived: {test_name}'
+        )
+    if 'greaterThanOrEqualTo(70)' in replacement:
+        raise RuntimeError(
+            f'policy regression stale HIGH score contract survived: {test_name}'
+        )
+
+    if replacement == block:
+        print(f'policy regression already aligned: {test_name}')
+        return
+
     source = source[:match.start()] + replacement + source[match.end():]
     file.write_text(source, encoding='utf-8')
     print(f'policy regression aligned to independent-family rule: {test_name}')
@@ -53,6 +81,6 @@ for path, test_name in [
         'temporal live evidence can be corroborated by the captured photo',
     ),
 ]:
-    normalize_expected_decision(path, test_name)
+    normalize_expected_policy(path, test_name)
 
 print('RC2 independent-family generated policy tests aligned')
