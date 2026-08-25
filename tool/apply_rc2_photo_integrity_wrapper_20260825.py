@@ -5,11 +5,11 @@ PLAYER = Path('lib/hcvpack_player_page.dart')
 IMPORT = Path('lib/import_page.dart')
 SCENE = Path('ios/Runner/SceneDelegate.swift')
 
-# Deliberately use semantic substrings that survive dart-format line wrapping.
-# The raw implementation patcher is only needed while any final contract is
-# absent; once these markers exist, repeated release finalization must be a
-# pure verification step rather than another source rewrite.
-required = {
+# Semantic markers deliberately survive dart-format line wrapping. Package,
+# player and native iOS resource handling form the stable photo-integrity core.
+# ImportPage is separate because an older release patch restores that file from
+# committed HEAD during repeated finalization.
+core_required = {
     PACKAGE: [
         'Future<String> createPhotoPackage({',
         "'version': 3",
@@ -23,11 +23,6 @@ required = {
         'meta["contentSha256"]',
         'contentFile.startsWith',
     ],
-    IMPORT: [
-        "MethodChannel('hcv.media')",
-        'Platform.isIOS',
-        "invokeMethod<String>('pickOriginalPhoto')",
-    ],
     SCENE: [
         'PHPickerViewControllerDelegate',
         'call.method == "pickOriginalPhoto"',
@@ -36,8 +31,16 @@ required = {
     ],
 }
 
+import_required = {
+    IMPORT: [
+        "MethodChannel('hcv.media')",
+        'Platform.isIOS',
+        "invokeMethod<String>('pickOriginalPhoto')",
+    ],
+}
 
-def missing_contracts() -> list[str]:
+
+def missing_contracts(required: dict[Path, list[str]]) -> list[str]:
     missing = []
     for path, tokens in required.items():
         if not path.exists():
@@ -50,25 +53,62 @@ def missing_contracts() -> list[str]:
     return missing
 
 
-before = missing_contracts()
-if not before:
-    print('RC2 photo integrity already semantically finalized; patcher skipped')
-else:
-    print('RC2 photo integrity materialization required: ' + ' | '.join(before))
-    script = Path('tool/apply_rc2_photo_integrity_finalizer_20260825.py')
+def run_script(path: str, label: str) -> None:
+    script = Path(path)
     if not script.exists():
-        raise RuntimeError('RC2 photo integrity implementation missing')
+        raise RuntimeError(f'{label} implementation missing: {path}')
     exec(
         compile(script.read_text(encoding='utf-8'), str(script), 'exec'),
         {'__name__': '__main__'},
     )
 
-# Fail closed on the semantic outcome, independent of dart-format layout.
-after = missing_contracts()
-if after:
+
+core_before = missing_contracts(core_required)
+import_before = missing_contracts(import_required)
+
+if core_before:
+    # First materialization: install the complete v3 package/player/native
+    # contract together. This patcher is intentionally never rerun once the
+    # core contract exists, avoiding collisions with its legacy anchors.
+    print('RC2 photo integrity core materialization required: ' + ' | '.join(core_before))
+    run_script(
+        'tool/apply_rc2_photo_integrity_finalizer_20260825.py',
+        'RC2 photo integrity core',
+    )
+elif import_before:
+    # Repeated release materialization can restore only ImportPage from HEAD.
+    # Repair only that component and leave the already-final HCVPACK v3 and
+    # native PHAssetResource implementation untouched.
+    print('RC2 iOS original-photo picker rematerialization required: ' + ' | '.join(import_before))
+    run_script(
+        'tool/apply_rc2_ios_original_photo_picker_finalizer_20260825.py',
+        'RC2 iOS original-photo picker',
+    )
+else:
+    print('RC2 photo integrity already semantically finalized; patchers skipped')
+
+# A first full materialization may still need the isolated ImportPage repair if
+# another nested historical patch restores ImportPage after the full patcher.
+core_after = missing_contracts(core_required)
+if core_after:
     raise RuntimeError(
-        'photo integrity semantic contract incomplete after finalization: '
-        + ' | '.join(after)
+        'photo integrity core contract incomplete after finalization: '
+        + ' | '.join(core_after)
+    )
+
+import_after = missing_contracts(import_required)
+if import_after:
+    print('RC2 iOS picker still incomplete; applying isolated finalizer: ' + ' | '.join(import_after))
+    run_script(
+        'tool/apply_rc2_ios_original_photo_picker_finalizer_20260825.py',
+        'RC2 iOS original-photo picker',
+    )
+    import_after = missing_contracts(import_required)
+
+if import_after:
+    raise RuntimeError(
+        'iOS original-photo picker contract incomplete after finalization: '
+        + ' | '.join(import_after)
     )
 
 print('RC2 photo integrity semantic wrapper PASS')
