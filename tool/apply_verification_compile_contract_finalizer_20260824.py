@@ -6,10 +6,16 @@ def replace_contract_text(path: Path, replacements: list[tuple[str, str]], label
         raise RuntimeError(f'{label}: contract file missing: {path}')
     text = path.read_text(encoding='utf-8')
     for old, new in replacements:
+        # The RC2 finalizer is intentionally invoked more than once (pre-pub,
+        # post-pub and re-finalization). Always recognize the already-final
+        # representation BEFORE matching an old anchor that may be a prefix of
+        # the new block. This makes every contract migration idempotent.
+        if new in text:
+            continue
         if old in text:
             text = text.replace(old, new)
-        elif new not in text:
-            raise RuntimeError(f'{label}: stale-contract anchor missing: {old}')
+            continue
+        raise RuntimeError(f'{label}: stale-contract anchor missing: {old}')
     path.write_text(text, encoding='utf-8')
 
 
@@ -39,9 +45,11 @@ if generated_test.exists():
     expect(page, contains("_v('verifyText')"));
     expect(page, contains("_v('verifyPhoto')"));
     expect(page, contains("_v('verifyVideo')"));"""
-    if old_block in text:
+    if new_block in text:
+        pass
+    elif old_block in text:
         text = text.replace(old_block, new_block, 1)
-    elif new_block not in text:
+    else:
         raise RuntimeError('Generated verification-hub contract anchor missing')
     generated_test.write_text(text, encoding='utf-8')
 
