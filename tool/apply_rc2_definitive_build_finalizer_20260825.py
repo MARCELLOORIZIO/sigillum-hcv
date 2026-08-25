@@ -19,14 +19,16 @@ def run_python_script(path: str) -> None:
 
 # Single entry point used by Linux validation, the exact macOS/Codemagic chain
 # and the final IPA proof. First preserve every approved historical RC2 release
-# contract, then apply the stabilized real-world decision architecture and align
-# build-generated regression contracts to the same independent-family policy.
+# contract, then apply the stabilized decision architecture, photo-byte/package
+# integrity contracts, and finally align generated policy regressions.
 # Every stage is idempotent so repeated pre-test/pre-IPA execution must converge
 # to the same source tree.
 run_python_script(
     'tool/apply_rc2_definitive_build_finalizer_legacy_20260825.py'
 )
 run_python_script('tool/apply_rc2_decision_architecture_fix_20260825.py')
+run_python_script('tool/apply_rc2_photo_integrity_finalizer_20260825.py')
+run_python_script('tool/apply_rc2_photo_package_camera_finalizer_20260825.py')
 run_python_script('tool/apply_rc2_policy_test_alignment_20260825.py')
 
 print('RC2 definitive-build wrapper PASS')
