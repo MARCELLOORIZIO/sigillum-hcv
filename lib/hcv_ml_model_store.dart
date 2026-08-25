@@ -27,17 +27,26 @@ class HCVMLModelStore {
   static final HCVMLModelStore instance = HCVMLModelStore._();
 
   static const assetModelPath = 'assets/ml/sigillum_screen_replay_v2.tflite';
+  static const assetFallbackModelPath =
+      'assets/ml/sigillum_screen_replay_v1.tflite';
   static const assetLabelsPath =
       'assets/ml/sigillum_screen_replay_v1_labels.json';
 
   Future<HCVMLModelBundle> loadCurrentBundle() async {
     final local = await _loadLocalBundle();
     if (local != null) return local;
-    return _loadAssetBundle();
+    return _loadAssetBundle(assetModelPath, 'BUNDLED_ASSET_MODEL_V2');
   }
 
   Future<HCVMLModelBundle> loadBundledBundle() async {
-    return _loadAssetBundle();
+    return _loadAssetBundle(assetModelPath, 'BUNDLED_ASSET_MODEL_V2');
+  }
+
+  Future<HCVMLModelBundle> loadBundledFallbackBundle() async {
+    return _loadAssetBundle(
+      assetFallbackModelPath,
+      'BUNDLED_ASSET_MODEL_V1_FALLBACK',
+    );
   }
 
   Future<Map<String, dynamic>?> currentManifest() async {
@@ -159,10 +168,13 @@ class HCVMLModelStore {
     );
   }
 
-  Future<HCVMLModelBundle> _loadAssetBundle() async {
+  Future<HCVMLModelBundle> _loadAssetBundle(
+    String modelPath,
+    String source,
+  ) async {
     final tempDir = await getTemporaryDirectory();
-    final modelFile = File(p.join(tempDir.path, p.basename(assetModelPath)));
-    final asset = await rootBundle.load(assetModelPath);
+    final modelFile = File(p.join(tempDir.path, p.basename(modelPath)));
+    final asset = await rootBundle.load(modelPath);
     await modelFile.writeAsBytes(
       asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes),
       flush: true,
@@ -172,7 +184,7 @@ class HCVMLModelStore {
     return HCVMLModelBundle(
       modelFile: modelFile,
       labels: _decodeLabels(rawLabels),
-      source: 'BUNDLED_ASSET_MODEL',
+      source: source,
     );
   }
 
