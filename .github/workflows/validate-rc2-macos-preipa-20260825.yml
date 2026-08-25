@@ -1,0 +1,92 @@
+name: Validate SIGILLUM RC2 macOS pre-IPA
+
+on:
+  push:
+    branches:
+      - release/testflight-rc2-20260825
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-preipa-macos:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Apply exact Codemagic pre-build chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/run_ios_share_handoff_fix.py
+          python3 tool/apply_file_import_and_ocr_fix.py
+          python3 tool/apply_safe_capture_location_fix.py
+          python3 tool/apply_mixed_scene_monitor_fix.py
+          python3 tool/apply_planar_parallax_compile_safety.py
+          python3 tool/apply_certificate_regression_fix.py
+          python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
+          dart format lib/camera_page.dart lib/registry_verify_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_projective_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/camera_physical_scene_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/registry_verify_hcv_id16_contract_test.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart test/photo_display_risk_policy_test.dart test/monitor_certificate_regression_test.dart test/hcv_projective_motion_model_test.dart test/registry_local_republish_contract_test.dart
+          python3 tool/apply_account_success_feedback.py
+          dart format lib/account_page.dart test/account_success_feedback_contract_test.dart
+          python3 tool/apply_text_social_verification.py
+          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
+          python3 tool/apply_commercial_registry_auth.py
+          python3 tool/apply_commercial_profile_shell.py
+          python3 tool/apply_server_verified_billing_gate.py
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart test/media_specific_verification_picker_contract_test.dart
+          flutter pub get
+
+      - name: Reproduce Codemagic Verify source and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart
+
+      - name: Prove exact step-15 finalization is idempotent on macOS
+        shell: bash
+        run: |
+          set -euo pipefail
+          hash_release() {
+            shasum -a 256 \
+              lib/import_page.dart \
+              lib/camera_page.dart \
+              lib/camera_ui_copy.dart \
+              lib/camera_ui_extended_copy.dart \
+              lib/registry_verify_page.dart \
+              lib/verification_ui_copy.dart \
+              lib/hcv_ml_screen_replay_classifier.dart \
+              lib/hcv_ml_model_store.dart \
+              assets/ml/sigillum_screen_replay_v2.tflite \
+              assets/ml/sigillum_screen_replay_v1.tflite
+          }
+          python3 tool/finalize_testflight_release_source_20260825.py
+          hash_release > /tmp/pass1.sha256
+          python3 tool/finalize_testflight_release_source_20260825.py
+          hash_release > /tmp/pass2.sha256
+          diff -u /tmp/pass1.sha256 /tmp/pass2.sha256
+          test "$(grep -Fc "_v('registryHelper')" lib/registry_verify_page.dart)" = "1"
+          ! grep -Fq 'Il certificato viene recuperato automaticamente dal Registry HCV. Devi selezionare SOLO il file originale.' lib/registry_verify_page.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+          python3 tool/verify_postpatch_release_20260825.py
+          echo 'MACOS_PREIPA_RELEASE_FINALIZATION=PASS'
