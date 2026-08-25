@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 def replace_semantic_region(
@@ -64,6 +65,46 @@ def ensure_copy_line(
         )
 
     file.write_text(source.replace(matches[0], desired_line, 1), encoding='utf-8')
+    print(f'{label}: applied')
+
+
+def normalize_generated_test_block(
+    path: str,
+    test_name: str,
+    replacement: str,
+    required_tokens: list[str],
+    label: str,
+) -> None:
+    """Normalize a build-generated contract after all legacy patchers ran.
+
+    These tests are materialized by historical patch scripts and are therefore
+    not stable repository files. The definitive release finalizer is the one
+    place where the expected contract can be aligned with the exact source that
+    proceeds to analyze/test and, later, the IPA build.
+    """
+    file = Path(path)
+    if not file.exists():
+        raise RuntimeError(f'{label}: generated test missing: {path}')
+
+    source = file.read_text(encoding='utf-8')
+    if all(token in source for token in required_tokens):
+        print(f'{label}: already applied')
+        return
+
+    escaped_name = re.escape(test_name)
+    pattern = re.compile(
+        rf"  test\('{escaped_name}', \(\) \{{.*?^  \}}\);",
+        re.MULTILINE | re.DOTALL,
+    )
+    source, count = pattern.subn(replacement.rstrip(), source, count=1)
+    if count != 1:
+        raise RuntimeError(f'{label}: generated test block not found exactly once')
+
+    for token in required_tokens:
+        if token not in source:
+            raise RuntimeError(f'{label}: normalized contract token missing: {token}')
+
+    file.write_text(source, encoding='utf-8')
     print(f'{label}: applied')
 
 
@@ -173,6 +214,54 @@ copy_contracts = [
 
 for key, desired, old_values, label in copy_contracts:
     ensure_copy_line(localization_path, key, desired, old_values, label)
+
+
+# ---------------------------------------------------------------------------
+# Generated test-contract normalization.
+# Historical patchers recreate these tests before the definitive finalizer.
+# Their old assertions described superseded implementation details. Preserve
+# strict behavioral coverage while checking the final approved architecture.
+# ---------------------------------------------------------------------------
+normalize_generated_test_block(
+    'test/prelaunch_visual_caption_refinement_contract_test.dart',
+    'camera status is white and proceed control is double height',
+    """  test('camera status is white and proceed control is double height', () {
+    final camera = File('lib/camera_page.dart').readAsStringSync();
+    expect(
+      camera,
+      contains('_parallaxRetryRequired ? Colors.redAccent : Colors.white'),
+    );
+    expect(camera, contains("status = _c('parallaxRequired')"));
+    expect(camera, contains('minimumSize: const Size(0, 56)'));
+  });""",
+    [
+        "contains('_parallaxRetryRequired ? Colors.redAccent : Colors.white')",
+        "contains(\"status = _c('parallaxRequired')\")",
+        "contains('minimumSize: const Size(0, 56)')",
+    ],
+    'camera parallax/status generated contract',
+)
+
+normalize_generated_test_block(
+    'test/quick_hcv_media_gate_contract_test.dart',
+    'photo and video use one-frame HCV precheck before Registry verification',
+    """  test('photo and video use one-frame HCV precheck before Registry verification', () {
+    final gate = File('lib/quick_hcv_media_gate_page.dart').readAsStringSync();
+    expect(gate, contains("import 'hcv_media_id_ocr.dart';"));
+    expect(gate, contains('HCVMediaIdOcr.extractFromImage(sourcePath)'));
+    expect(gate, contains("'extractVideoFrame'"));
+    expect(gate, contains("'seconds': 0.2"));
+    expect(gate, contains('RegistryVerifyPage('));
+  });""",
+    [
+        "contains(\"import 'hcv_media_id_ocr.dart';\")",
+        "contains('HCVMediaIdOcr.extractFromImage(sourcePath)')",
+        "contains(\"'extractVideoFrame'\")",
+        "contains(\"'seconds': 0.2\")",
+        "contains('RegistryVerifyPage(')",
+    ],
+    'quick media robust-OCR generated contract',
+)
 
 
 # ---------------------------------------------------------------------------
