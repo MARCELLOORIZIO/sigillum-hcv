@@ -20,22 +20,61 @@ require_source_token() {
   log "SOURCE_GUARD_PASS file=$file token=$token"
 }
 
+release_source_hashes() {
+  shasum -a 256 \
+    lib/import_page.dart \
+    lib/camera_page.dart \
+    lib/camera_ui_copy.dart \
+    lib/camera_ui_extended_copy.dart \
+    lib/registry_verify_page.dart \
+    lib/verification_ui_copy.dart \
+    lib/hcv_ml_screen_replay_classifier.dart \
+    lib/hcv_ml_model_store.dart \
+    assets/ml/sigillum_screen_replay_v2.tflite \
+    assets/ml/sigillum_screen_replay_v1.tflite
+}
+
 log "=== SIGILLUM TESTFLIGHT RC2 RELEASE PROOF ==="
 BUILD_COMMIT="$(git rev-parse HEAD)"
 log "GIT_COMMIT=$BUILD_COMMIT"
 log "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)"
 
-# Materialize the exact release source inside the same step that will archive
-# it. The wrapper is resilient to the one legacy Registry layout variant that
-# can lose its helper anchor on an additional finalization pass.
+# Finalize twice and require byte-identical output. This converts the old
+# patch-chain assumption into an explicit release invariant: regardless of how
+# many Codemagic steps have already materialized the RC2 source, another pass
+# must converge to exactly the same tree.
 python3 tool/finalize_testflight_release_source_20260825.py
+release_source_hashes > "$AUDIT_DIR/release-source-pass1.sha256"
+python3 tool/finalize_testflight_release_source_20260825.py
+release_source_hashes > "$AUDIT_DIR/release-source-pass2.sha256"
+if ! diff -u "$AUDIT_DIR/release-source-pass1.sha256" "$AUDIT_DIR/release-source-pass2.sha256" | tee -a "$PROOF_LOG"; then
+  log "RELEASE_FINALIZER_IDEMPOTENCE=FAIL"
+  exit 1
+fi
+log "RELEASE_FINALIZER_IDEMPOTENCE=PASS"
 
-# The application source has just been finalized, so validate THIS exact tree
-# before AOT. Nothing below this block is allowed to mutate Dart application
-# source. A second audit after tests proves the test suite did not change it.
+REGISTRY_HELPER_COUNT="$(grep -Fc "_v('registryHelper')" lib/registry_verify_page.dart || true)"
+if [[ "$REGISTRY_HELPER_COUNT" != "1" ]]; then
+  log "REGISTRY_HELPER_COUNT_FAIL=$REGISTRY_HELPER_COUNT"
+  exit 1
+fi
+if grep -Fq 'Il certificato viene recuperato automaticamente dal Registry HCV. Devi selezionare SOLO il file originale.' lib/registry_verify_page.dart; then
+  log "REGISTRY_LEGACY_HELPER_SURVIVED"
+  exit 1
+fi
+log "REGISTRY_HELPER_NORMALIZED=1"
+
+# Analyze and test the exact tree that will be archived. Nothing below these
+# checks is allowed to mutate Dart application source.
 flutter analyze --no-fatal-infos --no-fatal-warnings
 flutter test --reporter expanded 2>&1 | tee "$AUDIT_DIR/flutter-tests-preipa.log"
 python3 tool/verify_postpatch_release_20260825.py
+release_source_hashes > "$AUDIT_DIR/release-source-after-tests.sha256"
+if ! diff -u "$AUDIT_DIR/release-source-pass2.sha256" "$AUDIT_DIR/release-source-after-tests.sha256" | tee -a "$PROOF_LOG"; then
+  log "TEST_SUITE_MUTATED_RELEASE_SOURCE=FAIL"
+  exit 1
+fi
+log "TEST_SUITE_MUTATED_RELEASE_SOURCE=NO"
 log "PREBUILD_SOURCE_VALIDATION=PASS"
 
 # Hard semantic guards: these are exactly the pieces that must be present in the
@@ -107,16 +146,8 @@ fi
 log "TFLITE_POD_LOCK=TensorFlowLiteSwift_2.17.0"
 grep -n "TensorFlowLite" ios/Podfile.lock | tee -a "$PROOF_LOG" || true
 
-# Source fingerprints immediately before AOT compilation.
 log "PREBUILD_SOURCE_SHA_BEGIN"
-shasum -a 256 \
-  lib/camera_page.dart \
-  lib/hcv_ml_screen_replay_classifier.dart \
-  lib/hcv_ml_model_store.dart \
-  lib/registry_verify_page.dart \
-  lib/verification_ui_copy.dart \
-  assets/ml/sigillum_screen_replay_v2.tflite \
-  assets/ml/sigillum_screen_replay_v1.tflite | tee -a "$PROOF_LOG"
+release_source_hashes | tee -a "$PROOF_LOG"
 log "PREBUILD_SOURCE_SHA_END"
 
 LATEST_BUILD_NUMBER="$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")"
@@ -147,8 +178,6 @@ fi
 log "XCARCHIVE=$ARCHIVE"
 log "ARCHIVED_APP=$APP"
 
-# Prove the models embedded in the app are byte-identical to the validated
-# repository assets.
 FLUTTER_ASSETS="$APP/Frameworks/App.framework/flutter_assets"
 BUILT_V2="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v2.tflite"
 BUILT_V1="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v1.tflite"
@@ -170,10 +199,6 @@ for pair in \
   shasum -a 256 "$BUILT_FILE" | tee -a "$PROOF_LOG"
 done
 
-# tflite_flutter resolves the C API through DynamicLibrary.process() on iOS.
-# The required TfLite symbols may therefore be exported either by the Runner
-# executable or by a dynamic framework/dylib loaded into the app process. Scan
-# the complete archived process image instead of assuming one linkage shape.
 EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")"
 RUNNER_BIN="$APP/$EXECUTABLE_NAME"
 if [[ ! -f "$RUNNER_BIN" ]]; then
@@ -217,16 +242,12 @@ for symbol in _TfLiteModelCreate _TfLiteInterpreterCreate _TfLiteInterpreterAllo
   log "TFLITE_SYMBOL_PRESENT=$symbol"
 done
 
-# Confirm the Xcode release configuration retains global symbols as required by
-# the FFI package.
 if ! grep -Fq 'STRIP_STYLE = "non-global";' ios/Runner.xcodeproj/project.pbxproj; then
   log "STRIP_STYLE_GUARD_FAIL"
   exit 1
 fi
 log "STRIP_STYLE=non-global"
 
-# AOT proof is informational because Dart snapshot layout can change between
-# Flutter releases; the source/pod/model/symbol guards above are authoritative.
 APP_AOT="$APP/Frameworks/App.framework/App"
 if [[ -f "$APP_AOT" ]] && strings "$APP_AOT" | grep -Fq 'TFLITE_INTERPRETER_CREATE_FAILED'; then
   log "AOT_ML_DIAGNOSTIC_MARKER=PASS"
