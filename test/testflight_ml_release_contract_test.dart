@@ -24,6 +24,7 @@ void main() {
     );
 
     for (final token in <String>[
+      'PREBUILD_SOURCE_VALIDATION=PASS',
       'flutter build ipa --release --no-pub',
       "tflite_version = '2.17.0'",
       'TensorFlowLiteSwift (2.17.0)',
@@ -34,6 +35,15 @@ void main() {
     ]) {
       expect(buildProof, contains(token), reason: 'missing release proof: $token');
     }
+
+    // The proof step runs after Codemagic has already materialized, analyzed and
+    // tested the release source. It must never re-run source patchers or dart
+    // format, otherwise the exact tested source can be changed before AOT.
+    expect(
+      buildProof,
+      isNot(contains('python3 tool/apply_media_specific_verification_picker_fix_20260822.py')),
+    );
+    expect(buildProof, isNot(contains('dart format')));
 
     for (final token in <String>[
       'Interpreter.fromBuffer(bytes)',
