@@ -72,6 +72,18 @@ def apply_verification_refinement():
             {'__name__': '__main__'},
         )
 
+    # RC2 definitive contract must exist BEFORE Codemagic's analyze/test step,
+    # not only inside the later IPA builder. Codemagic invokes this wrapper both
+    # before and after pub get, so applying the semantic/idempotent finalizer
+    # here gives Linux, macOS and the real builder the same materialized source.
+    definitive = Path('tool/apply_rc2_definitive_build_finalizer_20260825.py')
+    if not definitive.exists():
+        raise RuntimeError('RC2 definitive build finalizer missing')
+    exec(
+        compile(definitive.read_text(encoding='utf-8'), str(definitive), 'exec'),
+        {'__name__': '__main__'},
+    )
+
     # RC2: format the materialized Dart source after ALL build-time finalizers.
     # This is also a fast syntax check before flutter analyze/test.
     final_dart_files = [
@@ -85,8 +97,17 @@ def apply_verification_refinement():
         'lib/camera_ui_extended_copy.dart',
         'lib/hcv_ml_screen_replay_classifier.dart',
         'lib/hcv_ml_model_store.dart',
+        'lib/hcv_display_risk_fusion.dart',
+        'lib/sigillum_localization.dart',
     ]
-    subprocess.run(['dart', 'format', *final_dart_files], check=True)
+    generated_contracts = [
+        'test/prelaunch_visual_caption_refinement_contract_test.dart',
+        'test/quick_hcv_media_gate_contract_test.dart',
+    ]
+    final_format_files = final_dart_files + [
+        file_name for file_name in generated_contracts if Path(file_name).exists()
+    ]
+    subprocess.run(['dart', 'format', *final_format_files], check=True)
 
     # The first audit inside the language finalizer sees the pre-format source.
     # Re-run it now so the final section of the diagnostic log fingerprints the
