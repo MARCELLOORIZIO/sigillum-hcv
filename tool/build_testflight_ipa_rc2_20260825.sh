@@ -25,20 +25,13 @@ BUILD_COMMIT="$(git rev-parse HEAD)"
 log "GIT_COMMIT=$BUILD_COMMIT"
 log "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)"
 
-# Finalize the exact source that will proceed to the IPA. This wrapper is
-# intentionally invoked inside the Build TestFlight IPA step so no later patch
-# can silently replace the validated ML/Registry source.
-python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+# The preceding Codemagic step has already materialized, analyzed and tested the
+# exact RC2 release source. Never re-run source patchers or formatters here:
+# doing so would mutate an already validated source tree and can make otherwise
+# idempotent release finalizers search for anchors that were intentionally
+# removed by the first pass. This step is proof-only for application source.
 python3 tool/verify_postpatch_release_20260825.py
-
-dart format \
-  lib/import_page.dart \
-  lib/registry_verify_page.dart \
-  lib/hcv_ml_screen_replay_classifier.dart \
-  lib/hcv_ml_model_store.dart \
-  lib/verification_ui_copy.dart
-
-python3 tool/verify_postpatch_release_20260825.py
+log "PREBUILD_SOURCE_VALIDATION=PASS"
 
 # Hard semantic guards: these are exactly the pieces missing from the broken
 # TestFlight build. Do not publish if any of them disappeared.
@@ -56,7 +49,8 @@ require_source_token lib/registry_verify_page.dart "TFLite runtime:"
 
 # The tflite_flutter package is materialized by the earlier flutter pub get.
 # Re-run only the idempotent native-runtime guard and prove the package podspec
-# is actually pinned before CocoaPods resolves the archive dependencies.
+# is actually pinned before CocoaPods resolves the archive dependencies. This
+# changes only the pub-cache podspec, not the already-tested application source.
 python3 tool/apply_ml_ios_runtime_finalizer_20260825.py
 
 TFLITE_PODSPEC="$(python3 - <<'PY'
