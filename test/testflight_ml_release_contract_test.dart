@@ -20,7 +20,7 @@ void main() {
     );
     expect(
       testflight,
-      isNot(contains('LATEST_BUILD_NUMBER="$(app-store-connect')),
+      isNot(contains(r'LATEST_BUILD_NUMBER="$(app-store-connect')),
     );
 
     for (final token in <String>[
