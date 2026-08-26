@@ -28,6 +28,12 @@ class CommercialAccountService {
 
   static const _sessionTokenKey = 'sigillum.auth.session.v1';
   static const _timeout = Duration(seconds: 20);
+  static const _appleVerificationRetryDelays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 600),
+    Duration(milliseconds: 1200),
+    Duration(milliseconds: 2400),
+  ];
   static const termsVersion = '2026-08-18';
   static const privacyVersion = '2026-08-18';
 
@@ -167,16 +173,64 @@ class CommercialAccountService {
         'Dati App Store insufficienti per verificare l’acquisto.',
       );
     }
-    return _authorizedRequest(
-      'POST',
-      '/api/billing/apple/verify',
-      body: {
-        'productId': productId,
-        if (transactionId != null && transactionId.trim().isNotEmpty)
-          'transactionId': transactionId.trim(),
-        if (receiptData.trim().isNotEmpty) 'receiptData': receiptData,
-      },
-    );
+
+    Map<String, dynamic>? lastResult;
+    for (var attempt = 0;
+        attempt < _appleVerificationRetryDelays.length;
+        attempt++) {
+      final delay = _appleVerificationRetryDelays[attempt];
+      if (delay != Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+
+      try {
+        final result = await _authorizedRequest(
+          'POST',
+          '/api/billing/apple/verify',
+          body: {
+            'productId': productId,
+            if (transactionId != null && transactionId.trim().isNotEmpty)
+              'transactionId': transactionId.trim(),
+            if (receiptData.trim().isNotEmpty) 'receiptData': receiptData,
+          },
+        );
+        lastResult = result;
+
+        // A fresh StoreKit transaction can briefly precede Apple/backend
+        // propagation. Retry only while authenticity is still unresolved.
+        // Entitlement remains fail-closed: the caller still requires verified
+        // server evidence and an active/grace subscription status.
+        if (result['verified'] == true) {
+          return result;
+        }
+      } on CommercialAccountException catch (error) {
+        final hasMoreAttempts =
+            attempt + 1 < _appleVerificationRetryDelays.length;
+        if (!hasMoreAttempts || !_isTransientAppleVerificationError(error)) {
+          rethrow;
+        }
+      }
+    }
+
+    // A 2xx response that remains unverified after the bounded propagation
+    // window is returned unchanged so the existing gate rejects it.
+    return lastResult ??
+        const <String, dynamic>{
+          'verified': false,
+          'status': 'inactive',
+        };
+  }
+
+  static bool _isTransientAppleVerificationError(
+    CommercialAccountException error,
+  ) {
+    final status = error.statusCode;
+    if (status == null) return false;
+    return status == 408 ||
+        status == 409 ||
+        status == 425 ||
+        status == 429 ||
+        status >= 500;
   }
 
   Future<void> logout() => _auth.logout();
