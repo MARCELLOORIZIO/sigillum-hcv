@@ -14,9 +14,15 @@ if subject != EXPECTED_COMMIT_SUBJECT:
         f'{EXPECTED_COMMIT_SUBJECT!r}, got {subject!r}'
     )
 
+signed_reality_getter = (
+    "  bool get _signedRealityScene {\n"
+    "    if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;\n"
+    "    final cert = certificate;\n"
+)
+
 required = {
     Path('lib/registry_verify_page.dart'): [
-        "if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;",
+        signed_reality_getter,
         "_v('sceneUncertain')",
     ],
     Path('lib/hcv_display_risk_fusion.dart'): [
@@ -30,6 +36,7 @@ required = {
     ],
     Path('test/rc2_verification_scene_priority_contract_test.dart'): [
         'public scene label cannot override signed final display fusion',
+        'signedRealityGetter',
     ],
 }
 
