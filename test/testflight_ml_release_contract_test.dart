@@ -69,7 +69,7 @@ void main() {
       'TARGET_VERSION="2.17.0"',
       "tflite_version = '2.12.0'",
       "tflite_version = '2.17.0'",
-      'TFLITE_IOS_RUNTIME=$TARGET_VERSION',
+      r'TFLITE_IOS_RUNTIME=$TARGET_VERSION',
     ]) {
       expect(tflitePin, contains(token), reason: 'missing TFLite pin guard: $token');
     }
