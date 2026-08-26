@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - release/testflight-rc2-20260825
+  pull_request:
+    branches:
+      - release/testflight-rc2-20260825
   workflow_dispatch:
 
 permissions:
