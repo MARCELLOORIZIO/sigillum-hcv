@@ -73,19 +73,20 @@ void main() {
     // assets/extension that TestFlight requires.
     for (final token in <String>[
       'ORPHAN_GITLINK_PRESENT=NO',
-      r'''git ls-files --stage | awk '$1 == "160000" {print $4}' ''',
+      'git ls-files --stage | awk',
+      '160000',
       'flutter build ios --release --no-codesign --no-pub',
       '--dart-define=SIGILLUM_EDITION=user',
       '--dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com',
       "grep -Fx 'com.sigillum.hcv'",
-      r'cmp "$SOURCE_MODEL" "$BUILT_MODEL"',
+      'cmp "\$SOURCE_MODEL" "\$BUILT_MODEL"',
       'IOS_SHARE_EXTENSION_MISSING',
       'IOS_UNSIGNED_RELEASE_BUILD=PASS',
       'MACOS_MATERIALIZED_PREIPA=PASS',
     ]) {
       expect(
         macosPreIpa,
-        contains(token.trim()),
+        contains(token),
         reason: 'missing final iOS release gate: $token',
       );
     }
