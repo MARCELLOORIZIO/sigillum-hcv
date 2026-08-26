@@ -68,6 +68,28 @@ void main() {
     });
 
     test(
+      'Apple verification retries propagation races but stays server-authoritative',
+      () {
+        expect(account, contains('_appleVerificationRetryDelays'));
+        expect(account, contains('Duration(milliseconds: 800)'));
+        expect(account, contains('Duration(seconds: 2)'));
+        expect(account, contains('Duration(seconds: 4)'));
+        expect(account, contains('_isTransientAppleVerificationError'));
+        expect(account, contains('status == 408'));
+        expect(account, contains('status == 409'));
+        expect(account, contains('status == 425'));
+        expect(account, contains('status == 429'));
+        expect(account, contains('status >= 500'));
+        expect(account, contains("if (verified['verified'] == true)"));
+        expect(account, contains('_pollAppleEntitlementAfterVerification'));
+        expect(account, contains('final billing = await billingStatus()'));
+        expect(account, contains("status == 'active' || status == 'grace'"));
+        expect(account, isNot(contains('setBool(')));
+        expect(account, isNot(contains('localEntitlement')));
+      },
+    );
+
+    test(
       'unfinished StoreKit2 transaction is verified before manual finish',
       () {
         expect(billing, contains('SK2Transaction.unfinishedTransactions()'));
