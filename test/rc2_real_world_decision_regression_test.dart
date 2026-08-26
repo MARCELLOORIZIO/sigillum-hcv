@@ -61,7 +61,10 @@ void main() {
     expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
     expect(result.risk, isNot('HIGH'));
     expect(result.decision, 'NON_CONCLUSIVE');
-    expect(result.reasons, contains('ML_REALITY_REQUIRES_INDEPENDENT_CORROBORATION'));
+    expect(
+      result.reasons,
+      contains('ML_REALITY_REQUIRES_INDEPENDENT_CORROBORATION'),
+    );
   });
 
   test('strong SCREEN ML conflicting with REALITY geometry is non-conclusive', () {
@@ -79,6 +82,50 @@ void main() {
     expect(result.decision, 'NON_CONCLUSIVE');
     expect(result.risk, 'MEDIUM');
     expect(result.reasons, contains('ML_GEOMETRY_CONFLICT'));
+  });
+
+  test('HCV 3F31 mixed 3D scene with display cues cannot resolve as no display evidence', () {
+    final result = HCVDisplayRiskFusion.combine([
+      {
+        'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+        'analysisStatus': 'ANALYZED',
+        'screenReplayRiskScore': 20,
+        'framesAnalyzed': 45,
+        'displayRiskDecision': 'NO_DISPLAY_EVIDENCE',
+        'fineGridScore': 0.2435,
+        'fineStripeScore': 0.2275,
+        'localTemporalFlickerScore': 0.3508,
+        'refreshBandScore': 0.1643,
+        'moireFrequencyScore': 0.4933,
+        'persistentPatternScore': 0.9280,
+        'dynamicChallengeScore': 0.9135,
+        'geometryChallenge': {
+          'sceneClass': 'REALITY',
+        },
+        'signals': {
+          'reflectedRealityEvidence': false,
+          'sceneRealityEvidence': true,
+          'geometricRealityEvidence': true,
+          'localRefreshFlicker': true,
+          'horizontalRefreshBands': true,
+          'pairedFlickerTrace': true,
+          'uncorroboratedDisplayPattern': true,
+        },
+      },
+      _passive(
+        score: 75,
+        strongDisplayTrace: true,
+        structuralDisplayTrace: false,
+        confirmedDisplayTrace: false,
+      ),
+      _mlScreen(score: 76, confidence: 0.7445),
+    ]);
+
+    expect(result.decision, isNot('NO_DISPLAY_EVIDENCE'));
+    expect(result.decision, 'NON_CONCLUSIVE');
+    expect(result.risk, 'MEDIUM');
+    expect(result.score, 69);
+    expect(result.evidenceSources, contains('LIVE_PREVIEW'));
   });
 
   test('two genuinely independent strong display families still produce HIGH', () {
