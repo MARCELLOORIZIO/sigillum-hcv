@@ -62,3 +62,18 @@ exec(
     ),
     {'__name__': '__main__'},
 )
+
+# Apply the final StoreKit price presentation only after all commercial and
+# nested release transformations. Product.displayPrice is the authoritative
+# localized Apple price; no capture/HCV/Registry source is modified here.
+price_patch = Path('tool/apply_storekit_localized_price_ui_fix_20260826.py')
+if not price_patch.exists():
+    raise RuntimeError('StoreKit localized-price finalizer missing')
+exec(
+    compile(
+        price_patch.read_text(encoding='utf-8'),
+        str(price_patch),
+        'exec',
+    ),
+    {'__name__': '__main__'},
+)
