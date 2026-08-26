@@ -1,7 +1,10 @@
-name: Diagnose RC2 generated policy tests
+name: Diagnose RC2 committed policy tests
 
 on:
   push:
+    branches:
+      - release/testflight-rc2-20260825
+  pull_request:
     branches:
       - release/testflight-rc2-20260825
   workflow_dispatch:
@@ -15,18 +18,26 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Materialize certificate policy tests
+
+      - name: Prove policy regressions are committed
         shell: bash
         run: |
           set -euo pipefail
-          python3 tool/apply_safe_capture_location_fix.py
-          python3 tool/apply_mixed_scene_monitor_fix.py
-          python3 tool/apply_planar_parallax_compile_safety.py
-          python3 tool/apply_certificate_regression_fix.py
-          python3 tool/apply_certificate_regression_compile_fix.py
-          python3 tool/apply_certificate_regression_behavior_fix.py
-          python3 tool/apply_certificate_contract_test_fix.py
+          test -f test/monitor_certificate_regression_test.dart
+          test -f test/photo_display_risk_policy_test.dart
+          test -f test/rc2_real_world_decision_regression_test.dart
+          grep -F 'uploaded monitor video certificate becomes strong physical display risk' test/monitor_certificate_regression_test.dart
+          grep -F 'temporal live evidence can be corroborated by the captured photo' test/photo_display_risk_policy_test.dart
+          grep -F 'HCV 6052 strong monitor ML plus REALITY geometry remains non-conclusive' test/rc2_real_world_decision_regression_test.dart
+          grep -F 'HCV 3F31 mixed 3D scene with display cues cannot resolve as no display evidence' test/rc2_real_world_decision_regression_test.dart
+          echo 'COMMITTED_POLICY_REGRESSIONS=PASS'
+
+      - name: Show committed policy tests
+        shell: bash
+        run: |
           echo '=== MONITOR CERTIFICATE REGRESSION ==='
           cat test/monitor_certificate_regression_test.dart
           echo '=== PHOTO DISPLAY POLICY ==='
           cat test/photo_display_risk_policy_test.dart
+          echo '=== RC2 REAL WORLD DECISION REGRESSION ==='
+          cat test/rc2_real_world_decision_regression_test.dart
