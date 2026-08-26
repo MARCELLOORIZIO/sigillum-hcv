@@ -21,7 +21,8 @@ def run_python_script(path: str) -> None:
 # and the final IPA proof. First preserve every approved historical RC2 release
 # contract, then apply the stabilized decision architecture, photo-byte/package
 # integrity contracts, generated policy regressions, localized StoreKit prices,
-# and the Creator 7-day/monthly/annual commercial ladder. Every stage is
+# the Creator 7-day/monthly/annual commercial ladder, and finally the runtime
+# regression guards observed in the installed TestFlight build. Every stage is
 # idempotent so repeated pre-test/pre-IPA execution converges to one source tree.
 run_python_script(
     'tool/apply_rc2_definitive_build_finalizer_legacy_20260825.py'
@@ -32,5 +33,6 @@ run_python_script('tool/apply_rc2_photo_package_camera_finalizer_20260825.py')
 run_python_script('tool/apply_rc2_policy_test_alignment_20260825.py')
 run_python_script('tool/apply_storekit_localized_price_ui_fix_20260826.py')
 run_python_script('tool/apply_creator_weekly_subscription_20260826.py')
+run_python_script('tool/apply_rc2_runtime_regressions_finalizer_20260826.py')
 
 print('RC2 definitive-build wrapper PASS')
