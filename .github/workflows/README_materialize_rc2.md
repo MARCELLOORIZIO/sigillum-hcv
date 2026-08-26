@@ -1,0 +1,1 @@
+`materialize-rc2-source-20260826.yml` is a temporary one-shot release-hardening workflow. It must be removed after the finalized source is committed, validated and the normal Codemagic/TestFlight workflow has been converted to build committed source without source-mutating patch steps.
