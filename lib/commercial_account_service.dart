@@ -239,7 +239,7 @@ class CommercialAccountService {
         );
         lastResponse = verified;
         if (verified['verified'] == true) {
-          return _pollAppleEntitlementAfterVerification(verified);
+          return await _pollAppleEntitlementAfterVerification(verified);
         }
       } on CommercialAccountException catch (error) {
         if (!_isTransientAppleVerificationError(error)) rethrow;
