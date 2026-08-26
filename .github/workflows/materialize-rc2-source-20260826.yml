@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - release/testflight-materialized-clean-20260826
-  pull_request:
-    branches:
-      - release/testflight-rc2-20260825
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -26,7 +22,6 @@ jobs:
       - name: Checkout full history
         uses: actions/checkout@v4
         with:
-          ref: release/testflight-materialized-clean-20260826
           fetch-depth: 0
           persist-credentials: true
 
