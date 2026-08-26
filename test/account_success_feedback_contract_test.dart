@@ -30,8 +30,8 @@ void main() {
   });
 
   test('Account feedback patch is isolated from capture and classifiers', () {
-    final patch =
-        File('tool/apply_account_success_feedback.py').readAsStringSync();
+    final patch = File('tool/apply_account_success_feedback.py')
+        .readAsStringSync();
 
     expect(patch, contains("Path('lib/account_page.dart')"));
     expect(patch, isNot(contains('camera_page.dart')));

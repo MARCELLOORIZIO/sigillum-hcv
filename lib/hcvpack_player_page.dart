@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 
 import 'hcv_verifier.dart';
 import 'sigillum_localization.dart';
+import 'verification_ui_copy.dart';
 
 class HCVPackPlayerPage extends StatefulWidget {
   final String? initialPath;
@@ -50,6 +51,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   bool loading = false;
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+  String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
@@ -68,9 +70,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
   Future<void> pickPack() async {
     try {
-      final res = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-      );
+      final res = await FilePicker.platform.pickFiles(type: FileType.any);
 
       if (res == null) return;
 
@@ -99,7 +99,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (!packPath.toLowerCase().endsWith('.hcvpack')) {
         setState(() {
           loading = false;
-          status = "Questo non e un file HCVPACK";
+          status = _v('packInvalid');
           result = "UNSUPPORTED";
         });
         return;
@@ -107,7 +107,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       setState(() {
         loading = true;
-        status = "Analisi HCVPACK...";
+        status = _v('packAnalyzing');
         result = null;
         verifiedCreatorName = null;
         verifiedTrustLevel = null;
@@ -130,7 +130,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (!await file.exists()) {
         setState(() {
           loading = false;
-          status = "File non trovato:\n$packPath";
+          status = _v('fileNotFound');
           result = "ERROR";
         });
         return;
@@ -169,27 +169,16 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       final archive = ZipDecoder().decodeBytes(packBytes);
 
-      ArchiveFile? videoEntry;
       ArchiveFile? certEntry;
       ArchiveFile? metaEntry;
 
       for (final entry in archive.files) {
         final name = entry.name.toLowerCase();
-
-        if (name == "video.mp4") {
-          videoEntry = entry;
-        }
-
-        if (name == "certificate.hcv") {
-          certEntry = entry;
-        }
-
-        if (name == "meta.json") {
-          metaEntry = entry;
-        }
+        if (name == "certificate.hcv") certEntry = entry;
+        if (name == "meta.json") metaEntry = entry;
       }
 
-      if (videoEntry == null || certEntry == null || metaEntry == null) {
+      if (certEntry == null || metaEntry == null) {
         setState(() {
           loading = false;
           status =
@@ -199,13 +188,9 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         return;
       }
 
-      final videoBytes = List<int>.from(videoEntry.content as List<int>);
       final certBytes = List<int>.from(certEntry.content as List<int>);
       final metaBytes = List<int>.from(metaEntry.content as List<int>);
-
       final certSha256 = sha256.convert(certBytes).toString();
-      final videoSha256 = sha256.convert(videoBytes).toString();
-
       final metaStr = utf8.decode(metaBytes);
       final metaJson = jsonDecode(metaStr);
 
@@ -218,14 +203,38 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
         return;
       }
 
+      final packageVersion = (metaJson["version"] as num?)?.toInt();
+      final contentFileName = packageVersion == 3
+          ? metaJson["contentFile"]?.toString()
+          : metaJson["videoFile"]?.toString();
+      ArchiveFile? contentEntry;
+      if (contentFileName != null && contentFileName.isNotEmpty) {
+        for (final entry in archive.files) {
+          if (entry.name == contentFileName) {
+            contentEntry = entry;
+            break;
+          }
+        }
+      }
+      if (contentEntry == null) {
+        setState(() {
+          loading = false;
+          status = "HCVPACK ZIP incompleto: contenuto mancante";
+          result = "ERROR";
+        });
+        return;
+      }
+      final contentBytes = List<int>.from(contentEntry.content as List<int>);
+      final contentSha256 = sha256.convert(contentBytes).toString();
+
       final metaOk = _validateMeta(
         meta: metaJson,
-        videoSha256: videoSha256,
+        contentSha256: contentSha256,
         certificateSha256: certSha256,
       );
 
       if (!metaOk) {
-        final tempVideoFile = await _writeTempContent(videoBytes, 'bin');
+        final tempVideoFile = await _writeTempContent(contentBytes, 'bin');
         extractedContentFile = tempVideoFile;
 
         await _openContent(tempVideoFile);
@@ -255,7 +264,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       }
 
       await _verifyAndPlay(
-        videoBytes: videoBytes,
+        videoBytes: contentBytes,
         certificate: certificate,
         sourceLabel: "ZIP v${metaJson["version"]}",
       );
@@ -270,40 +279,37 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
   bool _validateMeta({
     required Map<String, dynamic> meta,
-    required String videoSha256,
+    required String contentSha256,
     required String certificateSha256,
   }) {
     if (meta["type"] != "HCV_PACKAGE") return false;
-    if (meta["version"] != 2) return false;
-
-    if (meta["videoFile"] != "video.mp4") return false;
+    final version = (meta["version"] as num?)?.toInt();
+    if (version != 2 && version != 3) return false;
     if (meta["certificateFile"] != "certificate.hcv") return false;
-
     if (meta["hashAlgorithm"] != "SHA256") return false;
     if (meta["certificateFormat"] != "HCV") return false;
-
-    if (meta["videoSha256"] != videoSha256) return false;
     if (meta["certificateSha256"] != certificateSha256) return false;
+
+    if (version == 2) {
+      if (meta["videoFile"] != "video.mp4") return false;
+      if (meta["videoSha256"] != contentSha256) return false;
+    } else {
+      if (meta["mediaType"] != "photo") return false;
+      final contentFile = meta["contentFile"]?.toString() ?? '';
+      if (!contentFile.startsWith('photo.')) return false;
+      if (meta["contentSha256"] != contentSha256) return false;
+    }
 
     final packageId = meta["packageId"];
     final createdAt = meta["createdAt"];
-
-    if (packageId == null || packageId is! String || packageId.isEmpty) {
-      return false;
-    }
-
-    if (createdAt == null || createdAt is! String || createdAt.isEmpty) {
-      return false;
-    }
+    if (packageId is! String || packageId.isEmpty) return false;
+    if (createdAt is! String || createdAt.isEmpty) return false;
 
     final expectedPackageIdSource =
-        "$videoSha256|$certificateSha256|$createdAt";
+        "$contentSha256|$certificateSha256|$createdAt";
     final expectedPackageId =
         sha256.convert(utf8.encode(expectedPackageIdSource)).toString();
-
-    if (packageId != expectedPackageId) return false;
-
-    return true;
+    return packageId == expectedPackageId;
   }
 
   Future<void> _loadJsonBase64Package(List<int> packBytes) async {
@@ -318,7 +324,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (data is! Map<String, dynamic>) {
         setState(() {
           loading = false;
-          status = "Formato HCVPACK non valido";
+          status = _v('packInvalid');
           result = "ERROR";
         });
         return;
@@ -330,7 +336,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (videoBase64 == null || certificate == null) {
         setState(() {
           loading = false;
-          status = "HCVPACK incompleto";
+          status = _v('packIncomplete');
           result = "ERROR";
         });
         return;
@@ -583,10 +589,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
           Text(
             result ?? "",
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Colors.white, fontSize: 13),
           ),
         ],
       ),
@@ -607,10 +610,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
             Text(
               _t('hcvpackDetails'),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
             Text(
@@ -708,9 +708,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("SIGILLUM HCVPACK"),
-      ),
+      appBar: AppBar(title: const Text("SIGILLUM HCVPACK")),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -718,19 +716,12 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.inventory_2,
-                  size: 72,
-                  color: Colors.blueGrey,
-                ),
+                const Icon(Icons.inventory_2, size: 72, color: Colors.blueGrey),
                 const SizedBox(height: 18),
                 const Text(
                   "Lettore HCVPACK",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Text(

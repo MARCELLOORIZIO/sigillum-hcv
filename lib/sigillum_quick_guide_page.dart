@@ -5,86 +5,26 @@ import 'sigillum_theme.dart';
 class SigillumQuickGuidePage extends StatelessWidget {
   const SigillumQuickGuidePage({
     super.key,
-    this.languageCode = 'it',
+    this.languageCode = 'en',
   });
 
   final String languageCode;
 
-  bool get _it => languageCode.toLowerCase().startsWith('it');
+  String get _lang {
+    final code = languageCode.toLowerCase().split(RegExp(r'[-_]')).first;
+    return const {'it', 'en', 'es', 'ru'}.contains(code) ? code : 'en';
+  }
+
+  _GuideCopy get _copy => _guideCopies[_lang] ?? _guideCopies['en']!;
 
   @override
   Widget build(BuildContext context) {
-    final steps = _it
-        ? const [
-            _GuideStep(
-              icon: Icons.verified_user_outlined,
-              title: '1. Verifica o certifica',
-              text:
-                  'Per controllare un contenuto usa “Verifica contenuto”. Per creare contenuti certificati accedi come Creator e usa foto, video o testo.',
-            ),
-            _GuideStep(
-              icon: Icons.videocam_outlined,
-              title: '2. Segui la camera',
-              text:
-                  'Durante il controllo della scena muovi leggermente il telefono come indicato. Quando compare PROSEGUI torna all’inquadratura desiderata; per il video premi poi REC.',
-            ),
-            _GuideStep(
-              icon: Icons.folder_outlined,
-              title: '3. Dove trovi i file',
-              text:
-                  'SIGILLUM salva automaticamente i file in File > Sul mio iPhone > Fotocamera Sigillum. Qui trovi l’originale certificato, il certificato .HCV, l’HCVPACK e gli eventuali file sottotitoli.',
-            ),
-            _GuideStep(
-              icon: Icons.closed_caption_outlined,
-              title: '4. Video con sottotitoli',
-              text:
-                  '“Crea video con sottotitoli” produce una copia derivata con scritte sincronizzate. L’originale certificato non viene modificato. Puoi salvare la copia sottotitolata anche in Foto.',
-            ),
-            _GuideStep(
-              icon: Icons.text_snippet_outlined,
-              title: '5. Testi pubblicati',
-              text:
-                  'Per verificare un messaggio o un post già pubblicato apri Verifica contenuto > Verifica testo pubblicato e incolla il testo con il relativo HCV-ID.',
-            ),
-          ]
-        : const [
-            _GuideStep(
-              icon: Icons.verified_user_outlined,
-              title: '1. Verify or certify',
-              text:
-                  'Use “Verify content” to check a file. Sign in as a Creator to certify new photos, videos or text.',
-            ),
-            _GuideStep(
-              icon: Icons.videocam_outlined,
-              title: '2. Follow the camera prompts',
-              text:
-                  'Move the phone slightly when requested. When CONTINUE appears, return to your preferred framing; for video, then tap REC.',
-            ),
-            _GuideStep(
-              icon: Icons.folder_outlined,
-              title: '3. Where files are stored',
-              text:
-                  'SIGILLUM automatically saves files in Files > On My iPhone > Fotocamera Sigillum. The certified original, .HCV certificate, HCVPACK and subtitle files are stored there.',
-            ),
-            _GuideStep(
-              icon: Icons.closed_caption_outlined,
-              title: '4. Captioned video',
-              text:
-                  '“Create captioned video” makes a separate derived copy with synchronized captions. The certified original is never modified. You can also save the captioned copy to Photos.',
-            ),
-            _GuideStep(
-              icon: Icons.text_snippet_outlined,
-              title: '5. Published text',
-              text:
-                  'To verify a message or post, open Verify content > Verify published text and paste the text with its HCV-ID.',
-            ),
-          ];
-
+    final copy = _copy;
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(_it ? 'Come si usa SIGILLUM' : 'How to use SIGILLUM'),
+        title: Text(copy.pageTitle),
       ),
       body: Container(
         width: double.infinity,
@@ -138,7 +78,7 @@ class SigillumQuickGuidePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      _it ? 'Guida rapida' : 'Quick guide',
+                      copy.heading,
                       style: const TextStyle(
                         color: SigillumTheme.ink,
                         fontSize: 28,
@@ -147,9 +87,7 @@ class SigillumQuickGuidePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 7),
                     Text(
-                      _it
-                          ? 'Le operazioni essenziali in pochi passaggi.'
-                          : 'The essential workflow in a few steps.',
+                      copy.intro,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: SigillumTheme.muted,
@@ -160,7 +98,7 @@ class SigillumQuickGuidePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              for (final step in steps) ...[
+              for (final step in copy.steps) ...[
                 _GuideCard(step: step),
                 const SizedBox(height: 12),
               ],
@@ -181,9 +119,7 @@ class SigillumQuickGuidePage extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        _it
-                            ? 'La cartella File è l’archivio principale. Foto è una copia di comodità: per i video sottotitolati usa la copia indicata come “sottotitolato”.'
-                            : 'The Files folder is the primary archive. Photos is a convenience copy: for captioned videos use the copy explicitly marked as captioned.',
+                        copy.footer,
                         style: const TextStyle(
                           color: SigillumTheme.ink,
                           fontSize: 14,
@@ -202,6 +138,22 @@ class SigillumQuickGuidePage extends StatelessWidget {
   }
 }
 
+class _GuideCopy {
+  const _GuideCopy({
+    required this.pageTitle,
+    required this.heading,
+    required this.intro,
+    required this.footer,
+    required this.steps,
+  });
+
+  final String pageTitle;
+  final String heading;
+  final String intro;
+  final String footer;
+  final List<_GuideStep> steps;
+}
+
 class _GuideStep {
   const _GuideStep({
     required this.icon,
@@ -213,6 +165,165 @@ class _GuideStep {
   final String title;
   final String text;
 }
+
+const _guideCopies = <String, _GuideCopy>{
+  'it': _GuideCopy(
+    pageTitle: 'Come si usa SIGILLUM',
+    heading: 'Guida rapida',
+    intro: 'Le operazioni essenziali in pochi passaggi.',
+    footer:
+        'La cartella File è l’archivio principale. Foto è una copia di comodità. L’HCVPACK conserva insieme contenuto e certificato per la verifica offline.',
+    steps: [
+      _GuideStep(
+        icon: Icons.verified_user_outlined,
+        title: '1. Verifica o crea e certifica',
+        text:
+            'Per controllare un contenuto usa “Verifica contenuto”. Per creare nuovi contenuti certificati accedi come Creator e scegli foto, video o testo.',
+      ),
+      _GuideStep(
+        icon: Icons.videocam_outlined,
+        title: '2. Camera: coordinate, flash e zoom',
+        text:
+            'Nella schermata camera, prima di scattare o avviare il video, puoi scegliere se aggiungere oppure no le coordinate GPS. Puoi inoltre usare il flash e regolare lo zoom. Durante il controllo della scena muovi leggermente il telefono come indicato; quando compare PROSEGUI torna all’inquadratura desiderata e, per il video, premi REC.',
+      ),
+      _GuideStep(
+        icon: Icons.folder_outlined,
+        title: '3. Dove trovi i file',
+        text:
+            'SIGILLUM salva i file in File > Sul mio iPhone > Fotocamera Sigillum. Qui trovi il contenuto certificato, il certificato .HCV e l’HCVPACK; per i video possono essere creati anche i file relativi ai sottotitoli.',
+      ),
+      _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '4. Sottotitoli sincronizzati dopo il video',
+        text:
+            'Quando la registrazione è conclusa puoi creare una copia derivata con sottotitoli sincronizzati. L’originale certificato non viene modificato. La copia sottotitolata può essere salvata anche in Foto.',
+      ),
+      _GuideStep(
+        icon: Icons.text_snippet_outlined,
+        title: '5. Verifica successiva',
+        text:
+            'Puoi verificare un file, un HCVPACK o un HCV-ID dal Registry. Per un messaggio o un post già pubblicato usa Verifica contenuto > Verifica testo pubblicato.',
+      ),
+    ],
+  ),
+  'en': _GuideCopy(
+    pageTitle: 'How to use SIGILLUM',
+    heading: 'Quick guide',
+    intro: 'The essential workflow in a few steps.',
+    footer:
+        'The Files folder is the primary archive. Photos is a convenience copy. The HCVPACK keeps the content and certificate together for offline verification.',
+    steps: [
+      _GuideStep(
+        icon: Icons.verified_user_outlined,
+        title: '1. Verify or create and certify',
+        text:
+            'Use “Verify content” to check existing content. Sign in as a Creator to create and certify a new photo, video or text.',
+      ),
+      _GuideStep(
+        icon: Icons.videocam_outlined,
+        title: '2. Camera: coordinates, flash and zoom',
+        text:
+            'On the camera screen, before taking a photo or starting a video, you can choose whether to include GPS coordinates. You can also use the flash and adjust zoom. During the scene check, move the phone slightly as instructed; when CONTINUE appears, return to your preferred framing and, for video, tap REC.',
+      ),
+      _GuideStep(
+        icon: Icons.folder_outlined,
+        title: '3. Where files are stored',
+        text:
+            'SIGILLUM stores files in Files > On My iPhone > Fotocamera Sigillum. The certified content, .HCV certificate and HCVPACK are stored there; video subtitle files may also be created.',
+      ),
+      _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '4. Synchronized captions after video',
+        text:
+            'After recording is complete, you can create a separate derived copy with synchronized captions. The certified original is not modified. The captioned copy can also be saved to Photos.',
+      ),
+      _GuideStep(
+        icon: Icons.text_snippet_outlined,
+        title: '5. Verify later',
+        text:
+            'You can verify a file, HCVPACK or HCV-ID through the Registry. For a published message or post, use Verify content > Verify published text.',
+      ),
+    ],
+  ),
+  'es': _GuideCopy(
+    pageTitle: 'Cómo usar SIGILLUM',
+    heading: 'Guía rápida',
+    intro: 'Las operaciones esenciales en pocos pasos.',
+    footer:
+        'La carpeta Archivos es el archivo principal. Fotos es una copia de comodidad. El HCVPACK conserva juntos el contenido y el certificado para la verificación sin conexión.',
+    steps: [
+      _GuideStep(
+        icon: Icons.verified_user_outlined,
+        title: '1. Verificar o crear y certificar',
+        text:
+            'Usa “Verificar contenido” para comprobar contenido existente. Accede como Creator para crear y certificar una nueva foto, vídeo o texto.',
+      ),
+      _GuideStep(
+        icon: Icons.videocam_outlined,
+        title: '2. Cámara: coordenadas, flash y zoom',
+        text:
+            'En la pantalla de cámara, antes de hacer una foto o iniciar un vídeo, puedes elegir si incluir o no las coordenadas GPS. También puedes usar el flash y ajustar el zoom. Durante el control de la escena mueve ligeramente el teléfono como se indica; cuando aparezca CONTINUAR vuelve al encuadre deseado y, para vídeo, pulsa REC.',
+      ),
+      _GuideStep(
+        icon: Icons.folder_outlined,
+        title: '3. Dónde se guardan los archivos',
+        text:
+            'SIGILLUM guarda los archivos en Archivos > En mi iPhone > Fotocamera Sigillum. Allí encontrarás el contenido certificado, el certificado .HCV y el HCVPACK; para los vídeos también pueden generarse archivos de subtítulos.',
+      ),
+      _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '4. Subtítulos sincronizados después del vídeo',
+        text:
+            'Cuando termina la grabación puedes crear una copia derivada separada con subtítulos sincronizados. El original certificado no se modifica. La copia subtitulada también puede guardarse en Fotos.',
+      ),
+      _GuideStep(
+        icon: Icons.text_snippet_outlined,
+        title: '5. Verificar después',
+        text:
+            'Puedes verificar un archivo, un HCVPACK o un HCV-ID mediante el Registry. Para un mensaje o publicación ya publicados usa Verificar contenido > Verificar texto publicado.',
+      ),
+    ],
+  ),
+  'ru': _GuideCopy(
+    pageTitle: 'Как пользоваться SIGILLUM',
+    heading: 'Краткое руководство',
+    intro: 'Основные операции в нескольких шагах.',
+    footer:
+        'Папка Files является основным архивом. Photos — дополнительная удобная копия. HCVPACK хранит контент и сертификат вместе для офлайн-проверки.',
+    steps: [
+      _GuideStep(
+        icon: Icons.verified_user_outlined,
+        title: '1. Проверить или создать и сертифицировать',
+        text:
+            'Используйте «Проверить контент» для проверки существующего материала. Войдите как Creator, чтобы создать и сертифицировать новое фото, видео или текст.',
+      ),
+      _GuideStep(
+        icon: Icons.videocam_outlined,
+        title: '2. Камера: координаты, вспышка и зум',
+        text:
+            'На экране камеры перед съемкой фото или запуском видео можно выбрать, добавлять ли GPS-координаты. Также можно использовать вспышку и менять зум. Во время проверки сцены слегка перемещайте телефон по инструкции; когда появится ПРОДОЛЖИТЬ, вернитесь к нужному кадру и для видео нажмите REC.',
+      ),
+      _GuideStep(
+        icon: Icons.folder_outlined,
+        title: '3. Где находятся файлы',
+        text:
+            'SIGILLUM сохраняет файлы в Files > On My iPhone > Fotocamera Sigillum. Там находятся сертифицированный контент, сертификат .HCV и HCVPACK; для видео также могут создаваться файлы субтитров.',
+      ),
+      _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '4. Синхронизированные субтитры после видео',
+        text:
+            'После завершения записи можно создать отдельную производную копию с синхронизированными субтитрами. Сертифицированный оригинал не изменяется. Копию с субтитрами также можно сохранить в Photos.',
+      ),
+      _GuideStep(
+        icon: Icons.text_snippet_outlined,
+        title: '5. Последующая проверка',
+        text:
+            'Можно проверить файл, HCVPACK или HCV-ID через Registry. Для уже опубликованного сообщения или поста используйте Проверить контент > Проверить опубликованный текст.',
+      ),
+    ],
+  ),
+};
 
 class _GuideCard extends StatelessWidget {
   const _GuideCard({required this.step});

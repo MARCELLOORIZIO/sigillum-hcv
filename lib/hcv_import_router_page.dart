@@ -7,6 +7,7 @@ import 'quick_hcv_media_gate_page.dart';
 import 'verify_page.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
+import 'verification_ui_copy.dart';
 
 class HCVImportRouterPage extends StatefulWidget {
   final String path;
@@ -26,6 +27,7 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
   String status = "";
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+  String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
@@ -66,10 +68,8 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => VerifyPage(
-            initialPath: path,
-            languageCode: widget.languageCode,
-          ),
+          builder: (_) =>
+              VerifyPage(initialPath: path, languageCode: widget.languageCode),
         ),
       );
       return;
@@ -129,16 +129,11 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("HCV Import"),
-      ),
+      appBar: AppBar(title: Text(_v('routerTitle'))),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            status,
-            textAlign: TextAlign.center,
-          ),
+          child: Text(status, textAlign: TextAlign.center),
         ),
       ),
     );

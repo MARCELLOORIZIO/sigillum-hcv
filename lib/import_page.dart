@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -20,6 +23,8 @@ class ImportPage extends StatefulWidget {
 }
 
 class _ImportPageState extends State<ImportPage> {
+  static const _mediaChannel = MethodChannel('hcv.media');
+  bool _photoPickBusy = false;
   String status = '';
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
@@ -72,15 +77,29 @@ class _ImportPageState extends State<ImportPage> {
   }
 
   Future<void> pickPhoto() async {
+    if (_photoPickBusy) return;
+    if (mounted) setState(() => _photoPickBusy = true);
     try {
-      final file = await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (file == null) {
+      String? path;
+      if (Platform.isIOS) {
+        path = await _mediaChannel.invokeMethod<String>('pickOriginalPhoto');
+      } else {
+        final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+        path = file?.path;
+      }
+      if (path == null || path.isEmpty) {
         if (mounted) setState(() => status = _t('noFileSelected'));
         return;
       }
-      await _openPickedPath(file.path);
+      await _openPickedPath(path);
+    } on PlatformException catch (e) {
+      if (mounted) {
+        setState(() => status = "${_t('importError')}: ${e.message ?? e.code}");
+      }
     } catch (e) {
       if (mounted) setState(() => status = "${_t('importError')}: $e");
+    } finally {
+      if (mounted) setState(() => _photoPickBusy = false);
     }
   }
 

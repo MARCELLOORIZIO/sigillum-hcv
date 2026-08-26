@@ -8,11 +8,7 @@ import 'hcv_keystore_signer.dart';
 import 'hcv_secure_store.dart';
 
 class CommercialAccountException implements Exception {
-  const CommercialAccountException(
-    this.message, {
-    this.statusCode,
-    this.code,
-  });
+  const CommercialAccountException(this.message, {this.statusCode, this.code});
 
   final String message;
   final int? statusCode;
@@ -32,8 +28,8 @@ class CommercialAccountService {
 
   static const _sessionTokenKey = 'sigillum.auth.session.v1';
   static const _timeout = Duration(seconds: 20);
-  static const termsVersion = '2026-08-11';
-  static const privacyVersion = '2026-08-11';
+  static const termsVersion = '2026-08-18';
+  static const privacyVersion = '2026-08-18';
 
   final String baseUrl;
 
@@ -50,6 +46,7 @@ class CommercialAccountService {
     required bool acceptTerms,
     required bool acknowledgePrivacy,
     required bool adultConfirmed,
+    required String languageCode,
   }) async {
     final proof = await _deviceProof();
     await _request(
@@ -63,6 +60,7 @@ class CommercialAccountService {
         'acceptTerms': acceptTerms,
         'acknowledgePrivacy': acknowledgePrivacy,
         'adultConfirmed': adultConfirmed,
+        'languageCode': languageCode,
         'termsVersion': termsVersion,
         'privacyVersion': privacyVersion,
         ...proof,
@@ -81,11 +79,14 @@ class CommercialAccountService {
     );
   }
 
-  Future<void> resendEmailCode(String email) async {
+  Future<void> resendEmailCode(
+    String email, {
+    required String languageCode,
+  }) async {
     await _request(
       'POST',
       '/api/auth/resend-email-code',
-      body: {'email': email.trim()},
+      body: {'email': email.trim(), 'languageCode': languageCode},
     );
   }
 
@@ -104,11 +105,14 @@ class CommercialAccountService {
     }
   }
 
-  Future<void> forgotPassword(String email) async {
+  Future<void> forgotPassword(
+    String email, {
+    required String languageCode,
+  }) async {
     await _request(
       'POST',
       '/api/auth/password/forgot',
-      body: {'email': email.trim()},
+      body: {'email': email.trim(), 'languageCode': languageCode},
     );
   }
 
@@ -155,9 +159,7 @@ class CommercialAccountService {
     required String receiptData,
   }) async {
     if (productId.isEmpty) {
-      throw const CommercialAccountException(
-        'Prodotto App Store non valido.',
-      );
+      throw const CommercialAccountException('Prodotto App Store non valido.');
     }
     if ((transactionId == null || transactionId.trim().isEmpty) &&
         receiptData.trim().isEmpty) {
@@ -244,10 +246,7 @@ class CommercialAccountService {
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (token != null && token.isNotEmpty) {
-        request.headers.set(
-          HttpHeaders.authorizationHeader,
-          'Bearer $token',
-        );
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       }
       if (body != null) request.write(jsonEncode(body));
       final response = await request.close().timeout(_timeout);
@@ -262,8 +261,8 @@ class CommercialAccountService {
           decoded['message']?.toString().isNotEmpty == true
               ? decoded['message'].toString()
               : decoded['error']?.toString().isNotEmpty == true
-                  ? decoded['error'].toString()
-                  : 'Operazione non disponibile.',
+              ? decoded['error'].toString()
+              : 'Operazione non disponibile.',
           statusCode: response.statusCode,
           code: decoded['error']?.toString(),
         );

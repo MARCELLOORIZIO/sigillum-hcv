@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hcv_media_id_ocr.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_theme.dart';
 import 'verification_ui_copy.dart';
@@ -65,66 +66,14 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
   }
 
   String? _extractHcvIdFromName(String path) {
-    return RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])', caseSensitive: false)
-        .firstMatch(p.basename(path))
-        ?.group(0)
-        ?.toUpperCase();
-  }
-
-  Future<String?> _prepareUpperWatermarkImage(String sourcePath) async {
-    try {
-      final bytes = await File(sourcePath).readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) return null;
-
-      final cropHeight =
-          (decoded.height * 0.46).round().clamp(1, decoded.height).toInt();
-      var crop = img.copyCrop(
-        decoded,
-        x: 0,
-        y: 0,
-        width: decoded.width,
-        height: cropHeight,
-      );
-
-      if (crop.width > 1280) {
-        crop = img.copyResize(crop, width: 1280);
-      }
-
-      final dir = await getTemporaryDirectory();
-      final out = File(
-        '${dir.path}/sigillum_quick_ocr_${DateTime.now().microsecondsSinceEpoch}.jpg',
-      );
-      await out.writeAsBytes(img.encodeJpg(crop, quality: 84), flush: true);
-      return out.path;
-    } catch (_) {
-      return null;
-    }
+    return RegExp(
+      r'HCV-[A-F0-9]{16}(?![A-F0-9])',
+      caseSensitive: false,
+    ).firstMatch(p.basename(path))?.group(0)?.toUpperCase();
   }
 
   Future<String?> _ocrImage(String sourcePath) async {
-    String? preparedPath;
-    TextRecognizer? recognizer;
-    try {
-      preparedPath = await _prepareUpperWatermarkImage(sourcePath);
-      if (!mounted) return null;
-      final inputPath = preparedPath ?? sourcePath;
-      recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-      final recognized =
-          await recognizer.processImage(InputImage.fromFilePath(inputPath));
-      if (!mounted) return null;
-      return _extractHcvId(recognized.text);
-    } catch (_) {
-      return null;
-    } finally {
-      await recognizer?.close();
-      if (preparedPath != null) {
-        try {
-          final file = File(preparedPath);
-          if (await file.exists()) await file.delete();
-        } catch (_) {}
-      }
-    }
+    return HCVMediaIdOcr.extractFromImage(sourcePath);
   }
 
   Future<String?> _checkVideo() async {

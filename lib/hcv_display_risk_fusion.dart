@@ -38,8 +38,9 @@ class HCVDisplayRiskFusion {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
     final available = liveCaptureOnly
         ? allAvailable
-            .where((analysis) =>
-                analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1')
+            .where(
+              (analysis) => analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+            )
             .toList()
         : allAvailable;
     final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
@@ -51,9 +52,11 @@ class HCVDisplayRiskFusion {
     }
     final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
     final passive = available
-        .where((analysis) =>
-            analysis['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' &&
-            analysis['type'] != 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1')
+        .where(
+          (analysis) =>
+              analysis['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' &&
+              analysis['type'] != 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+        )
         .toList();
 
     final scores = available
@@ -69,16 +72,26 @@ class HCVDisplayRiskFusion {
 
     final liveScore = (live?['screenReplayRiskScore'] as num?)?.toInt();
     final liveSignals = _signals(live);
-    final framesAnalyzed =
-        ((live?['framesAnalyzed'] as num?)?.toInt() ?? 0);
+    final framesAnalyzed = ((live?['framesAnalyzed'] as num?)?.toInt() ?? 0);
     final localFlicker = _number(live, 'localTemporalFlickerScore');
     final refreshBand = _number(live, 'refreshBandScore');
     final fineStripe = _number(live, 'fineStripeScore', fallback: 1);
     final fineGrid = _number(live, 'fineGridScore');
     final moire = _number(live, 'moireFrequencyScore');
     final persistentPattern = _number(live, 'persistentPatternScore');
-    final dynamicChallenge =
-        _number(live, 'dynamicChallengeScore', fallback: 1);
+    final dynamicChallenge = _number(
+      live,
+      'dynamicChallengeScore',
+      fallback: 1,
+    );
+    final globalFlicker = _number(live, 'globalFlickerScore');
+    final rawActiveDisplayEvidence =
+        liveSignals['rawActiveDisplayEvidence'] == true;
+    final planarSceneEvidence = liveSignals['planarSceneEvidence'] == true;
+    final pairedFlickerTrace = liveSignals['pairedFlickerTrace'] == true;
+    final displayBandTrace = liveSignals['displayBandTrace'] == true;
+    final horizontalRefreshBands =
+        liveSignals['horizontalRefreshBands'] == true;
 
     final activeProbeVersion = (live?['activeProbeVersion'] as num?)?.toInt();
     final activeDisplayEvidence =
@@ -118,6 +131,22 @@ class HCVDisplayRiskFusion {
         refreshBand >= 0.15 &&
         (fineGrid >= 0.75 || moire >= 0.40);
 
+    // This signature is taken from the two uploaded monitor certificates. It
+    // requires a temporal refresh pattern, not a single bright or flat frame.
+    final liveTemporalBandSignature = !reflectedRealityEvidence &&
+        live != null &&
+        liveScore != null &&
+        framesAnalyzed >= 24 &&
+        localFlicker >= 0.24 &&
+        refreshBand >= 0.15 &&
+        (globalFlicker >= 0.08 || pairedFlickerTrace) &&
+        (displayBandTrace || horizontalRefreshBands);
+    final activeTemporalPhysicalProof = rawActiveDisplayEvidence &&
+        activeDisplayEvidence &&
+        liveTemporalBandSignature;
+    final planarTemporalPhysicalProof =
+        planarSceneEvidence && liveTemporalBandSignature;
+
     // Diagnostic labels only; they do not decide the verdict.
     final diagnosticEmissiveTemporal = localFlicker >= 0.55 &&
         refreshBand >= 0.12 &&
@@ -152,17 +181,46 @@ class HCVDisplayRiskFusion {
         persistentPattern >= 0.95 &&
         dynamicChallenge <= 0.10;
 
+    final activePlanarTemporal = !reflectedRealityEvidence &&
+        rawActiveDisplayEvidence &&
+        planarSceneEvidence &&
+        localFlicker >= 0.32 &&
+        refreshBand >= 0.13 &&
+        persistentPattern >= 0.58;
+
     final liveModerate = live != null &&
         liveScore != null &&
         (liveTemporal ||
+            activePlanarTemporal ||
             activeDisplayEvidence ||
             activeProbeNonConclusive ||
             liveUnifiedDisplaySignature ||
-            liveHighRefreshSignature);
+            liveHighRefreshSignature ||
+            liveTemporalBandSignature);
 
     if (liveModerate) evidenceSources.add('LIVE_PREVIEW');
-    if (activeDisplayEvidence || activeProbeNonConclusive) {
+    if (liveTemporalBandSignature) {
+      evidenceSources.add('LIVE_TEMPORAL_BANDS');
+      reasons.add('LIVE_TEMPORAL_REFRESH_BAND_SIGNATURE');
+    }
+    if (planarSceneEvidence) evidenceSources.add('PLANAR_GEOMETRY');
+    if (activeTemporalPhysicalProof || planarTemporalPhysicalProof) {
+      strongSources.add('PHYSICAL_DISPLAY_COMBINATION');
+      reasons.add(
+        activeTemporalPhysicalProof
+            ? 'ACTIVE_ILLUMINATION_AND_TEMPORAL_BANDS_CONFIRMED'
+            : 'PLANAR_GEOMETRY_AND_TEMPORAL_BANDS_CONFIRMED',
+      );
+    }
+    if (activeDisplayEvidence ||
+        rawActiveDisplayEvidence ||
+        activeProbeNonConclusive) {
       evidenceSources.add('ACTIVE_ILLUMINATION');
+    }
+    if (activePlanarTemporal) {
+      evidenceSources.add('PLANAR_PARALLAX');
+      strongSources.add('ACTIVE_PLANAR_TEMPORAL');
+      reasons.add('ACTIVE_ELECTRONIC_PLANAR_TEMPORAL_CONFIRMED');
     }
     if (reflectedRealityEvidence) {
       reasons.add('ACTIVE_REFLECTED_REALITY_EVIDENCE');
@@ -210,11 +268,9 @@ class HCVDisplayRiskFusion {
       final score = (analysis['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final signals = _signals(analysis);
       final structural = signals['structuralDisplayTrace'] == true ||
-          signals['strongDisplayTrace'] == true ||
           signals['confirmedDisplayTrace'] == true;
       if (score >= 70 && structural) passiveStrong = true;
-      if (!reflectedRealityEvidence &&
-          ((score >= 45 && structural) || score >= 70)) {
+      if (!reflectedRealityEvidence && score >= 45 && structural) {
         passiveModerate = true;
       }
     }
@@ -230,34 +286,111 @@ class HCVDisplayRiskFusion {
     final mlClass = ml?['predictedClass']?.toString() ?? '';
     final mlConfidence = (ml?['predictedClassConfidence'] as num?)?.toDouble();
     final mlSaysScreen = mlScore != null && mlClass.startsWith('SCREEN_');
+    final mlSaysReality = mlScore != null && mlClass.startsWith('REALITY_');
     final mlStrong = mlSaysScreen &&
         mlScore >= 92 &&
         (mlConfidence == null || mlConfidence >= 0.78);
-    final mlModerate = !reflectedRealityEvidence &&
-        mlSaysScreen &&
-        mlScore >= 88 &&
-        (mlConfidence == null || mlConfidence >= 0.70);
+    final mlModerate = mlStrong ||
+        (!reflectedRealityEvidence &&
+            mlSaysScreen &&
+            mlScore >= 88 &&
+            (mlConfidence == null || mlConfidence >= 0.70));
+    final mlRealityStrong =
+        mlSaysReality && (mlConfidence ?? 0.0) >= 0.90 && mlScore <= 2;
+
     if (mlModerate) evidenceSources.add('ML_SCREEN_CLASS');
     if (mlStrong) {
       strongSources.add('ML_SCREEN_CLASS');
       reasons.add('ML_SCREEN_HIGH_CONFIDENCE');
+      if (reflectedRealityEvidence) {
+        reasons.add('ML_SCREEN_AND_REFLECTED_REALITY_CONFLICT');
+      }
     } else if (mlModerate) {
       reasons.add('ML_SCREEN_MODERATE_CONFIDENCE');
     }
+    if (mlRealityStrong) {
+      reasons.add('ML_REALITY_HIGH_CONFIDENCE');
+    }
 
-    final hasIndependentCorroboration =
-        strongSources.isNotEmpty && evidenceSources.length >= 2;
+    final liveGeometryRaw = live?['geometryChallenge'];
+    final liveGeometry =
+        liveGeometryRaw is Map ? liveGeometryRaw : const <String, dynamic>{};
+    final geometrySceneClass =
+        liveGeometry['sceneClass']?.toString() ?? 'UNKNOWN';
+    final geometryReality =
+        reflectedRealityEvidence || geometrySceneClass == 'REALITY';
+    final geometryPlanar = geometrySceneClass == 'PLANAR';
+
+    final strongDisplayFamilies = <String>{};
+    if (liveTemporal) strongDisplayFamilies.add('LIVE_TEMPORAL');
+    if (activeDisplayEvidence) {
+      strongDisplayFamilies.add('ACTIVE_ILLUMINATION');
+    }
+    if (passiveStrong) strongDisplayFamilies.add('STATIC_OPTICAL');
+    if (mlStrong) strongDisplayFamilies.add('ML_SCREEN_CLASS');
+    if (activePlanarTemporal) {
+      strongDisplayFamilies.add('ACTIVE_ILLUMINATION');
+      strongDisplayFamilies.add('PLANAR_GEOMETRY');
+      strongDisplayFamilies.add('LIVE_TEMPORAL');
+    }
+
+    final hasIndependentCorroboration = strongDisplayFamilies.length >= 2;
     final hasAnyEvidence = evidenceSources.isNotEmpty;
     final liveNotAnalyzed = live == null ||
         liveScore == null ||
         live?['analysisStatus'] == 'NOT_ANALYZED';
 
+    final liveReason = live?['reason']?.toString() ?? '';
+    final signedGeometricReality = live != null &&
+        live['sceneClass'] == 'REALITY' &&
+        live['displayRiskDecision'] == 'NO_DISPLAY_EVIDENCE' &&
+        (liveReason.contains('MULTI_DEPTH_PARALLAX_DETECTED') ||
+            liveReason.contains(
+                'GEOMETRIC_REALITY_OVERRIDES_PLANAR_DISPLAY_HYPOTHESIS'));
+    final confirmedDisplayEvidence =
+        liveTemporal || activeDisplayEvidence || mlStrong;
+
     late final String decision;
     late final int score;
-    if (hasIndependentCorroboration) {
+    if (signedGeometricReality && !confirmedDisplayEvidence) {
+      decision = 'NO_DISPLAY_EVIDENCE';
+      score = min(rawScore, 20);
+      evidenceSources.remove('STATIC_OPTICAL');
+      strongSources.remove('STATIC_OPTICAL');
+      reasons.remove('STATIC_STRUCTURE_CONFIRMED');
+      reasons.remove('STATIC_SCORE_UNCORROBORATED');
+      reasons.add(
+          'SIGNED_GEOMETRIC_REALITY_OVERRIDES_UNCORROBORATED_DISPLAY_SIGNALS');
+    } else if (hasIndependentCorroboration) {
       decision = 'STRONG_DISPLAY_RISK';
       score = max(rawScore, 70).clamp(70, 100).toInt();
-    } else if (hasAnyEvidence) {
+    } else if (mlStrong && geometryReality) {
+      decision = 'NON_CONCLUSIVE';
+      score = max(45, min(rawScore, 69));
+      reasons.add('ML_GEOMETRY_CONFLICT');
+    } else if (activeDisplayEvidence && geometryReality) {
+      decision = 'NON_CONCLUSIVE';
+      score = max(45, min(rawScore, 69));
+      reasons.add('ACTIVE_DISPLAY_GEOMETRY_CONFLICT');
+    } else if (mlRealityStrong) {
+      if (geometryReality && !hasAnyEvidence && !activeDisplayEvidence) {
+        decision = 'NO_DISPLAY_EVIDENCE';
+        score = min(rawScore, 20);
+        reasons.add('ML_REALITY_AND_GEOMETRY_AGREE');
+      } else if (geometryPlanar || hasAnyEvidence || activeDisplayEvidence) {
+        decision = 'NON_CONCLUSIVE';
+        score = 45;
+        reasons.add('ML_REALITY_REQUIRES_INDEPENDENT_CORROBORATION');
+      } else if (liveNotAnalyzed || activeChallengeIndeterminate) {
+        decision = 'NON_CONCLUSIVE';
+        score = 45;
+        reasons.add('DISPLAY_CLASSIFICATION_NOT_RESOLVED');
+      } else {
+        decision = 'NO_DISPLAY_EVIDENCE';
+        score = min(rawScore, 20);
+        reasons.add('ML_REALITY_UNOPPOSED');
+      }
+    } else if (hasAnyEvidence || activeDisplayEvidence) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
     } else if (liveNotAnalyzed || activeChallengeIndeterminate) {

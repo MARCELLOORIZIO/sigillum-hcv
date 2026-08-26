@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class HCVPackage {
   Future<String> createPackage({
@@ -115,4 +116,68 @@ class HCVPackage {
 
     return Directory.systemTemp;
   }
+  Future<String> createPhotoPackage({
+    required String photoPath,
+    required String hcvPath,
+  }) async {
+    final photoFile = File(photoPath);
+    final hcvFile = File(hcvPath);
+
+    if (!await photoFile.exists()) {
+      throw Exception('Photo file does not exist');
+    }
+    if (!await hcvFile.exists()) {
+      throw Exception('HCV file does not exist');
+    }
+
+    final photoBytes = await photoFile.readAsBytes();
+    final hcvBytes = await hcvFile.readAsBytes();
+    final contentSha256 = sha256.convert(photoBytes).toString();
+    final certificateSha256 = sha256.convert(hcvBytes).toString();
+    final createdAt = DateTime.now().toUtc().toIso8601String();
+    final originalName = p.basename(photoPath);
+    final extension = p.extension(originalName).toLowerCase();
+    final safeExtension = extension == '.png' ? '.png' : '.jpg';
+    final contentFile = 'photo$safeExtension';
+
+    final packageIdSource =
+        '$contentSha256|$certificateSha256|$createdAt';
+    final packageId =
+        sha256.convert(utf8.encode(packageIdSource)).toString();
+
+    final meta = <String, dynamic>{
+      'type': 'HCV_PACKAGE',
+      'version': 3,
+      'mediaType': 'photo',
+      'contentFile': contentFile,
+      'certificateFile': 'certificate.hcv',
+      'originalContentName': originalName,
+      'contentSha256': contentSha256,
+      'certificateSha256': certificateSha256,
+      'hashAlgorithm': 'SHA256',
+      'certificateFormat': 'HCV',
+      'createdAt': createdAt,
+      'packageId': packageId,
+    };
+
+    final archive = Archive();
+    archive.addFile(ArchiveFile(contentFile, photoBytes.length, photoBytes));
+    archive.addFile(
+      ArchiveFile('certificate.hcv', hcvBytes.length, hcvBytes),
+    );
+    final metaBytes = utf8.encode(jsonEncode(meta));
+    archive.addFile(ArchiveFile('meta.json', metaBytes.length, metaBytes));
+
+    final zipBytes = ZipEncoder().encode(archive);
+    if (zipBytes == null) {
+      throw Exception('Unable to create HCV photo package');
+    }
+
+    final outputDir = await getApplicationDocumentsDirectory();
+    final base = p.basenameWithoutExtension(photoPath);
+    final output = File(p.join(outputDir.path, '$base.hcvpack'));
+    await output.writeAsBytes(zipBytes, flush: true);
+    return output.path;
+  }
+
 }

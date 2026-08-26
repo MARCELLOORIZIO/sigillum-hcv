@@ -20,14 +20,14 @@ class HCVTextIntegritySnapshot {
   final int characterLength;
 
   Map<String, dynamic> toJson() => {
-        'type': 'SIGILLUM_TEXT_INTEGRITY_V1',
-        'exactTextSha256': exactTextSha256,
-        'socialCanonicalSha256': socialCanonicalSha256,
-        'utf8ByteLength': utf8ByteLength,
-        'characterLength': characterLength,
-        'normalization': 'WHITESPACE_ONLY_V1',
-        'hashAlgorithm': 'SHA256',
-      };
+    'type': 'SIGILLUM_TEXT_INTEGRITY_V1',
+    'exactTextSha256': exactTextSha256,
+    'socialCanonicalSha256': socialCanonicalSha256,
+    'utf8ByteLength': utf8ByteLength,
+    'characterLength': characterLength,
+    'normalization': 'WHITESPACE_ONLY_V1',
+    'hashAlgorithm': 'SHA256',
+  };
 }
 
 enum HCVTextMatchKind {
@@ -55,15 +55,16 @@ class HCVTextMatchResult {
   final String? expectedSocialCanonicalHash;
 
   bool get verified =>
-      kind == HCVTextMatchKind.exact ||
-      kind == HCVTextMatchKind.formattingOnly;
+      kind == HCVTextMatchKind.exact || kind == HCVTextMatchKind.formattingOnly;
 }
 
 class HCVTextIntegrity {
   HCVTextIntegrity._();
 
-  static final RegExp hcvIdPattern =
-      RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])', caseSensitive: false);
+  static final RegExp hcvIdPattern = RegExp(
+    r'HCV-[A-F0-9]{16}(?![A-F0-9])',
+    caseSensitive: false,
+  );
 
   static String normalizeOriginal(String text) {
     return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trim();
@@ -89,8 +90,9 @@ class HCVTextIntegrity {
     final bytes = utf8.encode(original);
     return HCVTextIntegritySnapshot(
       exactTextSha256: sha256.convert(bytes).toString(),
-      socialCanonicalSha256:
-          sha256.convert(utf8.encode(socialCanonical(original))).toString(),
+      socialCanonicalSha256: sha256
+          .convert(utf8.encode(socialCanonical(original)))
+          .toString(),
       utf8ByteLength: bytes.length,
       characterLength: original.runes.length,
     );
@@ -133,7 +135,9 @@ class HCVTextIntegrity {
     final canonicalHash = socialCanonicalSha256(textWithoutMarker);
 
     final meta = certificate['meta'];
-    final hcvId = meta is Map ? extractHcvId(meta['hcvId']?.toString() ?? '') : null;
+    final hcvId = meta is Map
+        ? extractHcvId(meta['hcvId']?.toString() ?? '')
+        : null;
 
     final content = certificate['content'];
     final contentHash = content is Map ? content['hash']?.toString() : null;
@@ -260,7 +264,9 @@ class HCVTextPackage {
           certificateBytes,
         ),
       );
-    final metaBytes = utf8.encode(const JsonEncoder.withIndent('  ').convert(meta));
+    final metaBytes = utf8.encode(
+      const JsonEncoder.withIndent('  ').convert(meta),
+    );
     archive.addFile(ArchiveFile('meta.json', metaBytes.length, metaBytes));
 
     final encoded = ZipEncoder().encode(archive);
@@ -268,7 +274,8 @@ class HCVTextPackage {
       throw Exception('Errore creazione HCVPACK testo');
     }
 
-    final directory = outputDirectory ?? await HCVTextArtifactStore.outputDirectory();
+    final directory =
+        outputDirectory ?? await HCVTextArtifactStore.outputDirectory();
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
@@ -291,7 +298,11 @@ class HCVTextPackage {
     ArchiveFile? certificateEntry;
     ArchiveFile? metaEntry;
     for (final entry in archive.files) {
-      final name = entry.name.replaceAll('\\', '/').split('/').last.toLowerCase();
+      final name = entry.name
+          .replaceAll('\\', '/')
+          .split('/')
+          .last
+          .toLowerCase();
       if (!entry.isFile) continue;
       if (name == 'original.txt') textEntry = entry;
       if (name == 'certificate.hcv') certificateEntry = entry;
@@ -307,7 +318,9 @@ class HCVTextPackage {
     Map<String, dynamic>? meta;
     if (metaEntry != null) {
       try {
-        final decoded = jsonDecode(utf8.decode(List<int>.from(metaEntry.content as List)));
+        final decoded = jsonDecode(
+          utf8.decode(List<int>.from(metaEntry.content as List)),
+        );
         if (decoded is Map<String, dynamic>) meta = decoded;
       } catch (_) {}
     }
@@ -320,7 +333,8 @@ class HCVTextPackage {
         throw Exception('Testo HCVPACK alterato');
       }
       if (expectedCertificateHash != null &&
-          sha256.convert(certificateBytes).toString() != expectedCertificateHash) {
+          sha256.convert(certificateBytes).toString() !=
+              expectedCertificateHash) {
         throw Exception('Certificato HCVPACK alterato');
       }
     }

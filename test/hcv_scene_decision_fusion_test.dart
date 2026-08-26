@@ -81,7 +81,7 @@ void main() {
       expect(result.sceneClass, 'UNKNOWN');
     });
 
-    test('weak parallax conflicting with display cues stays non-conclusive', () {
+    test('geometry/display conflict stays non-conclusive', () {
       final result = HCVSceneDecisionFusion.fuse(
         illumination: _displayLikeIllumination(),
         geometry: _geometry(
@@ -97,6 +97,8 @@ void main() {
 
       expect(result.decision, 'NON_CONCLUSIVE');
       expect(result.sceneClass, 'UNKNOWN');
+      expect(result.displayEvidence, isTrue);
+      expect(result.realityEvidence, isTrue);
       expect(result.reasons,
           contains('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT'));
     });

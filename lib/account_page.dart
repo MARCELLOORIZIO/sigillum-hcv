@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'hcv_auth_service.dart';
@@ -35,6 +37,8 @@ class _AccountPageState extends State<AccountPage> {
   bool _busy = false;
   bool _obscurePassword = true;
   String? _error;
+  String? _successAction;
+  Timer? _successTimer;
 
   static const Map<String, Map<String, String>> _copy = {
     'it': {
@@ -65,17 +69,13 @@ class _AccountPageState extends State<AccountPage> {
       'devices': 'DISPOSITIVI COLLEGATI',
       'deviceCount': 'Dispositivi',
       'sessionExpires': 'Scadenza sessione',
-      'accessExplanation':
-          'L’accesso collega il profilo online alla chiave sicura di questo dispositivo. Il token di sessione è custodito nel Keychain o nel Keystore.',
-      'accountActionHelp':
-          'SALVA NOME E LINGUA aggiorna solo il profilo. Per registrarti inserisci nome, email e password, poi tocca CREA ACCOUNT ONLINE.',
+      'accessExplanation': 'L’accesso collega il profilo online alla chiave sicura di questo dispositivo. Il token di sessione è custodito nel Keychain o nel Keystore.',
+      'accountActionHelp': 'SALVA NOME E LINGUA aggiorna solo il profilo. Per registrarti inserisci nome, email e password, poi tocca CREA ACCOUNT ONLINE.',
       'privacy': 'Privacy e dati',
       'deleteAccount': 'ELIMINA ACCOUNT E DATI',
-      'deleteInfo':
-          'L’eliminazione rimuove account, sessioni, dispositivi e collegamenti KYC. I certificati HCV già firmati restano immutabili e verificabili.',
+      'deleteInfo': 'L’eliminazione rimuove account, sessioni, dispositivi e collegamenti KYC. I certificati HCV già firmati restano immutabili e verificabili.',
       'deleteConfirmTitle': 'Elimina account',
-      'deleteConfirmBody':
-          'Inserisci la password per eliminare definitivamente l’account. L’operazione non può essere annullata.',
+      'deleteConfirmBody': 'Inserisci la password per eliminare definitivamente l’account. L’operazione non può essere annullata.',
       'cancel': 'ANNULLA',
       'confirmDelete': 'ELIMINA',
       'support': 'SUPPORTO E PRIVACY',
@@ -126,17 +126,13 @@ class _AccountPageState extends State<AccountPage> {
       'devices': 'CONNECTED DEVICES',
       'deviceCount': 'Devices',
       'sessionExpires': 'Session expires',
-      'accessExplanation':
-          'Access links the online profile to this device secure key. The session token is stored in Keychain or Keystore.',
-      'accountActionHelp':
-          'SAVE NAME AND LANGUAGE only updates the profile. To register, enter name, email and password, then tap CREATE ONLINE ACCOUNT.',
+      'accessExplanation': 'Access links the online profile to this device secure key. The session token is stored in Keychain or Keystore.',
+      'accountActionHelp': 'SAVE NAME AND LANGUAGE only updates the profile. To register, enter name, email and password, then tap CREATE ONLINE ACCOUNT.',
       'privacy': 'Privacy and data',
       'deleteAccount': 'DELETE ACCOUNT AND DATA',
-      'deleteInfo':
-          'Deletion removes the account, sessions, devices and KYC links. Existing signed HCV certificates remain immutable and verifiable.',
+      'deleteInfo': 'Deletion removes the account, sessions, devices and KYC links. Existing signed HCV certificates remain immutable and verifiable.',
       'deleteConfirmTitle': 'Delete account',
-      'deleteConfirmBody':
-          'Enter your password to permanently delete the account. This cannot be undone.',
+      'deleteConfirmBody': 'Enter your password to permanently delete the account. This cannot be undone.',
       'cancel': 'CANCEL',
       'confirmDelete': 'DELETE',
       'support': 'SUPPORT AND PRIVACY',
@@ -186,14 +182,11 @@ class _AccountPageState extends State<AccountPage> {
       'devices': 'DISPOSITIVOS CONECTADOS',
       'deviceCount': 'Dispositivos',
       'sessionExpires': 'La sesión vence',
-      'accessExplanation':
-          'El acceso vincula el perfil en línea con la clave segura del dispositivo. El token se guarda en Keychain o Keystore.',
-      'accountActionHelp':
-          'GUARDAR NOMBRE E IDIOMA solo actualiza el perfil. Para registrarte introduce nombre, correo y contraseña y toca CREAR CUENTA EN LÍNEA.',
+      'accessExplanation': 'El acceso vincula el perfil en línea con la clave segura del dispositivo. El token se guarda en Keychain o Keystore.',
+      'accountActionHelp': 'GUARDAR NOMBRE E IDIOMA solo actualiza el perfil. Para registrarte introduce nombre, correo y contraseña y toca CREAR CUENTA EN LÍNEA.',
       'privacy': 'Privacidad y datos',
       'deleteAccount': 'ELIMINAR CUENTA Y DATOS',
-      'deleteInfo':
-          'La eliminación borra cuenta, sesiones, dispositivos y vínculos KYC. Los certificados HCV firmados siguen siendo verificables.',
+      'deleteInfo': 'La eliminación borra cuenta, sesiones, dispositivos y vínculos KYC. Los certificados HCV firmados siguen siendo verificables.',
       'deleteConfirmTitle': 'Eliminar cuenta',
       'deleteConfirmBody':
           'Introduce la contraseña para eliminar definitivamente la cuenta.',
@@ -246,14 +239,11 @@ class _AccountPageState extends State<AccountPage> {
       'devices': 'ПОДКЛЮЧЕННЫЕ УСТРОЙСТВА',
       'deviceCount': 'Устройства',
       'sessionExpires': 'Срок сессии',
-      'accessExplanation':
-          'Вход связывает онлайн-профиль с защищенным ключом устройства. Токен хранится в Keychain или Keystore.',
-      'accountActionHelp':
-          'СОХРАНИТЬ ИМЯ И ЯЗЫК обновляет только профиль. Для регистрации введите имя, email и пароль и нажмите СОЗДАТЬ ОНЛАЙН-АККАУНТ.',
+      'accessExplanation': 'Вход связывает онлайн-профиль с защищенным ключом устройства. Токен хранится в Keychain или Keystore.',
+      'accountActionHelp': 'СОХРАНИТЬ ИМЯ И ЯЗЫК обновляет только профиль. Для регистрации введите имя, email и пароль и нажмите СОЗДАТЬ ОНЛАЙН-АККАУНТ.',
       'privacy': 'Конфиденциальность и данные',
       'deleteAccount': 'УДАЛИТЬ АККАУНТ И ДАННЫЕ',
-      'deleteInfo':
-          'Удаляются аккаунт, сессии, устройства и связи KYC. Подписанные сертификаты HCV остаются проверяемыми.',
+      'deleteInfo': 'Удаляются аккаунт, сессии, устройства и связи KYC. Подписанные сертификаты HCV остаются проверяемыми.',
       'deleteConfirmTitle': 'Удалить аккаунт',
       'deleteConfirmBody': 'Введите пароль для окончательного удаления.',
       'cancel': 'ОТМЕНА',
@@ -293,6 +283,7 @@ class _AccountPageState extends State<AccountPage> {
 
   @override
   void dispose() {
+    _successTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -318,7 +309,8 @@ class _AccountPageState extends State<AccountPage> {
         _identity = identity;
         _account = accountMap;
         _sessionExpiresAt = envelope?['expiresAt']?.toString() ?? '';
-        _nameController.text = accountMap['creatorName']?.toString() ??
+        _nameController.text =
+            accountMap['creatorName']?.toString() ??
             identity['creatorName']?.toString() ??
             '';
         if (accountMap.isNotEmpty) {
@@ -336,20 +328,27 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  Future<void> _run(String actionId, Future<void> Function() action) async {
     if (_busy) return;
+    _successTimer?.cancel();
     setState(() {
       _busy = true;
       _error = null;
+      _successAction = null;
     });
+    var succeeded = false;
     try {
       await action();
+      succeeded = true;
     } on HCVAuthException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        if (succeeded) _markActionSuccess(actionId);
+      }
     }
   }
 
@@ -373,7 +372,7 @@ class _AccountPageState extends State<AccountPage> {
 
   Future<void> _register() async {
     if (!_validateCredentials(requireName: true)) return;
-    await _run(() async {
+    await _run('register', () async {
       final envelope = await _auth.register(
         email: _emailController.text,
         password: _passwordController.text,
@@ -388,7 +387,7 @@ class _AccountPageState extends State<AccountPage> {
 
   Future<void> _login() async {
     if (!_validateCredentials()) return;
-    await _run(() async {
+    await _run('login', () async {
       final envelope = await _auth.login(
         email: _emailController.text,
         password: _passwordController.text,
@@ -406,8 +405,9 @@ class _AccountPageState extends State<AccountPage> {
 
   void _applyEnvelope(Map<String, dynamic> envelope) {
     final raw = envelope['account'];
-    final account =
-        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final account = raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : <String, dynamic>{};
     if (!mounted) return;
     final returnedExpiry = envelope['expiresAt']?.toString() ?? '';
     setState(() {
@@ -425,7 +425,7 @@ class _AccountPageState extends State<AccountPage> {
       _showMessage(_t('nameRequired'));
       return;
     }
-    await _run(() async {
+    await _run('saveProfile', () async {
       if (_signedIn) {
         final envelope = await _auth.updateProfile(creatorName: name);
         _applyEnvelope(envelope);
@@ -445,7 +445,7 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Future<void> _logout({bool allDevices = false}) async {
-    await _run(() async {
+    await _run(allDevices ? 'logoutAll' : 'logout', () async {
       await _auth.logout(allDevices: allDevices);
       if (!mounted) return;
       setState(() {
@@ -502,7 +502,7 @@ class _AccountPageState extends State<AccountPage> {
       _showMessage(_t('passwordRequired'));
       return;
     }
-    await _run(() async {
+    await _run('changePassword', () async {
       await _auth.changePassword(
         currentPassword: values[0],
         newPassword: values[1],
@@ -512,7 +512,7 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Future<void> _showDevices() async {
-    await _run(() async {
+    await _run('devices', () async {
       final devices = await _auth.listDevices();
       if (!mounted) return;
       await showDialog<void>(
@@ -595,7 +595,7 @@ class _AccountPageState extends State<AccountPage> {
     );
     password.dispose();
     if (confirmedPassword == null || confirmedPassword.isEmpty) return;
-    await _run(() async {
+    await _run('deleteAccount', () async {
       await _auth.deleteAccount(password: confirmedPassword);
       final identity = await HCVIdentity().loadIdentity();
       if (!mounted) return;
@@ -613,8 +613,74 @@ class _AccountPageState extends State<AccountPage> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _markActionSuccess(String actionId) {
+    if (!mounted) return;
+    _successTimer?.cancel();
+    setState(() => _successAction = actionId);
+    _successTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && _successAction == actionId) {
+        setState(() => _successAction = null);
+      }
+    });
+  }
+
+  bool _actionSucceeded(String actionId) => _successAction == actionId;
+
+  IconData _actionIcon(String actionId, IconData normalIcon) =>
+      _actionSucceeded(actionId) ? Icons.check_circle_rounded : normalIcon;
+
+  ButtonStyle? _filledSuccessStyle(String actionId) {
+    if (!_actionSucceeded(actionId)) return null;
+    return FilledButton.styleFrom(
+      backgroundColor: SigillumTheme.verified,
+      foregroundColor: SigillumTheme.ink,
+    );
+  }
+
+  ButtonStyle? _outlinedSuccessStyle(String actionId) {
+    if (!_actionSucceeded(actionId)) return null;
+    return OutlinedButton.styleFrom(
+      backgroundColor: SigillumTheme.verified,
+      foregroundColor: SigillumTheme.ink,
+      side: const BorderSide(color: SigillumTheme.verified),
+    );
+  }
+
+  ButtonStyle? _textSuccessStyle(String actionId) {
+    if (!_actionSucceeded(actionId)) return null;
+    return TextButton.styleFrom(
+      backgroundColor: SigillumTheme.verified,
+      foregroundColor: SigillumTheme.ink,
+    );
+  }
+
+  Widget _successBanner(String label) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: SigillumTheme.verified,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: SigillumTheme.ink),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: SigillumTheme.ink,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -644,8 +710,9 @@ class _AccountPageState extends State<AccountPage> {
 
     final localKycStatus = _identity['kycStatus']?.toString() ?? 'not_started';
     final onlineKycStatus = _account['kycStatus']?.toString();
-    final kycStatus =
-        onlineKycStatus?.isNotEmpty == true ? onlineKycStatus! : localKycStatus;
+    final kycStatus = onlineKycStatus?.isNotEmpty == true
+        ? onlineKycStatus!
+        : localKycStatus;
     final verified = kycStatus == 'verified';
     final creatorName = _nameController.text.trim();
 
@@ -659,8 +726,8 @@ class _AccountPageState extends State<AccountPage> {
             subtitle: _signedIn
                 ? '${_account['email'] ?? ''} · ${_t('active')}'
                 : verified
-                    ? _t('verifiedIdentity')
-                    : _t('localProfile'),
+                ? _t('verifiedIdentity')
+                : _t('localProfile'),
             verified: verified || _signedIn,
           ),
           if (_busy) ...[
@@ -709,7 +776,8 @@ class _AccountPageState extends State<AccountPage> {
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _busy ? null : _saveProfile,
-                icon: const Icon(Icons.save_outlined),
+                style: _filledSuccessStyle('saveProfile'),
+                icon: Icon(_actionIcon('saveProfile', Icons.save_outlined)),
                 label: Text(_t('save')),
               ),
             ],
@@ -742,8 +810,10 @@ class _AccountPageState extends State<AccountPage> {
                           ),
                         );
                         await _loadAccount();
+                        _markActionSuccess('identity');
                       },
-                icon: const Icon(Icons.badge_outlined),
+                style: _outlinedSuccessStyle('identity'),
+                icon: Icon(_actionIcon('identity', Icons.badge_outlined)),
                 label: Text(_t('manageIdentity')),
               ),
             ],
@@ -769,8 +839,9 @@ class _AccountPageState extends State<AccountPage> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: SigillumTheme.danger,
                   side: BorderSide(
-                    color:
-                        _signedIn ? SigillumTheme.danger : SigillumTheme.muted,
+                    color: _signedIn
+                        ? SigillumTheme.danger
+                        : SigillumTheme.muted,
                   ),
                 ),
               ),
@@ -794,6 +865,14 @@ class _AccountPageState extends State<AccountPage> {
 
   List<Widget> _signedOutSecurityChildren() {
     return [
+      if (_successAction == 'logout' ||
+          _successAction == 'logoutAll' ||
+          _successAction == 'deleteAccount') ...[
+        _successBanner(
+          _successAction == 'deleteAccount' ? _t('deleted') : _t('loggedOut'),
+        ),
+        const SizedBox(height: 10),
+      ],
       _DetailRow(label: _t('session'), value: _t('notActive')),
       const SizedBox(height: 6),
       Text(
@@ -848,13 +927,15 @@ class _AccountPageState extends State<AccountPage> {
       const SizedBox(height: 12),
       FilledButton.icon(
         onPressed: _busy ? null : _register,
-        icon: const Icon(Icons.person_add_alt_1_rounded),
+        style: _filledSuccessStyle('register'),
+        icon: Icon(_actionIcon('register', Icons.person_add_alt_1_rounded)),
         label: Text(_t('createAccount')),
       ),
       const SizedBox(height: 10),
       OutlinedButton.icon(
         onPressed: _busy ? null : _login,
-        icon: const Icon(Icons.login_rounded),
+        style: _outlinedSuccessStyle('login'),
+        icon: Icon(_actionIcon('login', Icons.login_rounded)),
         label: Text(_t('login')),
       ),
     ];
@@ -862,9 +943,17 @@ class _AccountPageState extends State<AccountPage> {
 
   List<Widget> _signedInSecurityChildren() {
     return [
+      if (_successAction == 'register' || _successAction == 'login') ...[
+        _successBanner(
+          _successAction == 'register' ? _t('registered') : _t('loggedIn'),
+        ),
+        const SizedBox(height: 10),
+      ],
       _DetailRow(label: _t('session'), value: _t('active')),
       _DetailRow(
-          label: _t('email'), value: _account['email']?.toString() ?? '—'),
+        label: _t('email'),
+        value: _account['email']?.toString() ?? '—',
+      ),
       _DetailRow(
         label: _t('deviceCount'),
         value: _account['deviceCount']?.toString() ?? '1',
@@ -876,25 +965,29 @@ class _AccountPageState extends State<AccountPage> {
       const SizedBox(height: 8),
       OutlinedButton.icon(
         onPressed: _busy ? null : _showDevices,
-        icon: const Icon(Icons.devices_rounded),
+        style: _outlinedSuccessStyle('devices'),
+        icon: Icon(_actionIcon('devices', Icons.devices_rounded)),
         label: Text(_t('devices')),
       ),
       const SizedBox(height: 10),
       OutlinedButton.icon(
         onPressed: _busy ? null : _changePassword,
-        icon: const Icon(Icons.password_rounded),
+        style: _outlinedSuccessStyle('changePassword'),
+        icon: Icon(_actionIcon('changePassword', Icons.password_rounded)),
         label: Text(_t('changePassword')),
       ),
       const SizedBox(height: 10),
       FilledButton.icon(
         onPressed: _busy ? null : () => _logout(),
-        icon: const Icon(Icons.logout_rounded),
+        style: _filledSuccessStyle('logout'),
+        icon: Icon(_actionIcon('logout', Icons.logout_rounded)),
         label: Text(_t('logout')),
       ),
       const SizedBox(height: 10),
       TextButton.icon(
         onPressed: _busy ? null : () => _logout(allDevices: true),
-        icon: const Icon(Icons.phonelink_erase_rounded),
+        style: _textSuccessStyle('logoutAll'),
+        icon: Icon(_actionIcon('logoutAll', Icons.phonelink_erase_rounded)),
         label: Text(_t('logoutAll')),
       ),
     ];
@@ -955,8 +1048,9 @@ class _AccountSummary extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color:
-                        verified ? SigillumTheme.verified : SigillumTheme.muted,
+                    color: verified
+                        ? SigillumTheme.verified
+                        : SigillumTheme.muted,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1030,10 +1124,7 @@ class _DetailRow extends StatelessWidget {
             flex: 4,
             child: Text(
               label,
-              style: const TextStyle(
-                color: SigillumTheme.muted,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: SigillumTheme.muted, fontSize: 14),
             ),
           ),
           const SizedBox(width: 10),

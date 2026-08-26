@@ -21,10 +21,14 @@ void main() {
 
   test('subtitle actions remain readable and save captioned copy to Photos', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    expect(camera, contains('SALVA VIDEO SOTTOTITOLATO IN FOTO'));
+    final copy = File('lib/camera_ui_extended_copy.dart').readAsStringSync();
+    expect(camera, contains("_c('saveCaptionedPhotos')"));
+    expect(copy, contains("'saveCaptionedPhotos': 'SALVA VIDEO SOTTOTITOLATO IN FOTO'"));
     expect(camera, contains('minimumSize: const Size.fromHeight(64)'));
-    expect(camera, contains('Video SOTTOTITOLATO salvato in Foto'));
-    expect(camera, contains('File > Sul mio iPhone > Fotocamera Sigillum'));
+    expect(camera, contains("_c('captionedSavedPhotos')"));
+    expect(copy, contains("'captionedSavedPhotos': 'Video sottotitolato salvato in Foto'"));
+    expect(camera, contains("_c('filesPath')"));
+    expect(copy, contains("'filesPath': 'File > Sul mio iPhone > Fotocamera Sigillum'"));
   });
 
   test('speech uses app language and keeps most complete cumulative result', () {

@@ -7,7 +7,7 @@ def replace_regex(path_name: str, pattern: str, replacement: str, marker: str) -
     source = path.read_text()
     if marker in source:
         return
-    updated, count = re.subn(pattern, replacement, source, count=1, flags=re.S)
+    updated, count = re.subn(pattern, lambda _: replacement, source, count=1, flags=re.S)
     if count != 1:
         raise RuntimeError(
             f"{path_name}: expected one match for share handoff patch, found {count}"

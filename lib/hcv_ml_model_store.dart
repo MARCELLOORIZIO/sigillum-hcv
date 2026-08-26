@@ -69,10 +69,7 @@ class HCVMLModelStore {
     }
 
     final archive = ZipDecoder().decodeBytes(await source.readAsBytes());
-    final modelEntry = _firstFile(
-      archive,
-      (name) => name.endsWith('.tflite'),
-    );
+    final modelEntry = _firstFile(archive, (name) => name.endsWith('.tflite'));
     final labelsEntry = _firstFile(
       archive,
       (name) => name.endsWith('labels.json') || name == 'labels.json',
@@ -100,8 +97,10 @@ class HCVMLModelStore {
       throw Exception('labels.json non contiene classi valide');
     }
 
-    final manifestEntry =
-        _firstFile(archive, (name) => name == 'manifest.json');
+    final manifestEntry = _firstFile(
+      archive,
+      (name) => name == 'manifest.json',
+    );
     final manifest = <String, dynamic>{
       'type': 'SIGILLUM_LOCAL_MODEL_BUNDLE_V1',
       'installedAt': DateTime.now().toIso8601String(),

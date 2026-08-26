@@ -16,11 +16,7 @@ enum HCVRegistryFailureKind {
 }
 
 class HCVRegistryException implements Exception {
-  const HCVRegistryException(
-    this.kind,
-    this.message, {
-    this.statusCode,
-  });
+  const HCVRegistryException(this.kind, this.message, {this.statusCode});
 
   final HCVRegistryFailureKind kind;
   final String message;
@@ -53,6 +49,7 @@ class HCVRegistryRetryReport {
 class HCVRegistryService {
   static const _pendingUploadsKey = 'hcv_registry_pending_uploads_v1';
   static const _requestTimeout = Duration(seconds: 15);
+  static const _legacyReadBaseUrl = 'https://hcv-registry-server.onrender.com';
   static final RegExp _hcvIdPattern = RegExp(r'^HCV-[A-F0-9]{16}$');
 
   final String baseUrl;
@@ -106,8 +103,9 @@ class HCVRegistryService {
       final uri = Uri.parse('$baseUrl/api/certificate');
       final req = await client.postUrl(uri).timeout(_requestTimeout);
       req.headers.contentType = ContentType.json;
-      final sessionToken =
-          await HCVSecureStore.read('sigillum.auth.session.v1');
+      final sessionToken = await HCVSecureStore.read(
+        'sigillum.auth.session.v1',
+      );
       if (sessionToken == null || sessionToken.isEmpty) {
         throw const HCVRegistryException(
           HCVRegistryFailureKind.invalidResponse,
@@ -115,15 +113,9 @@ class HCVRegistryService {
           statusCode: 401,
         );
       }
-      req.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Bearer $sessionToken',
-      );
+      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $sessionToken');
 
-      req.write(jsonEncode({
-        'hcvId': hcvId,
-        'certificateRaw': rawCertificate,
-      }));
+      req.write(jsonEncode({'hcvId': hcvId, 'certificateRaw': rawCertificate}));
 
       final res = await req.close().timeout(_requestTimeout);
       final body = await utf8.decoder.bind(res).join().timeout(_requestTimeout);
@@ -192,10 +184,32 @@ class HCVRegistryService {
       );
     }
 
+    HCVRegistryException? primaryNotFound;
+    try {
+      return await _fetchCertificateFromBase(baseUrl, cleaned);
+    } on HCVRegistryException catch (e) {
+      if (e.kind != HCVRegistryFailureKind.notFound ||
+          baseUrl == _legacyReadBaseUrl) {
+        rethrow;
+      }
+      primaryNotFound = e;
+    }
+
+    try {
+      return await _fetchCertificateFromBase(_legacyReadBaseUrl, cleaned);
+    } on HCVRegistryException {
+      throw primaryNotFound!;
+    }
+  }
+
+  Future<Map<String, dynamic>> _fetchCertificateFromBase(
+    String registryBase,
+    String cleaned,
+  ) async {
     final client = HttpClient()..connectionTimeout = _requestTimeout;
 
     try {
-      final uri = Uri.parse('$baseUrl/api/certificate/$cleaned');
+      final uri = Uri.parse('$registryBase/api/certificate/$cleaned');
       final req = await client.getUrl(uri).timeout(_requestTimeout);
       final res = await req.close().timeout(_requestTimeout);
       final body = await utf8.decoder.bind(res).join().timeout(_requestTimeout);
@@ -366,9 +380,7 @@ class HCVRegistryService {
     }
   }
 
-  Future<void> _writePendingUploads(
-    List<Map<String, dynamic>> pending,
-  ) async {
+  Future<void> _writePendingUploads(List<Map<String, dynamic>> pending) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_pendingUploadsKey, jsonEncode(pending));
   }
@@ -389,11 +401,13 @@ class HCVRegistryService {
         deviceKeyFingerprint: deviceKeyFingerprint,
         publicKey: publicKey,
       );
-      req.write(jsonEncode({
-        'creatorId': creatorId,
-        'creatorName': creatorName,
-        ...proof,
-      }));
+      req.write(
+        jsonEncode({
+          'creatorId': creatorId,
+          'creatorName': creatorName,
+          ...proof,
+        }),
+      );
 
       final res = await req.close();
       final body = await utf8.decoder.bind(res).join();
@@ -405,7 +419,8 @@ class HCVRegistryService {
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
         throw Exception(
-            decoded['message'] ?? decoded['error'] ?? 'KYC non disponibile');
+          decoded['message'] ?? decoded['error'] ?? 'KYC non disponibile',
+        );
       }
 
       return decoded;
@@ -424,10 +439,14 @@ class HCVRegistryService {
       final uri = Uri.parse('$baseUrl/api/identity/kyc/recover');
       final req = await client.postUrl(uri);
       req.headers.contentType = ContentType.json;
-      req.write(jsonEncode(await _createDeviceKeyProof(
-        deviceKeyFingerprint: deviceKeyFingerprint,
-        publicKey: publicKey,
-      )));
+      req.write(
+        jsonEncode(
+          await _createDeviceKeyProof(
+            deviceKeyFingerprint: deviceKeyFingerprint,
+            publicKey: publicKey,
+          ),
+        ),
+      );
 
       final res = await req.close();
       final body = await utf8.decoder.bind(res).join();
@@ -437,9 +456,11 @@ class HCVRegistryService {
       }
       if (res.statusCode == 404) return decoded;
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw Exception(decoded['message'] ??
-            decoded['error'] ??
-            'Recupero KYC non disponibile');
+        throw Exception(
+          decoded['message'] ??
+              decoded['error'] ??
+              'Recupero KYC non disponibile',
+        );
       }
       return decoded;
     } finally {
@@ -467,11 +488,13 @@ class HCVRegistryService {
         deviceKeyFingerprint: deviceKeyFingerprint,
         publicKey: publicKey,
       );
-      req.write(jsonEncode({
-        'sessionId': cleanedSessionId,
-        'creatorId': creatorId,
-        ...proof,
-      }));
+      req.write(
+        jsonEncode({
+          'sessionId': cleanedSessionId,
+          'creatorId': creatorId,
+          ...proof,
+        }),
+      );
 
       final res = await req.close();
       final body = await utf8.decoder.bind(res).join();
@@ -480,9 +503,11 @@ class HCVRegistryService {
         throw Exception('Risposta associazione KYC non valida');
       }
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw Exception(decoded['message'] ??
-            decoded['error'] ??
-            'Associazione KYC non disponibile');
+        throw Exception(
+          decoded['message'] ??
+              decoded['error'] ??
+              'Associazione KYC non disponibile',
+        );
       }
       return decoded;
     } finally {
@@ -519,9 +544,8 @@ class HCVRegistryService {
     final client = HttpClient();
 
     try {
-      final uri = Uri.parse('$baseUrl/api/identity/kyc/status').replace(
-        queryParameters: {'sessionId': cleaned},
-      );
+      final uri = Uri.parse('$baseUrl/api/identity/kyc/status')
+          .replace(queryParameters: {'sessionId': cleaned});
       final req = await client.getUrl(uri);
       final res = await req.close();
       final body = await utf8.decoder.bind(res).join();
@@ -532,9 +556,9 @@ class HCVRegistryService {
       }
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw Exception(decoded['message'] ??
-            decoded['error'] ??
-            'Stato KYC non disponibile');
+        throw Exception(
+          decoded['message'] ?? decoded['error'] ?? 'Stato KYC non disponibile',
+        );
       }
 
       return decoded;

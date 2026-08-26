@@ -10,13 +10,12 @@ import 'package:share_plus/share_plus.dart';
 import 'hcv_engine.dart';
 import 'hcv_verifier.dart';
 import 'hcv_registry_service.dart';
+import 'hcv_text_integrity.dart';
+import 'text_social_verify_page.dart';
 import 'sigillum_localization.dart';
 
 class TextCertPage extends StatefulWidget {
-  const TextCertPage({
-    super.key,
-    this.languageCode = 'it',
-  });
+  const TextCertPage({super.key, this.languageCode = 'it'});
 
   final String languageCode;
 
@@ -34,6 +33,7 @@ class _TextCertPageState extends State<TextCertPage> {
   String? result;
   String? hcvPath;
   String? textPath;
+  String? packagePath;
   String? hcvId;
   String? verificationUrl;
   String? registryStatus;
@@ -46,18 +46,20 @@ class _TextCertPageState extends State<TextCertPage> {
   void initState() {
     super.initState();
     status = _t('textWritePrompt');
+    Future.microtask(() async {
+      try {
+        await registry.retryPendingUploads();
+      } catch (_) {}
+    });
+  }
+
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
   }
 
   Future<Directory> _outputDirectory() async {
-    final outputDir = Platform.isAndroid
-        ? Directory('/storage/emulated/0/Download')
-        : Directory.systemTemp;
-
-    if (!await outputDir.exists()) {
-      await outputDir.create(recursive: true);
-    }
-
-    return outputDir;
+    return HCVTextArtifactStore.outputDirectory();
   }
 
   Future<String> _renameTextWithHcvId({
@@ -101,6 +103,7 @@ class _TextCertPageState extends State<TextCertPage> {
   }
 
   Future<void> createTextCertificate() async {
+    _dismissKeyboard();
     final text = controller.text.trim();
 
     if (text.isEmpty) {
@@ -118,6 +121,7 @@ class _TextCertPageState extends State<TextCertPage> {
         result = null;
         hcvPath = null;
         textPath = null;
+        packagePath = null;
         hcvId = null;
         verificationUrl = null;
         registryStatus = null;
@@ -126,9 +130,7 @@ class _TextCertPageState extends State<TextCertPage> {
       final outputDir = await _outputDirectory();
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final textFile = File(
-        p.join(outputDir.path, 'hcv_text_$timestamp.txt'),
-      );
+      final textFile = File(p.join(outputDir.path, 'hcv_text_$timestamp.txt'));
 
       await textFile.writeAsString(text, encoding: utf8);
 
@@ -137,6 +139,8 @@ class _TextCertPageState extends State<TextCertPage> {
 
       final textBytes = await textFile.readAsBytes();
       final textHash = sha256.convert(textBytes).toString();
+      final textIntegrity = HCVTextIntegrity.fromText(text);
+      engine.setClaims({'textIntegrity': textIntegrity.toJson()});
 
       engine.setContent(
         type: 'text',
@@ -193,11 +197,22 @@ class _TextCertPageState extends State<TextCertPage> {
         } catch (_) {}
       }
 
+      String? finalPackagePath;
+      final packageId = detectedId ?? engine.hcvId;
+      try {
+        finalPackagePath = await HCVTextPackage.create(
+          textPath: finalTextPath,
+          hcvPath: finalHcvPath,
+          hcvId: packageId,
+        );
+      } catch (_) {}
+
       setState(() {
         loading = false;
         hcvPath = finalHcvPath;
         textPath = finalTextPath;
-        hcvId = detectedId;
+        packagePath = finalPackagePath;
+        hcvId = packageId;
         verificationUrl = detectedUrl;
         result = ok ? 'VALID' : 'INVALID';
         status = ok ? _t('textCertified') : _t('certificateCreatedInvalid');
@@ -214,9 +229,14 @@ class _TextCertPageState extends State<TextCertPage> {
             registryStatus = 'Registry OK: ${res['hcvId'] ?? detectedId}';
           });
         } catch (e) {
-          setState(() {
-            registryStatus = 'Registry offline/non raggiungibile: $e';
-          });
+          try {
+            await registry.enqueueCertificateFile(finalHcvPath);
+          } catch (_) {}
+          if (mounted) {
+            setState(() {
+              registryStatus = 'Registry non disponibile: certificato conservato e accodato per il nuovo invio.';
+            });
+          }
         }
       }
     } catch (e) {
@@ -235,9 +255,8 @@ class _TextCertPageState extends State<TextCertPage> {
     await Clipboard.setData(ClipboardData(text: text));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('HCV-ID copiato')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('HCV-ID copiato')));
   }
 
   Future<void> copySocialText() async {
@@ -246,14 +265,13 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final socialText = hcvId == null
         ? originalText
-        : '$originalText\n\nHCV VERIFIED\nID: $hcvId\nVerify with SIGILLUM';
+        : HCVTextIntegrity.buildSocialText(originalText, hcvId!);
 
     await Clipboard.setData(ClipboardData(text: socialText));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Testo social copiato')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Testo social copiato')));
   }
 
   Future<void> shareSocialText() async {
@@ -262,7 +280,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final socialText = hcvId == null
         ? originalText
-        : '$originalText\n\nHCV VERIFIED\nID: $hcvId\nVerify with SIGILLUM';
+        : HCVTextIntegrity.buildSocialText(originalText, hcvId!);
 
     await Share.share(
       socialText,
@@ -275,12 +293,34 @@ class _TextCertPageState extends State<TextCertPage> {
 
     final shareText = hcvId == null
         ? 'Testo verificato SIGILLUM'
-        : 'Testo verificato SIGILLUM\nID: $hcvId\nVerify with SIGILLUM';
+        : 'Testo verificato SIGILLUM\n$hcvId';
 
     await Share.shareXFiles(
       [XFile(textPath!), XFile(hcvPath!)],
       text: shareText,
       sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+    );
+  }
+
+  Future<void> shareTextPackage() async {
+    if (packagePath == null) return;
+    await Share.shareXFiles(
+      [XFile(packagePath!)],
+      text: hcvId == null ? 'SIGILLUM HCVPACK testo' : 'SIGILLUM $hcvId',
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+    );
+  }
+
+  Future<void> openPublishedTextVerification() async {
+    _dismissKeyboard();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TextSocialVerifyPage(
+          languageCode: widget.languageCode,
+          initialText: result == null ? null : controller.text,
+        ),
+      ),
     );
   }
 
@@ -310,10 +350,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
   Widget _resultBlock() {
     if (result == null) {
-      return Text(
-        status,
-        textAlign: TextAlign.center,
-      );
+      return Text(status, textAlign: TextAlign.center);
     }
 
     return Column(
@@ -328,10 +365,7 @@ class _TextCertPageState extends State<TextCertPage> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          status,
-          textAlign: TextAlign.center,
-        ),
+        Text(status, textAlign: TextAlign.center),
       ],
     );
   }
@@ -350,10 +384,7 @@ class _TextCertPageState extends State<TextCertPage> {
             Text(
               _t('verifiableTextCreated'),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
             ),
             const SizedBox(height: 10),
             Text(
@@ -434,6 +465,21 @@ class _TextCertPageState extends State<TextCertPage> {
               label: Text(_t('shareTxtCertificate')),
             ),
           ),
+        if (packagePath != null) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 300,
+            child: ElevatedButton.icon(
+              onPressed: shareTextPackage,
+              icon: const Icon(Icons.inventory_2_outlined),
+              label: Text(
+                widget.languageCode.toLowerCase().startsWith('it')
+                    ? 'CONDIVIDI HCVPACK TESTO'
+                    : 'SHARE TEXT HCVPACK',
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -469,6 +515,14 @@ class _TextCertPageState extends State<TextCertPage> {
                 style: const TextStyle(fontSize: 11),
               ),
             ],
+            if (packagePath != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'HCVPACK:\n$packagePath',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11),
+              ),
+            ],
           ],
         ),
       ),
@@ -482,6 +536,7 @@ class _TextCertPageState extends State<TextCertPage> {
       result = null;
       hcvPath = null;
       textPath = null;
+      packagePath = null;
       hcvId = null;
       verificationUrl = null;
       registryStatus = null;
@@ -492,9 +547,7 @@ class _TextCertPageState extends State<TextCertPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_t('textCertificateTitle')),
-      ),
+      appBar: AppBar(title: Text(_t('textCertificateTitle'))),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -531,6 +584,19 @@ class _TextCertPageState extends State<TextCertPage> {
               _registryCard(),
               _actionButtons(),
               _createdFilesCard(),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 300,
+                child: OutlinedButton.icon(
+                  onPressed: openPublishedTextVerification,
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: Text(
+                    widget.languageCode.toLowerCase().startsWith('it')
+                        ? 'VERIFICA TESTO PUBBLICATO'
+                        : 'VERIFY PUBLISHED TEXT',
+                  ),
+                ),
+              ),
               if (result != null) ...[
                 const SizedBox(height: 16),
                 SizedBox(

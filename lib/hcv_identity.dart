@@ -58,6 +58,11 @@ class HCVIdentity {
     final legalName = verifiedOutputs?["legalName"]?.toString().trim() ?? "";
     final country = verifiedOutputs?["country"]?.toString().trim() ?? "";
 
+    if (status == "verified" && verifiedOutputs == null) {
+      await prefs.remove(_kycLegalNameKey);
+      await prefs.remove(_kycCountryKey);
+    }
+
     if (legalName.isNotEmpty) {
       await prefs.setString(_kycLegalNameKey, legalName);
       await prefs.setString(_creatorNameKey, legalName);

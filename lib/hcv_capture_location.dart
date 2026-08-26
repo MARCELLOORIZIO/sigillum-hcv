@@ -21,12 +21,12 @@ class HCVCaptureLocation {
   }
 
   Map<String, dynamic> toJson() => {
-        'latitude': latitude,
-        'longitude': longitude,
-        'accuracyMeters': accuracyMeters,
-        'measuredAt': measuredAt.toUtc().toIso8601String(),
-        'source': 'DEVICE_LOCATION_WHEN_IN_USE',
-      };
+    'latitude': latitude,
+    'longitude': longitude,
+    'accuracyMeters': accuracyMeters,
+    'measuredAt': measuredAt.toUtc().toIso8601String(),
+    'source': 'DEVICE_LOCATION_WHEN_IN_USE',
+  };
 }
 
 class HCVCaptureLocationService {

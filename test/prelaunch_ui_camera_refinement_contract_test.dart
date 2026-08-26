@@ -14,13 +14,13 @@ void main() {
   test('camera UX is capped at 10x and video waits for explicit REC', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
     expect(source, contains('deviceMaxZoom.clamp(minZoom, 10.0)'));
-    expect(source, contains('PRONTO — PREMI REGISTRA PER INIZIARE'));
+    expect(source, contains("_c('armedVideoReady')"));
     expect(source, contains('bool _videoArmed = false;'));
 
     final probe = source.indexOf(
       'pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();',
     );
-    final ready = source.indexOf('PRONTO — PREMI REGISTRA PER INIZIARE');
+    final ready = source.indexOf("_c('armedVideoReady')");
     final record = source.indexOf('await controller!.startVideoRecording();');
     expect(probe, greaterThanOrEqualTo(0));
     expect(ready, greaterThan(probe));
@@ -34,10 +34,10 @@ void main() {
 
     expect(theme, contains('static const Color accentAlt'));
     expect(theme, contains('InputDecorationTheme('));
-    expect(theme, contains('minimumSize: const Size.fromHeight(58)'));
+    expect(theme, contains('minimumSize: const Size.fromHeight(62)'));
     expect(
       theme,
-      contains('padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)'),
+      contains('padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18)'),
     );
     expect(theme, contains('borderRadius: BorderRadius.circular(18)'));
     expect(theme, contains('DialogThemeData('));

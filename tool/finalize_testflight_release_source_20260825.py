@@ -23,13 +23,21 @@ def run_python_script(path: str) -> None:
 
 
 # Materialize the historical RC2 chain once, then apply deterministic release
-# finalizers in a fixed order. The decision-architecture finalizer is last among
-# functional mutations so Linux, macOS and Codemagic analyze/test/build the same
-# geometry gate, display fusion and certificate metadata.
+# finalizers in a fixed order. Decision architecture is finalized before the
+# public verification scene mapping so the UI can never override the signed
+# final display-fusion verdict with a lower-level geometry result.
 run_python_script('tool/apply_media_specific_verification_picker_fix_20260822.py')
 run_python_script('tool/apply_rc2_photo_parallax_and_media_verify_finalizer_20260825.py')
 run_python_script('tool/apply_rc2_definitive_build_finalizer_20260825.py')
 run_python_script('tool/apply_rc2_decision_architecture_fix_20260825.py')
+run_python_script('tool/apply_rc2_verification_scene_priority_finalizer_20260826.py')
 run_python_script('tool/normalize_registry_initial_status_20260825.py')
+
+# Historical patchers are preserved for reproducibility, but two of them can
+# reinsert already-materialized PHPicker helpers or quick-gate initialization
+# when invoked repeatedly. Normalize their output immediately before the final
+# audit so every invocation converges to one identical pre-archive source tree.
+run_python_script('tool/normalize_rc2_finalizer_idempotence_20260826.py')
+
 run_python_script('tool/verify_postpatch_release_20260825.py')
 print('TestFlight release source finalized and verified')

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'commercial_account_service.dart';
@@ -62,8 +63,7 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'ANNULLA',
       'confirm': 'CONFERMA',
       'deleteTitle': 'Elimina account',
-      'deleteBody':
-          'Inserisci la password per eliminare definitivamente l’account. I record tecnici dei certificati già emessi possono restare disponibili in forma minimizzata per preservarne la verificabilità.',
+      'deleteBody': 'Inserisci la password per eliminare definitivamente l’account. I record tecnici dei certificati già emessi possono restare disponibili in forma minimizzata per preservarne la verificabilità.',
       'saved': 'Profilo aggiornato.',
       'passwordChanged': 'Password aggiornata.',
       'noDevices': 'Nessun dispositivo disponibile.',
@@ -96,8 +96,7 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'CANCEL',
       'confirm': 'CONFIRM',
       'deleteTitle': 'Delete account',
-      'deleteBody':
-          'Enter your password to permanently delete the account. Technical records for already-issued certificates may remain in minimized form to preserve verification.',
+      'deleteBody': 'Enter your password to permanently delete the account. Technical records for already-issued certificates may remain in minimized form to preserve verification.',
       'saved': 'Profile updated.',
       'passwordChanged': 'Password updated.',
       'noDevices': 'No devices available.',
@@ -106,8 +105,81 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     },
   };
 
+  static const Map<String, Map<String, String>> _extraCopy = {
+    'es': {
+      'title': 'Cuenta',
+      'identity': 'Identidad',
+      'verified': 'Verificada',
+      'notVerified': 'No verificada',
+      'subscription': 'Suscripción',
+      'active': 'Activa',
+      'inactive': 'Inactiva',
+      'profile': 'Perfil',
+      'name': 'Nombre',
+      'email': 'Email',
+      'language': 'Idioma',
+      'save': 'GUARDAR PERFIL',
+      'security': 'Seguridad',
+      'devices': 'DISPOSITIVOS CONECTADOS',
+      'password': 'CAMBIAR CONTRASEÑA',
+      'manageSubscription': 'GESTIONAR SUSCRIPCIÓN',
+      'privacy': 'Privacidad y condiciones',
+      'legal': 'PRIVACIDAD, TÉRMINOS E INFORMACIÓN',
+      'logout': 'CERRAR SESIÓN',
+      'delete': 'ELIMINAR CUENTA',
+      'currentPassword': 'Contraseña actual',
+      'newPassword': 'Nueva contraseña',
+      'cancel': 'CANCELAR',
+      'confirm': 'CONFIRMAR',
+      'deleteTitle': 'Eliminar cuenta',
+      'deleteBody': 'Introduce tu contraseña para eliminar definitivamente la cuenta. Los registros técnicos de certificados ya emitidos pueden permanecer minimizados para preservar su verificabilidad.',
+      'saved': 'Perfil actualizado.',
+      'passwordChanged': 'Contraseña actualizada.',
+      'noDevices': 'No hay dispositivos disponibles.',
+      'thisDevice': 'Este dispositivo',
+      'lastSeen': 'Último acceso',
+    },
+    'ru': {
+      'title': 'Аккаунт',
+      'identity': 'Личность',
+      'verified': 'Подтверждена',
+      'notVerified': 'Не подтверждена',
+      'subscription': 'Подписка',
+      'active': 'Активна',
+      'inactive': 'Неактивна',
+      'profile': 'Профиль',
+      'name': 'Имя',
+      'email': 'Email',
+      'language': 'Язык',
+      'save': 'СОХРАНИТЬ ПРОФИЛЬ',
+      'security': 'Безопасность',
+      'devices': 'ПОДКЛЮЧЁННЫЕ УСТРОЙСТВА',
+      'password': 'ИЗМЕНИТЬ ПАРОЛЬ',
+      'manageSubscription': 'УПРАВЛЕНИЕ ПОДПИСКОЙ',
+      'privacy': 'Конфиденциальность и условия',
+      'legal': 'КОНФИДЕНЦИАЛЬНОСТЬ, УСЛОВИЯ И ИНФОРМАЦИЯ',
+      'logout': 'ВЫЙТИ ИЗ АККАУНТА',
+      'delete': 'УДАЛИТЬ АККАУНТ',
+      'currentPassword': 'Текущий пароль',
+      'newPassword': 'Новый пароль',
+      'cancel': 'ОТМЕНА',
+      'confirm': 'ПОДТВЕРДИТЬ',
+      'deleteTitle': 'Удалить аккаунт',
+      'deleteBody': 'Введите пароль, чтобы окончательно удалить аккаунт. Технические записи уже выпущенных сертификатов могут сохраняться в минимизированном виде для поддержания возможности проверки.',
+      'saved': 'Профиль обновлён.',
+      'passwordChanged': 'Пароль обновлён.',
+      'noDevices': 'Нет доступных устройств.',
+      'thisDevice': 'Это устройство',
+      'lastSeen': 'Последний вход',
+    },
+  };
+
   String _t(String key) =>
-      (_copy[_languageCode] ?? _copy['en']!)[key] ?? _copy['en']![key] ?? key;
+      (_copy[_languageCode] ??
+          _extraCopy[_languageCode] ??
+          _copy['en']!)[key] ??
+      _copy['en']![key] ??
+      key;
 
   @override
   void initState() {
@@ -203,12 +275,16 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
                       final current = item['current'] == true;
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(current
-                            ? Icons.phone_iphone_rounded
-                            : Icons.devices_rounded),
-                        title: Text(current
-                            ? _t('thisDevice')
-                            : 'Dispositivo ${index + 1}'),
+                        leading: Icon(
+                          current
+                              ? Icons.phone_iphone_rounded
+                              : Icons.devices_rounded,
+                        ),
+                        title: Text(
+                          current
+                              ? _t('thisDevice')
+                              : 'Dispositivo ${index + 1}',
+                        ),
                         subtitle: Text(
                           '${_t('lastSeen')}: ${_date(item['lastSeenAt']?.toString())}',
                         ),
@@ -286,7 +362,7 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     await _run(() async {
       await _auth.logout();
       if (!mounted) return;
-      Navigator.pop(context);
+      TextInput.finishAutofillContext(shouldSave: false);
       widget.onSessionInvalidated();
     });
   }
@@ -316,8 +392,9 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
             child: Text(_t('cancel')),
           ),
           FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: SigillumTheme.danger),
+            style: FilledButton.styleFrom(
+              backgroundColor: SigillumTheme.danger,
+            ),
             onPressed: () => Navigator.pop(context, password.text),
             child: Text(_t('delete')),
           ),
@@ -329,7 +406,7 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     await _run(() async {
       await _auth.deleteAccount(password: value);
       if (!mounted) return;
-      Navigator.pop(context);
+      TextInput.finishAutofillContext(shouldSave: false);
       widget.onSessionInvalidated();
     });
   }
@@ -350,13 +427,18 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       );
     }
 
-    final identityVerified = _account['kycStatus'] == 'verified' ||
+    final identityVerified =
+        _account['kycStatus'] == 'verified' ||
         _account['legalIdentityVerified'] == true;
     final subscriptionActive =
         _billing['status'] == 'active' || _billing['status'] == 'grace';
 
     return Scaffold(
-      appBar: AppBar(title: Text(_t('title'))),
+      backgroundColor: const Color(0xFFEAFBFF),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: Text(_t('title')),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 34),
         children: [
@@ -364,7 +446,15 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: SigillumTheme.panel,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: SigillumTheme.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x12280D5F),
+                  blurRadius: 22,
+                  offset: Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,7 +464,9 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
                       ? _account['creatorName'].toString()
                       : 'SIGILLUM Creator',
                   style: const TextStyle(
-                      fontSize: 23, fontWeight: FontWeight.w800),
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -494,8 +586,9 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
                 onPressed: _busy ? null : _deleteAccount,
                 icon: const Icon(Icons.delete_forever_outlined),
                 label: Text(_t('delete')),
-                style:
-                    TextButton.styleFrom(foregroundColor: SigillumTheme.danger),
+                style: TextButton.styleFrom(
+                  foregroundColor: SigillumTheme.danger,
+                ),
               ),
             ],
           ),
@@ -522,9 +615,11 @@ class _StatusRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon,
-            size: 20,
-            color: good ? SigillumTheme.verified : SigillumTheme.muted),
+        Icon(
+          icon,
+          size: 20,
+          color: good ? SigillumTheme.verified : SigillumTheme.muted,
+        ),
         const SizedBox(width: 9),
         Expanded(child: Text(label)),
         Text(
@@ -550,15 +645,24 @@ class _Section extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SigillumTheme.panel,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: SigillumTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10280D5F),
+            blurRadius: 18,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 13),
           ...children,
         ],

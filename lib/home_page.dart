@@ -20,6 +20,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
+  String? _lastOpenedSharedPath;
 
   @override
   void initState() {
@@ -29,10 +30,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<dynamic> _handleNativeIntent(MethodCall call) async {
-    if (call.method == "onSharedPath") {
+    if (call.method == 'onSharedPath') {
       final path = call.arguments as String?;
       if (path != null && path.isNotEmpty) {
         _openImportedPath(path);
+        try {
+          await _intentChannel.invokeMethod<bool>(
+            'ackSharedPath',
+            {'path': path},
+          );
+        } catch (_) {}
       }
     }
   }
@@ -49,7 +56,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openImportedPath(String path) {
-    if (!mounted) return;
+    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
+    _lastOpenedSharedPath = path;
 
     final lower = path.toLowerCase();
 
