@@ -2,7 +2,7 @@ workflows:
   ios-workflow:
     name: SIGILLUM iOS User
     environment:
-      flutter: stable
+      flutter: 3.47.1
       xcode: latest
       ios_signing:
         certificates:
@@ -13,72 +13,24 @@ workflows:
     integrations:
       app_store_connect: Codemagic-HCV
     scripts:
-      - name: Guard commercial changes from frozen capture engine
+      - name: Resolve locked Flutter dependencies
         script: |
-          FROZEN_BASE="f810af479546075ffe84c3ea2411dcc6300c0bb3"
-          if ! git cat-file -e "$FROZEN_BASE^{commit}" 2>/dev/null; then
-            echo "Frozen base missing from shallow clone; fetching $FROZEN_BASE"
-            git fetch --no-tags origin "$FROZEN_BASE"
-          fi
-          git diff --exit-code "$FROZEN_BASE"..HEAD -- \
-            lib/camera_page.dart \
-            lib/text_cert_page.dart \
-            lib/hcv_engine.dart \
-            lib/hcv_live_screen_probe.dart \
-            lib/hcv_live_screen_probe_core.dart \
-            lib/hcv_live_screen_probe_geometry.dart \
-            lib/hcv_scene_geometry_classifier.dart \
-            lib/hcv_scene_decision_fusion.dart \
-            lib/hcv_display_risk_fusion.dart \
-            lib/hcv_planar_motion_model.dart \
-            lib/hcv_projective_motion_model.dart
-      - name: Apply reliable iOS share handoff
-        script: python3 tool/run_ios_share_handoff_fix.py
-      - name: Apply document import and Messenger OCR fixes
-        script: python3 tool/apply_file_import_and_ocr_fix.py
-      - name: Apply certificate-based monitor, capture, coordinates and Registry recovery
+          set -euo pipefail
+          echo "Building committed materialized source $(git rev-parse HEAD)"
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Validate committed materialized source
         script: |
-          python3 tool/apply_safe_capture_location_fix.py
-          python3 tool/apply_mixed_scene_monitor_fix.py
-          python3 tool/apply_planar_parallax_compile_safety.py
-          python3 tool/apply_certificate_regression_fix.py
-          python3 tool/apply_certificate_regression_compile_fix.py
-          python3 tool/apply_certificate_regression_behavior_fix.py
-          python3 tool/apply_certificate_contract_test_fix.py
-          dart format lib/camera_page.dart lib/registry_verify_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_projective_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/camera_physical_scene_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/registry_verify_hcv_id16_contract_test.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart test/photo_display_risk_policy_test.dart test/monitor_certificate_regression_test.dart test/hcv_projective_motion_model_test.dart test/registry_local_republish_contract_test.dart
-      - name: Apply isolated Account success feedback
-        script: |
-          python3 tool/apply_account_success_feedback.py
-          dart format lib/account_page.dart test/account_success_feedback_contract_test.dart
-      - name: Apply persistent text, Registry recovery and manual photo arming
-        script: |
-          python3 tool/apply_text_social_verification.py
-          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
-          dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
-      - name: Apply commercial access shell
-        script: |
-          python3 tool/apply_commercial_registry_auth.py
-          python3 tool/apply_commercial_profile_shell.py
-          python3 tool/apply_server_verified_billing_gate.py
-          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
-          dart format lib/import_page.dart lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart test/media_specific_verification_picker_contract_test.dart
-      - name: Flutter pub get
-        script: flutter pub get
-      - name: Verify source and tests
-        script: |
-          echo "Building commit $(git rev-parse HEAD)"
-          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
-          dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
-          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
-          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
-          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
+          set -euo pipefail
+          mkdir -p /tmp/xcodebuild_logs
+          git diff --exit-code -- lib test ios/Runner ios/Podfile
           flutter analyze --no-fatal-infos --no-fatal-warnings
-          flutter test
-          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
-          dart format lib/import_page.dart
-          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
-          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
-          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
+          flutter test --reporter expanded 2>&1 | tee /tmp/xcodebuild_logs/flutter-tests-materialized.log
+          python3 tool/verify_postpatch_release_20260825.py
+          git diff --exit-code -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml
+
       - name: Configure SIGILLUM User edition
         script: |
           cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
@@ -90,6 +42,7 @@ workflows:
           SIGILLUM_APP_PROFILE=SIGILLUM HCV Development
           SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share Development
           XCCONFIG
+
       - name: Set up iOS export options
         script: |
           cat > /Users/builder/export_options.plist <<'PLIST'
@@ -113,10 +66,27 @@ workflows:
           </dict>
           </plist>
           PLIST
-      - name: Build IPA
+
+      - name: Install validated iOS pods
         script: |
+          set -euo pipefail
+          pushd ios >/dev/null
+          pod install --repo-update
+          popd >/dev/null
+          grep -F "TensorFlowLiteSwift (2.17.0)" ios/Podfile.lock
+          git diff --exit-code -- lib test ios/Runner ios/Podfile
+
+      - name: Build IPA from committed source
+        script: |
+          set -euo pipefail
           BUILD_COMMIT="$(git rev-parse HEAD)"
-          flutter build ipa --release --dart-define=SIGILLUM_EDITION=user --dart-define=GIT_COMMIT="$BUILD_COMMIT" --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release --no-pub \
+            --dart-define=SIGILLUM_EDITION=user \
+            --dart-define=GIT_COMMIT="$BUILD_COMMIT" \
+            --export-options-plist=/Users/builder/export_options.plist
+          git diff --exit-code -- lib test ios/Runner ios/Podfile
+          python3 tool/verify_postpatch_release_20260825.py
+
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/archive/*.xcarchive
@@ -126,7 +96,7 @@ workflows:
     name: SIGILLUM iOS TestFlight
     max_build_duration: 120
     environment:
-      flutter: stable
+      flutter: 3.47.1
       xcode: latest
       ios_signing:
         distribution_type: app_store
@@ -136,72 +106,24 @@ workflows:
     integrations:
       app_store_connect: Codemagic-HCV
     scripts:
-      - name: Guard commercial changes from frozen capture engine
+      - name: Resolve locked Flutter dependencies
         script: |
-          FROZEN_BASE="f810af479546075ffe84c3ea2411dcc6300c0bb3"
-          if ! git cat-file -e "$FROZEN_BASE^{commit}" 2>/dev/null; then
-            echo "Frozen base missing from shallow clone; fetching $FROZEN_BASE"
-            git fetch --no-tags origin "$FROZEN_BASE"
-          fi
-          git diff --exit-code "$FROZEN_BASE"..HEAD -- \
-            lib/camera_page.dart \
-            lib/text_cert_page.dart \
-            lib/hcv_engine.dart \
-            lib/hcv_live_screen_probe.dart \
-            lib/hcv_live_screen_probe_core.dart \
-            lib/hcv_live_screen_probe_geometry.dart \
-            lib/hcv_scene_geometry_classifier.dart \
-            lib/hcv_scene_decision_fusion.dart \
-            lib/hcv_display_risk_fusion.dart \
-            lib/hcv_planar_motion_model.dart \
-            lib/hcv_projective_motion_model.dart
-      - name: Apply reliable iOS share handoff
-        script: python3 tool/run_ios_share_handoff_fix.py
-      - name: Apply document import and Messenger OCR fixes
-        script: python3 tool/apply_file_import_and_ocr_fix.py
-      - name: Apply certificate-based monitor, capture, coordinates and Registry recovery
+          set -euo pipefail
+          echo "Building committed materialized source $(git rev-parse HEAD)"
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Validate committed materialized source
         script: |
-          python3 tool/apply_safe_capture_location_fix.py
-          python3 tool/apply_mixed_scene_monitor_fix.py
-          python3 tool/apply_planar_parallax_compile_safety.py
-          python3 tool/apply_certificate_regression_fix.py
-          python3 tool/apply_certificate_regression_compile_fix.py
-          python3 tool/apply_certificate_regression_behavior_fix.py
-          python3 tool/apply_certificate_contract_test_fix.py
-          dart format lib/camera_page.dart lib/registry_verify_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_projective_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/camera_physical_scene_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/registry_verify_hcv_id16_contract_test.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart test/photo_display_risk_policy_test.dart test/monitor_certificate_regression_test.dart test/hcv_projective_motion_model_test.dart test/registry_local_republish_contract_test.dart
-      - name: Apply isolated Account success feedback
-        script: |
-          python3 tool/apply_account_success_feedback.py
-          dart format lib/account_page.dart test/account_success_feedback_contract_test.dart
-      - name: Apply persistent text, Registry recovery and manual photo arming
-        script: |
-          python3 tool/apply_text_social_verification.py
-          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
-          dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
-      - name: Apply commercial access shell
-        script: |
-          python3 tool/apply_commercial_registry_auth.py
-          python3 tool/apply_commercial_profile_shell.py
-          python3 tool/apply_server_verified_billing_gate.py
-          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
-          dart format lib/import_page.dart lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart test/media_specific_verification_picker_contract_test.dart
-      - name: Flutter pub get
-        script: flutter pub get
-      - name: Verify source and tests
-        script: |
-          echo "Building commit $(git rev-parse HEAD)"
-          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
-          dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
-          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
-          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
-          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
+          set -euo pipefail
+          mkdir -p /tmp/xcodebuild_logs
+          git diff --exit-code -- lib test ios/Runner ios/Podfile
           flutter analyze --no-fatal-infos --no-fatal-warnings
-          flutter test
-          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
-          dart format lib/import_page.dart
-          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
-          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
-          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
+          flutter test --reporter expanded 2>&1 | tee /tmp/xcodebuild_logs/flutter-tests-materialized.log
+          python3 tool/verify_postpatch_release_20260825.py
+          git diff --exit-code -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml
+
       - name: Configure SIGILLUM User edition for App Store
         script: |
           cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
@@ -213,11 +135,13 @@ workflows:
           SIGILLUM_APP_PROFILE=SIGILLUM HCV App Store
           SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share App Store
           XCCONFIG
+
       - name: Apply App Store signing profiles
-        script: |
-          xcode-project use-profiles
-      - name: Build and prove TestFlight IPA
+        script: xcode-project use-profiles
+
+      - name: Build and prove TestFlight IPA from committed source
         script: bash tool/build_testflight_ipa_rc2_20260825.sh
+
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/archive/*.xcarchive
