@@ -83,13 +83,26 @@ else:
     print('camera geometry-observable gate: already applied')
 
 
-# 2) Scene fusion must trust the geometry classifier as the single authority.
-# Do not reclassify REALITY with a second, slightly different threshold set.
+# 2) Scene fusion: geometry may support reality, but it must not erase an
+# independent emissive-display signal. A conflicting display/reality pair is
+# deliberately fail-closed as NON_CONCLUSIVE.
 replace_once(
     'lib/hcv_scene_decision_fusion.dart',
     "    final strongGeometryReality = geometry.realityEvidence &&\n        geometry.flowReliability >= 0.58 &&\n        geometry.depthDispersion >= 0.34;\n",
     "    final strongGeometryReality = geometry.realityEvidence;\n",
     'single geometry reality authority',
+)
+replace_once(
+    'lib/hcv_scene_decision_fusion.dart',
+    "    if (strongGeometryReality) {\n      decision = 'NO_DISPLAY_EVIDENCE';\n      risk = 'LOW';\n      score = 20;\n      probability = min(illumination.displayProbability, 0.25).toDouble();\n      reasons.add('GEOMETRIC_REALITY_OVERRIDES_PLANAR_DISPLAY_HYPOTHESIS');\n    } else if (geometry.realityEvidence && rawDisplayEvidence) {\n      decision = 'NON_CONCLUSIVE';\n      risk = 'MEDIUM';\n      score = 45;\n      reasons.add('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT');\n",
+    "    if (strongGeometryReality && rawDisplayEvidence) {\n      decision = 'NON_CONCLUSIVE';\n      risk = 'MEDIUM';\n      score = max(45, illumination.score).clamp(45, 69).toInt();\n      probability = max(illumination.displayProbability, 0.55).toDouble();\n      reasons.add('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT');\n    } else if (strongGeometryReality) {\n      decision = 'NO_DISPLAY_EVIDENCE';\n      risk = 'LOW';\n      score = 20;\n      probability = min(illumination.displayProbability, 0.25).toDouble();\n      reasons.add('GEOMETRIC_REALITY_WITHOUT_DISPLAY_CONFLICT');\n",
+    'fail-closed scene geometry/display conflict',
+)
+replace_once(
+    'lib/hcv_scene_decision_fusion.dart',
+    "    final realityEvidence = flashRealityEvidence || strongGeometryReality;\n    final displayEvidence = rawDisplayEvidence && !strongGeometryReality;\n",
+    "    final realityEvidence = flashRealityEvidence || strongGeometryReality;\n    final displayEvidence = rawDisplayEvidence;\n",
+    'preserve display evidence under geometry conflict',
 )
 
 
@@ -173,14 +186,18 @@ fusion_region = """    final mlScore = (ml?['screenReplayRiskScore'] as num?)?.t
       score = max(rawScore, 70).clamp(70, 100).toInt();
     } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
-      score = 45;
+      score = max(45, min(rawScore, 69));
       reasons.add('ML_GEOMETRY_CONFLICT');
+    } else if (activeDisplayEvidence && geometryReality) {
+      decision = 'NON_CONCLUSIVE';
+      score = max(45, min(rawScore, 69));
+      reasons.add('ACTIVE_DISPLAY_GEOMETRY_CONFLICT');
     } else if (mlRealityStrong) {
-      if (geometryReality) {
+      if (geometryReality && !hasAnyEvidence && !activeDisplayEvidence) {
         decision = 'NO_DISPLAY_EVIDENCE';
         score = min(rawScore, 20);
         reasons.add('ML_REALITY_AND_GEOMETRY_AGREE');
-      } else if (geometryPlanar || hasAnyEvidence) {
+      } else if (geometryPlanar || hasAnyEvidence || activeDisplayEvidence) {
         decision = 'NON_CONCLUSIVE';
         score = 45;
         reasons.add('ML_REALITY_REQUIRES_INDEPENDENT_CORROBORATION');
@@ -193,7 +210,7 @@ fusion_region = """    final mlScore = (ml?['screenReplayRiskScore'] as num?)?.t
         score = min(rawScore, 20);
         reasons.add('ML_REALITY_UNOPPOSED');
       }
-    } else if (hasAnyEvidence) {
+    } else if (hasAnyEvidence || activeDisplayEvidence) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
     } else if (liveNotAnalyzed || activeChallengeIndeterminate) {
@@ -217,6 +234,7 @@ replace_region(
         "final strongDisplayFamilies = <String>{};",
         "strongDisplayFamilies.length >= 2",
         "reasons.add('ML_GEOMETRY_CONFLICT')",
+        "reasons.add('ACTIVE_DISPLAY_GEOMETRY_CONFLICT')",
         "reasons.add('ML_REALITY_AND_GEOMETRY_AGREE')",
     ],
     'independent-family display fusion',
@@ -232,7 +250,8 @@ replace_once(
 )
 
 
-# 6) Update the legacy scene-fusion regression to the single-authority rule.
+# 6) Regressions: contradictory display + geometry evidence must never be
+# promoted to REALITY/NO_DISPLAY_EVIDENCE.
 scene_test = Path('test/hcv_scene_decision_fusion_test.dart')
 scene_source = scene_test.read_text(encoding='utf-8')
 old_test = """    test('weak parallax conflicting with display cues stays non-conclusive', () {
@@ -255,7 +274,7 @@ old_test = """    test('weak parallax conflicting with display cues stays non-co
           contains('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT'));
     });
 """
-new_test = """    test('geometry classifier is the single REALITY authority', () {
+unsafe_test = """    test('geometry classifier is the single REALITY authority', () {
       final result = HCVSceneDecisionFusion.fuse(
         illumination: _displayLikeIllumination(),
         geometry: _geometry(
@@ -274,13 +293,39 @@ new_test = """    test('geometry classifier is the single REALITY authority', ()
       expect(result.realityEvidence, isTrue);
     });
 """
+new_test = """    test('geometry/display conflict stays non-conclusive', () {
+      final result = HCVSceneDecisionFusion.fuse(
+        illumination: _displayLikeIllumination(),
+        geometry: _geometry(
+          sceneClass: 'REALITY',
+          reality: true,
+          motion: 0.25,
+          reliability: 0.50,
+          direction: 0.55,
+          dispersion: 0.30,
+          planar: 0.50,
+        ),
+      );
+
+      expect(result.decision, 'NON_CONCLUSIVE');
+      expect(result.sceneClass, 'UNKNOWN');
+      expect(result.displayEvidence, isTrue);
+      expect(result.realityEvidence, isTrue);
+      expect(result.reasons,
+          contains('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT'));
+    });
+"""
 if new_test not in scene_source:
-    if scene_source.count(old_test) != 1:
-        raise RuntimeError('scene fusion legacy threshold test anchor missing')
-    scene_test.write_text(scene_source.replace(old_test, new_test, 1), encoding='utf-8')
-    print('scene fusion single-authority regression: applied')
+    if unsafe_test in scene_source:
+        scene_source = scene_source.replace(unsafe_test, new_test, 1)
+    elif old_test in scene_source:
+        scene_source = scene_source.replace(old_test, new_test, 1)
+    else:
+        raise RuntimeError('scene fusion conflict regression anchor missing')
+    scene_test.write_text(scene_source, encoding='utf-8')
+    print('scene fusion fail-closed conflict regression: applied')
 else:
-    print('scene fusion single-authority regression: already applied')
+    print('scene fusion fail-closed conflict regression: already applied')
 
 
 # Exact-source assertions.
@@ -292,12 +337,15 @@ for path, tokens in {
     ],
     'lib/hcv_scene_decision_fusion.dart': [
         'final strongGeometryReality = geometry.realityEvidence;',
+        "reasons.add('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT');",
+        'final displayEvidence = rawDisplayEvidence;',
     ],
     'lib/hcv_display_risk_fusion.dart': [
         "final mlRealityStrong =",
         "final strongDisplayFamilies = <String>{};",
         "strongDisplayFamilies.length >= 2",
         "reasons.add('ML_GEOMETRY_CONFLICT')",
+        "reasons.add('ACTIVE_DISPLAY_GEOMETRY_CONFLICT')",
         "reasons.add('ML_REALITY_AND_GEOMETRY_AGREE')",
     ],
     'lib/hcv_engine.dart': [
