@@ -130,13 +130,14 @@ new_families = """    if (passiveStrong) strongDisplayFamilies.add('STATIC_OPTIC
 
     final hasIndependentCorroboration = strongDisplayFamilies.length >= 2;
 """
-if old_families not in source:
+if old_families in source:
+    source = source.replace(old_families, new_families, 1)
+elif new_families not in source:
     raise RuntimeError('independent-family active-planar anchor missing')
-source = source.replace(old_families, new_families, 1)
 
 # Preserve the strength of contradictory evidence in the score while keeping
-# the verdict cautious. Strong SCREEN ML vs physical REALITY is never HIGH; it
-# remains NON_CONCLUSIVE capped at 69 instead of being flattened to 45.
+# the verdict cautious. The legacy finalizer may already contain this exact
+# stabilized form, so accept either state rather than failing on re-entry.
 old_conflict = """    } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
       score = 45;
@@ -147,9 +148,10 @@ new_conflict = """    } else if (mlStrong && geometryReality) {
       score = max(45, min(rawScore, 69));
       reasons.add('ML_GEOMETRY_CONFLICT');
 """
-if old_conflict not in source:
+if old_conflict in source:
+    source = source.replace(old_conflict, new_conflict, 1)
+elif new_conflict not in source:
     raise RuntimeError('ML/geometry conflict score anchor missing')
-source = source.replace(old_conflict, new_conflict, 1)
 
 exec(
     compile(source, str(LEGACY), 'exec'),
