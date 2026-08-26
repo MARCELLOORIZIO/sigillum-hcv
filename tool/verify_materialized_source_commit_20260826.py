@@ -47,7 +47,8 @@ signed_reality_getter = (
 required = {
     Path('lib/registry_verify_page.dart'): [
         signed_reality_getter,
-        "_v('sceneUncertain')",
+        "if (axis == 'scene' && _signedRealityScene) return _v('realityDetected');",
+        "if (_isDisplayNonConclusive) return _v('uncertainDetail');",
     ],
     Path('lib/hcv_display_risk_fusion.dart'): [
         "reasons.add('ML_GEOMETRY_CONFLICT')",
@@ -61,6 +62,7 @@ required = {
     Path('test/rc2_verification_scene_priority_contract_test.dart'): [
         'public scene label cannot override signed final display fusion',
         'signedRealityGetter',
+        'uncertainDetail',
     ],
     Path('.github/workflows/materialize-rc2-source-20260826.yml'): [
         'Reproduce Codemagic pre-finalizer verification',
