@@ -7,6 +7,9 @@ void main() {
     final codemagic = File('codemagic.yaml').readAsStringSync();
     final buildProofPath = 'tool/build_testflight_ipa_rc2_20260825.sh';
     final buildProof = File(buildProofPath).readAsStringSync();
+    final macosPreIpa = File(
+      '.github/workflows/validate-rc2-macos-preipa-20260825.yml',
+    ).readAsStringSync();
     final tflitePin =
         File('tool/pin_tflite_ios_runtime_20260826.sh').readAsStringSync();
     final classifier =
@@ -64,6 +67,41 @@ void main() {
     ]) {
       expect(buildProof, contains(token), reason: 'missing release proof: $token');
     }
+
+    // The pre-IPA macOS gate must compile the exact committed iOS Release tree,
+    // not merely resolve Pods. It also guards repository hygiene and the native
+    // assets/extension that TestFlight requires.
+    for (final token in <String>[
+      'ORPHAN_GITLINK_PRESENT=NO',
+      'git ls-files --stage | awk',
+      '160000',
+      'flutter build ios --release --no-codesign --no-pub',
+      '--dart-define=SIGILLUM_EDITION=user',
+      '--dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com',
+      "grep -Fx 'com.sigillum.hcv'",
+      'cmp "\$SOURCE_MODEL" "\$BUILT_MODEL"',
+      'IOS_SHARE_EXTENSION_MISSING',
+      'IOS_UNSIGNED_RELEASE_BUILD=PASS',
+      'MACOS_MATERIALIZED_PREIPA=PASS',
+    ]) {
+      expect(
+        macosPreIpa,
+        contains(token),
+        reason: 'missing final iOS release gate: $token',
+      );
+    }
+
+    final gitLinks = Process.runSync('git', ['ls-files', '--stage']);
+    expect(gitLinks.exitCode, 0, reason: '${gitLinks.stderr}');
+    final stagedEntries = gitLinks.stdout.toString().split('\n');
+    final orphanGitLinks = stagedEntries
+        .where((line) => line.startsWith('160000 '))
+        .toList();
+    expect(
+      orphanGitLinks,
+      isEmpty,
+      reason: 'release repository contains undeclared gitlinks: $orphanGitLinks',
+    );
 
     for (final token in <String>[
       'TARGET_VERSION="2.17.0"',
