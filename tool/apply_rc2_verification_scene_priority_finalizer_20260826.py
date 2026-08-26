@@ -10,7 +10,6 @@ source = REGISTRY.read_text(encoding='utf-8')
 # fusion was NON_CONCLUSIVE because ML strongly classified SCREEN_MONITOR.
 # Only a final NO_DISPLAY_EVIDENCE verdict is allowed to render the stronger
 # "reality detected" public label.
-guard = "    if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;\n"
 helper_anchor = "  bool get _signedRealityScene {\n    final cert = certificate;\n"
 helper_with_guard = (
     "  bool get _signedRealityScene {\n"
@@ -18,19 +17,26 @@ helper_with_guard = (
     "    final cert = certificate;\n"
 )
 
-if guard not in source:
-    if helper_anchor not in source:
-        raise RuntimeError(
-            'verification scene-priority anchor missing: localized registry helper '
-            'must be materialized before this finalizer'
-        )
+if helper_with_guard in source:
+    print('verification scene final-fusion priority guard already applied')
+elif helper_anchor in source:
     source = source.replace(helper_anchor, helper_with_guard, 1)
     print('verification scene final-fusion priority guard applied')
 else:
-    print('verification scene final-fusion priority guard already applied')
+    raise RuntimeError(
+        'verification scene-priority anchor missing: localized registry helper '
+        'must be materialized before this finalizer'
+    )
+
+# Validate the guard in the exact getter, not merely somewhere in the file.
+# This prevents an unrelated occurrence of the same condition from satisfying
+# the release contract.
+if helper_with_guard not in source:
+    raise RuntimeError(
+        'verification scene-priority guard is not installed in _signedRealityScene'
+    )
 
 for token in [
-    "if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;",
     "if (axis == 'scene' && _signedRealityScene) return _v('realityDetected');",
     "if (axis == 'scene' && value.contains('conclusiva')) return _v('sceneUncertain');",
     "if (_isDisplayNonConclusive) return _v('uncertainDetail');",
