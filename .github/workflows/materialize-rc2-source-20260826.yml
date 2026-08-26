@@ -16,7 +16,7 @@ concurrency:
 jobs:
   materialize-release-source:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: Checkout full history
@@ -42,15 +42,39 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Apply iOS share and import corrections
+      - name: Reproduce Codemagic frozen-engine guard
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FROZEN_BASE="f810af479546075ffe84c3ea2411dcc6300c0bb3"
+          if ! git cat-file -e "$FROZEN_BASE^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$FROZEN_BASE"
+          fi
+          git diff --exit-code "$FROZEN_BASE"..HEAD -- \
+            lib/camera_page.dart \
+            lib/text_cert_page.dart \
+            lib/hcv_engine.dart \
+            lib/hcv_live_screen_probe.dart \
+            lib/hcv_live_screen_probe_core.dart \
+            lib/hcv_live_screen_probe_geometry.dart \
+            lib/hcv_scene_geometry_classifier.dart \
+            lib/hcv_scene_decision_fusion.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_planar_motion_model.dart \
+            lib/hcv_projective_motion_model.dart
+
+      - name: Apply reliable iOS share handoff and document import fixes
         if: steps.guard.outputs.skip != 'true'
         run: |
           python3 tool/run_ios_share_handoff_fix.py
           python3 tool/apply_file_import_and_ocr_fix.py
 
-      - name: Apply certificate monitor capture and Registry recovery
+      - name: Apply certificate monitor capture and Registry recovery exactly as Codemagic
         if: steps.guard.outputs.skip != 'true'
+        shell: bash
         run: |
+          set -euo pipefail
           python3 tool/apply_safe_capture_location_fix.py
           python3 tool/apply_mixed_scene_monitor_fix.py
           python3 tool/apply_planar_parallax_compile_safety.py
@@ -58,37 +82,79 @@ jobs:
           python3 tool/apply_certificate_regression_compile_fix.py
           python3 tool/apply_certificate_regression_behavior_fix.py
           python3 tool/apply_certificate_contract_test_fix.py
+          dart format lib/camera_page.dart lib/registry_verify_page.dart lib/hcv_capture_location.dart lib/hcv_location_image_watermark.dart lib/hcv_location_video_watermark.dart lib/hcv_planar_motion_model.dart lib/hcv_projective_motion_model.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_sampling.dart lib/hcv_live_screen_probe_geometry.dart lib/hcv_scene_geometry_classifier.dart lib/hcv_scene_decision_fusion.dart lib/hcv_display_risk_fusion.dart lib/hcv_live_screen_probe_core.dart test/camera_physical_scene_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/registry_verify_hcv_id16_contract_test.dart test/capture_location_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/hcv_planar_motion_model_test.dart test/mixed_scene_monitor_regression_test.dart test/photo_display_risk_policy_test.dart test/monitor_certificate_regression_test.dart test/hcv_projective_motion_model_test.dart test/registry_local_republish_contract_test.dart
 
-      - name: Apply account text and photo workflows
+      - name: Apply Account success feedback exactly as Codemagic
         if: steps.guard.outputs.skip != 'true'
+        shell: bash
         run: |
+          set -euo pipefail
           python3 tool/apply_account_success_feedback.py
+          dart format lib/account_page.dart test/account_success_feedback_contract_test.dart
+
+      - name: Apply text Registry and manual photo arming exactly as Codemagic
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
           python3 tool/apply_text_social_verification.py
           python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+          dart format lib/camera_page.dart lib/text_cert_page.dart lib/hcv_text_integrity.dart lib/text_social_verify_page.dart test/hcv_text_integrity_test.dart test/text_social_workflow_contract_test.dart test/text_keyboard_registry_photo_arm_contract_test.dart
 
-      - name: Apply commercial shell
+      - name: Apply commercial access shell exactly as Codemagic
         if: steps.guard.outputs.skip != 'true'
+        shell: bash
         run: |
+          set -euo pipefail
           python3 tool/apply_commercial_registry_auth.py
           python3 tool/apply_commercial_profile_shell.py
           python3 tool/apply_server_verified_billing_gate.py
           python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart lib/hcv_registry_service.dart lib/hcv_auth_service.dart lib/user_home_page.dart lib/commercial_account_service.dart lib/commercial_billing_service.dart lib/commercial_gate.dart lib/commercial_profile_page.dart lib/main.dart test/commercial_billing_server_verification_contract_test.dart test/media_specific_verification_picker_contract_test.dart
 
       - name: Resolve Flutter dependencies
         if: steps.guard.outputs.skip != 'true'
         run: flutter pub get
 
-      - name: Materialize exact TestFlight source
+      - name: Reproduce Codemagic pre-finalizer verification
         if: steps.guard.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/xcodebuild_logs
-          python3 tool/finalize_testflight_release_source_20260825.py
-          dart format lib test
-          python3 tool/verify_postpatch_release_20260825.py
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart test/media_specific_verification_picker_contract_test.dart
+          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
+          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
+          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test --reporter expanded 2>&1 | tee /tmp/xcodebuild_logs/flutter-tests-prefinalizer.log
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+          dart format lib/import_page.dart
+          grep -F "import 'package:image_picker/image_picker.dart';" lib/import_page.dart
+          grep -F "pickImage(source: ImageSource.gallery)" lib/import_page.dart
+          grep -F "pickVideo(source: ImageSource.gallery)" lib/import_page.dart
 
-      - name: Validate materialized source
+      - name: Finalize release source pass 1
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/finalize_testflight_release_source_20260825.py
+          git add -A
+          git diff --cached --binary > /tmp/materialized-pass1.patch
+
+      - name: Prove release finalizer idempotence with pass 2
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/finalize_testflight_release_source_20260825.py
+          git add -A
+          git diff --cached --binary > /tmp/materialized-pass2.patch
+          diff -u /tmp/materialized-pass1.patch /tmp/materialized-pass2.patch
+
+      - name: Validate exact pre-archive source
         if: steps.guard.outputs.skip != 'true'
         shell: bash
         run: |
@@ -96,20 +162,9 @@ jobs:
           flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test --reporter expanded 2>&1 | tee /tmp/xcodebuild_logs/flutter-tests-materialized.log
           python3 tool/verify_postpatch_release_20260825.py
-
-      - name: Prove finalizers are idempotent
-        if: steps.guard.outputs.skip != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
           git add -A
-          git diff --cached --binary > /tmp/materialized-before-second-pass.patch
-          python3 tool/finalize_testflight_release_source_20260825.py
-          dart format lib test
-          python3 tool/verify_postpatch_release_20260825.py
-          git add -A
-          git diff --cached --binary > /tmp/materialized-after-second-pass.patch
-          diff -u /tmp/materialized-before-second-pass.patch /tmp/materialized-after-second-pass.patch
+          git diff --cached --binary > /tmp/materialized-after-tests.patch
+          diff -u /tmp/materialized-pass2.patch /tmp/materialized-after-tests.patch
 
       - name: Commit and verify materialized release source
         if: steps.guard.outputs.skip != 'true'
@@ -119,7 +174,7 @@ jobs:
           git add -A
           if git diff --cached --quiet; then
             echo 'No source changes to materialize.'
-            exit 0
+            exit 1
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -134,8 +189,10 @@ jobs:
           name: sigillum-rc2-materialization-audit
           path: |
             /tmp/xcodebuild_logs/sigillum-postpatch-audit.log
+            /tmp/xcodebuild_logs/flutter-tests-prefinalizer.log
             /tmp/xcodebuild_logs/flutter-tests-materialized.log
-            /tmp/materialized-before-second-pass.patch
-            /tmp/materialized-after-second-pass.patch
+            /tmp/materialized-pass1.patch
+            /tmp/materialized-pass2.patch
+            /tmp/materialized-after-tests.patch
           if-no-files-found: warn
           retention-days: 14
