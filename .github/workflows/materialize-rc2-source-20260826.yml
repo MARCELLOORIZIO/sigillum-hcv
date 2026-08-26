@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sigillum-rc2-materialization
+  cancel-in-progress: true
+
 jobs:
   materialize-release-source:
     runs-on: ubuntu-latest
