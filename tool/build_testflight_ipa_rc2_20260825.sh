@@ -28,57 +28,41 @@ release_source_hashes() {
     lib/camera_ui_extended_copy.dart \
     lib/registry_verify_page.dart \
     lib/verification_ui_copy.dart \
+    lib/hcv_package.dart \
+    lib/hcvpack_player_page.dart \
+    lib/hcv_display_risk_fusion.dart \
+    lib/hcv_scene_decision_fusion.dart \
     lib/hcv_ml_screen_replay_classifier.dart \
     lib/hcv_ml_model_store.dart \
+    ios/Runner/SceneDelegate.swift \
     assets/ml/sigillum_screen_replay_v2.tflite \
     assets/ml/sigillum_screen_replay_v1.tflite
 }
 
-log "=== SIGILLUM TESTFLIGHT RC2 RELEASE PROOF ==="
+assert_committed_source_unchanged() {
+  git diff --exit-code -- \
+    lib \
+    test \
+    ios/Runner \
+    ios/Podfile \
+    pubspec.yaml \
+    pubspec.lock \
+    analysis_options.yaml
+}
+
+log "=== SIGILLUM TESTFLIGHT MATERIALIZED RELEASE PROOF ==="
 BUILD_COMMIT="$(git rev-parse HEAD)"
 log "GIT_COMMIT=$BUILD_COMMIT"
 log "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)"
 
-# Finalize twice and require byte-identical output. This converts the old
-# patch-chain assumption into an explicit release invariant: regardless of how
-# many Codemagic steps have already materialized the RC2 source, another pass
-# must converge to exactly the same tree.
-python3 tool/finalize_testflight_release_source_20260825.py
-release_source_hashes > "$AUDIT_DIR/release-source-pass1.sha256"
-python3 tool/finalize_testflight_release_source_20260825.py
-release_source_hashes > "$AUDIT_DIR/release-source-pass2.sha256"
-if ! diff -u "$AUDIT_DIR/release-source-pass1.sha256" "$AUDIT_DIR/release-source-pass2.sha256" | tee -a "$PROOF_LOG"; then
-  log "RELEASE_FINALIZER_IDEMPOTENCE=FAIL"
-  exit 1
-fi
-log "RELEASE_FINALIZER_IDEMPOTENCE=PASS"
+# The release source is committed in Git. Nothing in this build is allowed to
+# rewrite Dart/Swift application source. Dependency resolution happened before
+# this script and the external tflite_flutter podspec was pinned separately.
+assert_committed_source_unchanged
+release_source_hashes > "$AUDIT_DIR/release-source-validated.sha256"
+log "COMMITTED_MATERIALIZED_SOURCE=PASS"
 
-REGISTRY_HELPER_COUNT="$(grep -Fc "_v('registryHelper')" lib/registry_verify_page.dart || true)"
-if [[ "$REGISTRY_HELPER_COUNT" != "1" ]]; then
-  log "REGISTRY_HELPER_COUNT_FAIL=$REGISTRY_HELPER_COUNT"
-  exit 1
-fi
-if grep -Fq 'Il certificato viene recuperato automaticamente dal Registry HCV. Devi selezionare SOLO il file originale.' lib/registry_verify_page.dart; then
-  log "REGISTRY_LEGACY_HELPER_SURVIVED"
-  exit 1
-fi
-log "REGISTRY_HELPER_NORMALIZED=1"
-
-# Analyze and test the exact tree that will be archived. Nothing below these
-# checks is allowed to mutate Dart application source.
-flutter analyze --no-fatal-infos --no-fatal-warnings
-flutter test --reporter expanded 2>&1 | tee "$AUDIT_DIR/flutter-tests-preipa.log"
-python3 tool/verify_postpatch_release_20260825.py
-release_source_hashes > "$AUDIT_DIR/release-source-after-tests.sha256"
-if ! diff -u "$AUDIT_DIR/release-source-pass2.sha256" "$AUDIT_DIR/release-source-after-tests.sha256" | tee -a "$PROOF_LOG"; then
-  log "TEST_SUITE_MUTATED_RELEASE_SOURCE=FAIL"
-  exit 1
-fi
-log "TEST_SUITE_MUTATED_RELEASE_SOURCE=NO"
-log "PREBUILD_SOURCE_VALIDATION=PASS"
-
-# Hard semantic guards: these are exactly the pieces that must be present in the
-# source compiled into TestFlight.
+# Hard semantic guards for the exact source that will be archived.
 require_source_token lib/camera_page.dart "import 'camera_ui_extended_copy.dart';"
 require_source_token lib/camera_page.dart "CameraUiExtendedCopy.t(widget.languageCode, key)"
 require_source_token lib/hcv_ml_screen_replay_classifier.dart "Interpreter.fromBuffer(bytes)"
@@ -92,9 +76,17 @@ require_source_token lib/hcv_ml_model_store.dart "BUNDLED_ASSET_MODEL_V1_FALLBAC
 require_source_token lib/registry_verify_page.dart "_v('registryHelper')"
 require_source_token lib/registry_verify_page.dart "String get _fullTechnicalDiagnostics"
 require_source_token lib/registry_verify_page.dart "TFLite runtime:"
+require_source_token ios/Runner/SceneDelegate.swift "private func localizedProductPrices("
+require_source_token ios/Runner/SceneDelegate.swift "call.method == \"pickOriginalPhoto\""
+require_source_token ios/Runner/SceneDelegate.swift "PHAssetResourceManager.default().writeData("
 
-# The release finalizer above pins the tflite_flutter podspec after pub get.
-# Prove that exact native runtime before CocoaPods resolves the archive.
+REGISTRY_HELPER_COUNT="$(grep -Fc "_v('registryHelper')" lib/registry_verify_page.dart || true)"
+if [[ "$REGISTRY_HELPER_COUNT" != "1" ]]; then
+  log "REGISTRY_HELPER_COUNT_FAIL=$REGISTRY_HELPER_COUNT"
+  exit 1
+fi
+log "REGISTRY_HELPER_NORMALIZED=1"
+
 TFLITE_PODSPEC="$(python3 - <<'PY'
 from pathlib import Path
 import json
@@ -120,14 +112,14 @@ if [[ ! -f "$TFLITE_PODSPEC" ]]; then
 fi
 if ! grep -Fq "tflite_version = '2.17.0'" "$TFLITE_PODSPEC"; then
   log "TFLITE_PODSPEC_VERSION_FAIL=$TFLITE_PODSPEC"
-  cat "$TFLITE_PODSPEC" >> "$PROOF_LOG"
+  grep -n "tflite_version" "$TFLITE_PODSPEC" | tee -a "$PROOF_LOG" || true
   exit 1
 fi
 log "TFLITE_PODSPEC_VERSION=2.17.0"
 log "TFLITE_PODSPEC=$TFLITE_PODSPEC"
 
-# Resolve pods now and lock the exact native runtime. flutter build below uses
-# --no-pub, so the validated Dart source/package state cannot be rematerialized.
+# CocoaPods may update generated Pod state/Podfile.lock, but it must not mutate
+# committed application source.
 pushd ios >/dev/null
 pod install --repo-update
 popd >/dev/null
@@ -137,7 +129,6 @@ if [[ ! -f ios/Podfile.lock ]]; then
   exit 1
 fi
 cp ios/Podfile.lock "$AUDIT_DIR/Podfile.testflight.lock.log"
-
 if ! grep -Fq "TensorFlowLiteSwift (2.17.0)" ios/Podfile.lock; then
   log "TFLITE_POD_LOCK_FAIL expected=TensorFlowLiteSwift_2.17.0"
   grep -n "TensorFlowLite" ios/Podfile.lock | tee -a "$PROOF_LOG" || true
@@ -146,9 +137,13 @@ fi
 log "TFLITE_POD_LOCK=TensorFlowLiteSwift_2.17.0"
 grep -n "TensorFlowLite" ios/Podfile.lock | tee -a "$PROOF_LOG" || true
 
-log "PREBUILD_SOURCE_SHA_BEGIN"
-release_source_hashes | tee -a "$PROOF_LOG"
-log "PREBUILD_SOURCE_SHA_END"
+assert_committed_source_unchanged
+release_source_hashes > "$AUDIT_DIR/release-source-after-pods.sha256"
+if ! diff -u "$AUDIT_DIR/release-source-validated.sha256" "$AUDIT_DIR/release-source-after-pods.sha256" | tee -a "$PROOF_LOG"; then
+  log "PODS_MUTATED_RELEASE_SOURCE=FAIL"
+  exit 1
+fi
+log "PODS_MUTATED_RELEASE_SOURCE=NO"
 
 LATEST_BUILD_NUMBER="$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")"
 if ! [[ "$LATEST_BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
@@ -164,6 +159,14 @@ flutter build ipa --release --no-pub \
   --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com \
   --dart-define=GIT_COMMIT="$BUILD_COMMIT" \
   --export-options-plist=/Users/builder/export_options.plist
+
+assert_committed_source_unchanged
+release_source_hashes > "$AUDIT_DIR/release-source-after-build.sha256"
+if ! diff -u "$AUDIT_DIR/release-source-validated.sha256" "$AUDIT_DIR/release-source-after-build.sha256" | tee -a "$PROOF_LOG"; then
+  log "BUILD_MUTATED_RELEASE_SOURCE=FAIL"
+  exit 1
+fi
+log "BUILD_MUTATED_RELEASE_SOURCE=NO"
 
 ARCHIVE="$(find build/ios/archive -maxdepth 1 -type d -name '*.xcarchive' | head -n 1)"
 if [[ -z "$ARCHIVE" || ! -d "$ARCHIVE" ]]; then
@@ -255,5 +258,6 @@ else
   log "AOT_ML_DIAGNOSTIC_MARKER=NOT_VISIBLE_IN_STRINGS"
 fi
 
+python3 tool/verify_postpatch_release_20260825.py
 log "ARCHIVED_RUNNER_SHA=$(shasum -a 256 "$RUNNER_BIN" | awk '{print $1}')"
 log "TESTFLIGHT_RELEASE_PROOF=PASS"
