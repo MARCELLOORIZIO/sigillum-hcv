@@ -7,6 +7,8 @@ void main() {
     final codemagic = File('codemagic.yaml').readAsStringSync();
     final buildProofPath = 'tool/build_testflight_ipa_rc2_20260825.sh';
     final buildProof = File(buildProofPath).readAsStringSync();
+    final tflitePin =
+        File('tool/pin_tflite_ios_runtime_20260826.sh').readAsStringSync();
     final classifier =
         File('lib/hcv_ml_screen_replay_classifier.dart').readAsStringSync();
     final store = File('lib/hcv_ml_model_store.dart').readAsStringSync();
@@ -18,13 +20,40 @@ void main() {
       testflight,
       contains('script: bash tool/build_testflight_ipa_rc2_20260825.sh'),
     );
+    expect(testflight, contains('flutter: 3.47.1'));
+    expect(
+      testflight,
+      contains('bash tool/pin_tflite_ios_runtime_20260826.sh'),
+    );
     expect(
       testflight,
       isNot(contains(r'LATEST_BUILD_NUMBER="$(app-store-connect')),
     );
 
+    // The final build consumes the already committed materialized source.
+    // Build-time application patchers/finalizers are forbidden: source identity
+    // is proved by git diff and hashes before/after pods and AOT instead.
+    for (final forbidden in <String>[
+      'python3 tool/apply_',
+      'python3 tool/finalize_',
+      'dart format',
+    ]) {
+      expect(
+        testflight,
+        isNot(contains(forbidden)),
+        reason: 'TestFlight pipeline must not mutate committed source: $forbidden',
+      );
+      expect(
+        buildProof,
+        isNot(contains(forbidden)),
+        reason: 'TestFlight build proof must not mutate committed source: $forbidden',
+      );
+    }
+
     for (final token in <String>[
-      'PREBUILD_SOURCE_VALIDATION=PASS',
+      'COMMITTED_MATERIALIZED_SOURCE=PASS',
+      'PODS_MUTATED_RELEASE_SOURCE=NO',
+      'BUILD_MUTATED_RELEASE_SOURCE=NO',
       'flutter build ipa --release --no-pub',
       "tflite_version = '2.17.0'",
       'TensorFlowLiteSwift (2.17.0)',
@@ -36,14 +65,14 @@ void main() {
       expect(buildProof, contains(token), reason: 'missing release proof: $token');
     }
 
-    // The proof step runs after Codemagic has already materialized, analyzed and
-    // tested the release source. It must never re-run source patchers or dart
-    // format, otherwise the exact tested source can be changed before AOT.
-    expect(
-      buildProof,
-      isNot(contains('python3 tool/apply_media_specific_verification_picker_fix_20260822.py')),
-    );
-    expect(buildProof, isNot(contains('dart format')));
+    for (final token in <String>[
+      'TARGET_VERSION="2.17.0"',
+      "tflite_version = '2.12.0'",
+      "tflite_version = '2.17.0'",
+      'TFLITE_IOS_RUNTIME=$TARGET_VERSION',
+    ]) {
+      expect(tflitePin, contains(token), reason: 'missing TFLite pin guard: $token');
+    }
 
     for (final token in <String>[
       'Interpreter.fromBuffer(bytes)',
@@ -60,12 +89,17 @@ void main() {
     expect(store, contains('BUNDLED_ASSET_MODEL_V1_FALLBACK'));
 
     if (!Platform.isWindows) {
-      final shellCheck = Process.runSync('bash', ['-n', buildProofPath]);
-      expect(
-        shellCheck.exitCode,
-        0,
-        reason: 'TestFlight build script syntax error: ${shellCheck.stderr}',
-      );
+      for (final shellPath in <String>[
+        buildProofPath,
+        'tool/pin_tflite_ios_runtime_20260826.sh',
+      ]) {
+        final shellCheck = Process.runSync('bash', ['-n', shellPath]);
+        expect(
+          shellCheck.exitCode,
+          0,
+          reason: '$shellPath syntax error: ${shellCheck.stderr}',
+        );
+      }
     }
   });
 }
