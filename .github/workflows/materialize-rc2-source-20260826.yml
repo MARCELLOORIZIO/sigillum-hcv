@@ -111,7 +111,7 @@ jobs:
           git diff --cached --binary > /tmp/materialized-after-second-pass.patch
           diff -u /tmp/materialized-before-second-pass.patch /tmp/materialized-after-second-pass.patch
 
-      - name: Commit materialized release source
+      - name: Commit and verify materialized release source
         if: steps.guard.outputs.skip != 'true'
         shell: bash
         run: |
@@ -124,6 +124,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'RC2: materialize finalized release source'
+          python3 tool/verify_materialized_source_commit_20260826.py
           git push origin HEAD:release/testflight-materialized-clean-20260826
 
       - name: Upload materialization audit
