@@ -84,6 +84,33 @@ void main() {
     expect(result.reasons, contains('ML_GEOMETRY_CONFLICT'));
   });
 
+  test('HCV 6052 strong monitor ML plus REALITY geometry remains non-conclusive', () {
+    final result = HCVDisplayRiskFusion.combine([
+      _liveProbe(
+        score: 20,
+        decision: 'NO_DISPLAY_EVIDENCE',
+        geometrySceneClass: 'REALITY',
+        signals: const {
+          'reflectedRealityEvidence': false,
+          'sceneRealityEvidence': true,
+          'geometricRealityEvidence': true,
+        },
+      ),
+      _passive(
+        score: 20,
+        strongDisplayTrace: false,
+        structuralDisplayTrace: false,
+        confirmedDisplayTrace: false,
+      ),
+      _mlScreen(score: 100, confidence: 0.9973),
+    ]);
+
+    expect(result.decision, 'NON_CONCLUSIVE');
+    expect(result.risk, 'MEDIUM');
+    expect(result.score, 69);
+    expect(result.reasons, contains('ML_GEOMETRY_CONFLICT'));
+  });
+
   test('HCV 3F31 mixed 3D scene with display cues cannot resolve as no display evidence', () {
     final result = HCVDisplayRiskFusion.combine([
       {
