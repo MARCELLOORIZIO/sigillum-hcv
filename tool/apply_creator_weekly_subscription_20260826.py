@@ -13,13 +13,25 @@ if weekly_const not in billing:
         raise RuntimeError('monthly product-id anchor missing')
     billing = billing.replace(anchor, weekly_const + anchor, 1)
 
-# Accept weekly purchases everywhere the existing Creator products are accepted.
-legacy_set = '  static const productIds = {monthlyProductId, annualProductId};'
-weekly_set = '  static const productIds = {weeklyProductId, monthlyProductId, annualProductId};'
-if weekly_set not in billing:
-    if legacy_set not in billing:
-        raise RuntimeError('Creator productIds anchor missing')
-    billing = billing.replace(legacy_set, weekly_set, 1)
+# Normalize the accepted Creator product set semantically. dart format expands
+# this set across lines, so never depend on its byte layout.
+product_ids_pattern = re.compile(
+    r"  static const productIds\s*=\s*\{.*?\};",
+    re.S,
+)
+product_ids_match = product_ids_pattern.search(billing)
+if not product_ids_match:
+    raise RuntimeError('Creator productIds semantic region missing')
+product_ids_block = '''  static const productIds = {
+    weeklyProductId,
+    monthlyProductId,
+    annualProductId,
+  };'''
+billing = (
+    billing[:product_ids_match.start()]
+    + product_ids_block
+    + billing[product_ids_match.end():]
+)
 
 # App Store does not guarantee ProductDetails ordering. Keep the intended sales
 # ladder stable regardless of localized price/currency: 7 days, monthly, annual.
@@ -37,18 +49,30 @@ if 'static int productRank(String productId)' not in billing:
         raise RuntimeError('billing service field anchor missing')
     billing = billing.replace(anchor, rank_method + anchor, 1)
 
-raw_sort = '..sort((a, b) => a.rawPrice.compareTo(b.rawPrice));'
-rank_sort = '..sort((a, b) => productRank(a.id).compareTo(productRank(b.id)));'
-if rank_sort not in billing:
-    if raw_sort not in billing:
-        raise RuntimeError('product ordering anchor missing')
-    billing = billing.replace(raw_sort, rank_sort, 1)
+if not (
+    'productRank(a.id)' in billing
+    and 'productRank(b.id)' in billing
+):
+    raw_sort_pattern = re.compile(
+        r"\.\.sort\(\(a, b\)\s*=>\s*a\.rawPrice\.compareTo\(b\.rawPrice\)\);"
+    )
+    billing, sort_count = raw_sort_pattern.subn(
+        '..sort((a, b) => productRank(a.id).compareTo(productRank(b.id)));',
+        billing,
+        count=1,
+    )
+    if sort_count != 1:
+        raise RuntimeError('product ordering semantic anchor missing')
 
 for token in [
     "weeklyProductId = 'com.sigillum.hcv.creator.weekly'",
-    'productIds = {weeklyProductId, monthlyProductId, annualProductId}',
+    'static const productIds',
+    'weeklyProductId,',
+    'monthlyProductId,',
+    'annualProductId,',
     'static int productRank(String productId)',
-    'productRank(a.id).compareTo(productRank(b.id))',
+    'productRank(a.id)',
+    'productRank(b.id)',
 ]:
     if token not in billing:
         raise RuntimeError(f'weekly billing contract missing: {token}')
@@ -67,7 +91,8 @@ weekly_copy = {
     "'monthly': 'МЕСЯЧНАЯ',": "'monthly': 'МЕСЯЧНАЯ',\n    'weekly': '7 ДНЕЙ',",
 }
 for old, new in weekly_copy.items():
-    if new not in gate:
+    weekly_value = new.split("'weekly': ", 1)[1].rstrip(',')
+    if weekly_value not in gate:
         if old not in gate:
             raise RuntimeError(f'weekly localization anchor missing: {old}')
         gate = gate.replace(old, new, 1)
