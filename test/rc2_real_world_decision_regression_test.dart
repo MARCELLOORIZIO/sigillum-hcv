@@ -5,7 +5,7 @@ import 'package:sigillum_iphone/hcv_scene_decision_fusion.dart';
 import 'package:sigillum_iphone/hcv_scene_geometry_classifier.dart';
 
 void main() {
-  test('classifier REALITY is not rejected by a second fusion threshold', () {
+  test('classifier REALITY cannot erase concurrent emissive display evidence', () {
     final geometry = HCVSceneGeometryClassifier.classify(
       motionMagnitude: 0.1667,
       flowReliability: 0.5792,
@@ -30,8 +30,14 @@ void main() {
       geometry: geometry,
     );
 
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.sceneClass, 'REALITY');
+    expect(result.decision, 'NON_CONCLUSIVE');
+    expect(result.sceneClass, 'UNKNOWN');
+    expect(result.realityEvidence, isTrue);
+    expect(result.displayEvidence, isTrue);
+    expect(
+      result.reasons,
+      contains('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT'),
+    );
   });
 
   test('real-world temporal false positive cannot become HIGH by itself', () {
