@@ -1,0 +1,1 @@
+After the finalized source is committed and validated, remove build-time source mutation from Codemagic and keep only deterministic validation/build proof steps.
