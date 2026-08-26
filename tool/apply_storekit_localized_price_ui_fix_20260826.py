@@ -49,8 +49,8 @@ localized_method = r'''  Future<Map<String, String>> localizedDisplayPrices(
         }
       }
     } catch (_) {
-      // A price-rendering refresh must never block the purchase flow. The
-      // generic ProductDetails price remains available as a safe fallback.
+      // Price rendering must never block purchase. ProductDetails.price remains
+      // the safe fallback if a direct StoreKit 2 refresh is temporarily absent.
     }
     return fallback;
   }
@@ -63,7 +63,6 @@ if 'Future<Map<String, String>> localizedDisplayPrices(' not in billing:
     billing = billing.replace(anchor, localized_method + anchor, 1)
 
 for token in [
-    "in_app_purchase_storekit/in_app_purchase_storekit.dart",
     'SK2Product.products(fallback.keys.toList())',
     'product.displayPrice.trim()',
     'Future<Map<String, String>> localizedDisplayPrices(',
@@ -110,27 +109,42 @@ if 'localizedDisplayPrices(_products)' not in prepare:
     if old not in prepare:
         raise RuntimeError('commercial product loading anchor missing')
     prepare = prepare.replace(old, new, 1)
-    prepare = prepare.replace(
-        "      _products = const [];\n    }\n  }\n\n  Future<void> _onPurchases",
-        "      _products = const [];\n      _productDisplayPrices = const {};\n    }\n  }\n\n  Future<void> _onPurchases",
-        1,
-    )
+    if '_productDisplayPrices = const {};' not in prepare.split('catch', 1)[-1]:
+        prepare = prepare.replace(
+            '      _products = const [];\n',
+            '      _products = const [];\n      _productDisplayPrices = const {};\n',
+            1,
+        )
     gate = gate[:match.start()] + prepare + gate[match.end():]
 
-old_price = "${product.id == CommercialBillingService.annualProductId ? 'ANNUALE' : 'MENSILE'} — ${product.price}"
-new_price = "${product.id == CommercialBillingService.annualProductId ? 'ANNUALE' : 'MENSILE'} — ${_productDisplayPrices[product.id] ?? product.price}"
-if new_price not in gate:
-    if old_price not in gate:
-        raise RuntimeError('commercial billing visible-price anchor missing')
-    gate = gate.replace(old_price, new_price, 1)
+# Normalize the unique visible ProductDetails price token, independent of
+# language, line wrapping, or historical CTA wording.
+visible_price = '${_productDisplayPrices[product.id] ?? product.price}'
+if visible_price not in gate:
+    legacy_price = '${product.price}'
+    count = gate.count(legacy_price)
+    if count != 1:
+        raise RuntimeError(
+            f'commercial visible ProductDetails price token expected once, got {count}'
+        )
+    gate = gate.replace(legacy_price, visible_price, 1)
 
-# Make the two identities explicit inside SIGILLUM. The Apple purchase sheet
-# is owned by StoreKit and may legitimately show a different App Store account.
-account_marker = "Account SIGILLUM: ${_email.text.trim()}"
+# Make the app identity explicit. Scope insertion to _billing() so changes in
+# surrounding localized layout cannot move the label to another page.
+account_marker = r'Account SIGILLUM: ${_email.text.trim()}'
 if account_marker not in gate:
-    anchor = "        const SizedBox(height: 18),\n        if (_products.isEmpty)\n"
-    insert = '''        const SizedBox(height: 14),
-        if (_email.text.trim().isNotEmpty)
+    billing_region = re.search(
+        r"  Widget _billing\(\) \{.*?(?=\n  Widget _identity\(\) \{)",
+        gate,
+        re.S,
+    )
+    if not billing_region:
+        raise RuntimeError('commercial billing widget semantic region missing')
+    region = billing_region.group(0)
+    products_anchor = '        if (_products.isEmpty)\n'
+    if region.count(products_anchor) != 1:
+        raise RuntimeError('commercial billing product-list anchor not unique')
+    account_ui = '''        if (_email.text.trim().isNotEmpty)
           Text(
             'Account SIGILLUM: ${_email.text.trim()}',
             textAlign: TextAlign.center,
@@ -141,24 +155,26 @@ if account_marker not in gate:
             ),
           ),
         const SizedBox(height: 12),
-        if (_products.isEmpty)
 '''
-    if anchor not in gate:
-        raise RuntimeError('commercial billing account-label anchor missing')
-    gate = gate.replace(anchor, insert, 1)
+    region = region.replace(products_anchor, account_ui + products_anchor, 1)
+    gate = gate[:billing_region.start()] + region + gate[billing_region.end():]
 
-# Reset any previously resolved storefront display price when the visible
-# SIGILLUM session is cleared.
-gate = gate.replace(
-    '      _products = const [];\n      _message = \'\';',
-    '      _products = const [];\n      _productDisplayPrices = const {};\n      _message = \'\';',
+# Clear storefront strings together with product/session state. This replacement
+# is intentionally idempotent: after the first pass its legacy pair is absent.
+legacy_reset = "      _products = const [];\n      _message = '';"
+localized_reset = (
+    "      _products = const [];\n"
+    "      _productDisplayPrices = const {};\n"
+    "      _message = '';"
 )
+if localized_reset not in gate and legacy_reset in gate:
+    gate = gate.replace(legacy_reset, localized_reset, 1)
 
 for token in [
     'Map<String, String> _productDisplayPrices = const {};',
     'localizedDisplayPrices(_products)',
     '_productDisplayPrices[product.id] ?? product.price',
-    'Account SIGILLUM: ${_email.text.trim()}',
+    account_marker,
 ]:
     if token not in gate:
         raise RuntimeError(f'commercial localized-price UI contract missing: {token}')
