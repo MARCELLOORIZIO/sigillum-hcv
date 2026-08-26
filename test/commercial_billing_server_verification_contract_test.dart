@@ -68,6 +68,30 @@ void main() {
     });
 
     test(
+      'fresh StoreKit purchase retries only unresolved or transient server verification',
+      () {
+        expect(account, contains('_appleVerificationRetryDelays'));
+        expect(account, contains('Duration(milliseconds: 600)'));
+        expect(account, contains('Duration(milliseconds: 1200)'));
+        expect(account, contains('Duration(milliseconds: 2400)'));
+        expect(account, contains('await Future<void>.delayed(delay)'));
+        expect(account, contains("if (result['verified'] == true)"));
+        expect(account, contains('_isTransientAppleVerificationError(error)'));
+        expect(account, contains('status == 408'));
+        expect(account, contains('status == 409'));
+        expect(account, contains('status == 425'));
+        expect(account, contains('status == 429'));
+        expect(account, contains('status >= 500'));
+        expect(account, contains('if (status == null) return false;'));
+        expect(
+          account,
+          contains("'verified': false,\n          'status': 'inactive'"),
+        );
+        expect(account, isNot(contains("'verified': true,\n          'status': 'active'")));
+      },
+    );
+
+    test(
       'unfinished StoreKit2 transaction is verified before manual finish',
       () {
         expect(billing, contains('SK2Transaction.unfinishedTransactions()'));
