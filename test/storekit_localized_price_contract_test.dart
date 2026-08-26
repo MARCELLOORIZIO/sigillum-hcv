@@ -25,7 +25,7 @@ void main() {
     );
     expect(
       gate,
-      contains('Account SIGILLUM: ${_email.text.trim()}'),
+      contains(r'Account SIGILLUM: ${_email.text.trim()}'),
     );
   });
 }
