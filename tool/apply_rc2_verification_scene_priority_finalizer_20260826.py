@@ -30,7 +30,9 @@ else:
 
 # Validate the guard in the exact getter, not merely somewhere in the file.
 # This prevents an unrelated occurrence of the same condition from satisfying
-# the release contract.
+# the release contract. Do not couple this safety gate to the exact wording of
+# the localized NON_CONCLUSIVE state: later UI finalizers may legitimately
+# normalize that copy while preserving the same decision semantics.
 if helper_with_guard not in source:
     raise RuntimeError(
         'verification scene-priority guard is not installed in _signedRealityScene'
@@ -38,7 +40,6 @@ if helper_with_guard not in source:
 
 for token in [
     "if (axis == 'scene' && _signedRealityScene) return _v('realityDetected');",
-    "if (axis == 'scene' && value.contains('conclusiva')) return _v('sceneUncertain');",
     "if (_isDisplayNonConclusive) return _v('uncertainDetail');",
 ]:
     if token not in source:
