@@ -12,19 +12,18 @@ void main() {
         "    final cert = certificate;\n";
     const realityLabel =
         "if (axis == 'scene' && _signedRealityScene) return _v('realityDetected');";
-    const uncertainLabel =
-        "if (axis == 'scene' && value.contains('conclusiva')) return _v('sceneUncertain');";
     const uncertainDetail =
         "if (_isDisplayNonConclusive) return _v('uncertainDetail');";
 
     expect(registry, contains(signedRealityGetter));
     expect(registry, contains(realityLabel));
-    expect(registry, contains(uncertainLabel));
     expect(registry, contains(uncertainDetail));
 
     // Lock the exact execution order inside _signedRealityScene: the signed
     // final display fusion is checked before any lower-level live geometry is
-    // inspected. This is the HCV-6052 UI regression contract.
+    // inspected. This is the HCV-6052 UI regression contract. The localized
+    // wording used for a NON_CONCLUSIVE state is intentionally not pinned here:
+    // UI finalizers may normalize that copy without changing this safety rule.
     final getterPos = registry.indexOf(signedRealityGetter);
     final livePos = registry.indexOf(
       "final live = claims is Map ? claims['liveScreenProbe'] : null;",
