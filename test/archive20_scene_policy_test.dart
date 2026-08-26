@@ -4,7 +4,7 @@ import 'package:sigillum_iphone/hcv_scene_decision_fusion.dart';
 import 'package:sigillum_iphone/hcv_scene_geometry_classifier.dart';
 
 void main() {
-  test('archive 20 reality-like electronic cues need geometry resolution', () {
+  test('archive 20 electronic display cues remain unresolved despite reality geometry', () {
     const illumination = HCVActiveDisplayClassification(
       decision: 'NON_CONCLUSIVE',
       risk: 'MEDIUM',
@@ -40,9 +40,13 @@ void main() {
       geometry: geometry,
     );
 
-    expect(decision.sceneClass, 'REALITY');
-    expect(decision.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(decision.displayEvidence, isFalse);
+    expect(decision.sceneClass, 'UNKNOWN');
+    expect(decision.decision, 'NON_CONCLUSIVE');
+    expect(decision.displayEvidence, isTrue);
     expect(decision.realityEvidence, isTrue);
+    expect(
+      decision.reasons,
+      contains('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT'),
+    );
   });
 }
