@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   materialize-release-source:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 60
 
     steps:
