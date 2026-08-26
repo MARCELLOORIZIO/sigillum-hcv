@@ -16,7 +16,15 @@ The branch must not replace `release/testflight-rc2-20260825` until all of these
 8. Public verification UI follows the signed final fusion: `NON_CONCLUSIVE` must never be rendered as `Realtà rilevata` solely because the lower-level live geometry says REALITY.
 9. Photo HCVPACK same-path naming and repeated iOS original-photo picker lifecycle regressions remain covered by the RC2 runtime finalizer.
 10. Native StoreKit storefront prices remain enabled; the purchase sheet and SIGILLUM paywall must use the same storefront currency.
+11. Materialization reproduces the exact Codemagic patcher order and targeted `dart format` file lists; broad `dart format lib test` is forbidden.
+12. The materialization commit must contain substantive release-source changes including `lib/registry_verify_page.dart` and `lib/hcv_display_risk_fusion.dart`, and must leave a clean working tree.
 
 ## Current status
 
-The two real-world display regressions and the final-fusion-first verification UI contract are committed on `release/testflight-materialized-clean-20260826`. A one-shot GitHub Actions workflow is present to materialize, validate, prove idempotence, and commit the final source tree. The branch remains non-release until that workflow successfully produces the materialization commit and the resulting tree is reviewed.
+Draft PR #22 targets `release/testflight-rc2-20260825` from `release/testflight-materialized-clean-20260826`. The PR is mergeable but intentionally remains draft and must not be merged yet.
+
+The two real-world display regressions and the final-fusion-first verification UI contract are committed. The UI finalizer and contract test now require the final-fusion guard in the exact `_signedRealityScene` getter, preventing unrelated occurrences of the same condition from satisfying the release gate.
+
+The one-shot materialization workflow now mirrors Codemagic's actual pre-archive source transformations, including the same targeted formatting commands, two finalizer passes, idempotence comparison, pre-archive analyze/test, postpatch verification, and a substantive materialized-commit gate.
+
+GitHub Actions is currently not providing an executable path for this new branch workflow: the last created run terminated with `startup_failure` before any job was created, and subsequent branch updates have not produced a new run. The active TestFlight branch and its current Codemagic patch chain therefore remain unchanged. No promotion is permitted until the materialization commit and validation evidence exist.
