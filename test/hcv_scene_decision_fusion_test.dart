@@ -5,7 +5,7 @@ import 'package:sigillum_iphone/hcv_scene_geometry_classifier.dart';
 
 void main() {
   group('HCVSceneDecisionFusion', () {
-    test('archive 20 reality profile is resolved by strong parallax', () {
+    test('strong parallax cannot erase explicit display illumination evidence', () {
       final result = HCVSceneDecisionFusion.fuse(
         illumination: _displayLikeIllumination(),
         geometry: _geometry(
@@ -19,12 +19,16 @@ void main() {
         ),
       );
 
-      expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-      expect(result.risk, 'LOW');
-      expect(result.score, 20);
-      expect(result.sceneClass, 'REALITY');
+      expect(result.decision, 'NON_CONCLUSIVE');
+      expect(result.risk, 'MEDIUM');
+      expect(result.score, 45);
+      expect(result.sceneClass, 'UNKNOWN');
       expect(result.realityEvidence, isTrue);
-      expect(result.displayEvidence, isFalse);
+      expect(result.displayEvidence, isTrue);
+      expect(
+        result.reasons,
+        contains('ILLUMINATION_AND_GEOMETRY_EVIDENCE_CONFLICT'),
+      );
     });
 
     test('planar geometry corroborates display illumination without becoming strong', () {
