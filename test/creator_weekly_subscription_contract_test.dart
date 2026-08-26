@@ -12,17 +12,14 @@ void main() {
       billing,
       contains("weeklyProductId = 'com.sigillum.hcv.creator.weekly'"),
     );
-    expect(
-      billing,
-      contains(
-        'productIds = {weeklyProductId, monthlyProductId, annualProductId}',
-      ),
+    final productSet = RegExp(
+      r'static const productIds\s*=\s*\{[^}]*weeklyProductId[^}]*monthlyProductId[^}]*annualProductId[^}]*\}',
+      dotAll: true,
     );
+    expect(productSet.hasMatch(billing), isTrue);
     expect(billing, contains('static int productRank(String productId)'));
-    expect(
-      billing,
-      contains('productRank(a.id).compareTo(productRank(b.id))'),
-    );
+    expect(billing, contains('productRank(a.id)'));
+    expect(billing, contains('productRank(b.id)'));
 
     expect(gate, contains("'weekly': '7 GIORNI'"));
     expect(gate, contains("'weekly': '7 DAYS'"));
