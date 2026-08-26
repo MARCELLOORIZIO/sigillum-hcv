@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - release/testflight-rc2-20260825
+      - release/production-gate-20260827
   pull_request:
     branches:
       - release/testflight-rc2-20260825
