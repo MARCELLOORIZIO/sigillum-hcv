@@ -1,0 +1,140 @@
+name: Materialize SIGILLUM RC2 release source
+
+on:
+  push:
+    branches:
+      - release/testflight-materialized-clean-20260826
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sigillum-rc2-materialization-clean
+  cancel-in-progress: true
+
+jobs:
+  materialize-release-source:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Stop after materialization commit
+        id: guard
+        shell: bash
+        run: |
+          if git log -1 --pretty=%s | grep -Fq 'RC2: materialize finalized release source'; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'skip=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Flutter
+        if: steps.guard.outputs.skip != 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Apply iOS share and import corrections
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          python3 tool/run_ios_share_handoff_fix.py
+          python3 tool/apply_file_import_and_ocr_fix.py
+
+      - name: Apply certificate monitor capture and Registry recovery
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          python3 tool/apply_safe_capture_location_fix.py
+          python3 tool/apply_mixed_scene_monitor_fix.py
+          python3 tool/apply_planar_parallax_compile_safety.py
+          python3 tool/apply_certificate_regression_fix.py
+          python3 tool/apply_certificate_regression_compile_fix.py
+          python3 tool/apply_certificate_regression_behavior_fix.py
+          python3 tool/apply_certificate_contract_test_fix.py
+
+      - name: Apply account text and photo workflows
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          python3 tool/apply_account_success_feedback.py
+          python3 tool/apply_text_social_verification.py
+          python3 tool/apply_text_keyboard_registry_photo_arm_fix.py
+
+      - name: Apply commercial shell
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          python3 tool/apply_commercial_registry_auth.py
+          python3 tool/apply_commercial_profile_shell.py
+          python3 tool/apply_server_verified_billing_gate.py
+          python3 tool/apply_media_specific_verification_picker_fix_20260822.py
+
+      - name: Resolve Flutter dependencies
+        if: steps.guard.outputs.skip != 'true'
+        run: flutter pub get
+
+      - name: Materialize exact TestFlight source
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/xcodebuild_logs
+          python3 tool/finalize_testflight_release_source_20260825.py
+          dart format lib test
+          python3 tool/verify_postpatch_release_20260825.py
+
+      - name: Validate materialized source
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test --reporter expanded 2>&1 | tee /tmp/xcodebuild_logs/flutter-tests-materialized.log
+          python3 tool/verify_postpatch_release_20260825.py
+
+      - name: Prove finalizers are idempotent
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --binary > /tmp/materialized-before-second-pass.patch
+          python3 tool/finalize_testflight_release_source_20260825.py
+          dart format lib test
+          python3 tool/verify_postpatch_release_20260825.py
+          git add -A
+          git diff --cached --binary > /tmp/materialized-after-second-pass.patch
+          diff -u /tmp/materialized-before-second-pass.patch /tmp/materialized-after-second-pass.patch
+
+      - name: Commit materialized release source
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No source changes to materialize.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'RC2: materialize finalized release source'
+          git push origin HEAD:release/testflight-materialized-clean-20260826
+
+      - name: Upload materialization audit
+        if: always() && steps.guard.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigillum-rc2-materialization-audit
+          path: |
+            /tmp/xcodebuild_logs/sigillum-postpatch-audit.log
+            /tmp/xcodebuild_logs/flutter-tests-materialized.log
+            /tmp/materialized-before-second-pass.patch
+            /tmp/materialized-after-second-pass.patch
+          if-no-files-found: warn
+          retention-days: 14
