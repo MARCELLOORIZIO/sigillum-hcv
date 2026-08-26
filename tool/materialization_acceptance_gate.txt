@@ -1,0 +1,1 @@
+Do not merge this branch until HEAD is the one-shot materialization commit and all acceptance gates pass.
