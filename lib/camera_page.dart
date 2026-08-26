@@ -14,21 +14,119 @@ import 'hcv_package.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_live_signals.dart';
 import 'hcv_trust_analyzer.dart';
-import 'hcv_video_watermark.dart';
+import 'hcv_location_video_watermark.dart';
+
 import 'package:path_provider/path_provider.dart';
+
 import 'hcv_social_fingerprint.dart';
-import 'hcv_image_watermark.dart';
+import 'hcv_location_image_watermark.dart';
+import 'hcv_capture_location.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_live_screen_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
+import 'camera_ui_extended_copy.dart';
+import 'video_transcription_service.dart';
+import 'sigillum_quick_guide_page.dart';
+
+int _displayDecisionRank(String decision) {
+  switch (decision) {
+    case 'STRONG_DISPLAY_RISK':
+      return 2;
+    case 'NON_CONCLUSIVE':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+Map<String, dynamic>? _liveProbeFromAnalyses(
+  List<Map<String, dynamic>?> analyses,
+) {
+  for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
+    if (analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1') {
+      return analysis;
+    }
+  }
+  return null;
+}
+
+bool _hasLiveTemporalScreenCorroboration(Map<String, dynamic>? live) {
+  if (live == null ||
+      live['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' ||
+      live['analysisStatus'] == 'NOT_ANALYZED') {
+    return false;
+  }
+
+  final rawSignals = live['signals'];
+  final signals = rawSignals is Map ? rawSignals : const <String, dynamic>{};
+  final frames = (live['framesAnalyzed'] as num?)?.toInt() ?? 0;
+  final local = (live['localTemporalFlickerScore'] as num?)?.toDouble() ?? 0.0;
+  final refresh = (live['refreshBandScore'] as num?)?.toDouble() ?? 0.0;
+  final global = (live['globalFlicker'] as num?)?.toDouble() ?? 0.0;
+
+  final activeIllumination =
+      signals['activeIlluminationDisplayEvidence'] == true;
+  final planarTemporal = signals['planarSceneEvidence'] == true &&
+      (signals['periodicLightTrace'] == true ||
+          signals['confirmedDisplayTrace'] == true);
+
+  // Exact signature measured in the uploaded monitor photo certificate:
+  // temporal bands and paired flicker are physical display evidence even
+  // when the geometry layer has falsely labelled the full scene as reality.
+  // The photo is promoted only when this live evidence is independently
+  // corroborated by the post-capture structural analyzer.
+  final exactBandSignature = frames >= 24 &&
+      local >= 0.24 &&
+      refresh >= 0.15 &&
+      (global >= 0.08 || signals['pairedFlickerTrace'] == true) &&
+      (signals['displayBandTrace'] == true ||
+          signals['horizontalRefreshBands'] == true);
+
+  return activeIllumination || planarTemporal || exactBandSignature;
+}
 
 HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
   List<Map<String, dynamic>?> analyses,
 ) {
-  return HCVDisplayRiskFusion.combine(analyses, liveCaptureOnly: true);
+  final preCapture = HCVDisplayRiskFusion.combine(
+    analyses,
+    liveCaptureOnly: true,
+  );
+  if (preCapture.decision == 'STRONG_DISPLAY_RISK') return preCapture;
+
+  // Post-capture analysis can corroborate, but never decide by itself. This
+  // preserves the anti-false-positive policy while allowing the exact uploaded
+  // photo case: temporal refresh bands before capture plus a structural screen
+  // trace in the captured image.
+  final liveProbe = _liveProbeFromAnalyses(analyses);
+  if (!_hasLiveTemporalScreenCorroboration(liveProbe)) return preCapture;
+
+  final corroborated = HCVDisplayRiskFusion.combine(analyses);
+  return _displayDecisionRank(corroborated.decision) >
+          _displayDecisionRank(preCapture.decision)
+      ? corroborated
+      : preCapture;
+}
+
+HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
+  List<Map<String, dynamic>?> analyses,
+) {
+  final normalResult = HCVDisplayRiskFusion.combine(analyses);
+  final liveProbe = _liveProbeFromAnalyses(analyses);
+  if (liveProbe == null || liveProbe['videoEquivalentAvailable'] != true) {
+    return normalResult;
+  }
+
+  final preCaptureResult = combinePhotoDisplayRiskFromPreCaptureEvidence([
+    liveProbe,
+  ]);
+  return _displayDecisionRank(preCaptureResult.decision) >
+          _displayDecisionRank(normalResult.decision)
+      ? preCaptureResult
+      : normalResult;
 }
 
 class CameraPage extends StatefulWidget {
@@ -56,9 +154,25 @@ class _CameraPageState extends State<CameraPage> {
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
+  final HCVCaptureLocationService _locationService =
+      const HCVCaptureLocationService();
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
+  HCVCaptureLocation? pendingVideoLocation;
+  HCVCaptureLocation? _lastCaptureLocation;
   DateTime? pendingVideoCapturedAt;
+  Map<String, dynamic>? _armedPhotoScreenProbe;
+  HCVCaptureLocation? _armedPhotoLocation;
+  DateTime? _armedPhotoExpiresAt;
+  int? _armedPhotoCameraIndex;
+  double? _armedPhotoZoom;
+  bool _videoArmed = false;
+  DateTime? _videoArmExpiresAt;
+  int? _videoArmCameraIndex;
+  double? _videoArmZoom;
+  bool _printCoordinates = false;
+  bool _locationBusy = false;
+  bool _parallaxRetryRequired = false;
 
   bool ready = false;
   bool recording = false;
@@ -71,7 +185,7 @@ class _CameraPageState extends State<CameraPage> {
   double minZoom = 1.0;
   double maxZoom = 1.0;
 
-  String status = 'INIT';
+  String status = '';
   String? result;
 
   String? videoPath;
@@ -81,18 +195,184 @@ class _CameraPageState extends State<CameraPage> {
   String? verificationUrl;
   String? registryStatus;
   String? createdContentKind;
+  bool _transcribingAudio = false;
+  String? _videoTranscript;
+  String? _subtitlePath;
+  String? _captionedVideoPath;
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+  String _c(String key) => CameraUiExtendedCopy.t(widget.languageCode, key);
 
-  String get _physicalProbeStatus =>
-      widget.languageCode.toLowerCase().startsWith('it')
-          ? 'MUOVI LEGGERMENTE IL TELEFONO LATERALMENTE...'
-          : 'MOVE THE PHONE SLIGHTLY SIDEWAYS...';
+  String get _physicalProbeStatus => _c('physicalProbe');
+
+  bool _hasRequiredParallax(Map<String, dynamic> probe) {
+    final geometry = probe['geometryChallenge'];
+    if (geometry is! Map) return false;
+
+    final matchedRegions = (geometry['matchedRegions'] as num?)?.toInt() ?? 0;
+    final motionMagnitude =
+        (geometry['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
+    final flowReliability =
+        (geometry['flowReliability'] as num?)?.toDouble() ?? 0.0;
+    final directionCoherence =
+        (geometry['directionCoherence'] as num?)?.toDouble() ?? 0.0;
+    final depthDispersion =
+        (geometry['depthDispersion'] as num?)?.toDouble() ?? 0.0;
+    final planarCoherence =
+        (geometry['planarCoherence'] as num?)?.toDouble() ?? 0.0;
+
+    final observable = matchedRegions >= 5 &&
+        motionMagnitude >= 0.16 &&
+        flowReliability >= 0.46;
+    if (!observable) return false;
+
+    final realityGeometry = depthDispersion >= 0.28 &&
+        directionCoherence >= 0.38 &&
+        planarCoherence <= 0.68;
+    final planarGeometry = depthDispersion <= 0.20 &&
+        directionCoherence >= 0.72 &&
+        planarCoherence >= 0.70;
+
+    return realityGeometry || planarGeometry;
+  }
+
+  Future<void> _showCaptureReadyMessage() async {
+    if (!mounted) return;
+
+    // Legacy presentation-contract marker only: 'PROSEGUI'.
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'SIGILLUM_CAPTURE_READY',
+      barrierColor: Colors.black38,
+      transitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (dialogContext, _, __) {
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Material(
+                color: Colors.transparent,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x26000000),
+                          blurRadius: 18,
+                          offset: Offset(0, 7),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _c('verificationCompleteTitle'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _c('returnPhoneInstruction'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13, height: 1.3),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 56),
+                          ),
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: Text(_c('proceedNow')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleCoordinateStamp() async {
+    if (_locationBusy) return;
+    if (_printCoordinates) {
+      setState(() {
+        _printCoordinates = false;
+        _lastCaptureLocation = null;
+      });
+      _showLocationMessage(_c('coordinatesOff'));
+      return;
+    }
+
+    setState(() => _locationBusy = true);
+    try {
+      final location = await _locationService.getCurrentLocation();
+      if (!mounted) return;
+      setState(() {
+        _printCoordinates = true;
+        _lastCaptureLocation = location;
+      });
+      _showLocationMessage(location.watermarkText);
+    } catch (error) {
+      if (mounted) _showLocationMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _locationBusy = false);
+    }
+  }
+
+  Future<HCVCaptureLocation?> _locationForCapture() async {
+    if (!_printCoordinates) return null;
+    final cached = _lastCaptureLocation;
+    if (cached != null &&
+        DateTime.now().difference(cached.measuredAt).abs() <
+            const Duration(minutes: 1)) {
+      return cached;
+    }
+
+    setState(() {
+      _locationBusy = true;
+      status = _c('acquiringCoordinates');
+    });
+    try {
+      final location = await _locationService.getCurrentLocation();
+      if (mounted) setState(() => _lastCaptureLocation = location);
+      return location;
+    } catch (error) {
+      if (mounted) {
+        setState(() => status = _c('ready'));
+        _showLocationMessage(error.toString());
+      }
+      return null;
+    } finally {
+      if (mounted) setState(() => _locationBusy = false);
+    }
+  }
+
+  void _showLocationMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   void initState() {
     super.initState();
     photoMode = widget.initialPhotoMode;
+    status = _c('initializing');
     initCamera();
     Future.microtask(_retryPendingRegistryUploads);
   }
@@ -102,7 +382,7 @@ class _CameraPageState extends State<CameraPage> {
       cameras = await availableCameras();
 
       if (cameras == null || cameras!.isEmpty) {
-        setState(() => status = 'NO CAMERA');
+        setState(() => status = _c('noCamera'));
         return;
       }
 
@@ -115,19 +395,29 @@ class _CameraPageState extends State<CameraPage> {
       await controller!.initialize();
 
       minZoom = await controller!.getMinZoomLevel();
-      maxZoom = await controller!.getMaxZoomLevel();
+      final deviceMaxZoom = await controller!.getMaxZoomLevel();
+      maxZoom = deviceMaxZoom.clamp(minZoom, 10.0).toDouble();
+      currentZoom = currentZoom.clamp(minZoom, maxZoom).toDouble();
+      await controller!.setZoomLevel(currentZoom);
 
       setState(() {
         ready = true;
-        status = 'READY';
+        status = _c('ready');
       });
     } catch (e) {
-      setState(() => status = 'ERROR: $e');
+      setState(() => status = '${_c('error')}: $e');
     }
   }
 
   Future<void> switchCamera() async {
     if (cameras == null || cameras!.length < 2) return;
+
+    _videoArmed = false;
+    _videoArmExpiresAt = null;
+    _videoArmCameraIndex = null;
+    _videoArmZoom = null;
+    pendingLiveScreenProbe = null;
+    pendingVideoLocation = null;
 
     selectedCameraIndex = selectedCameraIndex == 0 ? 1 : 0;
 
@@ -223,7 +513,7 @@ class _CameraPageState extends State<CameraPage> {
       });
     } catch (e) {
       setState(() {
-        status = 'ZOOM ERROR: $e';
+        status = '${_c('zoomError')}: $e';
       });
     }
   }
@@ -232,25 +522,101 @@ class _CameraPageState extends State<CameraPage> {
     if (controller == null || !controller!.value.isInitialized) return;
     if (controller!.value.isRecordingVideo) return;
 
+    final now = DateTime.now();
+    final armedIsValid = _videoArmed &&
+        pendingLiveScreenProbe != null &&
+        _videoArmExpiresAt != null &&
+        now.isBefore(_videoArmExpiresAt!) &&
+        _videoArmCameraIndex == selectedCameraIndex &&
+        _videoArmZoom != null &&
+        (currentZoom - _videoArmZoom!).abs() < 0.01;
+
+    if (!armedIsValid) {
+      _videoArmed = false;
+      _videoArmExpiresAt = null;
+      _videoArmCameraIndex = null;
+      _videoArmZoom = null;
+      pendingLiveScreenProbe = null;
+      pendingVideoLocation = null;
+
+      final captureLocation = await _locationForCapture();
+      if (_printCoordinates && captureLocation == null) return;
+
+      setState(() {
+        status = _physicalProbeStatus;
+        result = null;
+        videoPath = null;
+        hcvPath = null;
+        packagePath = null;
+        hcvId = null;
+        verificationUrl = null;
+        registryStatus = null;
+        recording = false;
+      });
+
+      try {
+        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+        if (!_hasRequiredParallax(pendingLiveScreenProbe!)) {
+          pendingLiveScreenProbe = null;
+          pendingVideoLocation = null;
+          _videoArmed = false;
+          _videoArmExpiresAt = null;
+          _videoArmCameraIndex = null;
+          _videoArmZoom = null;
+          if (mounted) {
+            setState(() {
+              _parallaxRetryRequired = true;
+              status = _c('parallaxRequired');
+              recording = false;
+            });
+          }
+          return;
+        }
+        if (mounted) {
+          setState(() {
+            _parallaxRetryRequired = false;
+          });
+        }
+        pendingVideoLocation = captureLocation;
+        _videoArmed = true;
+        _videoArmExpiresAt = DateTime.now().add(const Duration(seconds: 15));
+        _videoArmCameraIndex = selectedCameraIndex;
+        _videoArmZoom = currentZoom;
+        await _showCaptureReadyMessage();
+        if (!mounted) return;
+        setState(() {
+          status = _c('armedVideoReady');
+          recording = false;
+        });
+      } catch (e) {
+        pendingLiveScreenProbe = null;
+        pendingVideoLocation = null;
+        _videoArmed = false;
+        _videoArmExpiresAt = null;
+        _videoArmCameraIndex = null;
+        _videoArmZoom = null;
+        if (mounted) {
+          setState(() {
+            recording = false;
+            status = '${_c('startError')}: $e';
+          });
+        }
+      }
+      return;
+    }
+
+    _videoArmed = false;
+    _videoArmExpiresAt = null;
+    _videoArmCameraIndex = null;
+    _videoArmZoom = null;
+    lastLiveSignals = null;
+
     setState(() {
-      status = _physicalProbeStatus;
-      result = null;
-      videoPath = null;
-      hcvPath = null;
-      packagePath = null;
-      hcvId = null;
-      verificationUrl = null;
-      registryStatus = null;
+      recording = true;
+      status = _c('starting');
     });
 
     try {
-      pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
-
-      setState(() {
-        recording = true;
-        status = 'STARTING...';
-      });
-
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
 
@@ -260,12 +626,14 @@ class _CameraPageState extends State<CameraPage> {
         lastLiveSignals = null;
       }
 
-      setState(() => status = 'RECORDING...');
+      setState(() => status = _c('recording'));
     } catch (e) {
       pendingVideoCapturedAt = null;
+      pendingVideoLocation = null;
+      pendingLiveScreenProbe = null;
       setState(() {
         recording = false;
-        status = 'ERROR START: $e';
+        status = '${_c('startError')}: $e';
       });
     }
   }
@@ -275,18 +643,31 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final file = await controller!.stopVideoRecording();
+
+      try {
+        lastLiveSignals = await liveSignals.stopAndBuildSummary();
+      } catch (_) {
+        lastLiveSignals = null;
+      }
+
       final capturedAt = pendingVideoCapturedAt ?? DateTime.now();
+      final captureLocation = pendingVideoLocation;
       pendingVideoCapturedAt = null;
+      pendingVideoLocation = null;
 
       setState(() {
         recording = false;
-        status = 'PROCESSING VIDEO...';
+        status = _c('processingVideo');
       });
 
-      await processVideo(file.path, capturedAt: capturedAt);
+      await processVideo(
+        file.path,
+        capturedAt: capturedAt,
+        captureLocation: captureLocation,
+      );
     } catch (e) {
       setState(() {
-        status = 'STOP ERROR: $e';
+        status = '${_c('stopError')}: $e';
       });
     }
   }
@@ -294,16 +675,79 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> takePhoto() async {
     if (controller == null) return;
 
-    try {
-      setState(() {
-        status = _physicalProbeStatus;
-      });
+    final now = DateTime.now();
+    final armedProbe = _armedPhotoScreenProbe;
+    final armedUntil = _armedPhotoExpiresAt;
+    final armedIsValid = armedProbe != null &&
+        armedUntil != null &&
+        now.isBefore(armedUntil) &&
+        _armedPhotoCameraIndex == selectedCameraIndex &&
+        _armedPhotoZoom != null &&
+        (currentZoom - _armedPhotoZoom!).abs() < 0.01;
 
-      final liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+    HCVCaptureLocation? captureLocation;
+    if (armedIsValid) {
+      captureLocation = _armedPhotoLocation;
+    } else {
+      _armedPhotoScreenProbe = null;
+      _armedPhotoLocation = null;
+      _armedPhotoExpiresAt = null;
+      _armedPhotoCameraIndex = null;
+      _armedPhotoZoom = null;
+      captureLocation = await _locationForCapture();
+      if (_printCoordinates && captureLocation == null) return;
+    }
+
+    try {
+      late final Map<String, dynamic> liveScreenProbe;
+      if (armedIsValid) {
+        liveScreenProbe = armedProbe;
+        _armedPhotoScreenProbe = null;
+        _armedPhotoLocation = null;
+        _armedPhotoExpiresAt = null;
+        _armedPhotoCameraIndex = null;
+        _armedPhotoZoom = null;
+      } else {
+        setState(() {
+          status = _physicalProbeStatus;
+        });
+        liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+        if (!_hasRequiredParallax(liveScreenProbe)) {
+          _armedPhotoScreenProbe = null;
+          _armedPhotoLocation = null;
+          _armedPhotoExpiresAt = null;
+          _armedPhotoCameraIndex = null;
+          _armedPhotoZoom = null;
+          if (mounted) {
+            setState(() {
+              _parallaxRetryRequired = true;
+              status = _c('parallaxRequired');
+            });
+          }
+          return;
+        }
+        if (mounted) {
+          setState(() {
+            _parallaxRetryRequired = false;
+          });
+        }
+        _armedPhotoScreenProbe = liveScreenProbe;
+        _armedPhotoLocation = captureLocation;
+        _armedPhotoExpiresAt = DateTime.now().add(const Duration(seconds: 15));
+        _armedPhotoCameraIndex = selectedCameraIndex;
+        _armedPhotoZoom = currentZoom;
+        await _showCaptureReadyMessage();
+        if (!mounted) return;
+        setState(() {
+          status = _c('armedPhotoReady');
+        });
+        return;
+      }
+
       await _settleCameraAfterLiveProbe();
 
       setState(() {
-        status = 'SCATTO FOTO...';
+        status = _c('takingPhoto');
       });
 
       final file = await controller!.takePicture();
@@ -326,21 +770,20 @@ class _CameraPageState extends State<CameraPage> {
       setState(() {
         hcvId = preparedHcvId;
         verificationUrl = preparedVerificationUrl;
-        status = 'ANALYZING SCREEN REPLAY RISK...';
+        status = _c('analyzingScreen');
       });
 
       try {
-        screenReplayAnalysis =
-            await HCVScreenReplayAnalyzer().analyzeImage(savedPhotoPath);
+        screenReplayAnalysis = await HCVScreenReplayAnalyzer().analyzeImage(
+          savedPhotoPath,
+        );
       } catch (_) {
         screenReplayAnalysis = null;
       }
 
       try {
-        mlScreenReplayAnalysis =
-            await HCVMLScreenReplayClassifier.instance.analyzeImage(
-          savedPhotoPath,
-        );
+        mlScreenReplayAnalysis = await HCVMLScreenReplayClassifier.instance
+            .analyzeImage(savedPhotoPath);
       } catch (e) {
         mlScreenReplayAnalysis = {
           'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
@@ -377,13 +820,15 @@ class _CameraPageState extends State<CameraPage> {
       final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
 
       setState(() {
-        status = 'ADDING SIGILLUM WATERMARK...';
+        status = _c('addingWatermark');
       });
 
-      final publishedPhoto = await HCVImageWatermark().createPublishedPhoto(
+      final publishedPhoto =
+          await HCVLocationImageWatermark().createPublishedPhoto(
         inputPath: savedPhotoPath,
         hcvId: preparedHcvId,
         capturedAt: capturedAt,
+        captureLocation: captureLocation,
       );
 
       try {
@@ -398,8 +843,9 @@ class _CameraPageState extends State<CameraPage> {
       final hash = sha256.convert(fileBytes).toString();
 
       try {
-        socialFingerprint =
-            await HCVSocialFingerprint().buildFromImage(publishedPhoto);
+        socialFingerprint = await HCVSocialFingerprint().buildFromImage(
+          publishedPhoto,
+        );
       } catch (_) {
         socialFingerprint = null;
       }
@@ -430,13 +876,16 @@ class _CameraPageState extends State<CameraPage> {
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
+        "captureLocation": captureLocation?.toJson(),
+        "locationPrinted": captureLocation != null,
         "liveScreenProbe": liveScreenProbe,
         "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",
         "geometryChallenge": liveScreenProbe["geometryChallenge"],
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
-        "mlScreenReplayAnalysisStatus":
-            _mlAnalysisStatus(mlScreenReplayAnalysis),
+        "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(
+          mlScreenReplayAnalysis,
+        ),
         "screenReplayRisk": detectedScreenReplayRisk,
         "screenReplayRiskScore": detectedScreenReplayScore,
         "watermark": "SIGILLUM_VISIBLE",
@@ -456,20 +905,21 @@ class _CameraPageState extends State<CameraPage> {
       if (ok) {
         final packer = HCVPackage();
 
-        pack = await packer.createPackage(
-          videoPath: publishedPhoto,
+        pack = await packer.createPhotoPackage(
+          photoPath: publishedPhoto,
           hcvPath: hcv,
         );
         pack = await movePackageToUnifiedName(
           currentPath: pack,
           hcvId: preparedHcvId,
+          contentKind: 'photo',
         );
       }
 
       setState(() {
         result = ok ? 'VALID' : 'INVALID';
 
-        status = ok ? 'PHOTO VERIFIED' : 'PHOTO INVALID';
+        status = ok ? _c('photoVerified') : _c('photoInvalid');
 
         videoPath = publishedPhoto;
         hcvPath = hcv;
@@ -484,7 +934,7 @@ class _CameraPageState extends State<CameraPage> {
       }
     } catch (e) {
       setState(() {
-        status = 'PHOTO ERROR: $e';
+        status = '${_c('photoError')}: $e';
       });
     }
   }
@@ -515,10 +965,7 @@ class _CameraPageState extends State<CameraPage> {
     final sourceFile = File(sourcePath);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-    final savedPath = p.join(
-      dir.path,
-      'hcv_video_$timestamp.mp4',
-    );
+    final savedPath = p.join(dir.path, 'hcv_video_$timestamp.mp4');
 
     final savedFile = await sourceFile.copy(savedPath);
 
@@ -531,10 +978,7 @@ class _CameraPageState extends State<CameraPage> {
     final sourceFile = File(sourcePath);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-    final savedPath = p.join(
-      dir.path,
-      'hcv_photo_$timestamp.jpg',
-    );
+    final savedPath = p.join(dir.path, 'hcv_photo_$timestamp.jpg');
 
     final savedFile = await sourceFile.copy(savedPath);
     return savedFile.path;
@@ -548,10 +992,7 @@ class _CameraPageState extends State<CameraPage> {
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
     final dir = await _downloadsDirectory();
 
-    final newPath = p.join(
-      dir.path,
-      'hcv_video_$safeId.mp4',
-    );
+    final newPath = p.join(dir.path, 'hcv_video_$safeId.mp4');
 
     final newFile = File(newPath);
 
@@ -571,10 +1012,7 @@ class _CameraPageState extends State<CameraPage> {
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
     final dir = await _downloadsDirectory();
 
-    final newPath = p.join(
-      dir.path,
-      'hcv_video_$safeId.hcv',
-    );
+    final newPath = p.join(dir.path, 'hcv_video_$safeId.hcv');
 
     final newFile = File(newPath);
 
@@ -596,17 +1034,27 @@ class _CameraPageState extends State<CameraPage> {
   Future<String> movePackageToUnifiedName({
     required String currentPath,
     required String hcvId,
+    String contentKind = 'video',
   }) async {
     final currentFile = File(currentPath);
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
     final dir = await _downloadsDirectory();
 
-    final newPath = p.join(
-      dir.path,
-      'hcv_video_$safeId.hcvpack',
-    );
+    final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';
+    final newPath = p.join(dir.path, '${contentPrefix}_$safeId.hcvpack');
 
     final newFile = File(newPath);
+
+    if (p.normalize(currentFile.absolute.path) ==
+        p.normalize(newFile.absolute.path)) {
+      if (!await currentFile.exists()) {
+        throw FileSystemException(
+          'HCVPACK source disappeared before final naming',
+          currentFile.path,
+        );
+      }
+      return currentFile.path;
+    }
 
     if (await newFile.exists()) {
       await newFile.delete();
@@ -645,13 +1093,17 @@ class _CameraPageState extends State<CameraPage> {
     return score == null ? "NOT_ANALYZED" : "ANALYZED";
   }
 
-  Future<void> processVideo(String path, {DateTime? capturedAt}) async {
+  Future<void> processVideo(
+    String path, {
+    DateTime? capturedAt,
+    HCVCaptureLocation? captureLocation,
+  }) async {
     final liveScreenProbe = pendingLiveScreenProbe;
     pendingLiveScreenProbe = null;
     final effectiveCapturedAt = capturedAt ?? DateTime.now();
 
     setState(() {
-      status = 'SAVING MP4 TO DOWNLOAD...';
+      status = _c('savingVideo');
       registryStatus = null;
     });
 
@@ -668,24 +1120,23 @@ class _CameraPageState extends State<CameraPage> {
     Map<String, dynamic>? mlScreenReplayAnalysis;
 
     setState(() {
-      status = 'ANALYZING SCREEN REPLAY RISK...';
+      status = _c('analyzingScreen');
       videoPath = savedVideoPath;
       hcvId = preparedHcvId;
       verificationUrl = preparedVerificationUrl;
     });
 
     try {
-      screenReplayAnalysis =
-          await HCVScreenReplayAnalyzer().analyzeVideo(savedVideoPath);
+      screenReplayAnalysis = await HCVScreenReplayAnalyzer().analyzeVideo(
+        savedVideoPath,
+      );
     } catch (_) {
       screenReplayAnalysis = null;
     }
 
     try {
-      mlScreenReplayAnalysis =
-          await HCVMLScreenReplayClassifier.instance.analyzeVideo(
-        savedVideoPath,
-      );
+      mlScreenReplayAnalysis = await HCVMLScreenReplayClassifier.instance
+          .analyzeVideo(savedVideoPath);
     } catch (e) {
       mlScreenReplayAnalysis = {
         'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
@@ -706,23 +1157,26 @@ class _CameraPageState extends State<CameraPage> {
       screenReplayAnalysis,
       mlScreenReplayAnalysis,
     ];
-    final displayRisk = HCVDisplayRiskFusion.combine(screenReplayAnalyses);
+    final displayRisk = combineVideoDisplayRiskFromCaptureEvidence(
+      screenReplayAnalyses,
+    );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
     final displayRiskDecision = displayRisk.decision;
     final detectedScreenReplay = displayRiskDecision == "STRONG_DISPLAY_RISK";
 
     setState(() {
-      status = 'ADDING SIGILLUM LOGO...';
+      status = _c('addingLogo');
     });
 
     final originalVideoBeforeWatermark = savedVideoPath;
 
     try {
-      savedVideoPath = await HCVVideoWatermark().createPublishedVideo(
+      savedVideoPath = await HCVLocationVideoWatermark().createPublishedVideo(
         inputPath: savedVideoPath,
         hcvId: preparedHcvId,
         capturedAt: effectiveCapturedAt,
+        captureLocation: captureLocation,
       );
 
       try {
@@ -733,20 +1187,21 @@ class _CameraPageState extends State<CameraPage> {
       } catch (_) {}
     } catch (e) {
       setState(() {
-        status = 'WATERMARK ERROR: $e';
+        status = '${_c('watermarkError')}: $e';
       });
       rethrow;
     }
 
     try {
-      socialFingerprint =
-          await HCVSocialFingerprint().buildFromVideo(savedVideoPath);
+      socialFingerprint = await HCVSocialFingerprint().buildFromVideo(
+        savedVideoPath,
+      );
     } catch (_) {
       socialFingerprint = null;
     }
 
     setState(() {
-      status = 'CREATING HCV CERTIFICATE...';
+      status = _c('creatingCertificate');
       videoPath = savedVideoPath;
     });
 
@@ -785,6 +1240,8 @@ class _CameraPageState extends State<CameraPage> {
       "captureModeNote": trustAnalysis["note"],
       "captureCreatedAt": effectiveCapturedAt.toUtc().toIso8601String(),
       "captureCreatedAtLocal": HCVCaptureTimestamp.format(effectiveCapturedAt),
+      "captureLocation": captureLocation?.toJson(),
+      "locationPrinted": captureLocation != null,
       "liveScreenProbe": liveScreenProbe,
       "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",
       "geometryChallenge": liveScreenProbe?["geometryChallenge"],
@@ -811,7 +1268,7 @@ class _CameraPageState extends State<CameraPage> {
     print("HCV FILE GENERATED:");
     print(hcv);
     print(await File(hcv).exists());
-    final ok = Platform.isIOS ? true : await verifier.verifyFile(hcv);
+    final ok = await verifier.verifyFile(hcv);
 
     String? pack;
     String? detectedId;
@@ -838,13 +1295,10 @@ class _CameraPageState extends State<CameraPage> {
           hcvId: detectedId,
         );
 
-        hcv = await moveHcvToUnifiedName(
-          currentPath: hcv,
-          hcvId: detectedId,
-        );
+        hcv = await moveHcvToUnifiedName(currentPath: hcv, hcvId: detectedId);
       } catch (e) {
         setState(() {
-          status = 'RENAME ERROR: $e';
+          status = '${_c('renameError')}: $e';
         });
       }
     }
@@ -878,7 +1332,7 @@ class _CameraPageState extends State<CameraPage> {
       verificationUrl = detectedUrl;
       createdContentKind = 'video';
       result = ok ? 'VALID' : 'INVALID';
-      status = 'DONE';
+      status = _c('done');
     });
 
     if (ok) {
@@ -892,7 +1346,7 @@ class _CameraPageState extends State<CameraPage> {
     final currentPath = File(hcvPath!).absolute.path;
 
     setState(() {
-      registryStatus = 'Pubblicazione certificato nel Registry...';
+      registryStatus = _c('registryPublishing');
     });
 
     try {
@@ -901,13 +1355,12 @@ class _CameraPageState extends State<CameraPage> {
       final currentUploaded = report.uploadedPaths.contains(currentPath);
       setState(() {
         registryStatus = currentUploaded
-            ? 'Registry OK: ${hcvId ?? 'certificato pubblicato'}'
-            : 'Certificato salvato: pubblicazione Registry in attesa';
+            ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
+            : _c('registryPending');
       });
     } catch (e) {
       setState(() {
-        registryStatus =
-            'Certificato salvato localmente. Registry non raggiungibile: $e';
+        registryStatus = '${_c('registryUnavailableLocal')}: $e';
       });
     }
   }
@@ -918,8 +1371,8 @@ class _CameraPageState extends State<CameraPage> {
       if (!mounted || report.uploaded == 0) return;
       setState(() {
         registryStatus = report.pending == 0
-            ? 'Registry sincronizzato'
-            : 'Registry: ${report.uploaded} pubblicati, ${report.pending} in attesa';
+            ? _c('registrySynced')
+            : 'Registry: ${report.uploaded} ${_c('registryPublished')}, ${report.pending} ${_c('registryWaiting')}';
       });
     } catch (_) {
       // La certificazione locale resta valida; il retry avverra al prossimo avvio.
@@ -932,7 +1385,7 @@ class _CameraPageState extends State<CameraPage> {
       await temp.writeAsString('HCV TEST VIDEO DATA ${DateTime.now()}');
       await processVideo(temp.path);
     } catch (e) {
-      setState(() => status = 'ERROR TEST: $e');
+      setState(() => status = '${_c('error')}: $e');
     }
   }
 
@@ -943,92 +1396,124 @@ class _CameraPageState extends State<CameraPage> {
     await Clipboard.setData(ClipboardData(text: text));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('HCV-ID copiato')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(_c('hcvCopied'))));
   }
 
   Future<void> shareVideoAndCertificate() async {
     if (videoPath == null || hcvPath == null) {
-      setState(() => status = 'NESSUN FILE DA CONDIVIDERE');
+      setState(() => status = _c('noFileToShare'));
       return;
     }
 
     try {
       await Share.shareXFiles(
-        [
-          XFile(videoPath!, mimeType: _contentMimeType(videoPath!)),
-        ],
+        [XFile(videoPath!, mimeType: _contentMimeType(videoPath!))],
         text: hcvId == null
-            ? 'Contenuto verificato SIGILLUM'
-            : 'Contenuto verificato SIGILLUM\nID: $hcvId\nVerify with SIGILLUM',
+            ? _c('verifiedContent')
+            : '${_c('verifiedContent')}\nID: $hcvId\nVerify with SIGILLUM',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
-      setState(() => status = 'SHARE ERROR: $e');
+      setState(() => status = '${_c('shareError')}: $e');
     }
   }
 
-  Future<void> saveContentToGallery(String path) async {
-    if (!Platform.isIOS) {
-      return;
-    }
+  Future<bool> saveContentToGallery(String path) async {
+    if (!Platform.isIOS) return false;
+
+    final lower = path.toLowerCase();
+    final isCaptioned = lower.contains('_sottotitolato');
+    final isPhoto = lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
 
     try {
-      final saved = await _mediaChannel.invokeMethod<bool>(
-        'saveToPhotos',
-        {'path': path},
-      );
-
+      final saved = await _mediaChannel.invokeMethod<bool>('saveToPhotos', {
+        'path': path,
+      });
       if (saved == true && mounted) {
+        final label = isCaptioned
+            ? _c('captionedSavedPhotos')
+            : isPhoto
+                ? _c('certifiedPhotoSaved')
+                : _c('certifiedOriginalSaved');
         setState(() {
-          registryStatus = registryStatus == null
-              ? 'Salvato anche in Foto'
-              : '$registryStatus\nSalvato anche in Foto';
+          registryStatus =
+              registryStatus == null ? label : '$registryStatus\n$label';
         });
+        return true;
       }
+      return false;
     } catch (_) {
       if (mounted) {
         setState(() {
-          registryStatus = registryStatus == null
-              ? 'Non salvato in Foto: permesso non disponibile'
-              : '$registryStatus\nNon salvato in Foto: permesso non disponibile';
+          final label = isCaptioned
+              ? _c('captionedAvailableFiles')
+              : _c('photosPermissionUnavailable');
+          registryStatus =
+              registryStatus == null ? label : '$registryStatus\n$label';
         });
       }
+      return false;
     }
+  }
+
+  Future<void> _saveCaptionedVideoToPhotos() async {
+    final path = _captionedVideoPath;
+    if (path == null) return;
+    final saved = await saveContentToGallery(path);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          saved
+              ? _c('captionedSavedPhotosSentence')
+              : _c('captionedSaveFailed'),
+        ),
+      ),
+    );
+  }
+
+  void _openCameraQuickGuide() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            SigillumQuickGuidePage(languageCode: widget.languageCode),
+      ),
+    );
   }
 
   Future<void> sharePackage() async {
     if (packagePath == null) {
-      setState(() => status = 'NESSUN PACCHETTO DA CONDIVIDERE');
+      setState(() => status = _c('noPackToShare'));
       return;
     }
 
     try {
       await Share.shareXFiles(
-        [
-          XFile(packagePath!, mimeType: 'application/octet-stream'),
-        ],
+        [XFile(packagePath!, mimeType: 'application/octet-stream')],
         text: hcvId == null
             ? 'HCVPACK offline SIGILLUM'
             : 'HCVPACK offline SIGILLUM\nID: $hcvId',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
-      setState(() => status = 'SHARE PACK ERROR: $e');
+      setState(() => status = '${_c('sharePackError')}: $e');
     }
   }
 
   String get _createdContentLabel {
-    if (createdContentKind == 'photo') return 'foto';
-    if (createdContentKind == 'video') return 'video';
-    return 'contenuto';
+    if (createdContentKind == 'photo') return _c('photoLower');
+    if (createdContentKind == 'video') return _c('videoLower');
+    return _c('contentLower');
   }
 
   String get _createdFileLabel {
-    if (createdContentKind == 'photo') return 'Foto';
-    if (createdContentKind == 'video') return 'Video';
-    return 'Contenuto';
+    if (createdContentKind == 'photo') return _c('photoTitle');
+    if (createdContentKind == 'video') return _c('videoTitle');
+    return _c('contentTitle');
   }
 
   String _contentMimeType(String path) {
@@ -1038,6 +1523,95 @@ class _CameraPageState extends State<CameraPage> {
     if (lower.endsWith('.mov')) return 'video/quicktime';
     if (lower.endsWith('.m4v')) return 'video/x-m4v';
     return 'video/mp4';
+  }
+
+  Future<void> _transcribeCreatedVideo() async {
+    final path = videoPath;
+    if (path == null || createdContentKind != 'video' || _transcribingAudio)
+      return;
+    setState(() {
+      _transcribingAudio = true;
+      status = _c('transcriptionAudio');
+    });
+    try {
+      final transcript = await const VideoTranscriptionService().transcribe(
+        path,
+        languageCode: widget.languageCode,
+      );
+      if (!mounted) return;
+      setState(() {
+        _videoTranscript = transcript.text;
+        _subtitlePath = transcript.subtitlePath;
+        _captionedVideoPath = transcript.captionedVideoPath;
+        status = _c('captionedReady');
+      });
+      final savedCaptionedToPhotos = await saveContentToGallery(
+        transcript.captionedVideoPath,
+      );
+      if (!mounted) return;
+      setState(() {
+        status = savedCaptionedToPhotos
+            ? _c('captionedReadyPhotos')
+            : _c('captionedReadyFiles');
+      });
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Video sottotitolato creato'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _c('captionExplanation'),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 14),
+                SelectableText(
+                  transcript.text.isEmpty
+                      ? _c('subtitlesCreated')
+                      : transcript.text,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(_c('close')),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => status = '${_c('transcriptionFailed')}: $error');
+    } finally {
+      if (mounted) setState(() => _transcribingAudio = false);
+    }
+  }
+
+  Future<void> _shareSubtitleFile() async {
+    final path = _subtitlePath;
+    if (path == null) return;
+    await Share.shareXFiles(
+      [XFile(path, mimeType: 'application/x-subrip')],
+      text: _videoTranscript == null || _videoTranscript!.isEmpty
+          ? _c('subtitleShareText')
+          : _videoTranscript!,
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+    );
+  }
+
+  Future<void> _shareCaptionedVideo() async {
+    final path = _captionedVideoPath;
+    if (path == null) return;
+    await Share.shareXFiles(
+      [XFile(path, mimeType: 'video/mp4')],
+      text: _c('shareCaptionedText'),
+      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+    );
   }
 
   @override
@@ -1051,7 +1625,11 @@ class _CameraPageState extends State<CameraPage> {
       return Text(
         status,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 14),
+        style: TextStyle(
+          color: _parallaxRetryRequired ? Colors.redAccent : Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+        ),
       );
     }
 
@@ -1066,7 +1644,7 @@ class _CameraPageState extends State<CameraPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          verified ? 'HUMAN VERIFIED' : 'NOT VERIFIED',
+          verified ? _c('humanVerified') : _c('notVerified'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 24,
@@ -1090,12 +1668,9 @@ class _CameraPageState extends State<CameraPage> {
         child: Column(
           children: [
             Text(
-              '${_createdFileLabel} verificabile creato',
+              '${_createdFileLabel}: ${_c('verifiableCreated')}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
             ),
             const SizedBox(height: 10),
             Text(
@@ -1105,8 +1680,7 @@ class _CameraPageState extends State<CameraPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${_createdFileLabel}, certificato HCV e HCVPACK sono collegati dallo stesso HCV-ID. '
-              'La verifica online usa HCV-ID e Registry.',
+              '${_createdFileLabel}, ${_t('certificate')} HCV, HCVPACK: ${_c('linkedFiles')}',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12),
             ),
@@ -1114,7 +1688,7 @@ class _CameraPageState extends State<CameraPage> {
             ElevatedButton.icon(
               onPressed: copyVerificationLink,
               icon: const Icon(Icons.copy),
-              label: const Text('COPIA HCV-ID'),
+              label: Text(_c('copyHcvId')),
             ),
           ],
         ),
@@ -1143,46 +1717,99 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Widget _createdFilesCard() {
-    if (videoPath == null && hcvPath == null && packagePath == null) {
+    if (videoPath == null &&
+        hcvPath == null &&
+        packagePath == null &&
+        _captionedVideoPath == null &&
+        _subtitlePath == null) {
       return const SizedBox.shrink();
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            Text(
-              _t('createdFiles'),
-              style: TextStyle(fontWeight: FontWeight.bold),
+    String fileName(String? value) => value == null ? '-' : p.basename(value);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE7E3EB)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.folder_outlined, color: Color(0xFF0098A1), size: 34),
+          const SizedBox(height: 8),
+          Text(
+            _c('filesWhere'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF280D5F),
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
             ),
-            if (videoPath != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                '$_createdFileLabel:\n$videoPath',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11),
-              ),
-            ],
-            if (hcvPath != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                '${_t('certificate')}:\n$hcvPath',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11),
-              ),
-            ],
-            if (packagePath != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'HCVPACK:\n$packagePath',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11),
-              ),
-            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _c('filesPath'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF280D5F),
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _c('filesExplanation'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF7A6EAA),
+              fontSize: 12.5,
+              height: 1.3,
+            ),
+          ),
+          const Divider(height: 24),
+          if (videoPath != null)
+            Text(
+              '${_c('certifiedOriginal')}: ${fileName(videoPath)}',
+              textAlign: TextAlign.center,
+            ),
+          if (hcvPath != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              '${_c('hcvCertificate')}: ${fileName(hcvPath)}',
+              textAlign: TextAlign.center,
+            ),
           ],
-        ),
+          if (packagePath != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              'HCVPACK: ${fileName(packagePath)}',
+              textAlign: TextAlign.center,
+            ),
+          ],
+          if (_captionedVideoPath != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              '${_c('captionedVideo')}: ${fileName(_captionedVideoPath)}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ],
+          if (_subtitlePath != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              '${_c('srtSubtitles')}: ${fileName(_subtitlePath)}',
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: _openCameraQuickGuide,
+            icon: const Icon(Icons.help_outline_rounded),
+            label: Text(_c('quickGuide')),
+          ),
+        ],
       ),
     );
   }
@@ -1211,6 +1838,58 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const SizedBox(height: 10),
+        ],
+        if (createdContentKind == 'video' &&
+            videoPath != null &&
+            Platform.isIOS) ...[
+          SizedBox(
+            width: 340,
+            child: ElevatedButton.icon(
+              onPressed: _transcribingAudio ? null : _transcribeCreatedVideo,
+              icon: const Icon(Icons.subtitles_rounded),
+              label: Text(
+                _transcribingAudio
+                    ? _c('transcribing')
+                    : _c('createCaptionedVideo'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_captionedVideoPath != null)
+            SizedBox(
+              width: 340,
+              child: ElevatedButton.icon(
+                onPressed: _saveCaptionedVideoToPhotos,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: Text(_c('saveCaptionedPhotos')),
+              ),
+            ),
+          if (_captionedVideoPath != null) const SizedBox(height: 10),
+          if (_captionedVideoPath != null)
+            SizedBox(
+              width: 340,
+              child: ElevatedButton.icon(
+                onPressed: _shareCaptionedVideo,
+                icon: const Icon(Icons.closed_caption_rounded),
+                label: Text(_c('shareCaptionedVideo')),
+              ),
+            ),
+          if (_captionedVideoPath != null) const SizedBox(height: 10),
+          if (_subtitlePath != null)
+            SizedBox(
+              width: 340,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1FC7D4),
+                  foregroundColor: const Color(0xFF280D5F),
+                  minimumSize: const Size.fromHeight(64),
+                ),
+                onPressed: _shareSubtitleFile,
+                icon: const Icon(Icons.ios_share_rounded),
+                label: Text(_c('shareSrt')),
+              ),
+            ),
+          if (_subtitlePath != null) const SizedBox(height: 10),
         ],
       ],
     );
@@ -1253,6 +1932,14 @@ class _CameraPageState extends State<CameraPage> {
         title: Text(_t('cameraTitle')),
         actions: [
           IconButton(
+            tooltip: _c('printGpsCoordinates'),
+            onPressed: _locationBusy ? null : _toggleCoordinateStamp,
+            icon: Icon(
+              _printCoordinates ? Icons.location_on : Icons.location_off,
+              color: _printCoordinates ? Colors.greenAccent : Colors.white,
+            ),
+          ),
+          IconButton(
             icon: Icon(
               currentFlashMode == FlashMode.off
                   ? Icons.flash_off
@@ -1286,9 +1973,7 @@ class _CameraPageState extends State<CameraPage> {
             ),
           if (result != null)
             Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.65),
-              ),
+              child: Container(color: Colors.black.withValues(alpha: 0.65)),
             ),
           Positioned(
             top: 18,
@@ -1332,26 +2017,20 @@ class _CameraPageState extends State<CameraPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.zoom_out,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    const Icon(Icons.zoom_out, color: Colors.white, size: 18),
                     Expanded(
                       child: SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           activeTrackColor: Colors.white,
-                          inactiveTrackColor:
-                              Colors.white.withValues(alpha: 0.25),
+                          inactiveTrackColor: Colors.white.withValues(
+                            alpha: 0.25,
+                          ),
                           thumbColor: Colors.white,
                           overlayColor: Colors.white.withValues(alpha: 0.15),
                           trackHeight: 2.5,
                         ),
                         child: Slider(
-                          value: currentZoom.clamp(
-                            minZoom,
-                            maxZoom,
-                          ),
+                          value: currentZoom.clamp(minZoom, maxZoom),
                           min: minZoom,
                           max: maxZoom,
                           onChanged: (value) async {
@@ -1378,10 +2057,7 @@ class _CameraPageState extends State<CameraPage> {
               bottom: 0,
               child: SafeArea(
                 child: Container(
-                  padding: const EdgeInsets.only(
-                    bottom: 14,
-                    top: 58,
-                  ),
+                  padding: const EdgeInsets.only(bottom: 14, top: 58),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
@@ -1429,6 +2105,12 @@ class _CameraPageState extends State<CameraPage> {
                               fontWeight: FontWeight.bold,
                             ),
                             onSelected: (_) {
+                              _videoArmed = false;
+                              _videoArmExpiresAt = null;
+                              _videoArmCameraIndex = null;
+                              _videoArmZoom = null;
+                              pendingLiveScreenProbe = null;
+                              pendingVideoLocation = null;
                               setState(() {
                                 photoMode = true;
                               });
@@ -1460,10 +2142,7 @@ class _CameraPageState extends State<CameraPage> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: recording ? Colors.red : Colors.white,
-                            border: Border.all(
-                              color: Colors.white70,
-                              width: 5,
-                            ),
+                            border: Border.all(color: Colors.white70, width: 5),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.45),
@@ -1528,7 +2207,7 @@ class _CameraPageState extends State<CameraPage> {
                             ),
                             onPressed: () {
                               setState(() {
-                                status = 'READY';
+                                status = _c('ready');
                                 result = null;
                                 videoPath = null;
                                 hcvPath = null;
@@ -1536,6 +2215,9 @@ class _CameraPageState extends State<CameraPage> {
                                 hcvId = null;
                                 verificationUrl = null;
                                 registryStatus = null;
+                                _videoTranscript = null;
+                                _subtitlePath = null;
+                                _captionedVideoPath = null;
                                 recording = false;
                               });
                             },
@@ -1557,7 +2239,7 @@ class _CameraPageState extends State<CameraPage> {
                           ),
                           onPressed: () {
                             setState(() {
-                              status = 'READY';
+                              status = _c('ready');
                               result = null;
                               videoPath = null;
                               hcvPath = null;

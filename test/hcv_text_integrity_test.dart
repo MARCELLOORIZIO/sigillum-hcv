@@ -9,13 +9,8 @@ Map<String, dynamic> certificateFor(String text) {
   final snapshot = HCVTextIntegrity.fromText(text);
   return {
     'meta': {'hcvId': 'HCV-0123456789ABCDEF'},
-    'content': {
-      'type': 'text',
-      'hash': snapshot.exactTextSha256,
-    },
-    'claims': {
-      'textIntegrity': snapshot.toJson(),
-    },
+    'content': {'type': 'text', 'hash': snapshot.exactTextSha256},
+    'claims': {'textIntegrity': snapshot.toJson()},
   };
 }
 
@@ -86,9 +81,14 @@ void main() {
       hcvId: 'HCV-0123456789ABCDEF',
       outputDirectory: temp,
     );
-    final archive = ZipDecoder().decodeBytes(await File(packagePath).readAsBytes());
+    final archive = ZipDecoder().decodeBytes(
+      await File(packagePath).readAsBytes(),
+    );
     final names = archive.files.map((entry) => entry.name).toSet();
-    expect(names, containsAll({'original.txt', 'certificate.hcv', 'meta.json'}));
+    expect(
+      names,
+      containsAll({'original.txt', 'certificate.hcv', 'meta.json'}),
+    );
 
     final read = await HCVTextPackage.read(packagePath);
     expect(read.originalText, 'Contenuto certificato');

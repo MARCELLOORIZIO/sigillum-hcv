@@ -7,7 +7,6 @@ final class ShareViewController: UIViewController {
   private var didComplete = false
   private var statusLabel: UILabel?
   private var openButton: UIButton?
-  private var pendingOpenUrl: URL?
   private var appGroupId: String {
     Bundle.main.object(forInfoDictionaryKey: "SIGILLUMAppGroupId") as? String
       ?? "group.com.sigillum.hcv"
@@ -248,7 +247,7 @@ final class ShareViewController: UIViewController {
 
     let button = UIButton(type: .system)
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.setTitle("APRI SIGILLUM", for: .normal)
+    button.setTitle("CHIUDI", for: .normal)
     button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
     button.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.16)
     button.layer.cornerRadius = 18
@@ -269,62 +268,24 @@ final class ShareViewController: UIViewController {
 
   private func openHostAppAndFinish() {
     DispatchQueue.main.async {
-      guard let url = URL(string: "\(self.urlScheme)://shared") else {
-        self.showOpenFailed()
-        return
-      }
-
-      self.pendingOpenUrl = url
-      self.statusLabel?.text = "Contenuto pronto.\nTocca APRI SIGILLUM per verificare."
+      self.statusLabel?.text =
+        "Contenuto salvato in Fotocamera Sigillum.\nTocca CHIUDI, poi apri Fotocamera Sigillum: la verifica partirà automaticamente."
+      self.openButton?.setTitle("CHIUDI", for: .normal)
       self.openButton?.isHidden = false
-
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-        self.openUrl(url, finishOnSuccess: true)
-      }
+      self.openButton?.isEnabled = true
     }
   }
 
   @objc private func openButtonTapped() {
-    guard let url = pendingOpenUrl else {
-      showOpenFailed()
-      return
-    }
-    openUrl(url, finishOnSuccess: true)
-  }
-
-  private func openUrl(_ url: URL, finishOnSuccess: Bool) {
-    extensionContext?.open(url) { success in
-      DispatchQueue.main.async {
-        if success || self.openUrlViaResponderChain(url) {
-          if finishOnSuccess {
-            self.finish()
-          }
-        } else {
-          self.showOpenFailed()
-        }
-      }
-    }
-  }
-
-  private func openUrlViaResponderChain(_ url: URL) -> Bool {
-    let selector = NSSelectorFromString("openURL:")
-    var responder: UIResponder? = self
-
-    while responder != nil {
-      if responder?.responds(to: selector) == true {
-        responder?.perform(selector, with: url)
-        return true
-      }
-      responder = responder?.next
-    }
-
-    return false
+    finish()
   }
 
   private func showOpenFailed() {
     statusLabel?.text =
-      "Contenuto salvato.\nSe SIGILLUM non si apre, chiudi questa finestra e apri SIGILLUM manualmente."
+      "Contenuto salvato in Fotocamera Sigillum.\nTocca CHIUDI, poi apri Fotocamera Sigillum: la verifica partirà automaticamente."
+    openButton?.setTitle("CHIUDI", for: .normal)
     openButton?.isHidden = false
+    openButton?.isEnabled = true
   }
 
   private func finish() {

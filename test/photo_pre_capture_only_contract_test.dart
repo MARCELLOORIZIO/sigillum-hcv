@@ -18,7 +18,9 @@ void main() {
       );
       expect(
         camera,
-        contains('final corroborated = HCVDisplayRiskFusion.combine(analyses);'),
+        contains(
+          'final corroborated = HCVDisplayRiskFusion.combine(analyses);',
+        ),
       );
       expect(
         camera,

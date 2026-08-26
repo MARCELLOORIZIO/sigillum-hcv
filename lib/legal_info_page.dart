@@ -14,12 +14,13 @@ class LegalInfoPage extends StatelessWidget {
     'SIGILLUM_API_BASE_URL',
     defaultValue: 'https://sigillum-registry-production.onrender.com',
   );
-  static String get privacyUrl => '$_apiBase/privacy';
-  static String get termsUrl => '$_apiBase/terms';
-  static const supportUrl = 'mailto:marcelloorizio@legalmail.it';
-  static String get deleteDataUrl => '$_apiBase/delete-data';
-
   final String languageCode;
+
+  String get _encodedLanguage => Uri.encodeQueryComponent(languageCode);
+  String get privacyUrl => '$_apiBase/privacy?lang=$_encodedLanguage';
+  String get termsUrl => '$_apiBase/terms?lang=$_encodedLanguage';
+  String get supportUrl => '$_apiBase/support?lang=$_encodedLanguage';
+  String get deleteDataUrl => '$_apiBase/delete-data?lang=$_encodedLanguage';
 
   String _t(String key) => SigillumCopy.t(languageCode, key);
 
@@ -37,14 +38,15 @@ class LegalInfoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_t('legalPageTitle'))),
+      backgroundColor: const Color(0xFFEAFBFF),
+      appBar: AppBar(backgroundColor: Colors.transparent, title: Text(_t('legalPageTitle'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         children: [
           Text(
             _t('legalIntro'),
             style: TextStyle(
-              color: SigillumTheme.ivory,
+              color: SigillumTheme.ink,
               fontSize: 21,
               height: 1.22,
               fontWeight: FontWeight.w800,
@@ -140,9 +142,10 @@ class _InfoPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SigillumTheme.panel,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x334B625A)),
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: SigillumTheme.border),
+        boxShadow: const [BoxShadow(color: Color(0x10280D5F), blurRadius: 18, offset: Offset(0, 7))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_text_integrity.dart';
 import 'hcv_verifier.dart';
+import 'sigillum_theme.dart';
 
 class TextSocialVerifyPage extends StatefulWidget {
   const TextSocialVerifyPage({
@@ -40,6 +41,92 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
 
   bool get _it => widget.languageCode.toLowerCase().startsWith('it');
   String _label(String it, String en) => _it ? it : en;
+
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+  }
+
+  Future<File?> _findLocalTextCertificate(String hcvId) async {
+    final directory = await HCVTextArtifactStore.outputDirectory();
+    if (!await directory.exists()) return null;
+    final normalizedId = hcvId.toUpperCase();
+    await for (final entity in directory.list(followLinks: false)) {
+      if (entity is! File || !entity.path.toLowerCase().endsWith('.hcv')) {
+        continue;
+      }
+      if (!p.basename(entity.path).toUpperCase().contains(normalizedId)) {
+        continue;
+      }
+      if (!await _verifier.verifyFile(entity.path)) continue;
+      try {
+        final decoded = jsonDecode(await entity.readAsString());
+        if (decoded is! Map<String, dynamic>) continue;
+        final meta = decoded['meta'];
+        final localId = meta is Map
+            ? HCVTextIntegrity.extractHcvId(meta['hcvId']?.toString() ?? '')
+            : null;
+        if (localId == normalizedId) return entity;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> _recoverLocalCertificate(String hcvId) async {
+    final localFile = await _findLocalTextCertificate(hcvId);
+    if (localFile == null) return null;
+    final decoded = jsonDecode(await localFile.readAsString());
+    if (decoded is! Map<String, dynamic>) return null;
+
+    try {
+      await _registry.uploadCertificateFile(localFile.path);
+      _source = _label(
+        'Dispositivo locale + Registry ripristinato',
+        'Local device + Registry restored',
+      );
+    } catch (_) {
+      try {
+        await _registry.enqueueCertificateFile(localFile.path);
+      } catch (_) {}
+      _source = _label(
+        'Copia firmata sul dispositivo; nuovo invio accodato',
+        'Signed local copy; re-upload queued',
+      );
+    }
+    return decoded;
+  }
+
+  Future<void> _applyCertificate({
+    required Map<String, dynamic> certificate,
+    required String published,
+    required String source,
+  }) async {
+    final rawCertificate = jsonEncode(certificate);
+    final signatureValid = await _verifyCertificateRaw(rawCertificate);
+    if (!signatureValid) {
+      if (!mounted) return;
+      setState(() {
+        _signatureValid = false;
+        _status = _label(
+          'Il certificato recuperato non supera la verifica crittografica.',
+          'The retrieved certificate failed cryptographic verification.',
+        );
+        _source = source;
+      });
+      return;
+    }
+    final match = HCVTextIntegrity.comparePublishedText(
+      publishedText: published,
+      certificate: certificate,
+    );
+    if (!mounted) return;
+    setState(() {
+      _signatureValid = true;
+      _match = match;
+      _source = source;
+      _status = _statusFor(match.kind);
+    });
+  }
 
   @override
   void initState() {
@@ -80,6 +167,7 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
 
   Future<void> _verifyRegistryText() async {
     if (_busy) return;
+    _dismissKeyboard();
     final published = _textController.text;
     final detected = HCVTextIntegrity.extractHcvId(published);
     final entered = HCVTextIntegrity.extractHcvId(_idController.text);
@@ -119,42 +207,39 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
 
     try {
       final certificate = await _registry.fetchCertificate(id);
-      final rawCertificate = jsonEncode(certificate);
-      final signatureValid = await _verifyCertificateRaw(rawCertificate);
-      if (!signatureValid) {
-        setState(() {
-          _signatureValid = false;
-          _status = _label(
-            'Il certificato recuperato non supera la verifica crittografica.',
-            'The retrieved certificate failed cryptographic verification.',
+      await _applyCertificate(
+        certificate: certificate,
+        published: published,
+        source: 'Registry',
+      );
+    } on HCVRegistryException catch (error) {
+      if (error.kind == HCVRegistryFailureKind.notFound) {
+        final localCertificate = await _recoverLocalCertificate(id);
+        if (localCertificate != null) {
+          await _applyCertificate(
+            certificate: localCertificate,
+            published: published,
+            source:
+                _source ?? _label('Copia locale firmata', 'Signed local copy'),
           );
+          return;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _status = error.kind == HCVRegistryFailureKind.notFound
+              ? _label(
+                  'Certificato non presente nel Registry e nessuna copia locale firmata trovata.',
+                  'Certificate is not in the Registry and no signed local copy was found.',
+                )
+              : '${_label('Registry non disponibile', 'Registry unavailable')}: ${error.message}';
           _source = 'Registry';
         });
-        return;
       }
-      final match = HCVTextIntegrity.comparePublishedText(
-        publishedText: published,
-        certificate: certificate,
-      );
-      setState(() {
-        _signatureValid = true;
-        _match = match;
-        _source = 'Registry';
-        _status = _statusFor(match.kind);
-      });
-    } on HCVRegistryException catch (error) {
-      setState(() {
-        _status = error.kind == HCVRegistryFailureKind.notFound
-            ? _label(
-                'Certificato non presente nel Registry.',
-                'Certificate is not present in the Registry.',
-              )
-            : '${_label('Registry non disponibile', 'Registry unavailable')}: ${error.message}';
-        _source = 'Registry';
-      });
     } catch (error) {
       setState(() {
-        _status = '${_label('Verifica non completata', 'Verification failed')}: $error';
+        _status =
+            '${_label('Verifica non completata', 'Verification failed')}: $error';
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -180,6 +265,7 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
 
   Future<void> _verifyTextPackage() async {
     if (_busy) return;
+    _dismissKeyboard();
     final selected = await _pickTextHcvPackage();
     final packagePath = selected?.files.single.path;
     if (packagePath == null || packagePath.isEmpty) return;
@@ -207,7 +293,9 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
 
     try {
       final package = await HCVTextPackage.read(packagePath);
-      final signatureValid = await _verifyCertificateRaw(package.certificateRaw);
+      final signatureValid = await _verifyCertificateRaw(
+        package.certificateRaw,
+      );
       if (!signatureValid) {
         setState(() {
           _signatureValid = false;
@@ -241,7 +329,8 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
       });
     } catch (error) {
       setState(() {
-        _status = '${_label('HCVPACK non verificabile', 'HCVPACK cannot be verified')}: $error';
+        _status =
+            '${_label('HCVPACK non verificabile', 'HCVPACK cannot be verified')}: $error';
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -280,23 +369,25 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_label('Testo originale copiato', 'Original text copied')),
+        content: Text(
+          _label('Testo originale copiato', 'Original text copied'),
+        ),
       ),
     );
   }
 
   Color _resultColor() {
-    if (_signatureValid == false) return Colors.red;
+    if (_signatureValid == false) return SigillumTheme.danger;
     switch (_match?.kind) {
       case HCVTextMatchKind.exact:
-        return Colors.green;
+        return SigillumTheme.verified;
       case HCVTextMatchKind.formattingOnly:
-        return Colors.lightGreen;
+        return SigillumTheme.verified;
       case HCVTextMatchKind.modified:
-        return Colors.red;
+        return SigillumTheme.danger;
       case HCVTextMatchKind.unsupportedCertificate:
       case null:
-        return Colors.orange;
+        return SigillumTheme.warning;
     }
   }
 
@@ -325,107 +416,87 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
   Widget build(BuildContext context) {
     final hasResult = _match != null || _signatureValid == false;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_label('Verifica testo pubblicato', 'Verify published text')),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
-        children: [
-          TextField(
-            controller: _textController,
-            minLines: 7,
-            maxLines: 18,
-            onChanged: (value) {
-              final detected = HCVTextIntegrity.extractHcvId(value);
-              if (detected != null && _idController.text != detected) {
-                _idController.text = detected;
-              }
-            },
-            decoration: InputDecoration(
-              labelText: _label('Testo copiato dal social', 'Text copied from social media'),
-              alignLabelWithHint: true,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _idController,
-            textCapitalization: TextCapitalization.characters,
-            decoration: InputDecoration(
-              labelText: 'HCV-ID',
-              helperText: _label(
-                'Viene letto automaticamente dalla riga SIGILLUM.',
-                'Automatically read from the SIGILLUM line.',
+      backgroundColor: const Color(0xFFFAF9FA),
+      appBar: AppBar(backgroundColor: Colors.transparent, title: Text(_label('Verifica testo pubblicato', 'Verify published text'))),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFEAFBFF), Color(0xFFFAF9FA), Color(0xFFF2ECFF)]),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 32),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: SigillumTheme.border),
+                boxShadow: const [BoxShadow(color: Color(0x12280D5F), blurRadius: 22, offset: Offset(0, 8))],
               ),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            onPressed: _busy ? null : _verifyRegistryText,
-            icon: const Icon(Icons.verified_user_outlined),
-            label: Text(
-              _busy
-                  ? _label('VERIFICA IN CORSO…', 'VERIFYING…')
-                  : _label('VERIFICA DAL REGISTRY', 'VERIFY FROM REGISTRY'),
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: _busy ? null : _verifyTextPackage,
-            icon: const Icon(Icons.inventory_2_outlined),
-            label: Text(_label('APRI HCVPACK TESTO', 'OPEN TEXT HCVPACK')),
-          ),
-          if (_busy) ...[
-            const SizedBox(height: 14),
-            const LinearProgressIndicator(),
-          ],
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: hasResult ? _resultColor().withValues(alpha: 0.16) : Colors.white10,
-              border: Border.all(color: hasResult ? _resultColor() : Colors.white24),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  hasResult ? Icons.verified_outlined : Icons.text_snippet_outlined,
-                  color: hasResult ? _resultColor() : Colors.white70,
-                  size: 48,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _resultTitle(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: hasResult ? _resultColor() : Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(Icons.text_snippet_outlined, color: SigillumTheme.accentAlt, size: 42),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _textController,
+                    minLines: 7,
+                    maxLines: 18,
+                    onChanged: (value) {
+                      final detected = HCVTextIntegrity.extractHcvId(value);
+                      if (detected != null && _idController.text != detected) _idController.text = detected;
+                    },
+                    decoration: InputDecoration(labelText: _label('Testo copiato dal social', 'Text copied from social media'), alignLabelWithHint: true),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(_status, textAlign: TextAlign.center),
-                if (_source != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    '${_label('Fonte', 'Source')}: $_source',
-                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _idController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(labelText: 'HCV-ID', helperText: _label('Viene letto automaticamente dalla riga SIGILLUM.', 'Automatically read from the SIGILLUM line.')),
                   ),
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _verifyRegistryText,
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: Text(_busy ? _label('VERIFICA IN CORSO…', 'VERIFYING…') : _label('VERIFICA DAL REGISTRY', 'VERIFY FROM REGISTRY')),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(onPressed: _busy ? null : _verifyTextPackage, icon: const Icon(Icons.inventory_2_outlined), label: Text(_label('APRI HCVPACK TESTO', 'OPEN TEXT HCVPACK'))),
+                  if (_busy) ...[const SizedBox(height: 14), const LinearProgressIndicator()],
                 ],
-              ],
+              ),
             ),
-          ),
-          if (_originalFromPackage != null) ...[
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _copyOriginal,
-              icon: const Icon(Icons.copy_all_outlined),
-              label: Text(_label('COPIA TESTO ORIGINALE', 'COPY ORIGINAL TEXT')),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: hasResult ? _resultColor().withValues(alpha: 0.10) : Colors.white.withValues(alpha: 0.94),
+                border: Border.all(color: hasResult ? _resultColor() : SigillumTheme.border),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: const [BoxShadow(color: Color(0x10280D5F), blurRadius: 18, offset: Offset(0, 7))],
+              ),
+              child: Column(
+                children: [
+                  Icon(hasResult ? Icons.verified_outlined : Icons.text_snippet_outlined, color: hasResult ? _resultColor() : SigillumTheme.muted, size: 48),
+                  const SizedBox(height: 8),
+                  Text(_resultTitle(), textAlign: TextAlign.center, style: TextStyle(color: hasResult ? _resultColor() : SigillumTheme.ink, fontSize: 18, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  Text(_status, textAlign: TextAlign.center, style: const TextStyle(color: SigillumTheme.ink)),
+                  if (_source != null) ...[
+                    const SizedBox(height: 6),
+                    Text('${_label('Fonte', 'Source')}: $_source', style: const TextStyle(color: SigillumTheme.muted, fontSize: 12)),
+                  ],
+                ],
+              ),
             ),
+            if (_originalFromPackage != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(onPressed: _copyOriginal, icon: const Icon(Icons.copy_all_outlined), label: Text(_label('COPIA TESTO ORIGINALE', 'COPY ORIGINAL TEXT'))),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

@@ -36,8 +36,10 @@ class CameraUiCopy {
       'registryPublishing': 'Pubblicazione certificato nel Registry...',
       'registryOk': 'Registry OK',
       'certificatePublished': 'certificato pubblicato',
-      'registryPending': 'Certificato salvato: pubblicazione Registry in attesa',
-      'registryUnavailableLocal': 'Certificato salvato localmente. Registry non raggiungibile',
+      'registryPending':
+          'Certificato salvato: pubblicazione Registry in attesa',
+      'registryUnavailableLocal':
+          'Certificato salvato localmente. Registry non raggiungibile',
       'registrySynced': 'Registry sincronizzato',
       'registryPublished': 'pubblicati',
       'registryWaiting': 'in attesa',
@@ -46,7 +48,8 @@ class CameraUiCopy {
       'verifiedContent': 'Contenuto verificato SIGILLUM',
       'shareError': 'ERRORE CONDIVISIONE',
       'savedToPhotos': 'Salvato anche in Foto',
-      'photosPermissionUnavailable': 'Non salvato in Foto: permesso non disponibile',
+      'photosPermissionUnavailable':
+          'Non salvato in Foto: permesso non disponibile',
       'noPackToShare': 'NESSUN PACCHETTO DA CONDIVIDERE',
       'sharePackError': 'ERRORE CONDIVISIONE HCVPACK',
       'photoLower': 'foto',
@@ -56,7 +59,8 @@ class CameraUiCopy {
       'videoTitle': 'Video',
       'contentTitle': 'Contenuto',
       'verifiableCreated': 'verificabile creato',
-      'linkedFiles': 'sono collegati dallo stesso HCV-ID. La verifica online usa HCV-ID e Registry.',
+      'linkedFiles':
+          'sono collegati dallo stesso HCV-ID. La verifica online usa HCV-ID e Registry.',
       'copyHcvId': 'COPIA HCV-ID',
     },
     'en': {
@@ -89,7 +93,8 @@ class CameraUiCopy {
       'registryOk': 'Registry OK',
       'certificatePublished': 'certificate published',
       'registryPending': 'Certificate saved: Registry publication pending',
-      'registryUnavailableLocal': 'Certificate saved locally. Registry unavailable',
+      'registryUnavailableLocal':
+          'Certificate saved locally. Registry unavailable',
       'registrySynced': 'Registry synchronized',
       'registryPublished': 'published',
       'registryWaiting': 'pending',
@@ -98,7 +103,8 @@ class CameraUiCopy {
       'verifiedContent': 'SIGILLUM verified content',
       'shareError': 'SHARE ERROR',
       'savedToPhotos': 'Also saved to Photos',
-      'photosPermissionUnavailable': 'Not saved to Photos: permission unavailable',
+      'photosPermissionUnavailable':
+          'Not saved to Photos: permission unavailable',
       'noPackToShare': 'NO PACKAGE TO SHARE',
       'sharePackError': 'HCVPACK SHARE ERROR',
       'photoLower': 'photo',
@@ -108,7 +114,8 @@ class CameraUiCopy {
       'videoTitle': 'Video',
       'contentTitle': 'Content',
       'verifiableCreated': 'verifiable file created',
-      'linkedFiles': 'are linked by the same HCV-ID. Online verification uses the HCV-ID and Registry.',
+      'linkedFiles':
+          'are linked by the same HCV-ID. Online verification uses the HCV-ID and Registry.',
       'copyHcvId': 'COPY HCV-ID',
     },
     'es': {
@@ -140,8 +147,10 @@ class CameraUiCopy {
       'registryPublishing': 'Publicando el certificado en el Registry...',
       'registryOk': 'Registry OK',
       'certificatePublished': 'certificado publicado',
-      'registryPending': 'Certificado guardado: publicación en el Registry pendiente',
-      'registryUnavailableLocal': 'Certificado guardado localmente. Registry no disponible',
+      'registryPending':
+          'Certificado guardado: publicación en el Registry pendiente',
+      'registryUnavailableLocal':
+          'Certificado guardado localmente. Registry no disponible',
       'registrySynced': 'Registry sincronizado',
       'registryPublished': 'publicados',
       'registryWaiting': 'pendientes',
@@ -150,7 +159,8 @@ class CameraUiCopy {
       'verifiedContent': 'Contenido verificado por SIGILLUM',
       'shareError': 'ERROR AL COMPARTIR',
       'savedToPhotos': 'También guardado en Fotos',
-      'photosPermissionUnavailable': 'No guardado en Fotos: permiso no disponible',
+      'photosPermissionUnavailable':
+          'No guardado en Fotos: permiso no disponible',
       'noPackToShare': 'NINGÚN PAQUETE PARA COMPARTIR',
       'sharePackError': 'ERROR AL COMPARTIR HCVPACK',
       'photoLower': 'foto',
@@ -160,7 +170,8 @@ class CameraUiCopy {
       'videoTitle': 'Video',
       'contentTitle': 'Contenido',
       'verifiableCreated': 'verificable creado',
-      'linkedFiles': 'están vinculados por el mismo HCV-ID. La verificación online usa el HCV-ID y el Registry.',
+      'linkedFiles':
+          'están vinculados por el mismo HCV-ID. La verificación online usa el HCV-ID y el Registry.',
       'copyHcvId': 'COPIAR HCV-ID',
     },
     'ru': {
@@ -193,7 +204,8 @@ class CameraUiCopy {
       'registryOk': 'Registry OK',
       'certificatePublished': 'сертификат опубликован',
       'registryPending': 'Сертификат сохранён: публикация в Registry ожидается',
-      'registryUnavailableLocal': 'Сертификат сохранён локально. Registry недоступен',
+      'registryUnavailableLocal':
+          'Сертификат сохранён локально. Registry недоступен',
       'registrySynced': 'Registry синхронизирован',
       'registryPublished': 'опубликовано',
       'registryWaiting': 'ожидает',
@@ -212,7 +224,8 @@ class CameraUiCopy {
       'videoTitle': 'Видео',
       'contentTitle': 'Контент',
       'verifiableCreated': 'создан проверяемый файл',
-      'linkedFiles': 'связаны одним HCV-ID. Онлайн-проверка использует HCV-ID и Registry.',
+      'linkedFiles':
+          'связаны одним HCV-ID. Онлайн-проверка использует HCV-ID и Registry.',
       'copyHcvId': 'КОПИРОВАТЬ HCV-ID',
     },
   };

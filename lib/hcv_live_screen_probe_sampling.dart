@@ -121,8 +121,8 @@ _FrameStats? _readFrameStats(CameraImage image, int phase) {
     bandTotals.length,
     (index) => bandTotals[index] / max(1, bandCounts[index]),
   );
-  const geometryWidth = 20;
-  const geometryHeight = 15;
+  const geometryWidth = 32;
+  const geometryHeight = 24;
   final geometryLuma = <double>[];
   final geometryLeft = (image.width * 0.08).floor();
   final geometryTop = (image.height * 0.08).floor();
@@ -130,16 +130,16 @@ _FrameStats? _readFrameStats(CameraImage image, int phase) {
   final geometrySpanY = max(1, (image.height * 0.84).floor());
   for (var gy = 0; gy < geometryHeight; gy++) {
     for (var gx = 0; gx < geometryWidth; gx++) {
-      final sampleX = (geometryLeft +
-              ((gx + 0.5) * geometrySpanX / geometryWidth))
-          .floor()
-          .clamp(0, image.width - 1)
-          .toInt();
-      final sampleY = (geometryTop +
-              ((gy + 0.5) * geometrySpanY / geometryHeight))
-          .floor()
-          .clamp(0, image.height - 1)
-          .toInt();
+      final sampleX =
+          (geometryLeft + ((gx + 0.5) * geometrySpanX / geometryWidth))
+              .floor()
+              .clamp(0, image.width - 1)
+              .toInt();
+      final sampleY =
+          (geometryTop + ((gy + 0.5) * geometrySpanY / geometryHeight))
+              .floor()
+              .clamp(0, image.height - 1)
+              .toInt();
       var sampleTotal = 0.0;
       var sampleCount = 0;
       for (final oy in const <int>[-2, 0, 2]) {
@@ -164,8 +164,10 @@ _FrameStats? _readFrameStats(CameraImage image, int phase) {
     bandMeans: bandMeans,
     bandContrast: _profileContrast(bandMeans),
     fineStripeScore: _fineStripeScore(centerRows),
-    fineGridScore:
-        max(_fineStripeScore(centerRows), _fineStripeScore(centerCols)),
+    fineGridScore: max(
+      _fineStripeScore(centerRows),
+      _fineStripeScore(centerCols),
+    ),
     moireFrequencyScore: max(
       _periodicFrequencyScore(centerRows),
       _periodicFrequencyScore(centerCols),
@@ -194,21 +196,16 @@ _FrameStats? _phaseRepresentative(List<_FrameStats> frames) {
 
   final tileMeans = List<double>.generate(
     frames.first.tileMeans.length,
-    (index) => _median(
-      frames.map((frame) => frame.tileMeans[index]).toList(),
-    ),
+    (index) => _median(frames.map((frame) => frame.tileMeans[index]).toList()),
   );
   final bandMeans = List<double>.generate(
     frames.first.bandMeans.length,
-    (index) => _median(
-      frames.map((frame) => frame.bandMeans[index]).toList(),
-    ),
+    (index) => _median(frames.map((frame) => frame.bandMeans[index]).toList()),
   );
   final geometryLuma = List<double>.generate(
     frames.first.geometryLuma.length,
-    (index) => _median(
-      frames.map((frame) => frame.geometryLuma[index]).toList(),
-    ),
+    (index) =>
+        _median(frames.map((frame) => frame.geometryLuma[index]).toList()),
   );
 
   return _FrameStats(
@@ -219,8 +216,7 @@ _FrameStats? _phaseRepresentative(List<_FrameStats> frames) {
     bandContrast: medianMetric((frame) => frame.bandContrast),
     fineStripeScore: medianMetric((frame) => frame.fineStripeScore),
     fineGridScore: medianMetric((frame) => frame.fineGridScore),
-    moireFrequencyScore:
-        medianMetric((frame) => frame.moireFrequencyScore),
+    moireFrequencyScore: medianMetric((frame) => frame.moireFrequencyScore),
     geometryWidth: frames.first.geometryWidth,
     geometryHeight: frames.first.geometryHeight,
     geometryLuma: geometryLuma,
@@ -254,12 +250,12 @@ _FlashResponseProfile _flashResponseProfile(
 
   final totalLift = positiveLifts.fold<double>(0, (a, b) => a + b);
   final sorted = [...positiveLifts]..sort((a, b) => b.compareTo(a));
-  final topTwoLift = sorted.take(min(2, sorted.length)).fold<double>(
-        0,
-        (a, b) => a + b,
-      );
-  final hotspotConcentration =
-      totalLift <= 0.000001 ? 1.0 : topTwoLift / totalLift;
+  final topTwoLift = sorted
+      .take(min(2, sorted.length))
+      .fold<double>(0, (a, b) => a + b);
+  final hotspotConcentration = totalLift <= 0.000001
+      ? 1.0
+      : topTwoLift / totalLift;
 
   var entropy = 0.0;
   if (totalLift > 0.000001) {
@@ -271,33 +267,28 @@ _FlashResponseProfile _flashResponseProfile(
     entropy = entropy / log(count);
   }
 
-  final baselineReference =
-      (baseline.meanLuma + recovery.meanLuma) / 2;
+  final baselineReference = (baseline.meanLuma + recovery.meanLuma) / 2;
   final globalLift = max(0.0, torch.meanLuma - baselineReference);
-  final globalLiftRatio =
-      (globalLift / max(0.05, baselineReference)).clamp(0.0, 1.0);
+  final globalLiftRatio = (globalLift / max(0.05, baselineReference)).clamp(
+    0.0,
+    1.0,
+  );
 
   return _FlashResponseProfile(
     globalLiftRatio: globalLiftRatio.toDouble(),
     responsiveTileFraction: responsive / count,
     responseEntropy: entropy.clamp(0.0, 1.0).toDouble(),
-    hotspotConcentration:
-        hotspotConcentration.clamp(0.0, 1.0).toDouble(),
+    hotspotConcentration: hotspotConcentration.clamp(0.0, 1.0).toDouble(),
   );
 }
 
-double _persistentPattern(
-  _FrameStats? baseline,
-  _FrameStats? recovery,
-) {
+double _persistentPattern(_FrameStats? baseline, _FrameStats? recovery) {
   if (baseline == null || recovery == null) return 0;
   final gridPersistence =
       1.0 - (baseline.fineGridScore - recovery.fineGridScore).abs();
   final moirePersistence =
       1.0 - (baseline.moireFrequencyScore - recovery.moireFrequencyScore).abs();
-  return ((gridPersistence + moirePersistence) / 2)
-      .clamp(0.0, 1.0)
-      .toDouble();
+  return ((gridPersistence + moirePersistence) / 2).clamp(0.0, 1.0).toDouble();
 }
 
 double _bandTemporalScore(List<_FrameStats> frames) {
@@ -323,9 +314,7 @@ double _electronicLightScore(List<_FrameStats> frames) {
   final series = frames.map((frame) => frame.meanLuma).toList();
   final pulse = _temporalPulseScore(series);
   final band = _median(frames.map((frame) => frame.bandContrast).toList());
-  return (pulse * 0.55 + band * 1.8 * 0.45)
-      .clamp(0.0, 1.0)
-      .toDouble();
+  return (pulse * 0.55 + band * 1.8 * 0.45).clamp(0.0, 1.0).toDouble();
 }
 
 double _temporalPulseScore(List<double> series) {
@@ -363,7 +352,8 @@ double _seriesDelta(List<double> series) {
 double _profileContrast(List<double> profile) {
   if (profile.isEmpty) return 0;
   final mean = profile.reduce((a, b) => a + b) / profile.length;
-  final variance = profile
+  final variance =
+      profile
           .map((value) => pow(value - mean, 2).toDouble())
           .reduce((a, b) => a + b) /
       profile.length;
@@ -390,8 +380,9 @@ double _periodicFrequencyScore(List<double> profile) {
   if (profile.length < 24) return 0;
   final mean = profile.reduce((a, b) => a + b) / profile.length;
   final centered = profile.map((value) => value - mean).toList();
-  final totalEnergy =
-      centered.map((value) => value * value).reduce((a, b) => a + b);
+  final totalEnergy = centered
+      .map((value) => value * value)
+      .reduce((a, b) => a + b);
   if (totalEnergy < 0.00008) return 0;
 
   var strongest = 0.0;
@@ -412,9 +403,7 @@ double _periodicFrequencyScore(List<double> profile) {
 
   final dominance = strongest / totalEnergy;
   final contrast = sqrt(totalEnergy / centered.length);
-  return (dominance * 1.8 + contrast * 2.4)
-      .clamp(0.0, 1.0)
-      .toDouble();
+  return (dominance * 1.8 + contrast * 2.4).clamp(0.0, 1.0).toDouble();
 }
 
 double _percentile(List<double> values, double percentile) {

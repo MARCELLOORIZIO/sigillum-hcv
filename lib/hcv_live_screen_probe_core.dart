@@ -146,10 +146,7 @@ class HCVLiveScreenProbe {
       );
     }
 
-    final passiveFrames = <_FrameStats>[
-      ...baselineFrames,
-      ...recoveryFrames,
-    ];
+    final passiveFrames = <_FrameStats>[...baselineFrames, ...recoveryFrames];
     final passive = _analyzePassive(
       passiveFrames.length >= 8 ? passiveFrames : allFrames,
     );
@@ -185,8 +182,14 @@ class HCVLiveScreenProbe {
       illumination: active,
       geometry: geometry,
     );
+    final rawActiveDisplayEvidence = active.reasons.contains(
+      'EMISSIVE_SCENE_RESISTS_DIFFUSE_TORCH',
+    );
     final activeDisplayEvidence = sceneDecision.displayEvidence;
-    final reflectedRealityEvidence = sceneDecision.realityEvidence;
+    final sceneRealityEvidence = sceneDecision.realityEvidence;
+    final reflectedRealityEvidence = active.reasons.contains(
+      'DIFFUSE_REFLECTED_SCENE_RESPONSE',
+    );
     final indeterminate = sceneDecision.indeterminate;
     final sceneClass = sceneDecision.sceneClass;
     final finalReasons = sceneDecision.reasons;
@@ -244,10 +247,8 @@ class HCVLiveScreenProbe {
         'responsiveTileFraction': _round(flash.responsiveTileFraction),
         'responseEntropy': _round(flash.responseEntropy),
         'hotspotConcentration': _round(flash.hotspotConcentration),
-        'illuminationResponseScore':
-            _round(active.illuminationResponseScore),
-        'emissiveIndependenceScore':
-            _round(active.emissiveIndependenceScore),
+        'illuminationResponseScore': _round(active.illuminationResponseScore),
+        'emissiveIndependenceScore': _round(active.emissiveIndependenceScore),
         if (challengeError != null) 'error': challengeError,
       },
       'geometryChallenge': geometry.toJson(),
@@ -255,9 +256,12 @@ class HCVLiveScreenProbe {
         'livePreviewAnalyzed': true,
         'activeIlluminationChallenge': torchChallengeCompleted,
         'activeIlluminationContinuousStream': true,
+        'rawActiveDisplayEvidence': rawActiveDisplayEvidence,
         'activeIlluminationDisplayEvidence': activeDisplayEvidence,
         'reflectedRealityEvidence': reflectedRealityEvidence,
+        'sceneRealityEvidence': sceneRealityEvidence,
         'geometricRealityEvidence': geometry.realityEvidence,
+        'geometryModelVersion': 'PROJECTIVE_DOMINANT_PLANE_RANSAC_V3',
         'planarSceneEvidence': geometry.planarEvidence,
         'geometryChallengeCompleted': geometry.sceneClass != 'UNKNOWN',
         'activeChallengeIndeterminate': indeterminate,
@@ -267,11 +271,12 @@ class HCVLiveScreenProbe {
         'displayBandTrace':
             passive.localFlicker > 0.34 && passive.refreshBand > 0.18,
         'opticalStripeTrace': passive.fineStripe > 0.30,
-        'opticalCorroboratedTrace': passive.fineStripe > 0.30 &&
+        'opticalCorroboratedTrace':
+            passive.fineStripe > 0.30 &&
             (passive.refreshBand > 0.14 || passive.localFlicker > 0.34),
         'moireFrequencyTrace': passive.moire > 0.42,
-        'globalDisplayPulse': passive.globalFlicker > 0.16 &&
-            passive.localFlicker > 0.38,
+        'globalDisplayPulse':
+            passive.globalFlicker > 0.16 && passive.localFlicker > 0.38,
         'pairedFlickerTrace':
             passive.localFlicker > 0.18 && passive.refreshBand > 0.14,
         'uncorroboratedDisplayPattern':
@@ -284,19 +289,17 @@ class HCVLiveScreenProbe {
       },
       'activeReasons': finalReasons,
       'geometryReasons': geometry.reasons,
-      'note':
-          'Active display probe V5 combines OFF/ON/OFF illumination response, low-resolution camera-motion geometry, and a disposable pre-capture mini-video analyzed through the same optical and ML pipeline used for recorded video.',
+      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response, low-resolution camera-motion geometry, and a disposable pre-capture mini-video analyzed through the same optical and ML pipeline used for recorded video.',
     };
 
-    final temporalProbe =
-        await const HCVTemporalCaptureProbe().analyze(controller);
-    final temporalOptical =
-        _stringMap(temporalProbe['screenReplayAnalysis']);
-    final temporalMl =
-        _stringMap(temporalProbe['mlScreenReplayAnalysis']);
+    final temporalProbe = await const HCVTemporalCaptureProbe().analyze(
+      controller,
+    );
+    final temporalOptical = _stringMap(temporalProbe['screenReplayAnalysis']);
+    final temporalMl = _stringMap(temporalProbe['mlScreenReplayAnalysis']);
     final temporalAnalyzed =
         temporalProbe['analysisStatus'] == 'ANALYZED' &&
-            (temporalOptical != null || temporalMl != null);
+        (temporalOptical != null || temporalMl != null);
 
     HCVDisplayRiskResult? videoEquivalentRisk;
     if (temporalAnalyzed) {
@@ -313,8 +316,8 @@ class HCVLiveScreenProbe {
     activeLiveAnalysis['videoEquivalentAvailable'] =
         videoEquivalentRisk != null;
     if (videoEquivalentRisk != null) {
-      activeLiveAnalysis['videoEquivalentDisplayRisk'] =
-          videoEquivalentRisk.toJson();
+      activeLiveAnalysis['videoEquivalentDisplayRisk'] = videoEquivalentRisk
+          .toJson();
     }
 
     final signals = activeLiveAnalysis['signals'];
@@ -331,9 +334,7 @@ class HCVLiveScreenProbe {
 
   Map<String, dynamic>? _stringMap(dynamic value) {
     if (value is! Map) return null;
-    return value.map(
-      (key, item) => MapEntry(key.toString(), item),
-    );
+    return value.map((key, item) => MapEntry(key.toString(), item));
   }
 
   Map<String, dynamic> _unknown(

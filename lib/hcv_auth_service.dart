@@ -41,11 +41,7 @@ class HCVAuthService {
     if (token == null || token.isEmpty) return null;
 
     try {
-      final response = await _request(
-        'GET',
-        '/api/auth/session',
-        token: token,
-      );
+      final response = await _request('GET', '/api/auth/session', token: token);
       return _accountEnvelope(response);
     } on HCVAuthException catch (error) {
       if (error.statusCode == 401) {
@@ -85,11 +81,7 @@ class HCVAuthService {
     final response = await _request(
       'POST',
       '/api/auth/login',
-      body: {
-        'email': email.trim(),
-        'password': password,
-        ...proof,
-      },
+      body: {'email': email.trim(), 'password': password, ...proof},
     );
     await _storeReturnedToken(response);
     return _accountEnvelope(response);
@@ -117,20 +109,13 @@ class HCVAuthService {
       'POST',
       '/api/auth/password',
       token: token,
-      body: {
-        'currentPassword': currentPassword,
-        'newPassword': newPassword,
-      },
+      body: {'currentPassword': currentPassword, 'newPassword': newPassword},
     );
   }
 
   Future<List<Map<String, dynamic>>> listDevices() async {
     final token = await _requiredToken();
-    final response = await _request(
-      'GET',
-      '/api/auth/devices',
-      token: token,
-    );
+    final response = await _request('GET', '/api/auth/devices', token: token);
     final raw = response['devices'];
     if (raw is! List) return const [];
     return raw
@@ -156,20 +141,16 @@ class HCVAuthService {
 
   Future<void> logoutAll() => logout(allDevices: true);
 
-  Future<void> deleteAccount({
-    required String password,
-  }) async {
+  Future<void> deleteAccount({required String password}) async {
     final token = await _requiredToken();
     await _request(
       'POST',
       '/api/auth/delete',
       token: token,
-      body: {
-        'password': password,
-        'confirmation': 'DELETE',
-      },
+      body: {'password': password, 'confirmation': 'DELETE'},
     );
     await HCVSecureStore.delete(_sessionTokenKey);
+    await HCVIdentity().clearPersonalData();
   }
 
   Future<String> _requiredToken() async {
@@ -222,8 +203,9 @@ class HCVAuthService {
 
   Map<String, dynamic> _accountEnvelope(Map<String, dynamic> response) {
     final raw = response['account'];
-    final account =
-        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final account = raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : <String, dynamic>{};
     return {
       'ok': response['ok'] == true,
       'expiresAt': response['expiresAt'],
@@ -250,10 +232,7 @@ class HCVAuthService {
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (token != null && token.isNotEmpty) {
-        request.headers.set(
-          HttpHeaders.authorizationHeader,
-          'Bearer $token',
-        );
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       }
       if (body != null) request.write(jsonEncode(body));
 
@@ -271,8 +250,8 @@ class HCVAuthService {
           decoded['message']?.toString().isNotEmpty == true
               ? decoded['message'].toString()
               : decoded['error']?.toString().isNotEmpty == true
-                  ? decoded['error'].toString()
-                  : 'Operazione account non riuscita',
+              ? decoded['error'].toString()
+              : 'Operazione account non riuscita',
           statusCode: response.statusCode,
           code: decoded['error']?.toString(),
         );

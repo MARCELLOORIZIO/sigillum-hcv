@@ -20,6 +20,8 @@ class CameraUiExtendedCopy {
       'printGpsCoordinates': 'Stampa coordinate GPS',
       'armedVideoReady': 'PRONTO — PREMI REGISTRA PER INIZIARE',
       'armedPhotoReady': 'INQUADRA E PREMI IL PULSANTE DI SCATTO',
+      'parallaxRequired':
+          'MOVIMENTO INSUFFICIENTE — MUOVI IL TELEFONO LATERALMENTE E RIPROVA',
       'transcriptionAudio': 'TRASCRIZIONE AUDIO...',
       'transcriptionReady': 'TRASCRIZIONE PRONTA',
       'transcriptionFailed': 'TRASCRIZIONE NON RIUSCITA',
@@ -69,6 +71,8 @@ class CameraUiExtendedCopy {
       'printGpsCoordinates': 'Print GPS coordinates',
       'armedVideoReady': 'READY — PRESS RECORD TO START',
       'armedPhotoReady': 'COMPOSE AND PRESS THE SHUTTER BUTTON',
+      'parallaxRequired':
+          'NOT ENOUGH MOVEMENT — MOVE THE PHONE SIDEWAYS AND TRY AGAIN',
       'transcriptionAudio': 'TRANSCRIBING AUDIO...',
       'transcriptionReady': 'TRANSCRIPTION READY',
       'transcriptionFailed': 'TRANSCRIPTION FAILED',
@@ -86,7 +90,8 @@ class CameraUiExtendedCopy {
       'captionedReadyFiles': 'CAPTIONED VIDEO READY — AVAILABLE IN FILES',
       'captionedSavedPhotos': 'Captioned video saved to Photos',
       'captionedSavedPhotosSentence': 'Captioned video saved to Photos.',
-      'captionedSaveFailed': 'The captioned video could not be saved to Photos.',
+      'captionedSaveFailed':
+          'The captioned video could not be saved to Photos.',
       'captionedAvailableFiles':
           'Captioned video is available in Files; saving to Photos failed',
       'certifiedPhotoSaved': 'Certified photo saved to Photos',
@@ -117,6 +122,8 @@ class CameraUiExtendedCopy {
       'printGpsCoordinates': 'Imprimir coordenadas GPS',
       'armedVideoReady': 'LISTO — PULSA GRABAR PARA EMPEZAR',
       'armedPhotoReady': 'ENCUADRA Y PULSA EL BOTÓN DE DISPARO',
+      'parallaxRequired':
+          'MOVIMIENTO INSUFICIENTE — MUEVE EL TELÉFONO LATERALMENTE Y VUELVE A INTENTARLO',
       'transcriptionAudio': 'TRANSCRIBIENDO AUDIO...',
       'transcriptionReady': 'TRANSCRIPCIÓN LISTA',
       'transcriptionFailed': 'TRANSCRIPCIÓN FALLIDA',
@@ -134,7 +141,8 @@ class CameraUiExtendedCopy {
       'captionedReadyFiles': 'VÍDEO SUBTITULADO LISTO — DISPONIBLE EN ARCHIVOS',
       'captionedSavedPhotos': 'Vídeo subtitulado guardado en Fotos',
       'captionedSavedPhotosSentence': 'Vídeo subtitulado guardado en Fotos.',
-      'captionedSaveFailed': 'No se pudo guardar el vídeo subtitulado en Fotos.',
+      'captionedSaveFailed':
+          'No se pudo guardar el vídeo subtitulado en Fotos.',
       'captionedAvailableFiles':
           'El vídeo subtitulado está disponible en Archivos; no se pudo guardar en Fotos',
       'certifiedPhotoSaved': 'Foto certificada guardada en Fotos',
@@ -165,6 +173,8 @@ class CameraUiExtendedCopy {
       'printGpsCoordinates': 'Нанести GPS-координаты',
       'armedVideoReady': 'ГОТОВО — НАЖМИТЕ ЗАПИСЬ ДЛЯ НАЧАЛА',
       'armedPhotoReady': 'ВЫСТРОЙТЕ КАДР И НАЖМИТЕ КНОПКУ СЪЁМКИ',
+      'parallaxRequired':
+          'НЕДОСТАТОЧНО ДВИЖЕНИЯ — СДВИНЬТЕ ТЕЛЕФОН В СТОРОНУ И ПОВТОРИТЕ',
       'transcriptionAudio': 'РАСШИФРОВКА АУДИО...',
       'transcriptionReady': 'РАСШИФРОВКА ГОТОВА',
       'transcriptionFailed': 'НЕ УДАЛОСЬ РАСШИФРОВАТЬ',

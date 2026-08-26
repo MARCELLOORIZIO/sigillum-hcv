@@ -1,13 +1,55 @@
 import Flutter
 import AVFoundation
 import Photos
+import PhotosUI
 import Security
+import StoreKit
+import Speech
+import QuartzCore
 import UIKit
 
-class SceneDelegate: FlutterSceneDelegate {
+
+private final class HCVStorePriceLookup: NSObject, SKProductsRequestDelegate, SKRequestDelegate {
+  private var request: SKProductsRequest?
+  private let completion: ([String: String]?, Error?) -> Void
+
+  init(productIds: [String], completion: @escaping ([String: String]?, Error?) -> Void) {
+    self.completion = completion
+    super.init()
+    let lookup = SKProductsRequest(productIdentifiers: Set(productIds))
+    request = lookup
+    lookup.delegate = self
+  }
+
+  func start() {
+    request?.start()
+  }
+
+  func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .currency
+    var prices: [String: String] = [:]
+    for product in response.products {
+      formatter.locale = product.priceLocale
+      if let rendered = formatter.string(from: product.price) {
+        prices[product.productIdentifier] = rendered
+      }
+    }
+    completion(prices, nil)
+  }
+
+  func request(_ request: SKRequest, didFailWithError error: Error) {
+    completion(nil, error)
+  }
+}
+
+class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
   private var intentChannel: FlutterMethodChannel?
   private var keystoreChannel: FlutterMethodChannel?
   private var mediaChannel: FlutterMethodChannel?
+  private var storePriceLookups: [HCVStorePriceLookup] = []
+  private var pendingOriginalPhotoResult: FlutterResult?
+  private var speechTask: SFSpeechRecognitionTask?
   private var lastDeliveredSharedPath: String?
   private let sharedPathKey = "hcv.share.path"
   private var appGroupId: String {
@@ -44,8 +86,10 @@ class SceneDelegate: FlutterSceneDelegate {
   override func sceneDidBecomeActive(_ scene: UIScene) {
     super.sceneDidBecomeActive(scene)
     installIntentChannel()
+    stageSharedPathFromAppGroupIfNeeded()
 
-    if let path = consumeSharedPath() {
+    if let path = UserDefaults.standard.string(forKey: "hcv.sharedPath"),
+       !path.isEmpty {
       deliverSharedPath(path)
     }
   }
@@ -74,6 +118,14 @@ class SceneDelegate: FlutterSceneDelegate {
         } else {
           result(nil)
         }
+      } else if call.method == "ackSharedPath" {
+        let args = call.arguments as? [String: Any]
+        let acknowledgedPath = args?["path"] as? String
+        let pendingPath = UserDefaults.standard.string(forKey: "hcv.sharedPath")
+        if acknowledgedPath == nil || acknowledgedPath == pendingPath {
+          UserDefaults.standard.removeObject(forKey: "hcv.sharedPath")
+        }
+        result(true)
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -89,21 +141,30 @@ class SceneDelegate: FlutterSceneDelegate {
       return
     }
 
-    UserDefaults.standard.removeObject(forKey: "hcv.sharedPath")
     UserDefaults.standard.removeObject(forKey: sharedPathKey)
-
-    if lastDeliveredSharedPath == path {
-      return
-    }
-
+    UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
+    UserDefaults.standard.synchronize()
     lastDeliveredSharedPath = path
 
     guard intentChannel != nil else {
-      UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
       return
     }
 
     intentChannel?.invokeMethod("onSharedPath", arguments: path)
+  }
+
+  private func stageSharedPathFromAppGroupIfNeeded() {
+    guard
+      let defaults = UserDefaults(suiteName: appGroupId),
+      let path = defaults.string(forKey: sharedPathKey),
+      !path.isEmpty
+    else {
+      return
+    }
+
+    UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
+    UserDefaults.standard.synchronize()
+    defaults.removeObject(forKey: sharedPathKey)
   }
 
   private func consumeSharedPath() -> String? {
@@ -155,6 +216,23 @@ class SceneDelegate: FlutterSceneDelegate {
         }
 
         self.saveToPhotos(path: path, result: result)
+      } else if call.method == "pickOriginalPhoto" {
+        self.pickOriginalPhoto(result: result)
+      } else if call.method == "localizedProductPrices" {
+        guard
+          let args = call.arguments as? [String: Any],
+          let ids = args["productIds"] as? [String],
+          !ids.isEmpty
+        else {
+          result(FlutterError(
+            code: "INVALID_PRODUCT_IDS",
+            message: "No App Store product identifiers were supplied",
+            details: nil
+          ))
+          return
+        }
+
+        self.localizedProductPrices(productIds: ids, result: result)
       } else if call.method == "extractVideoFrame" {
         guard
           let args = call.arguments as? [String: Any],
@@ -167,12 +245,185 @@ class SceneDelegate: FlutterSceneDelegate {
 
         let seconds = args["seconds"] as? Double ?? 0.5
         self.extractVideoFrame(path: path, seconds: seconds, result: result)
+      } else if call.method == "transcribeVideo" {
+        guard
+          let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String,
+          !path.isEmpty
+        else {
+          result(FlutterError(code: "INVALID_PATH", message: "Path is empty", details: nil))
+          return
+        }
+        self.transcribeVideo(
+          path: path,
+          languageCode: (args["languageCode"] as? String) ?? "it",
+          result: result
+        )
+      } else if call.method == "burnSubtitles" {
+        guard
+          let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String,
+          let outputPath = args["outputPath"] as? String,
+          let segments = args["segments"] as? [[String: Any]],
+          !path.isEmpty,
+          !outputPath.isEmpty
+        else {
+          result(FlutterError(code: "INVALID_SUBTITLE_EXPORT", message: "Parametri sottotitoli non validi.", details: nil))
+          return
+        }
+        self.burnSubtitles(videoPath: path, outputPath: outputPath, segments: segments, result: result)
       } else {
         result(FlutterMethodNotImplemented)
       }
     }
 
     mediaChannel = channel
+  }
+
+
+  private func pickOriginalPhoto(result: @escaping FlutterResult) {
+    guard pendingOriginalPhotoResult == nil else {
+      result(FlutterError(
+        code: "PHOTO_PICK_BUSY",
+        message: "Another original-photo selection is already active",
+        details: nil
+      ))
+      return
+    }
+
+    PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+      guard status == .authorized || status == .limited else {
+        DispatchQueue.main.async { result(nil) }
+        return
+      }
+      DispatchQueue.main.async {
+        guard let presenter = self.window?.rootViewController else {
+          result(FlutterError(
+            code: "PHOTO_PICK_NO_PRESENTER",
+            message: "Unable to present Photos picker",
+            details: nil
+          ))
+          return
+        }
+        self.pendingOriginalPhotoResult = result
+        var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
+        configuration.filter = .images
+        configuration.selectionLimit = 1
+        configuration.preferredAssetRepresentationMode = .current
+        let picker = PHPickerViewController(configuration: configuration)
+        picker.delegate = self
+        presenter.present(picker, animated: true)
+      }
+    }
+  }
+
+  private func finishOriginalPhotoPick(_ value: Any?) {
+    guard let flutterResult = pendingOriginalPhotoResult else { return }
+    pendingOriginalPhotoResult = nil
+    flutterResult(value)
+  }
+
+  private func finishOriginalPhotoPick(error: FlutterError) {
+    guard let flutterResult = pendingOriginalPhotoResult else { return }
+    pendingOriginalPhotoResult = nil
+    flutterResult(error)
+  }
+
+  private func resolveOriginalPhotoSelection(_ results: [PHPickerResult]) {
+    guard let assetIdentifier = results.first?.assetIdentifier else {
+      finishOriginalPhotoPick(nil)
+      return
+    }
+
+    let assets = PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil)
+    guard let asset = assets.firstObject else {
+      finishOriginalPhotoPick(error: FlutterError(
+        code: "PHOTO_ASSET_NOT_FOUND",
+        message: "Selected Photos asset was not found",
+        details: nil
+      ))
+      return
+    }
+
+    let resources = PHAssetResource.assetResources(for: asset)
+    let original = resources.first(where: { $0.type == .photo })
+      ?? resources.first(where: { $0.type == .fullSizePhoto })
+    guard let resource = original else {
+      finishOriginalPhotoPick(error: FlutterError(
+        code: "PHOTO_ORIGINAL_UNAVAILABLE",
+        message: "Original photo bytes are unavailable",
+        details: nil
+      ))
+      return
+    }
+
+    let rawExtension = URL(fileURLWithPath: resource.originalFilename).pathExtension
+    let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
+    let output = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "hcv_original_\(UUID().uuidString).\(fileExtension)"
+    )
+    try? FileManager.default.removeItem(at: output)
+
+    let options = PHAssetResourceRequestOptions()
+    options.isNetworkAccessAllowed = true
+    PHAssetResourceManager.default().writeData(
+      for: resource,
+      toFile: output,
+      options: options
+    ) { [weak self] error in
+      DispatchQueue.main.async {
+        guard let self = self else { return }
+        if let error = error {
+          self.finishOriginalPhotoPick(error: FlutterError(
+            code: "PHOTO_ORIGINAL_READ_ERROR",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        } else {
+          self.finishOriginalPhotoPick(output.path)
+        }
+      }
+    }
+  }
+
+  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    picker.dismiss(animated: true) { [weak self] in
+      guard let self = self else { return }
+      self.resolveOriginalPhotoSelection(results)
+    }
+  }
+
+  private func localizedProductPrices(
+    productIds: [String],
+    result: @escaping FlutterResult
+  ) {
+    var lookup: HCVStorePriceLookup?
+    lookup = HCVStorePriceLookup(productIds: productIds) { [weak self] prices, error in
+      DispatchQueue.main.async {
+        if let lookup = lookup {
+          self?.storePriceLookups.removeAll { $0 === lookup }
+        }
+        if let error = error {
+          result(FlutterError(
+            code: "STORE_PRICE_LOOKUP_FAILED",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        } else {
+          result(prices ?? [:])
+        }
+      }
+    }
+    guard let retainedLookup = lookup else {
+      result(FlutterError(
+        code: "STORE_PRICE_LOOKUP_FAILED",
+        message: "Unable to initialize App Store price lookup",
+        details: nil
+      ))
+      return
+    }
+    storePriceLookups.append(retainedLookup)
+    retainedLookup.start()
   }
 
   private func saveToPhotos(path: String, result: @escaping FlutterResult) {
@@ -250,6 +501,390 @@ class SceneDelegate: FlutterSceneDelegate {
             details: nil
           ))
         }
+      }
+    }
+  }
+
+  private func burnSubtitles(
+    videoPath: String,
+    outputPath: String,
+    segments: [[String: Any]],
+    result: @escaping FlutterResult
+  ) {
+    let sourceURL = URL(fileURLWithPath: videoPath)
+    let outputURL = URL(fileURLWithPath: outputPath)
+    let asset = AVURLAsset(url: sourceURL)
+
+    guard let sourceVideoTrack = asset.tracks(withMediaType: .video).first else {
+      result(FlutterError(code: "SUBTITLE_VIDEO_TRACK_MISSING", message: "Traccia video non disponibile.", details: nil))
+      return
+    }
+    let composition = AVMutableComposition()
+    guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+      result(FlutterError(code: "SUBTITLE_COMPOSITION_ERROR", message: "Impossibile preparare la copia sottotitolata.", details: nil))
+      return
+    }
+    do {
+      try compositionVideoTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: sourceVideoTrack, at: .zero)
+      if let sourceAudioTrack = asset.tracks(withMediaType: .audio).first,
+         let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+        try compositionAudioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: asset.duration), of: sourceAudioTrack, at: .zero)
+      }
+    } catch {
+      result(FlutterError(code: "SUBTITLE_COMPOSITION_ERROR", message: error.localizedDescription, details: nil))
+      return
+    }
+
+    let naturalRect = CGRect(origin: .zero, size: sourceVideoTrack.naturalSize)
+    let transformedRect = naturalRect.applying(sourceVideoTrack.preferredTransform)
+    let renderSize = CGSize(width: abs(transformedRect.width), height: abs(transformedRect.height))
+    guard renderSize.width > 0, renderSize.height > 0 else {
+      result(FlutterError(code: "SUBTITLE_RENDER_SIZE_ERROR", message: "Dimensioni video non valide.", details: nil))
+      return
+    }
+    var normalizedTransform = sourceVideoTrack.preferredTransform
+    normalizedTransform.tx -= transformedRect.origin.x
+    normalizedTransform.ty -= transformedRect.origin.y
+    let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+    layerInstruction.setTransform(normalizedTransform, at: .zero)
+    let instruction = AVMutableVideoCompositionInstruction()
+    instruction.timeRange = CMTimeRange(start: .zero, duration: composition.duration)
+    instruction.layerInstructions = [layerInstruction]
+    let videoComposition = AVMutableVideoComposition()
+    videoComposition.renderSize = renderSize
+    videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+    videoComposition.instructions = [instruction]
+
+    let parentLayer = CALayer()
+    parentLayer.frame = CGRect(origin: .zero, size: renderSize)
+    let videoLayer = CALayer()
+    videoLayer.frame = parentLayer.frame
+    let overlayLayer = CALayer()
+    overlayLayer.frame = parentLayer.frame
+    parentLayer.addSublayer(videoLayer)
+    parentLayer.addSublayer(overlayLayer)
+    let horizontalInset = max(22.0, renderSize.width * 0.055)
+    let captionHeight = max(76.0, renderSize.height * 0.13)
+    let captionY = max(34.0, renderSize.height * 0.065)
+    let fontSize = max(24.0, min(46.0, renderSize.width * 0.052))
+
+    for item in segments {
+      guard let text = item["text"] as? String,
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+      let start = (item["start"] as? NSNumber)?.doubleValue ?? 0
+      let duration = max(0.45, (item["duration"] as? NSNumber)?.doubleValue ?? 1.0)
+      let captionLayer = CATextLayer()
+      captionLayer.string = text
+      captionLayer.frame = CGRect(x: horizontalInset, y: captionY, width: renderSize.width - (horizontalInset * 2), height: captionHeight)
+      captionLayer.alignmentMode = .center
+      captionLayer.truncationMode = .end
+      captionLayer.isWrapped = true
+      captionLayer.fontSize = fontSize
+      captionLayer.contentsScale = 2.0
+      captionLayer.foregroundColor = UIColor.white.cgColor
+      captionLayer.backgroundColor = UIColor.black.withAlphaComponent(0.72).cgColor
+      captionLayer.cornerRadius = max(10.0, renderSize.width * 0.018)
+      captionLayer.masksToBounds = true
+      captionLayer.opacity = 0
+      let visibility = CAKeyframeAnimation(keyPath: "opacity")
+      visibility.values = [0.0, 1.0, 1.0, 0.0]
+      visibility.keyTimes = [0.0, 0.03, 0.97, 1.0]
+      visibility.beginTime = AVCoreAnimationBeginTimeAtZero + max(0, start)
+      visibility.duration = duration
+      visibility.isRemovedOnCompletion = false
+      visibility.fillMode = .both
+      captionLayer.add(visibility, forKey: "sigillumCaptionVisibility")
+      overlayLayer.addSublayer(captionLayer)
+    }
+    videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(postProcessingAsVideoLayer: videoLayer, in: parentLayer)
+
+    do {
+      try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+      if FileManager.default.fileExists(atPath: outputURL.path) { try FileManager.default.removeItem(at: outputURL) }
+    } catch {
+      result(FlutterError(code: "SUBTITLE_OUTPUT_ERROR", message: error.localizedDescription, details: nil))
+      return
+    }
+    guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+      result(FlutterError(code: "SUBTITLE_EXPORT_ERROR", message: "Esportazione video non disponibile.", details: nil))
+      return
+    }
+    exporter.outputURL = outputURL
+    exporter.outputFileType = .mp4
+    exporter.shouldOptimizeForNetworkUse = true
+    exporter.videoComposition = videoComposition
+    exporter.exportAsynchronously {
+      DispatchQueue.main.async {
+        switch exporter.status {
+        case .completed:
+          result(["path": outputPath])
+        case .failed, .cancelled:
+          result(FlutterError(code: "SUBTITLE_EXPORT_ERROR", message: exporter.error?.localizedDescription ?? "Creazione del video sottotitolato non riuscita.", details: nil))
+        default:
+          result(FlutterError(code: "SUBTITLE_EXPORT_ERROR", message: "Esportazione video non completata.", details: nil))
+        }
+      }
+    }
+  }
+
+  private func speechLocaleIdentifier(_ languageCode: String) -> String {
+    let normalized = languageCode.lowercased()
+    if normalized.hasPrefix("it") { return "it-IT" }
+    if normalized.hasPrefix("en") { return "en-US" }
+    if normalized.hasPrefix("fr") { return "fr-FR" }
+    if normalized.hasPrefix("de") { return "de-DE" }
+    if normalized.hasPrefix("es") { return "es-ES" }
+    if normalized.hasPrefix("ro") { return "ro-RO" }
+    return Locale.preferredLanguages.first ?? "it-IT"
+  }
+
+  private func transcribeVideo(
+    path: String,
+    languageCode: String,
+    result: @escaping FlutterResult
+  ) {
+    SFSpeechRecognizer.requestAuthorization { status in
+      guard status == .authorized else {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "SPEECH_PERMISSION_DENIED",
+            message: "Autorizza Riconoscimento vocale nelle impostazioni di iPhone.",
+            details: nil
+          ))
+        }
+        return
+      }
+
+      let videoURL = URL(fileURLWithPath: path)
+      self.exportAudioForSpeech(videoURL: videoURL) { audioURL, exportError in
+        if let exportError = exportError {
+          DispatchQueue.main.async {
+            result(FlutterError(
+              code: "AUDIO_EXPORT_ERROR",
+              message: exportError.localizedDescription,
+              details: nil
+            ))
+          }
+          return
+        }
+        guard let audioURL = audioURL else {
+          DispatchQueue.main.async {
+            result(FlutterError(
+              code: "AUDIO_EXPORT_ERROR",
+              message: "Audio del video non disponibile.",
+              details: nil
+            ))
+          }
+          return
+        }
+
+        let localeIdentifier = self.speechLocaleIdentifier(languageCode)
+        guard let recognizer = SFSpeechRecognizer(
+          locale: Locale(identifier: localeIdentifier)
+        ), recognizer.isAvailable else {
+          try? FileManager.default.removeItem(at: audioURL)
+          DispatchQueue.main.async {
+            result(FlutterError(
+              code: "SPEECH_UNAVAILABLE",
+              message: "Riconoscimento vocale non disponibile in questo momento.",
+              details: ["locale": localeIdentifier]
+            ))
+          }
+          return
+        }
+
+        let request = SFSpeechURLRecognitionRequest(url: audioURL)
+        request.shouldReportPartialResults = true
+        request.taskHint = .dictation
+        if #available(iOS 16.0, *) {
+          request.addsPunctuation = true
+        }
+
+        var completed = false
+        var bestText = ""
+        var bestSegments = [[String: Any]]()
+        var bestCoverage = -1.0
+        var bestCharacterCount = 0
+
+        // Partial hypotheses from Apple Speech may revise themselves while the
+        // file is still being processed. Keep a timestamped timeline as well
+        // as the best cumulative hypothesis so words from an earlier portion
+        // of the video cannot disappear simply because a later partial result
+        // starts farther forward.
+        var timeline = [Int: [String: Any]]()
+
+        func capture(_ response: SFSpeechRecognitionResult) {
+          let transcription = response.bestTranscription
+          let text = transcription.formattedString.trimmingCharacters(
+            in: .whitespacesAndNewlines
+          )
+          let segments = transcription.segments.map { segment in
+            return [
+              "text": segment.substring,
+              "start": segment.timestamp,
+              "duration": segment.duration,
+            ] as [String: Any]
+          }
+
+          for segment in transcription.segments {
+            // 80 ms buckets absorb small timestamp shifts between successive
+            // hypotheses. Newer recognizer output replaces the same moment;
+            // moments omitted by a later partial remain preserved.
+            let bucket = Int((segment.timestamp / 0.08).rounded())
+            timeline[bucket] = [
+              "text": segment.substring,
+              "start": segment.timestamp,
+              "duration": segment.duration,
+            ]
+          }
+
+          let coverage = transcription.segments.last.map {
+            $0.timestamp + $0.duration
+          } ?? 0
+          let characterCount = text.count
+          if coverage > bestCoverage + 0.05 ||
+             (abs(coverage - bestCoverage) <= 0.05 && characterCount > bestCharacterCount) ||
+             characterCount > bestCharacterCount + 12 {
+            bestText = text
+            bestSegments = segments
+            bestCoverage = coverage
+            bestCharacterCount = characterCount
+          }
+        }
+
+        func mergedTimeline() -> [[String: Any]] {
+          return timeline.values.sorted { left, right in
+            let a = left["start"] as? Double ?? 0
+            let b = right["start"] as? Double ?? 0
+            return a < b
+          }
+        }
+
+        func mergedText(_ segments: [[String: Any]]) -> String {
+          return segments.compactMap { item in
+            (item["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+          }.filter { !$0.isEmpty }.joined(separator: " ")
+        }
+
+        func finishSuccess() {
+          if completed { return }
+          completed = true
+          try? FileManager.default.removeItem(at: audioURL)
+          self.speechTask = nil
+
+          let timelineSegments = mergedTimeline()
+          let timelineText = mergedText(timelineSegments)
+          let selectedSegments = timelineSegments.count >= bestSegments.count
+            ? timelineSegments
+            : bestSegments
+          let selectedText = timelineText.count >= bestText.count
+            ? timelineText
+            : bestText
+          let sourceDuration = AVURLAsset(url: videoURL).duration.seconds
+
+          DispatchQueue.main.async {
+            result([
+              "text": selectedText,
+              "segments": selectedSegments,
+              "locale": localeIdentifier,
+              "duration": sourceDuration.isFinite ? sourceDuration : 0,
+            ])
+          }
+        }
+
+        self.speechTask?.cancel()
+        self.speechTask = recognizer.recognitionTask(with: request) { response, error in
+          if completed { return }
+          if let response = response {
+            capture(response)
+            if response.isFinal {
+              finishSuccess()
+              return
+            }
+          }
+          if let error = error {
+            if !bestText.isEmpty || !bestSegments.isEmpty || !timeline.isEmpty {
+              finishSuccess()
+              return
+            }
+            completed = true
+            try? FileManager.default.removeItem(at: audioURL)
+            self.speechTask = nil
+            DispatchQueue.main.async {
+              result(FlutterError(
+                code: "SPEECH_RECOGNITION_ERROR",
+                message: error.localizedDescription,
+                details: ["locale": localeIdentifier]
+              ))
+            }
+          }
+        }
+
+        // File recognition should be allowed to cover the whole source. Some
+        // recognitions return useful cumulative partials without a final event,
+        // so finish only after a duration-based grace period.
+        let audioDuration = AVURLAsset(url: audioURL).duration.seconds
+        let timeout = max(12.0, min(120.0, audioDuration + 20.0))
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+          if completed { return }
+          if !bestText.isEmpty || !bestSegments.isEmpty || !timeline.isEmpty {
+            self.speechTask?.finish()
+            finishSuccess()
+          } else {
+            self.speechTask?.cancel()
+            completed = true
+            try? FileManager.default.removeItem(at: audioURL)
+            self.speechTask = nil
+            result(FlutterError(
+              code: "NO_SPEECH",
+              message: "Non è stato rilevato parlato nel video.",
+              details: ["locale": localeIdentifier]
+            ))
+          }
+        }
+      }
+    }
+  }
+
+  private func exportAudioForSpeech(
+    videoURL: URL,
+    completion: @escaping (URL?, Error?) -> Void
+  ) {
+    let asset = AVURLAsset(url: videoURL)
+    guard let exporter = AVAssetExportSession(
+      asset: asset,
+      presetName: AVAssetExportPresetAppleM4A
+    ) else {
+      completion(nil, NSError(
+        domain: "SIGILLUM",
+        code: 20,
+        userInfo: [NSLocalizedDescriptionKey: "Impossibile preparare l'audio del video."]
+      ))
+      return
+    }
+
+    let output = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "sigillum_speech_\(Int(Date().timeIntervalSince1970 * 1000)).m4a"
+    )
+    try? FileManager.default.removeItem(at: output)
+    exporter.outputURL = output
+    exporter.outputFileType = .m4a
+    exporter.exportAsynchronously {
+      switch exporter.status {
+      case .completed:
+        completion(output, nil)
+      case .failed, .cancelled:
+        completion(nil, exporter.error ?? NSError(
+          domain: "SIGILLUM",
+          code: 21,
+          userInfo: [NSLocalizedDescriptionKey: "Estrazione audio non riuscita."]
+        ))
+      default:
+        completion(nil, NSError(
+          domain: "SIGILLUM",
+          code: 22,
+          userInfo: [NSLocalizedDescriptionKey: "Estrazione audio non completata."]
+        ))
       }
     }
   }

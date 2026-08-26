@@ -24,9 +24,12 @@ class HCVEngine {
   Map<String, dynamic> meta = {
     "app": "hcv_app",
     "format": "HCV",
-    "version": "2.0.0",
-    "device": "android",
-  };
+    "version": "2.0.0",    "device": Platform.isIOS
+        ? "ios"
+        : Platform.isAndroid
+            ? "android"
+            : Platform.operatingSystem,
+};
 
   Map<String, dynamic> claims = {};
   Map<String, dynamic>? liveSignals;

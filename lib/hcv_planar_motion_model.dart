@@ -33,15 +33,15 @@ class HCVPlanarMotionFit {
   });
 
   const HCVPlanarMotionFit.empty()
-      : motionMagnitude = 0.0,
-        flowReliability = 0.0,
-        directionCoherence = 0.0,
-        depthDispersion = 0.0,
-        planarCoherence = 0.0,
-        matchedRegions = 0,
-        inlierRegions = 0,
-        dominantPlaneRatio = 0.0,
-        boundarySaturation = 0.0;
+    : motionMagnitude = 0.0,
+      flowReliability = 0.0,
+      directionCoherence = 0.0,
+      depthDispersion = 0.0,
+      planarCoherence = 0.0,
+      matchedRegions = 0,
+      inlierRegions = 0,
+      dominantPlaneRatio = 0.0,
+      boundarySaturation = 0.0;
 
   final double motionMagnitude;
   final double flowReliability;
@@ -100,8 +100,7 @@ class HCVPlanarMotionModel {
           var weightedResidual = 0.0;
           for (var index = 0; index < samples.length; index++) {
             if (!mask[index]) continue;
-            final quality =
-                max(0.05, samples[index].quality).toDouble();
+            final quality = max(0.05, samples[index].quality).toDouble();
             inlierCount++;
             inlierWeight += quality;
             weightedResidual += residuals[index] * quality;
@@ -109,7 +108,9 @@ class HCVPlanarMotionModel {
           if (inlierCount < 4 || inlierWeight <= 0.0) continue;
 
           final meanResidual = weightedResidual / inlierWeight;
-          final score = inlierWeight - meanResidual * 0.06 +
+          final score =
+              inlierWeight -
+              meanResidual * 0.06 +
               inlierCount.toDouble() * 0.001;
           if (score > bestScore) {
             bestScore = score;
@@ -129,9 +130,8 @@ class HCVPlanarMotionModel {
     for (var iteration = 0; iteration < 2; iteration++) {
       final weights = List<double>.generate(
         samples.length,
-        (index) => mask[index]
-            ? max(0.05, samples[index].quality).toDouble()
-            : 0.0,
+        (index) =>
+            mask[index] ? max(0.05, samples[index].quality).toDouble() : 0.0,
       );
       final refined = _fitAffine(samples, weights);
       if (refined == null) break;
@@ -174,30 +174,30 @@ class HCVPlanarMotionModel {
       return const HCVPlanarMotionFit.empty();
     }
 
-    final dominantPlaneRatio =
-        (inlierWeight / totalWeight).clamp(0.0, 1.0).toDouble();
-    final boundarySaturation =
-        (saturationWeight / totalWeight).clamp(0.0, 1.0).toDouble();
-    final globalDx = _median(
-      inlierSamples.map((sample) => sample.dx).toList(),
-    );
-    final globalDy = _median(
-      inlierSamples.map((sample) => sample.dy).toList(),
-    );
-    final globalMagnitude = sqrt(globalDx * globalDx + globalDy * globalDy);
-    final motionMagnitude =
-        (globalMagnitude / maxShift).clamp(0.0, 1.0).toDouble();
-
-    final meanQuality =
-        (qualityTotal / samples.length).clamp(0.0, 1.0).toDouble();
-    final coverage =
-        (samples.length / expectedRegions).clamp(0.0, 1.0).toDouble();
-    final flowReliability = ((meanQuality * 0.45 +
-                coverage * 0.20 +
-                dominantPlaneRatio * 0.35) *
-            (1.0 - boundarySaturation * 0.75))
+    final dominantPlaneRatio = (inlierWeight / totalWeight)
         .clamp(0.0, 1.0)
         .toDouble();
+    final boundarySaturation = (saturationWeight / totalWeight)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final globalDx = _median(inlierSamples.map((sample) => sample.dx).toList());
+    final globalDy = _median(inlierSamples.map((sample) => sample.dy).toList());
+    final globalMagnitude = sqrt(globalDx * globalDx + globalDy * globalDy);
+    final motionMagnitude = (globalMagnitude / maxShift)
+        .clamp(0.0, 1.0)
+        .toDouble();
+
+    final meanQuality = (qualityTotal / samples.length)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final coverage = (samples.length / expectedRegions)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final flowReliability =
+        ((meanQuality * 0.45 + coverage * 0.20 + dominantPlaneRatio * 0.35) *
+                (1.0 - boundarySaturation * 0.75))
+            .clamp(0.0, 1.0)
+            .toDouble();
 
     var directionTotal = 0.0;
     for (final sample in inlierSamples) {
@@ -206,29 +206,29 @@ class HCVPlanarMotionModel {
         directionTotal += 0.5;
         continue;
       }
-      final cosine = ((sample.dx * globalDx + sample.dy * globalDy) /
-              (magnitude * globalMagnitude))
-          .clamp(-1.0, 1.0)
-          .toDouble();
+      final cosine =
+          ((sample.dx * globalDx + sample.dy * globalDy) /
+                  (magnitude * globalMagnitude))
+              .clamp(-1.0, 1.0)
+              .toDouble();
       directionTotal += (cosine + 1.0) / 2.0;
     }
-    final directionCoherence =
-        (directionTotal / inlierSamples.length).clamp(0.0, 1.0).toDouble();
+    final directionCoherence = (directionTotal / inlierSamples.length)
+        .clamp(0.0, 1.0)
+        .toDouble();
 
     final planeResidual = _percentile(inlierResiduals, 0.75);
-    final residualReference =
-        max(0.75, min(globalMagnitude, 2.0)).toDouble();
-    final normalizedPlaneResidual =
-        (planeResidual / residualReference).clamp(0.0, 1.0).toDouble();
-    final missingConsensusPenalty = dominantPlaneRatio >= 0.72
+    final residualReference = max(0.75, min(globalMagnitude, 2.0)).toDouble();
+    final normalizedPlaneResidual = (planeResidual / residualReference)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final missingConsensusPenalty = dominantPlaneRatio >= 0.80
         ? 0.0
-        : ((0.72 - dominantPlaneRatio) * 4.0)
-            .clamp(0.0, 1.0)
-            .toDouble();
-    final depthDispersion =
-        max(normalizedPlaneResidual, missingConsensusPenalty)
-            .clamp(0.0, 1.0)
-            .toDouble();
+        : ((0.80 - dominantPlaneRatio) * 4.0).clamp(0.0, 1.0).toDouble();
+    final depthDispersion = max(
+      normalizedPlaneResidual,
+      missingConsensusPenalty,
+    ).clamp(0.0, 1.0).toDouble();
     final planarCoherence =
         (flowReliability * directionCoherence * (1.0 - depthDispersion))
             .clamp(0.0, 1.0)
@@ -252,9 +252,10 @@ class HCVPlanarMotionModel {
     HCVPlanarFlowSample second,
     HCVPlanarFlowSample third,
   ) {
-    final area = ((second.x - first.x) * (third.y - first.y) -
-            (second.y - first.y) * (third.x - first.x))
-        .abs();
+    final area =
+        ((second.x - first.x) * (third.y - first.y) -
+                (second.y - first.y) * (third.x - first.x))
+            .abs();
     return area >= 0.025;
   }
 

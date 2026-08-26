@@ -26,17 +26,17 @@ class HCVSceneGeometryClassification {
   final List<String> reasons;
 
   Map<String, dynamic> toJson() => {
-        'sceneClass': sceneClass,
-        'realityEvidence': realityEvidence,
-        'planarEvidence': planarEvidence,
-        'motionMagnitude': _round(motionMagnitude),
-        'flowReliability': _round(flowReliability),
-        'directionCoherence': _round(directionCoherence),
-        'depthDispersion': _round(depthDispersion),
-        'planarCoherence': _round(planarCoherence),
-        'matchedRegions': matchedRegions,
-        'reasons': reasons,
-      };
+    'sceneClass': sceneClass,
+    'realityEvidence': realityEvidence,
+    'planarEvidence': planarEvidence,
+    'motionMagnitude': _round(motionMagnitude),
+    'flowReliability': _round(flowReliability),
+    'directionCoherence': _round(directionCoherence),
+    'depthDispersion': _round(depthDispersion),
+    'planarCoherence': _round(planarCoherence),
+    'matchedRegions': matchedRegions,
+    'reasons': reasons,
+  };
 
   static double _round(double value) =>
       double.parse(value.clamp(0.0, 1.0).toStringAsFixed(4));
@@ -68,7 +68,8 @@ class HCVSceneGeometryClassifier {
     if (!sufficientMotion) reasons.add('GEOMETRY_MOTION_TOO_SMALL');
     if (!reliableFlow) reasons.add('GEOMETRY_FLOW_NOT_RELIABLE');
 
-    final realityEvidence = enoughRegions &&
+    final realityEvidence =
+        enoughRegions &&
         sufficientMotion &&
         reliableFlow &&
         dispersion >= 0.28 &&
@@ -77,12 +78,13 @@ class HCVSceneGeometryClassifier {
 
     // A plane is only corroborating evidence. Paper, walls and paintings can
     // also be planar, so planarity must never become display proof by itself.
-    final planarEvidence = enoughRegions &&
+    final planarEvidence =
+        enoughRegions &&
         sufficientMotion &&
         reliableFlow &&
-        dispersion <= 0.20 &&
-        direction >= 0.72 &&
-        planar >= 0.70;
+        dispersion <= 0.24 &&
+        direction >= 0.68 &&
+        planar >= 0.58;
 
     if (realityEvidence) {
       reasons.add('MULTI_DEPTH_PARALLAX_DETECTED');
@@ -98,8 +100,8 @@ class HCVSceneGeometryClassifier {
       sceneClass: realityEvidence
           ? 'REALITY'
           : planarEvidence
-              ? 'PLANAR'
-              : 'UNKNOWN',
+          ? 'PLANAR'
+          : 'UNKNOWN',
       realityEvidence: realityEvidence,
       planarEvidence: planarEvidence,
       motionMagnitude: motion,

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +13,9 @@ import 'legal_info_page.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
+import 'sigillum_quick_guide_page.dart';
 import 'text_cert_page.dart';
+import 'text_social_verify_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key, this.onSessionInvalidated});
@@ -24,6 +28,7 @@ class UserHomePage extends StatefulWidget {
 
 class _UserHomePageState extends State<UserHomePage> {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
+  String? _lastOpenedSharedPath;
   String languageCode = SigillumCopy.initialLanguageCode();
 
   String _t(String key) => SigillumCopy.t(languageCode, key);
@@ -69,6 +74,11 @@ class _UserHomePageState extends State<UserHomePage> {
       final path = call.arguments as String?;
       if (path != null && path.isNotEmpty) {
         _openImportedPath(path);
+        try {
+          await _intentChannel.invokeMethod<bool>('ackSharedPath', {
+            'path': path,
+          });
+        } catch (_) {}
       }
     }
   }
@@ -85,10 +95,30 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   void _openImportedPath(String path) {
-    if (!mounted) return;
+    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
+    _lastOpenedSharedPath = path;
 
     final lower = path.toLowerCase();
-    final isMedia = lower.endsWith('.mp4') ||
+    if (lower.endsWith('.txt')) {
+      File(path)
+          .readAsString()
+          .then((sharedText) {
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TextSocialVerifyPage(
+                  languageCode: languageCode,
+                  initialText: sharedText,
+                ),
+              ),
+            );
+          })
+          .catchError((_) {});
+      return;
+    }
+    final isMedia =
+        lower.endsWith('.mp4') ||
         lower.endsWith('.mov') ||
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
@@ -106,10 +136,7 @@ class _UserHomePageState extends State<UserHomePage> {
                 initialMediaPath: path,
                 languageCode: languageCode,
               )
-            : HCVImportRouterPage(
-                path: path,
-                languageCode: languageCode,
-              ),
+            : HCVImportRouterPage(path: path, languageCode: languageCode),
       ),
     );
   }
@@ -121,63 +148,27 @@ class _UserHomePageState extends State<UserHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
-                child: _Header(
-                  languageCode: languageCode,
-                  onLanguageChanged: _setLanguage,
-                  onIdentity: () => _open(
-                    CommercialProfilePage(
-                      languageCode: languageCode,
-                      onLanguageChanged: _setLanguage,
-                      onSessionInvalidated:
-                          widget.onSessionInvalidated ?? () {},
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
-              sliver: SliverList.list(
-                children: [
-                  _PrimaryAction(
-                    icon: Icons.add_a_photo_rounded,
-                    title: _t('certifyMediaTitle'),
-                    subtitle: _t('certifyMediaSubtitle'),
-                    onPressed: () => _open(
-                      CameraPage(languageCode: languageCode),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _PrimaryAction(
-                    icon: Icons.article_rounded,
-                    title: _t('certifyTextTitle'),
-                    subtitle: _t('certifyTextSubtitle'),
-                    onPressed: () => _open(
-                      TextCertPage(languageCode: languageCode),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _PrimaryAction(
-                    icon: Icons.verified_rounded,
-                    title: _t('verifyTitle'),
-                    subtitle: _t('verifySubtitle'),
-                    onPressed: () => _open(
-                      ImportPage(languageCode: languageCode),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _PrimaryAction(
-                    icon: Icons.manage_accounts_rounded,
-                    title: _t('accountTitle'),
-                    subtitle: _t('accountSubtitle'),
-                    filled: false,
-                    onPressed: () => _open(
+      backgroundColor: const Color(0xFFFAF9FA),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFEAFBFF), Color(0xFFFAF9FA), Color(0xFFF2ECFF)],
+          ),
+        ),
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                  child: _Header(
+                    languageCode: languageCode,
+                    onLanguageChanged: _setLanguage,
+                    onIdentity: () => _open(
                       CommercialProfilePage(
                         languageCode: languageCode,
                         onLanguageChanged: _setLanguage,
@@ -186,25 +177,82 @@ class _UserHomePageState extends State<UserHomePage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  _PrimaryAction(
-                    icon: Icons.info_outline_rounded,
-                    title: _t('infoTitle'),
-                    subtitle: _t('infoSubtitle'),
-                    filled: false,
-                    onPressed: () => _open(
-                      LegalInfoPage(languageCode: languageCode),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  _TrustChainCard(languageCode: languageCode),
-                  const SizedBox(height: 14),
-                  _ControlsCard(languageCode: languageCode),
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
-            ),
-          ],
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+                sliver: SliverList.list(
+                  children: [
+                    _PrimaryAction(
+                      icon: Icons.add_a_photo_rounded,
+                      title: _t('certifyMediaTitle'),
+                      subtitle: _t('certifyMediaSubtitle'),
+                      accent: SigillumTheme.accent,
+                      onPressed: () =>
+                          _open(CameraPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.article_rounded,
+                      title: _t('certifyTextTitle'),
+                      subtitle: _t('certifyTextSubtitle'),
+                      accent: SigillumTheme.accentAlt,
+                      onPressed: () =>
+                          _open(TextCertPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.verified_rounded,
+                      title: _t('verifyTitle'),
+                      subtitle: _t('verifySubtitle'),
+                      accent: SigillumTheme.verified,
+                      onPressed: () =>
+                          _open(ImportPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.manage_accounts_rounded,
+                      title: _t('accountTitle'),
+                      subtitle: _t('accountSubtitle'),
+                      accent: SigillumTheme.warning,
+                      onPressed: () => _open(
+                        CommercialProfilePage(
+                          languageCode: languageCode,
+                          onLanguageChanged: _setLanguage,
+                          onSessionInvalidated:
+                              widget.onSessionInvalidated ?? () {},
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.help_center_rounded,
+                      title: _t('quickGuideTitle'),
+                      subtitle: _t('quickGuideSubtitle'),
+                      accent: SigillumTheme.verified,
+                      onPressed: () => _open(
+                        SigillumQuickGuidePage(languageCode: languageCode),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.info_outline_rounded,
+                      title: _t('infoTitle'),
+                      subtitle: _t('infoSubtitle'),
+                      accent: SigillumTheme.accentAlt,
+                      onPressed: () =>
+                          _open(LegalInfoPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 22),
+                    _TrustChainCard(languageCode: languageCode),
+                    const SizedBox(height: 14),
+                    _ControlsCard(languageCode: languageCode),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -234,15 +282,26 @@ class _Header extends StatelessWidget {
         Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: SigillumTheme.ivory,
-                borderRadius: BorderRadius.circular(8),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF7645D9), Color(0xFF1FC7D4)],
+                ),
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x247645D9),
+                    blurRadius: 14,
+                    offset: Offset(0, 6),
+                  ),
+                ],
               ),
               child: const Icon(
-                Icons.security_rounded,
-                color: SigillumTheme.ink,
+                Icons.verified_user_rounded,
+                color: Colors.white,
               ),
             ),
             const SizedBox(width: 12),
@@ -280,10 +339,7 @@ class _Header extends StatelessWidget {
               onSelected: onLanguageChanged,
               itemBuilder: (context) => [
                 for (final item in SigillumCopy.languages)
-                  PopupMenuItem(
-                    value: item.code,
-                    child: Text(item.name),
-                  ),
+                  PopupMenuItem(value: item.code, child: Text(item.name)),
               ],
               child: Container(
                 width: 42,
@@ -296,7 +352,7 @@ class _Header extends StatelessWidget {
                 child: Text(
                   language.shortName,
                   style: const TextStyle(
-                    color: SigillumTheme.ivory,
+                    color: SigillumTheme.ink,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -308,7 +364,7 @@ class _Header extends StatelessWidget {
         Text(
           _t('headline'),
           style: const TextStyle(
-            color: SigillumTheme.ivory,
+            color: SigillumTheme.ink,
             fontSize: 30,
             height: 1.08,
             fontWeight: FontWeight.w900,
@@ -334,50 +390,77 @@ class _PrimaryAction extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.accent,
     required this.onPressed,
-    this.filled = true,
   });
-
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color accent;
   final VoidCallback onPressed;
-  final bool filled;
-
   @override
   Widget build(BuildContext context) {
-    final content = Row(
-      children: [
-        Icon(icon, size: 28),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: filled
-                      ? SigillumTheme.ink.withValues(alpha: 0.72)
-                      : SigillumTheme.muted,
-                  fontWeight: FontWeight.w500,
-                ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(26),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: SigillumTheme.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12280D5F),
+                blurRadius: 20,
+                offset: Offset(0, 8),
               ),
             ],
           ),
+          child: Row(
+            children: [
+              Container(
+                width: 55,
+                height: 55,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.13),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: accent, size: 29),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: SigillumTheme.ink,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: SigillumTheme.muted,
+                        fontSize: 14,
+                        height: 1.28,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: accent, size: 30),
+            ],
+          ),
         ),
-        const Icon(Icons.chevron_right_rounded),
-      ],
+      ),
     );
-
-    if (filled) {
-      return FilledButton(onPressed: onPressed, child: content);
-    }
-
-    return OutlinedButton(onPressed: onPressed, child: content);
   }
 }
 
@@ -395,7 +478,10 @@ class _TrustChainCard extends StatelessWidget {
       child: Column(
         children: [
           _ChainStep(
-              number: '1', title: _t('capture'), text: _t('captureText')),
+            number: '1',
+            title: _t('capture'),
+            text: _t('captureText'),
+          ),
           _ChainStep(
             number: '2',
             title: _t('fingerprint'),
@@ -448,10 +534,7 @@ class _ControlsCard extends StatelessWidget {
 }
 
 class _Panel extends StatelessWidget {
-  const _Panel({
-    required this.title,
-    required this.child,
-  });
+  const _Panel({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -462,19 +545,23 @@ class _Panel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SigillumTheme.panel,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x334B625A)),
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: SigillumTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10280D5F),
+            blurRadius: 18,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
           child,

@@ -623,14 +623,14 @@ proceed_old = r'''          FilledButton.icon(
           ),'''
 proceed_new = r'''          FilledButton.icon(
             style: FilledButton.styleFrom(
-              minimumSize: const Size(280, 124),
+              minimumSize: const Size(0, 56),
               textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             onPressed: () => Navigator.pop(dialogContext),
             icon: const Icon(Icons.check_rounded, size: 30),
             label: Text(italian ? 'ORA PUOI PROCEDERE' : 'PROCEED NOW', textAlign: TextAlign.center),
           ),'''
-camera = replace_once(camera, proceed_old, proceed_new, 'double-height proceed control')
+# compact PROSEGUI already doubled to 56px by the preceding presentation-only normalizer
 if 'String? _captionedVideoPath;' not in camera:
     camera = replace_once(camera, '  String? _subtitlePath;\n', '  String? _subtitlePath;\n  String? _captionedVideoPath;\n', 'captioned video state')
 transcribe_old = r'''      setState(() {
@@ -753,7 +753,7 @@ reset_replacement = r'''                                registryStatus = null;
                                 _captionedVideoPath = null;
                                 recording = false;'''
 camera = camera.replace(reset_anchor, reset_replacement)
-for token in ['color: Colors.white,\n          fontSize: 14', 'minimumSize: const Size(280, 124)', 'CREA VIDEO CON SOTTOTITOLI', 'CONDIVIDI VIDEO SOTTOTITOLATO', 'L’originale certificato resta invariato.', 'transcript.captionedVideoPath']:
+for token in ['color: Colors.white,\n          fontSize: 14', 'minimumSize: const Size(0, 56)', 'CREA VIDEO CON SOTTOTITOLI', 'CONDIVIDI VIDEO SOTTOTITOLATO', 'L’originale certificato resta invariato.', 'transcript.captionedVideoPath']:
     if token not in camera:
         raise RuntimeError(f'camera presentation/caption token missing: {token}')
 for forbidden in ['HCVDisplayRiskFusion.combine =', 'HCVEngine().setClaims =', 'verifyFile =']:
@@ -948,7 +948,7 @@ void main() {
 
   test('camera status is white and proceed control is double height', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    expect(camera, contains('minimumSize: const Size(280, 124)'));
+    expect(camera, contains('minimumSize: const Size(0, 56)'));
     expect(camera, contains('color: Colors.white,\n          fontSize: 14'));
   });
 
@@ -975,3 +975,62 @@ void main() {
 ''', encoding='utf-8')
 
 print('Final SIGILLUM visual, text-verification and derived-caption refinement applied')
+
+# Align older generated presentation contracts with the approved final UX.
+legacy_product_contract = Path('test/prelaunch_product_refinement_contract_test.dart')
+if legacy_product_contract.exists():
+    contract = legacy_product_contract.read_text(encoding='utf-8')
+    contract = contract.replace(
+        "test('video transcription is a sidecar and leaves HCV engine files untouched'",
+        "test('video transcription creates a derived captioned copy and leaves HCV engine files untouched'",
+    )
+    contract = contract.replace(
+        "expect(camera, contains('TRASCRIVI AUDIO / CREA SOTTOTITOLI'));",
+        "expect(camera, contains('CREA VIDEO CON SOTTOTITOLI'));",
+    )
+    srt_anchor = "    expect(service, contains(\"_sigillum.srt\"));\n"
+    if '_sottotitolato.mp4' not in contract and srt_anchor in contract:
+        contract = contract.replace(
+            srt_anchor,
+            srt_anchor
+            + "    expect(service, contains(\"_sottotitolato.mp4\"));\n"
+            + "    expect(service, contains(\"'burnSubtitles'\"));\n"
+            + "    expect(scene, contains('call.method == \"burnSubtitles\"'));\n",
+            1,
+        )
+    if "expect(service, isNot(contains('HCVEngine')));" not in contract:
+        raise RuntimeError('legacy transcription HCV isolation assertion missing')
+    legacy_product_contract.write_text(contract, encoding='utf-8')
+
+legacy_landing_contract = Path('test/commercial_ux_kyc_identity_contract_test.dart')
+if legacy_landing_contract.exists():
+    contract = legacy_landing_contract.read_text(encoding='utf-8')
+    contract = contract.replace(
+        "test('commercial landing exposes verify, login, account creation and creator registration'",
+        "test('commercial landing exposes verify, login and one creator registration entry'",
+    )
+    contract = contract.replace("    expect(source, contains('Crea account'));\n", '')
+    creator_anchor = "    expect(source, contains('Diventa creator'));\n"
+    no_duplicate = "    expect(source, isNot(contains(\"title: 'Crea account'\")));\n"
+    if no_duplicate not in contract and creator_anchor in contract:
+        contract = contract.replace(creator_anchor, creator_anchor + no_duplicate, 1)
+    legacy_landing_contract.write_text(contract, encoding='utf-8')
+
+camera_source = Path('lib/camera_page.dart').read_text(encoding='utf-8')
+confirmation_start = camera_source.find('_showCaptureReadyMessage')
+confirmation_end = camera_source.find('_toggleCoordinateStamp', confirmation_start)
+confirmation = camera_source[confirmation_start:confirmation_end]
+for final_token in [
+    'showGeneralDialog<void>',
+    'Alignment.topCenter',
+    'BoxConstraints(maxWidth: 320)',
+    "'PROSEGUI'",
+    'minimumSize: const Size(0, 56)',
+]:
+    if final_token not in confirmation:
+        raise RuntimeError(f'compact final proceed token missing: {final_token}')
+if 'AlertDialog' in confirmation:
+    raise RuntimeError('compact final proceed unexpectedly became an AlertDialog')
+
+print('Legacy visual/transcription contracts aligned with final approved UX')
+

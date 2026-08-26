@@ -66,7 +66,8 @@ class HCVLocationVideoWatermark {
       "drawtext=fontfile=$fontFile:text='$safeHcvId':x=22:y=$hcvY:fontsize=22:fontcolor=yellow:box=1:boxcolor=black@0.58:boxborderw=7",
     ];
 
-    final command = '-y '
+    final command =
+        '-y '
         "-i '$safeInput' "
         '-vf "${filterParts.join(',')}" '
         '-c:v libx264 '

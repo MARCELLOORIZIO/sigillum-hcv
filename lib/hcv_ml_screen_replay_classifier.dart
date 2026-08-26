@@ -199,8 +199,9 @@ class HCVMLScreenReplayClassifier {
         'screenReplayRiskScore': result.riskScore,
         'screenProbability': _round(result.screenProbability),
         'predictedClass': classes[result.topIndex],
-        'predictedClassConfidence':
-            _round(result.probabilities[result.topIndex]),
+        'predictedClassConfidence': _round(
+          result.probabilities[result.topIndex],
+        ),
         'classProbabilities': {
           for (var i = 0; i < classes.length; i++)
             classes[i]: _round(result.probabilities[i]),
@@ -365,8 +366,7 @@ class HCVMLScreenReplayClassifier {
     final probabilities = output.first;
     final screenProbability = _screenProbability(classes, probabilities);
     final topIndex = _topIndex(probabilities);
-    final riskScore =
-        (screenProbability * 100).round().clamp(0, 100).toInt();
+    final riskScore = (screenProbability * 100).round().clamp(0, 100).toInt();
     return _MLImageResult(
       probabilities: probabilities,
       screenProbability: screenProbability,
@@ -378,8 +378,10 @@ class HCVMLScreenReplayClassifier {
   img.Image _cropTop(img.Image source, double fraction) {
     final oriented = img.bakeOrientation(source);
     final maxTop = max(0, oriented.height - 1);
-    final top =
-        min(max((oriented.height * fraction).round(), 0), maxTop).toInt();
+    final top = min(
+      max((oriented.height * fraction).round(), 0),
+      maxTop,
+    ).toInt();
     return img.copyCrop(
       oriented,
       x: 0,
@@ -418,25 +420,15 @@ class HCVMLScreenReplayClassifier {
     return [
       List.generate(
         _imageSize,
-        (y) => List.generate(
-          _imageSize,
-          (x) {
-            final pixel = image.getPixel(x, y);
-            return [
-              pixel.r.toDouble(),
-              pixel.g.toDouble(),
-              pixel.b.toDouble(),
-            ];
-          },
-        ),
+        (y) => List.generate(_imageSize, (x) {
+          final pixel = image.getPixel(x, y);
+          return [pixel.r.toDouble(), pixel.g.toDouble(), pixel.b.toDouble()];
+        }),
       ),
     ];
   }
 
-  double _screenProbability(
-    List<String> classes,
-    List<double> probabilities,
-  ) {
+  double _screenProbability(List<String> classes, List<double> probabilities) {
     var score = 0.0;
     for (var i = 0; i < classes.length && i < probabilities.length; i++) {
       if (classes[i].startsWith('SCREEN_')) {

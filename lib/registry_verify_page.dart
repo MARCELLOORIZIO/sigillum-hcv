@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'hcv_registry_service.dart';
 import 'hcv_verifier.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
@@ -17,7 +18,10 @@ import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import 'hcv_social_fingerprint.dart';
+import 'hcv_media_id_ocr.dart';
 import 'sigillum_localization.dart';
+import 'sigillum_theme.dart';
+import 'verification_ui_copy.dart';
 
 class HCVDisplayRiskClaimValues {
   const HCVDisplayRiskClaimValues({
@@ -79,6 +83,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+  String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
 
   String? extractHcvIdFromName(String fileName) {
     final patterns = [
@@ -107,8 +112,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         .replaceAll('HCV_ID', 'HCV-')
         .replaceAll('HCV_', 'HCV-');
 
-    final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')
-        .firstMatch(normalized);
+    final match =
+        RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])').firstMatch(normalized);
     return match?.group(0);
   }
 
@@ -161,62 +166,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   Future<String?> extractHcvIdFromImage(String path) async {
-    try {
-      final inputImage = InputImage.fromFilePath(path);
-
-      final textRecognizer =
-          TextRecognizer(script: TextRecognitionScript.latin);
-
-      final recognizedText = await textRecognizer.processImage(inputImage);
-
-      await textRecognizer.close();
-
-      final normalized = recognizedText.text
-          .toUpperCase()
-          .replaceAll(' ', '')
-          .replaceAll('\n', '')
-          .replaceAll('\r', '')
-          .replaceAll('HCV-ID:', 'HCV-')
-          .replaceAll('HCVID:', 'HCV-')
-          .replaceAll('HCVID', 'HCV-')
-          .replaceAll('HCV1D:', 'HCV-')
-          .replaceAll('HCV1D', 'HCV-')
-          .replaceAll('HCV_LD', 'HCV-')
-          .replaceAll('HCV_ID', 'HCV-')
-          .replaceAll('\u2014', '-')
-          .replaceAll('\u2013', '-')
-          .replaceAll('HCV_', 'HCV-')
-          .replaceAll('O', '0');
-
-      final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')
-          .firstMatch(normalized);
-
-      if (match != null) {
-        return match.group(0);
-      }
-
-      return null;
-    } catch (_) {
-      return null;
-    }
+    return HCVMediaIdOcr.extractFromImage(path);
   }
 
   Future<String?> extractHcvIdFromVideoFrame(String videoPath) async {
-    final times = [
-      '00:00:00.2',
-      '00:00:00.8',
-      '00:00:01.5',
-      '00:00:02.5',
-      '00:00:04.0',
-      '00:00:06.0',
-      '00:00:08.0',
-    ];
+    // Fast pre-check only: SIGILLUM watermark/HCV-ID should be visible
+    // immediately. Do not scan the whole video when the ID is absent.
+    final times = ['00:00:00.2', '00:00:00.8'];
 
     for (final time in times) {
+      if (!mounted) return null;
       try {
         final framePath = Platform.isIOS
             ? await _extractNativeVideoFrame(
-                videoPath, double.parse(time.substring(6)))
+                videoPath,
+                double.parse(time.substring(6)),
+              )
             : await _extractFfmpegVideoFrame(videoPath, time);
 
         if (framePath != null) {
@@ -240,19 +205,23 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   Future<String?> _extractNativeVideoFrame(
-      String videoPath, double seconds) async {
+    String videoPath,
+    double seconds,
+  ) async {
     try {
-      return await _mediaChannel.invokeMethod<String>(
-        'extractVideoFrame',
-        {'path': videoPath, 'seconds': seconds},
-      );
+      return await _mediaChannel.invokeMethod<String>('extractVideoFrame', {
+        'path': videoPath,
+        'seconds': seconds,
+      });
     } catch (_) {
       return null;
     }
   }
 
   Future<String?> _extractFfmpegVideoFrame(
-      String videoPath, String time) async {
+    String videoPath,
+    String time,
+  ) async {
     try {
       final tempDir = await getTemporaryDirectory();
       final framePath =
@@ -331,11 +300,56 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       for (final candidate in _b8Variants(hcvId)) {
         try {
           return MapEntry(
-              candidate, await registry.fetchCertificate(candidate));
+            candidate,
+            await registry.fetchCertificate(candidate),
+          );
         } catch (_) {}
       }
 
       throw originalError;
+    }
+  }
+
+  Future<File?> _findLocalCertificate(String hcvId) async {
+    final root = await getApplicationDocumentsDirectory();
+    await for (final entity in root.list(recursive: true, followLinks: false)) {
+      if (entity is! File) continue;
+      final lower = entity.path.toLowerCase();
+      if (!lower.endsWith('.hcv') ||
+          !p.basename(entity.path).toUpperCase().contains(hcvId)) {
+        continue;
+      }
+      try {
+        final decoded = jsonDecode(await entity.readAsString());
+        final meta = decoded is Map ? decoded['meta'] : null;
+        if (meta is Map && meta['hcvId']?.toString().toUpperCase() == hcvId) {
+          return entity;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<MapEntry<String, Map<String, dynamic>>>
+      _fetchCertificateWithLocalRecovery(String hcvId) async {
+    try {
+      return await _fetchCertificate(hcvId);
+    } on HCVRegistryException catch (error) {
+      if (error.kind != HCVRegistryFailureKind.notFound) rethrow;
+
+      try {
+        await registry.retryPendingUploads();
+        return await _fetchCertificate(hcvId);
+      } catch (_) {}
+
+      final localCertificate = await _findLocalCertificate(hcvId);
+      if (localCertificate == null) throw error;
+      try {
+        await registry.uploadCertificateFile(localCertificate.path);
+        return await _fetchCertificate(hcvId);
+      } catch (_) {
+        throw error;
+      }
     }
   }
 
@@ -550,6 +564,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   void initState() {
     super.initState();
 
+    status = _v('verificationIncomplete');
     final path = widget.initialMediaPath;
 
     if (path != null && path.isNotEmpty) {
@@ -564,7 +579,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       setState(() {
         mediaPath = path;
         result = null;
-        status = 'File ricevuto. Lettura HCV-ID e verifica automatica...';
+        status = 'Controllo rapido SIGILLUM in corso...';
         hcvIdDetectedByOcr = false;
       });
 
@@ -585,9 +600,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       if (detectedId == null || detectedId.isEmpty) {
         setState(() {
-          result = 'NOT ANALYZED';
-          status =
-              'File ricevuto, ma HCV-ID non rilevato automaticamente. Inseriscilo e premi VERIFICA DA REGISTRY.';
+          result = null;
+          status = 'Contenuto non certificato SIGILLUM.';
         });
         return;
       }
@@ -618,7 +632,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   Future<void> pickMedia() async {
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      withData: true,
+      withData: false,
       allowedExtensions: [
         'mp4',
         'mov',
@@ -712,8 +726,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       mediaPath = path;
       result = null;
 
-      status = detectedId != null
-          ? 'HCV-ID rilevato dal nome file. Ora premi VERIFICA DA REGISTRY'
+      status = idController.text.trim().isNotEmpty
+          ? 'HCV-ID rilevato. Ora premi VERIFICA DA REGISTRY'
           : 'File selezionato. Se disponibile, inserisci o rileva HCV-ID e premi VERIFICA DA REGISTRY.';
     });
   }
@@ -792,7 +806,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     });
 
     try {
-      final resolved = await _fetchCertificate(hcvId);
+      final resolved = await _fetchCertificateWithLocalRecovery(hcvId);
       hcvId = resolved.key;
       final cert = resolved.value;
       idController.text = hcvId;
@@ -851,7 +865,6 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             liveProbeUncorroboratedDisplayPattern =
                 liveProbeSignals['uncorroboratedDisplayPattern']?.toString();
           }
-
         }
         syntheticRisk = claims['syntheticRisk']?.toString();
         sceneAuthenticity = claims['sceneAuthenticity']?.toString();
@@ -955,10 +968,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       contentType = contentTypeForVerification;
 
       final forensicVerified = actualHash == expectedHash;
-      final videoFingerprintMatches =
-          await _matchesCertifiedVideoFingerprint(cert);
-      final imageFingerprintMatches =
-          await _matchesCertifiedImageFingerprint(cert);
+      final videoFingerprintMatches = await _matchesCertifiedVideoFingerprint(
+        cert,
+      );
+      final imageFingerprintMatches = await _matchesCertifiedImageFingerprint(
+        cert,
+      );
 
       setState(() {
         loading = false;
@@ -996,8 +1011,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           if (sceneWarning) {
             status = '$cleanStatus\n\n'
                 'ATTENZIONE: possibile ripresa di uno schermo rilevata '
-                '($screenReplayRisk). Il media e collegato al certificato, '
-                'ma la scena non va trattata come ripresa diretta della realta.';
+                '($screenReplayRisk). Il media è collegato al certificato, '
+                'ma la scena non va trattata come ripresa diretta della realtà.';
 
             result = cleanResult;
           } else {
@@ -1018,7 +1033,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           );
         } else {
           status =
-              'SOCIAL VERIFIED OK\nFile ricompresso, rinominato o modificato dai social. HCV-ID e certificato Registry validi, ma hash non identico.';
+              'SOCIAL VERIFIED OK\nHash non identico al file certificato. HCV-ID e certificato Registry sono validi; la causa della differenza non e determinabile automaticamente.';
 
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
           final hcvIdProvided = idController.text.trim().isNotEmpty;
@@ -1026,8 +1041,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           if (contentType == 'video' && videoFingerprintMatches == true) {
             markVerified(
               hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso perche il file e stato ricompresso o rinominato.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint video compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
+                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.'
+                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint video compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
               'SOCIAL VERIFIED OK',
             );
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
@@ -1035,8 +1050,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               videoFingerprintMatches == null) {
             markVerified(
               hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.',
+                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.'
+                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito e certificato Registry valido. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
               'SOCIAL VERIFIED OK',
             );
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
@@ -1051,8 +1066,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               imageFingerprintMatches == true) {
             markVerified(
               hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perche il file e stato ricompresso o rinominato.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint immagine compatibile. Hash diverso perche il file e stato ricompresso o rinominato.',
+                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.'
+                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint immagine compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
               'SOCIAL VERIFIED OK',
             );
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
@@ -1074,7 +1089,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             result = 'ID VALID / MEDIA NOT VERIFIED';
           } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
             markVerified(
-              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso perche il file e stato ricompresso o rinominato.',
+              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
               'SOCIAL VERIFIED OK',
             );
           } else {
@@ -1465,10 +1480,199 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return Colors.grey;
   }
 
+  bool get _signedRealityScene {
+    if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;
+    final cert = certificate;
+    final claims = cert?['claims'];
+    final live = claims is Map ? claims['liveScreenProbe'] : null;
+    if (live is! Map) return false;
+    final reason = live['reason']?.toString() ?? '';
+    return live['sceneClass'] == 'REALITY' &&
+        live['displayRiskDecision'] == 'NO_DISPLAY_EVIDENCE' &&
+        (reason.contains('MULTI_DEPTH_PARALLAX_DETECTED') ||
+            reason.contains(
+              'GEOMETRIC_REALITY_OVERRIDES_PLANAR_DISPLAY_HYPOTHESIS',
+            ));
+  }
+
+  String _verificationAxisSubtitle(String axis) {
+    switch (axis) {
+      case 'provenance':
+        return _v('provenanceHint');
+      case 'integrity':
+        return _v('integrityHint');
+      case 'scene':
+        return _v('sceneHint');
+      case 'derivation':
+        return _v('derivationHint');
+      default:
+        return '';
+    }
+  }
+
+  String _localizedAxisState(String axis, String? raw) {
+    final value = (raw ?? '').toLowerCase();
+    if (axis == 'scene' && _signedRealityScene) return _v('realityDetected');
+    if (axis == 'provenance' && value.contains('verificat'))
+      return _v('verified');
+    if (axis == 'integrity' &&
+        value.contains('originale') &&
+        value.contains('integro')) return _v('originalIntact');
+    if (axis == 'integrity' && value.contains('derivato'))
+      return _v('compatibleDerivative');
+    if (axis == 'scene' &&
+        (value.contains('forte rischio') || value.contains('display')))
+      return _v('screenRisk');
+    if (axis == 'scene' && value.contains('conclusiva'))
+      return _v('sceneUncertain');
+    if (axis == 'scene' && value.contains('nessun'))
+      return _v('noScreenEvidence');
+    if (axis == 'derivation' && value.contains('non necessaria'))
+      return _v('derivationNotNeeded');
+    if (axis == 'derivation' && value.contains('compatibile'))
+      return _v('compatible');
+    if (value.contains('non verificata')) return _v('notVerified');
+    if (value.contains('non determinata')) return _v('notDetermined');
+    if (value.contains('non analizzata')) return _v('notAnalyzed');
+    return raw ?? '-';
+  }
+
+  String _localizedAxisDetail(String axis) {
+    if (axis == 'scene' && _signedRealityScene) return _v('realityDetail');
+    if (axis == 'provenance') return _v('provenanceOkDetail');
+    if (axis == 'integrity')
+      return _isForensicResult ? _v('originalDetail') : _v('derivedDetail');
+    if (axis == 'scene') {
+      if (_isStrongDisplayRisk) return _v('screenDetail');
+      if (_isDisplayNonConclusive) return _v('uncertainDetail');
+      return _v('noScreenDetail');
+    }
+    if (axis == 'derivation')
+      return _isForensicResult
+          ? _v('originalDerivationDetail')
+          : _v('derivedDerivationDetail');
+    return '-';
+  }
+
+  String get _publicResultTitle {
+    if (_isForensicResult) return _v('forensicOk');
+    if (_isSocialResult) return _v('socialOk');
+    if ((result ?? '').contains('REGISTRY NOT FOUND'))
+      return _v('registryNotFound');
+    if ((result ?? '').contains('REGISTRY UNAVAILABLE'))
+      return _v('registryUnavailable');
+    return _v('verificationIncomplete');
+  }
+
+  String get _publicResultDetail {
+    if (_isForensicResult) return _v('forensicOkDetail');
+    if (_isSocialResult) return _v('socialOkDetail');
+    final value = result ?? '';
+    if (value.contains('REGISTRY NOT FOUND')) return _v('registryNotFound');
+    if (value.contains('REGISTRY UNAVAILABLE') ||
+        value.contains('REGISTRY ERROR')) {
+      return _v('registryUnavailable');
+    }
+    if (_isInvalidResult || _isMediaNotVerified) return _v('notVerified');
+    return _v('verificationIncomplete');
+  }
+
+  bool get _hasSevereVerificationIssue =>
+      _isInvalidResult || _isMediaNotVerified || _isStrongDisplayRisk;
+
+  bool get _hasIntermediateVerificationIssue =>
+      !_hasSevereVerificationIssue &&
+      (_isRegistryWarningResult ||
+          _isDisplayNonConclusive ||
+          isScreenReplayWarning);
+
+  Color get _verificationResultColor {
+    if (result == null) return Colors.grey;
+    if (_hasSevereVerificationIssue) return Colors.red;
+    if (_hasIntermediateVerificationIssue) return Colors.orange;
+    if (isVerified) return Colors.green;
+    return Colors.red;
+  }
+
+  IconData get _verificationResultIcon {
+    if (result == null) return Icons.cloud_sync;
+    if (_hasSevereVerificationIssue) return Icons.error;
+    if (_hasIntermediateVerificationIssue) return Icons.warning_amber;
+    if (isVerified) return Icons.verified;
+    return Icons.error;
+  }
+
+  Map<dynamic, dynamic>? get _signedMlDiagnostics {
+    final cert = certificate;
+    final claims = cert?['claims'];
+    if (claims is! Map) return null;
+    final ml = claims['mlScreenReplayAnalysis'];
+    return ml is Map ? ml : null;
+  }
+
+  String _diagnosticValue(Object? value) {
+    final text = value?.toString();
+    return text == null || text.isEmpty ? '-' : text;
+  }
+
+  String get _fullTechnicalDiagnostics {
+    final ml = _signedMlDiagnostics;
+    return 'HCV trust: ${_diagnosticValue(hcvTrustLevel)}\n'
+        'Live capture trust: ${_diagnosticValue(liveCaptureTrust)}\n'
+        'Scene authenticity: ${_diagnosticValue(sceneAuthenticity)}\n'
+        'Synthetic risk: ${_diagnosticValue(syntheticRisk)}\n'
+        'AI proof level: ${_diagnosticValue(aiProofLevel)}\n'
+        '\nDISPLAY FUSION\n'
+        'Decision: ${_diagnosticValue(displayRiskDecision)}\n'
+        'Risk: ${_diagnosticValue(screenReplayRisk)}\n'
+        'Score: ${_diagnosticValue(screenReplayRiskScore)}\n'
+        '\nPASSIVE VIDEO/IMAGE ANALYSIS\n'
+        'Segments analyzed: ${_diagnosticValue(screenReplaySegmentsAnalyzed)}\n'
+        'Worst segment second: ${_diagnosticValue(screenReplayWorstSecond)}\n'
+        'Local temporal flicker: ${_diagnosticValue(localTemporalFlickerScore)}\n'
+        'Refresh band: ${_diagnosticValue(refreshBandScore)}\n'
+        'Pixel-grid uniformity: ${_diagnosticValue(pixelGridUniformityScore)}\n'
+        '\nLIVE SCREEN PROBE\n'
+        'Analysis status: ${_diagnosticValue(liveProbeAnalysisStatus)}\n'
+        'Frames analyzed: ${_diagnosticValue(liveProbeFrames)}\n'
+        'Risk: ${_diagnosticValue(liveProbeRisk)}\n'
+        'Reason: ${_diagnosticValue(liveProbeReason)}\n'
+        'Error: ${_diagnosticValue(liveProbeError)}\n'
+        'Local temporal flicker: ${_diagnosticValue(liveProbeLocalFlickerScore)}\n'
+        'Refresh band: ${_diagnosticValue(liveProbeRefreshBandScore)}\n'
+        'Fine stripe: ${_diagnosticValue(liveProbeFineStripeScore)}\n'
+        'Fine grid: ${_diagnosticValue(liveProbeFineGridScore)}\n'
+        'Moiré frequency: ${_diagnosticValue(liveProbeMoireFrequencyScore)}\n'
+        'Dynamic challenge: ${_diagnosticValue(liveProbeDynamicChallengeScore)}\n'
+        'Persistent pattern: ${_diagnosticValue(liveProbePersistentPatternScore)}\n'
+        'Optical corroborated trace: ${_diagnosticValue(liveProbeOpticalCorroboratedTrace)}\n'
+        'Moiré trace: ${_diagnosticValue(liveProbeMoireFrequencyTrace)}\n'
+        'Dynamic screen challenge trace: ${_diagnosticValue(liveProbeDynamicScreenChallengeTrace)}\n'
+        'Uncorroborated display pattern: ${_diagnosticValue(liveProbeUncorroboratedDisplayPattern)}\n'
+        '\nML SCREEN REPLAY\n'
+        'Analysis status: ${_diagnosticValue(ml?['analysisStatus'])}\n'
+        'Model source: ${_diagnosticValue(ml?['modelSource'])}\n'
+        'Model version: ${_diagnosticValue(ml?['modelVersion'])}\n'
+        'TFLite runtime: ${_diagnosticValue(ml?['tfliteRuntimeVersion'])}\n'
+        'Model SHA-256: ${_diagnosticValue(ml?['modelSha256'])}\n'
+        'Predicted class: ${_diagnosticValue(ml?['predictedClass'])}\n'
+        'Predicted confidence: ${_diagnosticValue(ml?['predictedClassConfidence'])}\n'
+        'Screen probability: ${_diagnosticValue(ml?['screenProbability'])}\n'
+        'Risk: ${_diagnosticValue(ml?['screenReplayRisk'])}\n'
+        'Risk score: ${_diagnosticValue(ml?['screenReplayRiskScore'])}\n'
+        'ML decision: ${_diagnosticValue(ml?['displayRiskDecision'])}\n'
+        'Reason: ${_diagnosticValue(ml?['reason'])}\n'
+        'Error: ${_diagnosticValue(ml?['error'])}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: SigillumTheme.deep,
       appBar: AppBar(
+        backgroundColor: SigillumTheme.panel,
+        foregroundColor: SigillumTheme.ink,
+        elevation: 0,
         title: Text(_t('verifyContentHeading')),
       ),
       body: Center(
@@ -1478,21 +1682,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                result == null
-                    ? Icons.cloud_sync
-                    : isVerified
-                        ? Icons.verified
-                        : isScreenReplayWarning || _isRegistryWarningResult
-                            ? Icons.warning_amber
-                            : Icons.error,
+                _verificationResultIcon,
                 size: 72,
-                color: result == null
-                    ? Colors.grey
-                    : isVerified
-                        ? Colors.green
-                        : isScreenReplayWarning || _isRegistryWarningResult
-                            ? Colors.orange
-                            : Colors.red,
+                color: _verificationResultColor,
               ),
               const SizedBox(height: 20),
               TextField(
@@ -1505,35 +1697,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
+              FilledButton(
                 onPressed: loading ? null : pickMedia,
-                child: Text(_t('selectOriginalMedia')),
+                child: Text(_v('selectOriginal')),
               ),
-              if (mediaPath != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  mediaPath!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ],
               const SizedBox(height: 20),
-              ElevatedButton(
+              FilledButton(
                 onPressed: loading ? null : verifyFromRegistry,
-                child: Text(
-                  loading ? _t('verifyingShort') : _t('verifyFromRegistry'),
-                ),
+                child: Text(loading ? _v('verifying') : _v('verifyRegistry')),
               ),
               const SizedBox(height: 20),
-              Text(
-                status,
-                textAlign: TextAlign.center,
-              ),
+              Text(status, textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              const Text(
-                'Il certificato viene recuperato automaticamente dal Registry HCV. Devi selezionare SOLO il file originale.',
+              Text(
+                _v('registryHelper'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   color: Colors.grey,
                 ),
@@ -1542,34 +1721,51 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 const SizedBox(height: 18),
                 _VerificationAxisCard(
                   icon: Icons.badge_outlined,
-                  title: 'Provenienza',
-                  value: _effectiveProvenanceState,
-                  detail: _effectiveProvenanceDetail,
+                  title: _v('provenance'),
+                  subtitle: _verificationAxisSubtitle('provenance'),
+                  value: _localizedAxisState(
+                    'provenance',
+                    _effectiveProvenanceState,
+                  ),
+                  detail: _localizedAxisDetail('provenance'),
                   color: _axisColor(_effectiveProvenanceState),
                 ),
                 const SizedBox(height: 10),
                 _VerificationAxisCard(
                   icon: Icons.verified_user_outlined,
-                  title: 'Integrita',
-                  value: _effectiveIntegrityState,
-                  detail: _effectiveIntegrityDetail,
+                  title: _v('integrity'),
+                  subtitle: _verificationAxisSubtitle('integrity'),
+                  value: _localizedAxisState(
+                    'integrity',
+                    _effectiveIntegrityState,
+                  ),
+                  detail: _localizedAxisDetail('integrity'),
                   color: _axisColor(_effectiveIntegrityState),
                 ),
                 const SizedBox(height: 10),
                 _VerificationAxisCard(
                   icon: Icons.visibility_outlined,
-                  title: 'Scena',
-                  value: _effectiveSceneState,
-                  detail: _effectiveSceneDetail,
-                  color: _axisColor(_effectiveSceneState),
+                  title: _v('scene'),
+                  subtitle: _verificationAxisSubtitle('scene'),
+                  value: _localizedAxisState('scene', _effectiveSceneState),
+                  detail: _localizedAxisDetail('scene'),
+                  color: _isStrongDisplayRisk
+                      ? Colors.red
+                      : _isDisplayNonConclusive
+                          ? Colors.orange
+                          : _axisColor(_effectiveSceneState),
                 ),
                 if (_effectiveDerivationState != null) ...[
                   const SizedBox(height: 10),
                   _VerificationAxisCard(
                     icon: Icons.account_tree_outlined,
-                    title: 'Derivazione',
-                    value: _effectiveDerivationState!,
-                    detail: _effectiveDerivationDetail,
+                    title: _v('derivation'),
+                    subtitle: _verificationAxisSubtitle('derivation'),
+                    value: _localizedAxisState(
+                      'derivation',
+                      _effectiveDerivationState,
+                    ),
+                    detail: _localizedAxisDetail('derivation'),
                     color: _axisColor(_effectiveDerivationState),
                   ),
                 ],
@@ -1577,16 +1773,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               if (result != null) ...[
                 const SizedBox(height: 20),
                 Text(
-                  result!,
+                  _publicResultTitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isVerified
-                        ? Colors.green
-                        : isScreenReplayWarning || _isRegistryWarningResult
-                            ? Colors.orange
-                            : Colors.red,
+                    color: _verificationResultColor,
                   ),
                 ),
               ],
@@ -1611,77 +1803,35 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               ],
               if (hcvTrustLevel != null ||
                   liveCaptureTrust != null ||
-                  screenReplayRisk != null ||
-                  screenReplaySegmentsAnalyzed != null ||
-                  screenReplayWorstSecond != null ||
-                  liveProbeFrames != null ||
-                  liveProbeRisk != null ||
-                  localTemporalFlickerScore != null ||
-                  refreshBandScore != null ||
-                  pixelGridUniformityScore != null ||
-                  liveProbeLocalFlickerScore != null ||
-                  liveProbeRefreshBandScore != null ||
-                  liveProbeFineStripeScore != null ||
-                  liveProbeFineGridScore != null ||
-                  liveProbeMoireFrequencyScore != null ||
-                  liveProbeDynamicChallengeScore != null ||
-                  liveProbePersistentPatternScore != null ||
-                  liveProbeOpticalCorroboratedTrace != null ||
-                  liveProbeMoireFrequencyTrace != null ||
-                  liveProbeDynamicScreenChallengeTrace != null ||
-                  liveProbeUncorroboratedDisplayPattern != null ||
-                  syntheticRisk != null ||
-                  sceneAuthenticity != null ||
-                  aiProofLevel != null) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'HCV Trust',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                  screenReplayRisk != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.90),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: SigillumTheme.border),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_t('trustLevel')}: ${hcvTrustLevel ?? '-'}\n'
-                  '${_t('liveCapture')}: ${liveCaptureTrust ?? '-'}\n'
-                  '\n'
-                  'RISULTATO COMBINATO\n'
-                  '${_t('screenReplayRisk')}: ${screenReplayRisk ?? '-'}\n'
-                  'Punteggio schermo: ${screenReplayRiskScore ?? '-'}\n'
-                  'Decisione display: ${displayRiskDecision ?? '-'}\n'
-                  '\n'
-                  'LIVE PROBE PRIMA DELLO SCATTO\n'
-                  'Live Probe Status: ${liveProbeAnalysisStatus ?? '-'}\n'
-                  'Live Probe Reason: ${liveProbeReason ?? '-'}\n'
-                  'Live Probe Error: ${liveProbeError ?? '-'}\n'
-                  'Live Probe Risk: ${liveProbeRisk ?? '-'}\n'
-                  'Live Probe Frames: ${liveProbeFrames ?? '-'}\n'
-                  'Live Probe Local Flicker: ${liveProbeLocalFlickerScore ?? '-'}\n'
-                  'Live Probe Refresh Band: ${liveProbeRefreshBandScore ?? '-'}\n'
-                  'Live Probe Fine Stripe: ${liveProbeFineStripeScore ?? '-'}\n'
-                  'Live Probe Fine Grid: ${liveProbeFineGridScore ?? '-'}\n'
-                  'Live Probe Moire Frequency: ${liveProbeMoireFrequencyScore ?? '-'}\n'
-                  'Live Probe Dynamic Challenge: ${liveProbeDynamicChallengeScore ?? '-'}\n'
-                  'Live Probe Persistent Pattern: ${liveProbePersistentPatternScore ?? '-'}\n'
-                  'Live Probe Optical Confirmed: ${liveProbeOpticalCorroboratedTrace ?? '-'}\n'
-                  'Live Probe Moire Trace: ${liveProbeMoireFrequencyTrace ?? '-'}\n'
-                  'Live Probe Dynamic Trace: ${liveProbeDynamicScreenChallengeTrace ?? '-'}\n'
-                  'Live Probe Unconfirmed Pattern: ${liveProbeUncorroboratedDisplayPattern ?? '-'}\n'
-                  '\n'
-                  'ANALISI FILE DOPO LO SCATTO\n'
-                  'Replay Segments: ${screenReplaySegmentsAnalyzed ?? '-'}\n'
-                  'Worst Replay Second: ${screenReplayWorstSecond ?? '-'}\n'
-                  'Local Flicker Score: ${localTemporalFlickerScore ?? '-'}\n'
-                  'Refresh Band Score: ${refreshBandScore ?? '-'}\n'
-                  'Pixel Grid Uniformity: ${pixelGridUniformityScore ?? '-'}\n'
-                  '\n'
-                  'Synthetic Risk: ${syntheticRisk ?? '-'}\n'
-                  'Scene Authenticity: ${sceneAuthenticity ?? '-'}\n'
-                  'AI Proof Level: ${aiProofLevel ?? '-'}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11),
+                  child: ExpansionTile(
+                    title: Text(
+                      _v('technicalDetails'),
+                      style: const TextStyle(
+                        color: SigillumTheme.ink,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                    children: [
+                      Text(
+                        _fullTechnicalDiagnostics,
+                        textAlign: TextAlign.left,
+                        style: const TextStyle(
+                          color: SigillumTheme.muted,
+                          fontSize: 12,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
@@ -1696,6 +1846,7 @@ class _VerificationAxisCard extends StatelessWidget {
   const _VerificationAxisCard({
     required this.icon,
     required this.title,
+    required this.subtitle,
     required this.value,
     required this.detail,
     required this.color,
@@ -1703,6 +1854,7 @@ class _VerificationAxisCard extends StatelessWidget {
 
   final IconData icon;
   final String title;
+  final String subtitle;
   final String value;
   final String detail;
   final Color color;
@@ -1713,9 +1865,16 @@ class _VerificationAxisCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF111A17),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: SigillumTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12280D5F),
+            blurRadius: 18,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1730,11 +1889,20 @@ class _VerificationAxisCard extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     fontSize: 13,
-                    color: Colors.grey,
+                    color: SigillumTheme.muted,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: SigillumTheme.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Text(
                   value,
                   style: TextStyle(
@@ -1746,7 +1914,11 @@ class _VerificationAxisCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   detail,
-                  style: const TextStyle(fontSize: 14, height: 1.25),
+                  style: const TextStyle(
+                    color: SigillumTheme.ink,
+                    fontSize: 14,
+                    height: 1.25,
+                  ),
                 ),
               ],
             ),
