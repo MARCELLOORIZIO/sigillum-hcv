@@ -62,8 +62,10 @@ if 'Future<Map<String, String>> localizedDisplayPrices(' not in billing:
         raise RuntimeError('billing startListening anchor missing')
     billing = billing.replace(anchor, localized_method + anchor, 1)
 
+# Check semantic fragments rather than a formatter-specific one-line call.
 for token in [
-    'SK2Product.products(fallback.keys.toList())',
+    'SK2Product.products(',
+    'fallback.keys.toList()',
     'product.displayPrice.trim()',
     'Future<Map<String, String>> localizedDisplayPrices(',
 ]:
