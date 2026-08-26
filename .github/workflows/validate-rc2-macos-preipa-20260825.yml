@@ -92,6 +92,31 @@ jobs:
           git diff --exit-code -- lib test ios/Runner ios/Podfile
           echo 'MACOS_MATERIALIZED_PREIPA=PASS'
 
+      - name: Compile iOS release without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --no-pub \
+            --dart-define=SIGILLUM_EDITION=user \
+            --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com \
+            2>&1 | tee /tmp/xcodebuild_logs/ios-release-nocodesign.log
+          APP='build/ios/iphoneos/Runner.app'
+          test -d "$APP"
+          FLUTTER_ASSETS="$APP/Frameworks/App.framework/flutter_assets"
+          for model in \
+            sigillum_screen_replay_v2.tflite \
+            sigillum_screen_replay_v1.tflite; do
+            test -f "$FLUTTER_ASSETS/assets/ml/$model"
+            cmp -s "assets/ml/$model" "$FLUTTER_ASSETS/assets/ml/$model"
+          done
+          git diff --exit-code -- \
+            lib test ios/Runner ios/Podfile \
+            pubspec.yaml pubspec.lock analysis_options.yaml
+          echo 'IOS_RELEASE_NOCODESIGN_BUILD=PASS' | tee -a /tmp/xcodebuild_logs/ios-release-nocodesign.log
+
       - name: Upload pre-IPA materialized audit
         if: always()
         uses: actions/upload-artifact@v4
