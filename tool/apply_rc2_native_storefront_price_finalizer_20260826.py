@@ -57,10 +57,13 @@ private final class HCVStorePriceLookup: NSObject, SKProductsRequestDelegate, SK
 
 '''
 if 'private final class HCVStorePriceLookup' not in scene:
-    class_anchor = 'class SceneDelegate: FlutterSceneDelegate {'
-    if scene.count(class_anchor) != 1:
-        raise RuntimeError('SceneDelegate class anchor missing')
-    scene = scene.replace(class_anchor, helper + class_anchor, 1)
+    class_match = re.search(
+        r'(?m)^class SceneDelegate:\s*FlutterSceneDelegate(?:\s*,\s*[^\{\n]+)?\s*\{',
+        scene,
+    )
+    if class_match is None:
+        raise RuntimeError('SceneDelegate semantic class anchor missing')
+    scene = scene[:class_match.start()] + helper + scene[class_match.start():]
 
 if 'private var storePriceLookups: [HCVStorePriceLookup] = []' not in scene:
     state_anchor = '  private var mediaChannel: FlutterMethodChannel?\n'
