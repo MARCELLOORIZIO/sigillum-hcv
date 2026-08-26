@@ -18,7 +18,9 @@ picker_marker = (
     '  func picker(_ picker: PHPickerViewController, '
     'didFinishPicking results: [PHPickerResult]) {'
 )
-end_marker = '  private func saveToPhotos('
+price_method_marker = '  private func localizedProductPrices('
+save_marker = '  private func saveToPhotos('
+had_price_method = price_method_marker in scene
 
 starts = [
     pos
@@ -28,9 +30,22 @@ starts = [
 if not starts:
     raise RuntimeError('RC2 idempotence normalizer: PHPicker lifecycle start missing')
 start = min(starts)
-end = scene.find(end_marker, start)
-if end < 0:
-    raise RuntimeError('RC2 idempotence normalizer: saveToPhotos boundary missing')
+
+# The native StoreKit storefront helper is intentionally inserted immediately
+# after the PHPicker lifecycle and before saveToPhotos. Never absorb it into the
+# PHPicker replacement region: doing so leaves the method-channel handler in
+# place while deleting its Swift implementation.
+ends = [
+    pos
+    for pos in (
+        scene.find(price_method_marker, start),
+        scene.find(save_marker, start),
+    )
+    if pos >= 0
+]
+if not ends:
+    raise RuntimeError('RC2 idempotence normalizer: PHPicker lifecycle boundary missing')
+end = min(ends)
 
 stable_picker = r'''  private func finishOriginalPhotoPick(_ value: Any?) {
     guard let flutterResult = pendingOriginalPhotoResult else { return }
@@ -124,6 +139,15 @@ for token, expected in {
             f'RC2 idempotence normalizer: unexpected PHPicker token count '
             f'for {token!r}: {count}'
         )
+
+if had_price_method and price_method_marker not in scene:
+    raise RuntimeError(
+        'RC2 idempotence normalizer: native storefront price method was removed'
+    )
+if 'call.method == "localizedProductPrices"' in scene and price_method_marker not in scene:
+    raise RuntimeError(
+        'RC2 idempotence normalizer: storefront handler has no Swift implementation'
+    )
 
 SCENE.write_text(scene, encoding='utf-8')
 print('RC2 idempotence: PHPicker lifecycle normalized to one canonical region')
