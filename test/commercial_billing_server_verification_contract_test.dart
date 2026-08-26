@@ -83,6 +83,8 @@ void main() {
         expect(account, contains('status == 429'));
         expect(account, contains('status >= 500'));
         expect(account, contains('if (status == null) return false;'));
+        expect(account, isNot(contains('status == 401')));
+        expect(account, isNot(contains('status == 403')));
         expect(
           account,
           contains("'verified': false,\n          'status': 'inactive'"),
