@@ -27,8 +27,7 @@ void main() {
 
     // This test runs both before and after the release finalizer. Before
     // finalization the localized Registry helper legitimately has the base
-    // getter; the release finalizer must define the exact fail-closed
-    // transformation. After finalization the guarded getter must be present.
+    // getter; after finalization it must have the fail-closed guarded getter.
     expect(
       registry.contains(baseRealityGetter) || registry.contains(signedRealityGetter),
       isTrue,
@@ -36,9 +35,18 @@ void main() {
     expect(registry, contains(realityLabel));
     expect(registry, contains(uncertainDetail));
 
-    expect(finalizer, contains(baseRealityGetter));
-    expect(finalizer, contains(signedRealityGetter));
+    // The Python file contains escaped newlines because it defines the source
+    // transformation as string literals. Verify the transformation contract
+    // structurally instead of comparing those source literals to interpreted
+    // Dart newlines.
+    expect(finalizer, contains('helper_anchor ='));
+    expect(finalizer, contains('helper_with_guard ='));
     expect(finalizer, contains(finalFusionGuard));
+    expect(
+      finalizer,
+      contains('source = source.replace(helper_anchor, helper_with_guard, 1)'),
+    );
+    expect(finalizer, contains('if helper_with_guard not in source:'));
 
     if (registry.contains(signedRealityGetter)) {
       final getterPos = registry.indexOf(signedRealityGetter);
