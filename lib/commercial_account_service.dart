@@ -28,6 +28,17 @@ class CommercialAccountService {
 
   static const _sessionTokenKey = 'sigillum.auth.session.v1';
   static const _timeout = Duration(seconds: 20);
+  static const _appleVerificationRetryDelays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 800),
+    Duration(seconds: 2),
+    Duration(seconds: 4),
+  ];
+  static const _appleEntitlementPollDelays = <Duration>[
+    Duration(milliseconds: 500),
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+  ];
   static const termsVersion = '2026-08-18';
   static const privacyVersion = '2026-08-18';
 
@@ -153,6 +164,44 @@ class CommercialAccountService {
     return billing;
   }
 
+  bool _isTransientAppleVerificationError(CommercialAccountException error) {
+    final status = error.statusCode;
+    if (status == null) return true;
+    return status == 408 ||
+        status == 409 ||
+        status == 425 ||
+        status == 429 ||
+        status >= 500;
+  }
+
+  bool _isActiveBillingStatus(Map<String, dynamic> value) {
+    final status = value['status']?.toString() ?? '';
+    return status == 'active' || status == 'grace';
+  }
+
+  Future<Map<String, dynamic>> _pollAppleEntitlementAfterVerification(
+    Map<String, dynamic> verified,
+  ) async {
+    if (_isActiveBillingStatus(verified)) return verified;
+
+    for (final delay in _appleEntitlementPollDelays) {
+      await Future<void>.delayed(delay);
+      try {
+        final billing = await billingStatus();
+        if (_isActiveBillingStatus(billing)) {
+          return <String, dynamic>{
+            ...verified,
+            ...billing,
+            'verified': true,
+          };
+        }
+      } on CommercialAccountException catch (error) {
+        if (!_isTransientAppleVerificationError(error)) rethrow;
+      }
+    }
+    return verified;
+  }
+
   Future<Map<String, dynamic>> verifyApplePurchase({
     required String productId,
     String? transactionId,
@@ -167,15 +216,41 @@ class CommercialAccountService {
         'Dati App Store insufficienti per verificare l’acquisto.',
       );
     }
-    return _authorizedRequest(
-      'POST',
-      '/api/billing/apple/verify',
-      body: {
-        'productId': productId,
-        if (transactionId != null && transactionId.trim().isNotEmpty)
-          'transactionId': transactionId.trim(),
-        if (receiptData.trim().isNotEmpty) 'receiptData': receiptData,
-      },
+
+    final body = <String, dynamic>{
+      'productId': productId,
+      if (transactionId != null && transactionId.trim().isNotEmpty)
+        'transactionId': transactionId.trim(),
+      if (receiptData.trim().isNotEmpty) 'receiptData': receiptData,
+    };
+
+    CommercialAccountException? lastTransientError;
+    Map<String, dynamic>? lastResponse;
+
+    for (final delay in _appleVerificationRetryDelays) {
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+      try {
+        final verified = await _authorizedRequest(
+          'POST',
+          '/api/billing/apple/verify',
+          body: body,
+        );
+        lastResponse = verified;
+        if (verified['verified'] == true) {
+          return _pollAppleEntitlementAfterVerification(verified);
+        }
+      } on CommercialAccountException catch (error) {
+        if (!_isTransientAppleVerificationError(error)) rethrow;
+        lastTransientError = error;
+      }
+    }
+
+    if (lastResponse != null) return lastResponse;
+    if (lastTransientError != null) throw lastTransientError;
+    throw const CommercialAccountException(
+      'Verifica App Store temporaneamente non disponibile.',
     );
   }
 
