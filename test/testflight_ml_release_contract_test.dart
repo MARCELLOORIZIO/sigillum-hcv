@@ -7,6 +7,9 @@ void main() {
     final codemagic = File('codemagic.yaml').readAsStringSync();
     final buildProofPath = 'tool/build_testflight_ipa_rc2_20260825.sh';
     final buildProof = File(buildProofPath).readAsStringSync();
+    final macosPreIpa = File(
+      '.github/workflows/validate-rc2-macos-preipa-20260825.yml',
+    ).readAsStringSync();
     final tflitePin =
         File('tool/pin_tflite_ios_runtime_20260826.sh').readAsStringSync();
     final classifier =
@@ -64,6 +67,18 @@ void main() {
     ]) {
       expect(buildProof, contains(token), reason: 'missing release proof: $token');
     }
+
+    // The macOS pre-IPA gate must do more than resolve CocoaPods: it compiles
+    // and links the exact iOS Release app without signing, then re-checks source
+    // immutability and both bundled ML model bytes.
+    expect(macosPreIpa, contains('Compile iOS release without signing'));
+    expect(macosPreIpa, contains('flutter build ios'));
+    expect(macosPreIpa, contains('--release'));
+    expect(macosPreIpa, contains('--no-codesign'));
+    expect(macosPreIpa, contains('--no-pub'));
+    expect(macosPreIpa, contains("APP='build/ios/iphoneos/Runner.app'"));
+    expect(macosPreIpa, contains('cmp -s "assets/ml/\$model"'));
+    expect(macosPreIpa, contains('IOS_RELEASE_NOCODESIGN_BUILD=PASS'));
 
     for (final token in <String>[
       'TARGET_VERSION="2.17.0"',
