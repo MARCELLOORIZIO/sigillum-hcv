@@ -2,10 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import 'hcv_media_id_ocr.dart';
 import 'registry_verify_page.dart';
@@ -44,27 +41,6 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
     });
   }
 
-  String? _extractHcvId(String value) {
-    final normalized = value
-        .toUpperCase()
-        .replaceAll(' ', '')
-        .replaceAll('\n', '')
-        .replaceAll('\r', '')
-        .replaceAll('HCV-ID:', 'HCV-')
-        .replaceAll('HCVID:', 'HCV-')
-        .replaceAll('HCVID', 'HCV-')
-        .replaceAll('HCV1D:', 'HCV-')
-        .replaceAll('HCV1D', 'HCV-')
-        .replaceAll('HCV_ID', 'HCV-')
-        .replaceAll('HCV_', 'HCV-')
-        .replaceAll('—', '-')
-        .replaceAll('–', '-');
-
-    return RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')
-        .firstMatch(normalized)
-        ?.group(0);
-  }
-
   String? _extractHcvIdFromName(String path) {
     return RegExp(
       r'HCV-[A-F0-9]{16}(?![A-F0-9])',
@@ -73,12 +49,13 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
   }
 
   Future<String?> _ocrImage(String sourcePath) async {
-    return HCVMediaIdOcr.extractFromImage(sourcePath);
+    return HCVMediaIdOcr.extractFastFromImage(sourcePath);
   }
 
   Future<String?> _checkVideo() async {
     String? framePath;
     try {
+      // One frame only. The full video is never scanned by the public precheck.
       framePath = await _mediaChannel.invokeMethod<String>(
         'extractVideoFrame',
         {'path': widget.path, 'seconds': 0.2},

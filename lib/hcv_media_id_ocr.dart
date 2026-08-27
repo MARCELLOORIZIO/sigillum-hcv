@@ -59,6 +59,18 @@ class HCVMediaIdOcr {
     return null;
   }
 
+  /// Fast public precheck: exactly one native OCR pass.
+  ///
+  /// This path is intentionally fail-fast. It must never decode the image,
+  /// create enlarged crops, or run the robust multi-pass fallback used by the
+  /// full Registry verification. If no valid 16-character HCV-ID is visible in
+  /// this pass, the quick gate immediately treats the media as uncertified.
+  static Future<String?> extractFastFromImage(String path) async {
+    final source = File(path);
+    if (!await source.exists()) return null;
+    return _recognizePath(path);
+  }
+
   static Future<String?> extractFromImage(String path) async {
     final source = File(path);
     if (!await source.exists()) return null;
