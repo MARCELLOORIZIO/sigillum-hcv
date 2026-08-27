@@ -36,6 +36,13 @@ class CommercialBillingService {
     annualProductId,
   };
 
+  static const _storefrontPriceRetryDelays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 250),
+    Duration(milliseconds: 650),
+    Duration(milliseconds: 1200),
+  ];
+
   static int productRank(String productId) {
     if (productId == weeklyProductId) return 0;
     if (productId == monthlyProductId) return 1;
@@ -75,56 +82,86 @@ class CommercialBillingService {
       };
     }
 
-    // On iOS the visible paywall must use the same storefront-aware StoreKit
-    // source as the purchase sheet. Never fall back to ProductDetails.price:
-    // in TestFlight that value can reflect a different storefront/currency.
+    // TestFlight purchases run through StoreKit's sandbox and the storefront
+    // can update asynchronously when the Store account changes. Do not accept
+    // the first cached product snapshot. Read Storefront.current immediately
+    // around the Product query and require two consecutive complete snapshots
+    // from the same storefront before showing prices in the paywall.
     final requestedIds = productList.map((product) => product.id).toList();
-    final resolved = <String, String>{};
+    Map<String, String>? previousComplete;
+    String? previousStorefront;
 
-    try {
-      final storeKitProducts = await SK2Product.products(requestedIds);
-      for (final product in storeKitProducts) {
-        final displayPrice = product.displayPrice.trim();
-        if (displayPrice.isNotEmpty && requestedIds.contains(product.id)) {
-          resolved[product.id] = displayPrice;
-        }
-      }
-    } catch (_) {
-      // Native StoreKit 1 below remains a compatibility fallback only for
-      // products StoreKit 2 could not resolve.
-    }
+    for (final delay in _storefrontPriceRetryDelays) {
+      if (delay != Duration.zero) await Future<void>.delayed(delay);
 
-    final missingIds = requestedIds
-        .where((productId) => !resolved.containsKey(productId))
-        .toList(growable: false);
-    if (missingIds.isNotEmpty) {
+      String storefrontBefore = '';
+      String storefrontAfter = '';
       try {
-        final raw = await _nativeStoreKit.invokeMethod<Map<Object?, Object?>>(
-          'localizedProductPrices',
-          {'productIds': missingIds},
-        );
-        if (raw != null) {
-          for (final entry in raw.entries) {
-            final id = entry.key?.toString() ?? '';
-            final price = entry.value?.toString().trim() ?? '';
-            if (missingIds.contains(id) && price.isNotEmpty) {
-              resolved[id] = price;
-            }
+        storefrontBefore = await Storefront().countryCode();
+      } catch (_) {}
+
+      final resolved = <String, String>{};
+      try {
+        final storeKitProducts = await SK2Product.products(requestedIds);
+        for (final product in storeKitProducts) {
+          final displayPrice = product.displayPrice.trim();
+          if (displayPrice.isNotEmpty && requestedIds.contains(product.id)) {
+            resolved[product.id] = displayPrice;
           }
         }
       } catch (_) {}
+
+      try {
+        storefrontAfter = await Storefront().countryCode();
+      } catch (_) {}
+
+      final storefront = storefrontAfter.isNotEmpty
+          ? storefrontAfter
+          : storefrontBefore;
+      final storefrontStable = storefrontBefore.isEmpty ||
+          storefrontAfter.isEmpty ||
+          storefrontBefore == storefrontAfter;
+      final complete = resolved.length == requestedIds.length;
+
+      if (!storefrontStable || !complete) {
+        previousComplete = null;
+        previousStorefront = null;
+        continue;
+      }
+
+      if (previousComplete != null &&
+          mapEquals(previousComplete, resolved) &&
+          previousStorefront == storefront) {
+        return resolved;
+      }
+
+      previousComplete = Map<String, String>.from(resolved);
+      previousStorefront = storefront;
     }
 
-    final unresolved = requestedIds
-        .where((productId) => !resolved.containsKey(productId))
-        .toList(growable: false);
-    if (unresolved.isNotEmpty) {
-      throw StateError(
-        'Localized App Store price unavailable for: ${unresolved.join(', ')}',
+    // StoreKit 1 is retained only as a compatibility fallback when StoreKit 2
+    // cannot produce a complete, stable storefront snapshot.
+    try {
+      final raw = await _nativeStoreKit.invokeMethod<Map<Object?, Object?>>(
+        'localizedProductPrices',
+        {'productIds': requestedIds},
       );
-    }
+      if (raw != null) {
+        final fallback = <String, String>{};
+        for (final entry in raw.entries) {
+          final id = entry.key?.toString() ?? '';
+          final price = entry.value?.toString().trim() ?? '';
+          if (requestedIds.contains(id) && price.isNotEmpty) {
+            fallback[id] = price;
+          }
+        }
+        if (fallback.length == requestedIds.length) return fallback;
+      }
+    } catch (_) {}
 
-    return resolved;
+    throw StateError(
+      'Stable localized App Store price unavailable for current storefront.',
+    );
   }
 
   void startListening() {
