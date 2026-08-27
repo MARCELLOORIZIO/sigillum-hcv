@@ -51,6 +51,13 @@ class HCVDisplayRiskFusion {
       }
     }
     final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
+    // A post-capture ML REALITY result may corroborate geometric reality even
+    // in the photo pre-capture policy. It is deliberately not assigned to
+    // `ml` above, so a post-capture SCREEN result can never promote risk in
+    // liveCaptureOnly mode by itself.
+    final realityMl = liveCaptureOnly
+        ? _firstOfType(allAvailable, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1')
+        : ml;
     final passive = available
         .where(
           (analysis) =>
@@ -111,8 +118,6 @@ class HCVDisplayRiskFusion {
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
 
-    // Legacy passive signatures remain available for old certificates and as
-    // corroboration, but a valid reflected-reality response suppresses them.
     final liveUnifiedDisplaySignature = !reflectedRealityEvidence &&
         live != null &&
         liveScore != null &&
@@ -131,8 +136,6 @@ class HCVDisplayRiskFusion {
         refreshBand >= 0.15 &&
         (fineGrid >= 0.75 || moire >= 0.40);
 
-    // This signature is taken from the two uploaded monitor certificates. It
-    // requires a temporal refresh pattern, not a single bright or flat frame.
     final liveTemporalBandSignature = !reflectedRealityEvidence &&
         live != null &&
         liveScore != null &&
@@ -147,7 +150,6 @@ class HCVDisplayRiskFusion {
     final planarTemporalPhysicalProof =
         planarSceneEvidence && liveTemporalBandSignature;
 
-    // Diagnostic labels only; they do not decide the verdict.
     final diagnosticEmissiveTemporal = localFlicker >= 0.55 &&
         refreshBand >= 0.12 &&
         (fineGrid >= 0.80 || moire >= 0.45);
@@ -264,13 +266,16 @@ class HCVDisplayRiskFusion {
 
     var passiveStrong = false;
     var passiveModerate = false;
+    var passiveStructuralEvidence = false;
     for (final analysis in passive) {
-      final score = (analysis['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+      final analysisScore =
+          (analysis['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final signals = _signals(analysis);
       final structural = signals['structuralDisplayTrace'] == true ||
           signals['confirmedDisplayTrace'] == true;
-      if (score >= 70 && structural) passiveStrong = true;
-      if (!reflectedRealityEvidence && score >= 45 && structural) {
+      if (structural) passiveStructuralEvidence = true;
+      if (analysisScore >= 70 && structural) passiveStrong = true;
+      if (!reflectedRealityEvidence && analysisScore >= 45 && structural) {
         passiveModerate = true;
       }
     }
@@ -297,6 +302,16 @@ class HCVDisplayRiskFusion {
             (mlConfidence == null || mlConfidence >= 0.70));
     final mlRealityStrong =
         mlSaysReality && (mlConfidence ?? 0.0) >= 0.90 && mlScore <= 2;
+
+    final realityMlScore =
+        (realityMl?['screenReplayRiskScore'] as num?)?.toInt();
+    final realityMlClass = realityMl?['predictedClass']?.toString() ?? '';
+    final realityMlConfidence =
+        (realityMl?['predictedClassConfidence'] as num?)?.toDouble();
+    final mlRealityCredible = realityMlScore != null &&
+        realityMlClass.startsWith('REALITY_') &&
+        realityMlScore <= 35 &&
+        (realityMlConfidence ?? 0.0) >= 0.60;
 
     if (mlModerate) evidenceSources.add('ML_SCREEN_CLASS');
     if (mlStrong) {
@@ -349,6 +364,14 @@ class HCVDisplayRiskFusion {
                 'GEOMETRIC_REALITY_OVERRIDES_PLANAR_DISPLAY_HYPOTHESIS'));
     final confirmedDisplayEvidence =
         liveTemporal || activeDisplayEvidence || mlStrong;
+    final independentRealityAgreement = geometryReality &&
+        !geometryPlanar &&
+        !planarSceneEvidence &&
+        mlRealityCredible &&
+        !activeDisplayEvidence &&
+        !passiveStructuralEvidence &&
+        !hasIndependentCorroboration &&
+        !mlStrong;
 
     late final String decision;
     late final int score;
@@ -372,6 +395,10 @@ class HCVDisplayRiskFusion {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
       reasons.add('ACTIVE_DISPLAY_GEOMETRY_CONFLICT');
+    } else if (independentRealityAgreement) {
+      decision = 'NO_DISPLAY_EVIDENCE';
+      score = min(rawScore, 20);
+      reasons.add('INDEPENDENT_REALITY_AGREEMENT_OVERRIDES_TEMPORAL_ONLY_SIGNAL');
     } else if (mlRealityStrong) {
       if (geometryReality && !hasAnyEvidence && !activeDisplayEvidence) {
         decision = 'NO_DISPLAY_EVIDENCE';
