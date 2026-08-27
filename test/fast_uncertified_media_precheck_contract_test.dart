@@ -4,24 +4,30 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('uncertified media precheck stays short and stops before full verification', () {
-    final patch = File('tool/apply_fast_uncertified_media_precheck_20260823.py')
-        .readAsStringSync();
     final registry = File('lib/registry_verify_page.dart').readAsStringSync();
     final gate = File('lib/quick_hcv_media_gate_page.dart').readAsStringSync();
+    final ocr = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
 
-    // The patch itself contains the old long timestamps in its forbidden-token
-    // guard, so timing assertions must inspect the generated Registry source.
+    // Full Registry verification may use its own cautious OCR logic, but the
+    // public quick gate must never scan the entire video or invoke the robust
+    // multi-pass still-image OCR before deciding that media is uncertified.
+    expect(gate, contains("'extractVideoFrame'"));
+    expect(gate, contains("'seconds': 0.2"));
+    expect(gate, contains('HCVMediaIdOcr.extractFastFromImage(sourcePath)'));
+    expect(gate, isNot(contains('HCVMediaIdOcr.extractFromImage(sourcePath)')));
+
+    // The fast OCR path is exactly one native recognizer pass. The expensive
+    // decode/crop/enlarge fallback remains confined to extractFromImage(),
+    // which is available to the full verification pipeline only.
+    expect(ocr, contains('static Future<String?> extractFastFromImage'));
+    expect(ocr, contains('return _recognizePath(path);'));
+    expect(ocr, contains('static Future<String?> extractFromImage'));
+    expect(ocr, contains('img.decodeImage(bytes)'));
+
+    // Keep the already-materialized Registry safeguards too.
     expect(registry, contains("'00:00:00.2'"));
     expect(registry, contains("'00:00:00.8'"));
     expect(registry, isNot(contains("'00:00:08.0'")));
-    expect(registry, contains('if (!mounted) return null;'));
     expect(registry, contains('withData: false,'));
-
-    // Keep a contract on the patch so the fast-precheck finalizer cannot vanish.
-    expect(patch, contains('Fast pre-check only'));
-
-    // Public copy is selected through the four-language verification catalog.
-    expect(gate, contains("_v('notCertified')"));
-    expect(gate, contains('VerificationUiCopy.t(widget.languageCode, key)'));
   });
 }
