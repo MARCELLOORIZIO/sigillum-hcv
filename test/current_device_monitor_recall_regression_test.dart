@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_display_risk_fusion.dart';
 
+// Numerical regression profiles extracted from the current-device HCVPACKs:
+// monitor photo HCV-66B58B42B999416A, reality photo HCV-93FC9CC6AE7B4A1E,
+// monitor video HCV-82A1F84E5FF14140, reality video HCV-6128F250D19149E2.
+
 void main() {
   group('current device monitor versus reality profiles', () {
     test('monitor photo mini-video profile resolves as strong display risk', () {
