@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
@@ -21,8 +20,6 @@ class CommercialUnfinishedAppleTransaction {
 }
 
 class CommercialBillingService {
-  static const _nativeStoreKit = MethodChannel('hcv.media');
-
   CommercialBillingService._();
 
   static final instance = CommercialBillingService._();
@@ -82,11 +79,12 @@ class CommercialBillingService {
       };
     }
 
-    // TestFlight purchases run through StoreKit's sandbox and the storefront
-    // can update asynchronously when the Store account changes. Do not accept
-    // the first cached product snapshot. Read Storefront.current immediately
-    // around the Product query and require two consecutive complete snapshots
-    // from the same storefront before showing prices in the paywall.
+    // TestFlight IAP runs in Apple's sandbox. The storefront may change
+    // asynchronously when the Store/Sandbox account changes, so a cached
+    // ProductDetails price can temporarily disagree with the purchase sheet.
+    // Apple recommends reading the storefront immediately before displaying
+    // product information. Require two consecutive complete StoreKit 2 price
+    // snapshots from the same storefront and never show an iOS fallback price.
     final requestedIds = productList.map((product) => product.id).toList();
     Map<String, String>? previousComplete;
     String? previousStorefront;
@@ -118,9 +116,11 @@ class CommercialBillingService {
       final storefront = storefrontAfter.isNotEmpty
           ? storefrontAfter
           : storefrontBefore;
-      final storefrontStable = storefrontBefore.isEmpty ||
-          storefrontAfter.isEmpty ||
-          storefrontBefore == storefrontAfter;
+      final storefrontKnown = storefront.isNotEmpty;
+      final storefrontStable = storefrontKnown &&
+          (storefrontBefore.isEmpty ||
+              storefrontAfter.isEmpty ||
+              storefrontBefore == storefrontAfter);
       final complete = resolved.length == requestedIds.length;
 
       if (!storefrontStable || !complete) {
@@ -138,26 +138,6 @@ class CommercialBillingService {
       previousComplete = Map<String, String>.from(resolved);
       previousStorefront = storefront;
     }
-
-    // StoreKit 1 is retained only as a compatibility fallback when StoreKit 2
-    // cannot produce a complete, stable storefront snapshot.
-    try {
-      final raw = await _nativeStoreKit.invokeMethod<Map<Object?, Object?>>(
-        'localizedProductPrices',
-        {'productIds': requestedIds},
-      );
-      if (raw != null) {
-        final fallback = <String, String>{};
-        for (final entry in raw.entries) {
-          final id = entry.key?.toString() ?? '';
-          final price = entry.value?.toString().trim() ?? '';
-          if (requestedIds.contains(id) && price.isNotEmpty) {
-            fallback[id] = price;
-          }
-        }
-        if (fallback.length == requestedIds.length) return fallback;
-      }
-    } catch (_) {}
 
     throw StateError(
       'Stable localized App Store price unavailable for current storefront.',
