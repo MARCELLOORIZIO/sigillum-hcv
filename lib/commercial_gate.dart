@@ -804,11 +804,6 @@ class _CommercialGateState extends State<CommercialGate> {
           ? const {}
           : await CommercialBillingService.instance
               .localizedDisplayPrices(_products);
-      _productDisplayPrices = _products.isEmpty
-          ? const {}
-          : await CommercialBillingService.instance.localizedDisplayPrices(
-              _products,
-            );
     } catch (error) {
       _message = "${_t('storeError')}: $error";
       _products = const [];
@@ -1986,13 +1981,13 @@ class _CommercialGateState extends State<CommercialGate> {
         else
           for (final product in _products) ...[
             FilledButton(
-              onPressed: _busy
+              onPressed: _busy || !_productDisplayPrices.containsKey(product.id)
                   ? null
                   : () => _run(() async {
                       await CommercialBillingService.instance.purchase(product);
                     }),
               child: Text(
-                '${_creatorPlanLabel(product)} — ${_productDisplayPrices[product.id] ?? product.price}',
+                '${_creatorPlanLabel(product)} — ${_productDisplayPrices[product.id] ?? '…'}',
               ),
             ),
             const SizedBox(height: 10),
