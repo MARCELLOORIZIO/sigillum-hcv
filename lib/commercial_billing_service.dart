@@ -21,7 +21,7 @@ class CommercialUnfinishedAppleTransaction {
 }
 
 class CommercialBillingService {
-  static const _nativeStoreKit = MethodChannel('hcv.media');
+  static const _nativeStoreKit2 = MethodChannel('hcv.storekit2');
 
   CommercialBillingService._();
 
@@ -75,44 +75,24 @@ class CommercialBillingService {
       };
     }
 
-    // On iOS the visible paywall must use the same storefront-aware StoreKit
-    // source as the purchase sheet. Never fall back to ProductDetails.price:
-    // in TestFlight that value can reflect a different storefront/currency.
+    // The iOS paywall must use the current StoreKit 2 storefront directly.
+    // ProductDetails.price and StoreKit 1 can expose a stale sandbox currency
+    // before the Apple purchase sheet resolves the active storefront.
     final requestedIds = productList.map((product) => product.id).toList();
-    final resolved = <String, String>{};
+    final raw = await _nativeStoreKit2.invokeMethod<Map<Object?, Object?>>(
+      'localizedProductPrices',
+      {'productIds': requestedIds},
+    );
 
-    try {
-      final storeKitProducts = await SK2Product.products(requestedIds);
-      for (final product in storeKitProducts) {
-        final displayPrice = product.displayPrice.trim();
-        if (displayPrice.isNotEmpty && requestedIds.contains(product.id)) {
-          resolved[product.id] = displayPrice;
+    final resolved = <String, String>{};
+    if (raw != null) {
+      for (final entry in raw.entries) {
+        final id = entry.key?.toString() ?? '';
+        final price = entry.value?.toString().trim() ?? '';
+        if (requestedIds.contains(id) && price.isNotEmpty) {
+          resolved[id] = price;
         }
       }
-    } catch (_) {
-      // Native StoreKit 1 below remains a compatibility fallback only for
-      // products StoreKit 2 could not resolve.
-    }
-
-    final missingIds = requestedIds
-        .where((productId) => !resolved.containsKey(productId))
-        .toList(growable: false);
-    if (missingIds.isNotEmpty) {
-      try {
-        final raw = await _nativeStoreKit.invokeMethod<Map<Object?, Object?>>(
-          'localizedProductPrices',
-          {'productIds': missingIds},
-        );
-        if (raw != null) {
-          for (final entry in raw.entries) {
-            final id = entry.key?.toString() ?? '';
-            final price = entry.value?.toString().trim() ?? '';
-            if (missingIds.contains(id) && price.isNotEmpty) {
-              resolved[id] = price;
-            }
-          }
-        }
-      } catch (_) {}
     }
 
     final unresolved = requestedIds
