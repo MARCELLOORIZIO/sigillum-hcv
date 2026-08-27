@@ -6,6 +6,8 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 
+import 'commercial_account_service.dart';
+
 class CommercialUnfinishedAppleTransaction {
   const CommercialUnfinishedAppleTransaction({
     required this.transactionId,
@@ -136,9 +138,56 @@ class CommercialBillingService {
     if (!productIds.contains(product.id)) {
       throw StateError('Prodotto SIGILLUM non riconosciuto.');
     }
+
+    // StoreKit rejects a second purchase object for a product whose previous
+    // transaction is still unfinished. Resolve only the same product before
+    // creating a new payment. The transaction is never finished until the
+    // SIGILLUM backend has authenticated it.
+    final recoveredActive = await _recoverSameProductBeforePurchase(product.id);
+    if (recoveredActive) {
+      // Re-deliver the active entitlement through the normal purchase stream so
+      // CommercialGate performs its existing server verification/routing path.
+      await _iap.restorePurchases();
+      return true;
+    }
+
     return _iap.buyNonConsumable(
       purchaseParam: PurchaseParam(productDetails: product),
     );
+  }
+
+  Future<bool> _recoverSameProductBeforePurchase(String productId) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return false;
+
+    final unfinished = await unfinishedAppleTransactions();
+    final sameProduct = unfinished
+        .where((transaction) => transaction.productId == productId)
+        .toList(growable: false);
+    if (sameProduct.isEmpty) return false;
+
+    const account = CommercialAccountService();
+    var entitlementActive = false;
+    for (final transaction in sameProduct) {
+      final verified = await account.verifyApplePurchase(
+        productId: transaction.productId,
+        transactionId: transaction.transactionId,
+        receiptData: transaction.receiptData,
+      );
+      if (verified['verified'] != true) {
+        throw const CommercialAccountException(
+          'Verifica abbonamento App Store non riuscita.',
+        );
+      }
+
+      await finishUnfinishedAppleTransaction(transaction.transactionId);
+
+      final status = verified['status']?.toString() ?? 'inactive';
+      if (status == 'active' || status == 'grace') {
+        entitlementActive = true;
+      }
+    }
+
+    return entitlementActive;
   }
 
   Future<void> restore() => _iap.restorePurchases();
