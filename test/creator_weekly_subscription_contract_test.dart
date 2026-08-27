@@ -29,8 +29,11 @@ void main() {
     expect(gate, contains("return _t('weekly');"));
     expect(gate, contains('_creatorPlanLabel(product)'));
 
-    // Price itself remains Apple-localized; no euro/dollar amount is hardcoded.
-    expect(gate, contains('_productDisplayPrices[product.id] ?? product.price'));
+    // iOS price is displayed only after a localized StoreKit snapshot exists;
+    // ProductDetails.price must never be a visible fallback.
+    expect(gate, contains('_productDisplayPrices[product.id]'));
+    expect(gate, contains("_productDisplayPrices[product.id] ?? '…'"));
+    expect(gate, isNot(contains('_productDisplayPrices[product.id] ?? product.price')));
     expect(gate, isNot(contains('€2,99')));
     expect(gate, isNot(contains(r'$2.99')));
   });
