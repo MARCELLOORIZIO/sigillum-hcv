@@ -290,11 +290,23 @@ class HCVDisplayRiskFusion {
     final mlScore = (ml?['screenReplayRiskScore'] as num?)?.toInt();
     final mlClass = ml?['predictedClass']?.toString() ?? '';
     final mlConfidence = (ml?['predictedClassConfidence'] as num?)?.toDouble();
+    final mlScreenProbability = (ml?['screenProbability'] as num?)?.toDouble();
+    final mlMaxFrameScore =
+        (ml?['maxFrameScreenReplayRiskScore'] as num?)?.toInt();
+    final mlAverageFrameScore =
+        (ml?['averageScreenReplayRiskScore'] as num?)?.toDouble();
+    final mlStrongestFrameScore = max(mlScore ?? 0, mlMaxFrameScore ?? 0);
     final mlSaysScreen = mlScore != null && mlClass.startsWith('SCREEN_');
     final mlSaysReality = mlScore != null && mlClass.startsWith('REALITY_');
-    final mlStrong = mlSaysScreen &&
-        mlScore >= 92 &&
-        (mlConfidence == null || mlConfidence >= 0.78);
+    final mlVeryStrongFrameEvidence = mlSaysScreen &&
+        (mlScreenProbability ?? 0.0) >= 0.96 &&
+        (mlConfidence ?? 0.0) >= 0.90 &&
+        mlStrongestFrameScore >= 92 &&
+        (mlAverageFrameScore == null || mlAverageFrameScore >= 90.0);
+    final mlStrong = (mlSaysScreen &&
+            mlScore >= 92 &&
+            (mlConfidence == null || mlConfidence >= 0.78)) ||
+        mlVeryStrongFrameEvidence;
     final mlModerate = mlStrong ||
         (!reflectedRealityEvidence &&
             mlSaysScreen &&
@@ -302,6 +314,11 @@ class HCVDisplayRiskFusion {
             (mlConfidence == null || mlConfidence >= 0.70));
     final mlRealityStrong =
         mlSaysReality && (mlConfidence ?? 0.0) >= 0.90 && mlScore <= 2;
+    final mlOpticalCorroborated = mlStrong &&
+        !reflectedRealityEvidence &&
+        (liveUnifiedDisplaySignature ||
+            liveHighRefreshSignature ||
+            liveTemporalBandSignature);
 
     final realityMlScore =
         (realityMl?['screenReplayRiskScore'] as num?)?.toInt();
@@ -317,11 +334,18 @@ class HCVDisplayRiskFusion {
     if (mlStrong) {
       strongSources.add('ML_SCREEN_CLASS');
       reasons.add('ML_SCREEN_HIGH_CONFIDENCE');
+      if (mlVeryStrongFrameEvidence && (mlScore ?? 0) < 92) {
+        reasons.add('ML_STRONG_FRAME_EVIDENCE_SURVIVES_AGGREGATE_DOWNWEIGHT');
+      }
       if (reflectedRealityEvidence) {
         reasons.add('ML_SCREEN_AND_REFLECTED_REALITY_CONFLICT');
       }
     } else if (mlModerate) {
       reasons.add('ML_SCREEN_MODERATE_CONFIDENCE');
+    }
+    if (mlOpticalCorroborated) {
+      strongSources.add('LIVE_OPTICAL_CORROBORATION');
+      reasons.add('ML_SCREEN_AND_LIVE_OPTICAL_PATTERN_CONFIRMED');
     }
     if (mlRealityStrong) {
       reasons.add('ML_REALITY_HIGH_CONFIDENCE');
@@ -387,6 +411,11 @@ class HCVDisplayRiskFusion {
     } else if (hasIndependentCorroboration) {
       decision = 'STRONG_DISPLAY_RISK';
       score = max(rawScore, 70).clamp(70, 100).toInt();
+    } else if (mlOpticalCorroborated) {
+      decision = 'STRONG_DISPLAY_RISK';
+      score = max(max(rawScore, mlStrongestFrameScore), 85)
+          .clamp(85, 100)
+          .toInt();
     } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
