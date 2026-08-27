@@ -64,46 +64,65 @@ class CommercialBillingService {
   Future<Map<String, String>> localizedDisplayPrices(
     Iterable<ProductDetails> products,
   ) async {
-    final fallback = <String, String>{
-      for (final product in products) product.id: product.price,
-    };
-    if (defaultTargetPlatform != TargetPlatform.iOS || fallback.isEmpty) {
-      return fallback;
+    final productList = products.toList(growable: false);
+    if (productList.isEmpty) return const {};
+
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return <String, String>{
+        for (final product in productList) product.id: product.price,
+      };
     }
 
-    try {
-      final raw = await _nativeStoreKit.invokeMethod<Map<Object?, Object?>>(
-        'localizedProductPrices',
-        {'productIds': fallback.keys.toList()},
-      );
-      if (raw != null) {
-        for (final entry in raw.entries) {
-          final id = entry.key?.toString() ?? '';
-          final price = entry.value?.toString().trim() ?? '';
-          if (id.isNotEmpty && price.isNotEmpty && fallback.containsKey(id)) {
-            fallback[id] = price;
-          }
-        }
-      }
-      return fallback;
-    } catch (_) {
-      // Fall through to the existing StoreKit 2 wrapper. Native StoreKit is the
-      // preferred source because it matched the purchase sheet storefront in
-      // TestFlight, while no price-rendering failure may block purchasing.
-    }
+    // On iOS the visible paywall must use the same storefront-aware StoreKit
+    // source as the purchase sheet. Never fall back to ProductDetails.price:
+    // in TestFlight that value can reflect a different storefront/currency.
+    final requestedIds = productList.map((product) => product.id).toList();
+    final resolved = <String, String>{};
 
     try {
-      final storeKitProducts = await SK2Product.products(
-        fallback.keys.toList(),
-      );
+      final storeKitProducts = await SK2Product.products(requestedIds);
       for (final product in storeKitProducts) {
         final displayPrice = product.displayPrice.trim();
-        if (displayPrice.isNotEmpty) {
-          fallback[product.id] = displayPrice;
+        if (displayPrice.isNotEmpty && requestedIds.contains(product.id)) {
+          resolved[product.id] = displayPrice;
         }
       }
-    } catch (_) {}
-    return fallback;
+    } catch (_) {
+      // Native StoreKit 1 below remains a compatibility fallback only for
+      // products StoreKit 2 could not resolve.
+    }
+
+    final missingIds = requestedIds
+        .where((productId) => !resolved.containsKey(productId))
+        .toList(growable: false);
+    if (missingIds.isNotEmpty) {
+      try {
+        final raw = await _nativeStoreKit.invokeMethod<Map<Object?, Object?>>(
+          'localizedProductPrices',
+          {'productIds': missingIds},
+        );
+        if (raw != null) {
+          for (final entry in raw.entries) {
+            final id = entry.key?.toString() ?? '';
+            final price = entry.value?.toString().trim() ?? '';
+            if (missingIds.contains(id) && price.isNotEmpty) {
+              resolved[id] = price;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    final unresolved = requestedIds
+        .where((productId) => !resolved.containsKey(productId))
+        .toList(growable: false);
+    if (unresolved.isNotEmpty) {
+      throw StateError(
+        'Localized App Store price unavailable for: ${unresolved.join(', ')}',
+      );
+    }
+
+    return resolved;
   }
 
   void startListening() {
