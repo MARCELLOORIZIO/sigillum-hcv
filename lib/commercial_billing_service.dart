@@ -53,6 +53,9 @@ class CommercialBillingService {
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   final StreamController<List<PurchaseDetails>> _purchaseController =
       StreamController<List<PurchaseDetails>>.broadcast();
+  final Set<String> _purchaseInFlight = <String>{};
+  final Map<String, Completer<void>> _purchaseTerminalWaiters =
+      <String, Completer<void>>{};
 
   Stream<List<PurchaseDetails>> get purchases => _purchaseController.stream;
 
@@ -127,9 +130,46 @@ class CommercialBillingService {
 
   void startListening() {
     _subscription ??= _iap.purchaseStream.listen(
-      _purchaseController.add,
-      onError: _purchaseController.addError,
+      (purchases) {
+        _releaseTerminalPurchaseAttempts(purchases);
+        _purchaseController.add(purchases);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _failPurchaseAttempts(error, stackTrace);
+        _purchaseController.addError(error, stackTrace);
+      },
     );
+  }
+
+  void _releaseTerminalPurchaseAttempts(List<PurchaseDetails> purchases) {
+    for (final purchase in purchases) {
+      if (!productIds.contains(purchase.productID)) continue;
+      final terminal = purchase.status == PurchaseStatus.purchased ||
+          purchase.status == PurchaseStatus.restored ||
+          purchase.status == PurchaseStatus.error ||
+          purchase.status == PurchaseStatus.canceled;
+      if (!terminal) continue;
+      _releasePurchaseAttempt(purchase.productID);
+    }
+  }
+
+  void _releasePurchaseAttempt(String productId) {
+    _purchaseInFlight.remove(productId);
+    final waiter = _purchaseTerminalWaiters.remove(productId);
+    if (waiter != null && !waiter.isCompleted) {
+      waiter.complete();
+    }
+  }
+
+  void _failPurchaseAttempts(Object error, StackTrace stackTrace) {
+    final waiters = Map<String, Completer<void>>.from(_purchaseTerminalWaiters);
+    _purchaseTerminalWaiters.clear();
+    _purchaseInFlight.clear();
+    for (final waiter in waiters.values) {
+      if (!waiter.isCompleted) {
+        waiter.completeError(error, stackTrace);
+      }
+    }
   }
 
   Future<bool> purchase(ProductDetails product) async {
@@ -149,9 +189,34 @@ class CommercialBillingService {
       return true;
     }
 
-    return _iap.buyNonConsumable(
-      purchaseParam: PurchaseParam(productDetails: product),
-    );
+    if (_purchaseInFlight.contains(product.id)) {
+      throw StateError('Acquisto App Store già in corso per questo prodotto.');
+    }
+
+    // buyNonConsumable completes when the payment request has been submitted,
+    // not when StoreKit has finished the sheet lifecycle. Keep the same product
+    // locked until purchaseStream reports a terminal status, including user
+    // cancellation. This prevents an immediate second tap from creating the
+    // duplicate product object observed in TestFlight after Cancel.
+    startListening();
+    final terminal = Completer<void>();
+    _purchaseInFlight.add(product.id);
+    _purchaseTerminalWaiters[product.id] = terminal;
+
+    try {
+      final started = await _iap.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: product),
+      );
+      if (!started) {
+        _releasePurchaseAttempt(product.id);
+        return false;
+      }
+      await terminal.future;
+      return true;
+    } catch (error, stackTrace) {
+      _releasePurchaseAttempt(product.id);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<bool> _recoverSameProductBeforePurchase(String productId) async {
@@ -233,5 +298,13 @@ class CommercialBillingService {
   Future<void> dispose() async {
     await _subscription?.cancel();
     _subscription = null;
+    _purchaseInFlight.clear();
+    final waiters = _purchaseTerminalWaiters.values.toList(growable: false);
+    _purchaseTerminalWaiters.clear();
+    for (final waiter in waiters) {
+      if (!waiter.isCompleted) {
+        waiter.completeError(StateError('Billing service disposed.'));
+      }
+    }
   }
 }
