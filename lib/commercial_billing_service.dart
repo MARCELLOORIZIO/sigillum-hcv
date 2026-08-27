@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
@@ -20,6 +21,8 @@ class CommercialUnfinishedAppleTransaction {
 }
 
 class CommercialBillingService {
+  static const _nativeStoreKit2 = MethodChannel('hcv.storekit2');
+
   CommercialBillingService._();
 
   static final instance = CommercialBillingService._();
@@ -79,64 +82,43 @@ class CommercialBillingService {
       };
     }
 
-    // TestFlight IAP runs in Apple's sandbox. The storefront may change
-    // asynchronously when the Store/Sandbox account changes, so a cached
-    // ProductDetails price can temporarily disagree with the purchase sheet.
-    // Apple recommends reading the storefront immediately before displaying
-    // product information. Require two consecutive complete StoreKit 2 price
-    // snapshots from the same storefront and never show an iOS fallback price.
+    // ProductDetails can retain a stale sandbox currency in TestFlight. Read
+    // Product.displayPrice directly from native StoreKit 2 and require two
+    // consecutive complete identical snapshots before exposing prices.
     final requestedIds = productList.map((product) => product.id).toList();
     Map<String, String>? previousComplete;
-    String? previousStorefront;
 
     for (final delay in _storefrontPriceRetryDelays) {
       if (delay != Duration.zero) await Future<void>.delayed(delay);
 
-      String storefrontBefore = '';
-      String storefrontAfter = '';
-      try {
-        storefrontBefore = await Storefront().countryCode();
-      } catch (_) {}
-
       final resolved = <String, String>{};
       try {
-        final storeKitProducts = await SK2Product.products(requestedIds);
-        for (final product in storeKitProducts) {
-          final displayPrice = product.displayPrice.trim();
-          if (displayPrice.isNotEmpty && requestedIds.contains(product.id)) {
-            resolved[product.id] = displayPrice;
+        final raw = await _nativeStoreKit2.invokeMethod<Map<Object?, Object?>>(
+          'localizedProductPrices',
+          {'productIds': requestedIds},
+        );
+        if (raw != null) {
+          for (final entry in raw.entries) {
+            final id = entry.key?.toString() ?? '';
+            final price = entry.value?.toString().trim() ?? '';
+            if (requestedIds.contains(id) && price.isNotEmpty) {
+              resolved[id] = price;
+            }
           }
         }
       } catch (_) {}
 
-      try {
-        storefrontAfter = await Storefront().countryCode();
-      } catch (_) {}
-
-      final storefront = storefrontAfter.isNotEmpty
-          ? storefrontAfter
-          : storefrontBefore;
-      final storefrontKnown = storefront.isNotEmpty;
-      final storefrontStable = storefrontKnown &&
-          (storefrontBefore.isEmpty ||
-              storefrontAfter.isEmpty ||
-              storefrontBefore == storefrontAfter);
       final complete = resolved.length == requestedIds.length;
-
-      if (!storefrontStable || !complete) {
+      if (!complete) {
         previousComplete = null;
-        previousStorefront = null;
         continue;
       }
 
-      if (previousComplete != null &&
-          mapEquals(previousComplete, resolved) &&
-          previousStorefront == storefront) {
+      if (previousComplete != null && mapEquals(previousComplete, resolved)) {
         return resolved;
       }
 
       previousComplete = Map<String, String>.from(resolved);
-      previousStorefront = storefront;
     }
 
     throw StateError(
