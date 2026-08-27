@@ -3,20 +3,17 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('native StoreKit price bridge remains a fallback for missing SK2 prices', () {
+  test('native StoreKit1 bridge cannot leak a stale price into iOS paywall', () {
     final billing = File('lib/commercial_billing_service.dart').readAsStringSync();
     final scene = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
 
-    expect(billing, contains("MethodChannel('hcv.media')"));
-    expect(billing, contains('final missingIds = requestedIds'));
-    expect(billing, contains("'localizedProductPrices'"));
-    expect(billing, contains("'productIds': missingIds"));
+    expect(billing, contains('SK2Product.products(requestedIds)'));
+    expect(billing, contains('Storefront().countryCode()'));
+    expect(billing, isNot(contains("'localizedProductPrices'")));
+    expect(billing, isNot(contains("MethodChannel('hcv.media')")));
 
-    final sk2Index = billing.indexOf('SK2Product.products(requestedIds)');
-    final nativeIndex = billing.indexOf("'localizedProductPrices'");
-    expect(sk2Index, greaterThanOrEqualTo(0));
-    expect(nativeIndex, greaterThan(sk2Index));
-
+    // The native bridge may remain for backwards compatibility elsewhere, but
+    // Creator paywall pricing must not call it after a StoreKit2 instability.
     expect(scene, contains('import StoreKit'));
     expect(scene, contains('private final class HCVStorePriceLookup'));
     expect(scene, contains('product.priceLocale'));

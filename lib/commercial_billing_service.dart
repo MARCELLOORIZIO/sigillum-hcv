@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
@@ -21,8 +20,6 @@ class CommercialUnfinishedAppleTransaction {
 }
 
 class CommercialBillingService {
-  static const _nativeStoreKit = MethodChannel('hcv.media');
-
   CommercialBillingService._();
 
   static final instance = CommercialBillingService._();
@@ -35,6 +32,13 @@ class CommercialBillingService {
     monthlyProductId,
     annualProductId,
   };
+
+  static const _storefrontPriceRetryDelays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 250),
+    Duration(milliseconds: 650),
+    Duration(milliseconds: 1200),
+  ];
 
   static int productRank(String productId) {
     if (productId == weeklyProductId) return 0;
@@ -75,56 +79,69 @@ class CommercialBillingService {
       };
     }
 
-    // On iOS the visible paywall must use the same storefront-aware StoreKit
-    // source as the purchase sheet. Never fall back to ProductDetails.price:
-    // in TestFlight that value can reflect a different storefront/currency.
+    // TestFlight IAP runs in Apple's sandbox. The storefront may change
+    // asynchronously when the Store/Sandbox account changes, so a cached
+    // ProductDetails price can temporarily disagree with the purchase sheet.
+    // Apple recommends reading the storefront immediately before displaying
+    // product information. Require two consecutive complete StoreKit 2 price
+    // snapshots from the same storefront and never show an iOS fallback price.
     final requestedIds = productList.map((product) => product.id).toList();
-    final resolved = <String, String>{};
+    Map<String, String>? previousComplete;
+    String? previousStorefront;
 
-    try {
-      final storeKitProducts = await SK2Product.products(requestedIds);
-      for (final product in storeKitProducts) {
-        final displayPrice = product.displayPrice.trim();
-        if (displayPrice.isNotEmpty && requestedIds.contains(product.id)) {
-          resolved[product.id] = displayPrice;
-        }
-      }
-    } catch (_) {
-      // Native StoreKit 1 below remains a compatibility fallback only for
-      // products StoreKit 2 could not resolve.
-    }
+    for (final delay in _storefrontPriceRetryDelays) {
+      if (delay != Duration.zero) await Future<void>.delayed(delay);
 
-    final missingIds = requestedIds
-        .where((productId) => !resolved.containsKey(productId))
-        .toList(growable: false);
-    if (missingIds.isNotEmpty) {
+      String storefrontBefore = '';
+      String storefrontAfter = '';
       try {
-        final raw = await _nativeStoreKit.invokeMethod<Map<Object?, Object?>>(
-          'localizedProductPrices',
-          {'productIds': missingIds},
-        );
-        if (raw != null) {
-          for (final entry in raw.entries) {
-            final id = entry.key?.toString() ?? '';
-            final price = entry.value?.toString().trim() ?? '';
-            if (missingIds.contains(id) && price.isNotEmpty) {
-              resolved[id] = price;
-            }
+        storefrontBefore = await Storefront().countryCode();
+      } catch (_) {}
+
+      final resolved = <String, String>{};
+      try {
+        final storeKitProducts = await SK2Product.products(requestedIds);
+        for (final product in storeKitProducts) {
+          final displayPrice = product.displayPrice.trim();
+          if (displayPrice.isNotEmpty && requestedIds.contains(product.id)) {
+            resolved[product.id] = displayPrice;
           }
         }
       } catch (_) {}
+
+      try {
+        storefrontAfter = await Storefront().countryCode();
+      } catch (_) {}
+
+      final storefront = storefrontAfter.isNotEmpty
+          ? storefrontAfter
+          : storefrontBefore;
+      final storefrontKnown = storefront.isNotEmpty;
+      final storefrontStable = storefrontKnown &&
+          (storefrontBefore.isEmpty ||
+              storefrontAfter.isEmpty ||
+              storefrontBefore == storefrontAfter);
+      final complete = resolved.length == requestedIds.length;
+
+      if (!storefrontStable || !complete) {
+        previousComplete = null;
+        previousStorefront = null;
+        continue;
+      }
+
+      if (previousComplete != null &&
+          mapEquals(previousComplete, resolved) &&
+          previousStorefront == storefront) {
+        return resolved;
+      }
+
+      previousComplete = Map<String, String>.from(resolved);
+      previousStorefront = storefront;
     }
 
-    final unresolved = requestedIds
-        .where((productId) => !resolved.containsKey(productId))
-        .toList(growable: false);
-    if (unresolved.isNotEmpty) {
-      throw StateError(
-        'Localized App Store price unavailable for: ${unresolved.join(', ')}',
-      );
-    }
-
-    return resolved;
+    throw StateError(
+      'Stable localized App Store price unavailable for current storefront.',
+    );
   }
 
   void startListening() {
