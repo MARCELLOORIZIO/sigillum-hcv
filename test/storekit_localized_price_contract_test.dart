@@ -3,42 +3,36 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('iOS Creator paywall resolves every price from stable StoreKit2 storefront', () {
+  test('iOS Creator paywall resolves every price from stable native StoreKit2', () {
     final billing = File('lib/commercial_billing_service.dart').readAsStringSync();
     final gate = File('lib/commercial_gate.dart').readAsStringSync();
+    final appDelegate = File('ios/Runner/AppDelegate.swift').readAsStringSync();
 
-    expect(billing, contains('Storefront().countryCode()'));
-    expect(billing, contains('SK2Product.products(requestedIds)'));
-    expect(billing, contains('product.displayPrice.trim()'));
+    expect(billing, contains("MethodChannel('hcv.storekit2')"));
     expect(billing, contains('mapEquals(previousComplete, resolved)'));
-    expect(billing, contains('previousStorefront == storefront'));
     expect(
       billing,
       contains('Stable localized App Store price unavailable for current storefront.'),
     );
+    expect(appDelegate, contains('StoreKit.Product.products(for: productIds)'));
+    expect(appDelegate, contains('product.displayPrice'));
 
     // ProductDetails.price is allowed only for non-iOS platforms. The iOS path
-    // must either resolve a stable complete StoreKit2 snapshot or fail closed;
-    // neither ProductDetails nor the legacy StoreKit1 bridge may leak USD.
+    // must resolve a stable complete native StoreKit2 snapshot or fail closed.
     final iosBlockStart = billing.indexOf(
       'if (defaultTargetPlatform != TargetPlatform.iOS)',
     );
-    final storeKitStart = billing.indexOf('final requestedIds =', iosBlockStart);
+    final nativeStart = billing.indexOf('final requestedIds =', iosBlockStart);
     expect(iosBlockStart, greaterThanOrEqualTo(0));
-    expect(storeKitStart, greaterThan(iosBlockStart));
+    expect(nativeStart, greaterThan(iosBlockStart));
     expect(
-      billing.substring(storeKitStart),
+      billing.substring(nativeStart),
       isNot(contains('product.id: product.price')),
-    );
-    expect(
-      billing.substring(storeKitStart),
-      isNot(contains("'localizedProductPrices'")),
     );
 
     expect(gate, contains('localizedDisplayPrices(_products)'));
-    expect(
-      gate,
-      contains(r'Account SIGILLUM: ${_email.text.trim()}'),
-    );
+    expect(gate, contains('_productDisplayPrices.containsKey(product.id)'));
+    expect(gate, contains("_productDisplayPrices[product.id] ?? '…'"));
+    expect(gate, isNot(contains('_productDisplayPrices[product.id] ?? product.price')));
   });
 }
