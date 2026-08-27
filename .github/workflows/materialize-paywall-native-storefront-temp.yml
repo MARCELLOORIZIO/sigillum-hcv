@@ -1,0 +1,32 @@
+name: TEMP materialize native storefront paywall
+
+on:
+  push:
+    branches:
+      - fix/paywall-native-storefront-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: ${{ !contains(github.event.head_commit.message, '[materialized-native-price]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/paywall-native-storefront-20260827
+      - name: Materialize source
+        run: python3 tool/materialize_paywall_native_storefront_20260827.py
+      - name: Remove one-shot materializer
+        run: |
+          rm tool/materialize_paywall_native_storefront_20260827.py
+          rm .github/workflows/materialize-paywall-native-storefront-temp.yml
+      - name: Commit materialized source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Billing: materialize native storefront paywall [materialized-native-price]"
+          git push origin HEAD:fix/paywall-native-storefront-20260827
