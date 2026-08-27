@@ -3,13 +3,19 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('iOS paywall price comes from native current App Store storefront', () {
+  test('native StoreKit price bridge remains a fallback for missing SK2 prices', () {
     final billing = File('lib/commercial_billing_service.dart').readAsStringSync();
     final scene = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
 
     expect(billing, contains("MethodChannel('hcv.media')"));
+    expect(billing, contains('final missingIds = requestedIds'));
     expect(billing, contains("'localizedProductPrices'"));
-    expect(billing, contains("'productIds': fallback.keys.toList()"));
+    expect(billing, contains("'productIds': missingIds"));
+
+    final sk2Index = billing.indexOf('SK2Product.products(requestedIds)');
+    final nativeIndex = billing.indexOf("'localizedProductPrices'");
+    expect(sk2Index, greaterThanOrEqualTo(0));
+    expect(nativeIndex, greaterThan(sk2Index));
 
     expect(scene, contains('import StoreKit'));
     expect(scene, contains('private final class HCVStorePriceLookup'));
