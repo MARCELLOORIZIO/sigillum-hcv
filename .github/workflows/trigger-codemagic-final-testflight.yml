@@ -1,0 +1,22 @@
+name: Trigger final Codemagic TestFlight
+
+on:
+  push:
+    branches:
+      - release/testflight-final-20260827
+
+jobs:
+  trigger-codemagic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Forward GitHub push event to Codemagic
+        env:
+          CODEMAGIC_WEBHOOK_URL: https://api.codemagic.io/hooks/69de5b7f4ade5a0012b1c35f
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --retry 3 --retry-delay 2 \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -H "X-GitHub-Delivery: ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --data-binary "@${GITHUB_EVENT_PATH}" \
+            "$CODEMAGIC_WEBHOOK_URL"
