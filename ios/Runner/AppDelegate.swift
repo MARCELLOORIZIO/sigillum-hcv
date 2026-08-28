@@ -59,8 +59,13 @@ import UIKit
           var prices: [String: String] = [:]
           for product in products {
             let currencyCode = product.priceFormatStyle.currencyCode
-            prices[product.id] =
-              "\(product.displayPrice) [SF:\(storefrontCountry)/\(currencyCode)]"
+            // Preserve the production invariant explicitly: the visible price
+            // originates from StoreKit's native Product.displayPrice.
+            prices[product.id] = product.displayPrice
+            if let displayPrice = prices[product.id] {
+              prices[product.id] =
+                "\(displayPrice) [SF:\(storefrontCountry)/\(currencyCode)]"
+            }
           }
           await MainActor.run {
             result(prices)
