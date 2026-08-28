@@ -21,23 +21,6 @@ import UIKit
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     channel.setMethodCallHandler { call, result in
-      guard call.method == "localizedProductPrices" else {
-        result(FlutterMethodNotImplemented)
-        return
-      }
-      guard
-        let args = call.arguments as? [String: Any],
-        let productIds = args["productIds"] as? [String],
-        !productIds.isEmpty
-      else {
-        result(FlutterError(
-          code: "INVALID_PRODUCT_IDS",
-          message: "No App Store product identifiers were supplied",
-          details: nil
-        ))
-        return
-      }
-
       guard #available(iOS 15.0, *) else {
         result(FlutterError(
           code: "STOREKIT2_UNAVAILABLE",
@@ -47,38 +30,79 @@ import UIKit
         return
       }
 
-      Task {
-        do {
-          // Temporary TestFlight diagnostic: display the exact StoreKit
-          // storefront and currency beside each native Product.displayPrice.
-          // This does not force or substitute a currency; it only exposes what
-          // StoreKit is returning on the device.
-          let storefront = await StoreKit.Storefront.current
-          let storefrontCountry = storefront?.countryCode ?? "NONE"
-          let products = try await StoreKit.Product.products(for: productIds)
-          var prices: [String: String] = [:]
-          for product in products {
-            let currencyCode = product.priceFormatStyle.currencyCode
-            // Preserve the production invariant explicitly: the visible price
-            // originates from StoreKit's native Product.displayPrice.
-            prices[product.id] = product.displayPrice
-            if let displayPrice = prices[product.id] {
-              prices[product.id] =
-                "\(displayPrice) [SF:\(storefrontCountry)/\(currencyCode)]"
+      switch call.method {
+      case "localizedProductPrices":
+        guard
+          let args = call.arguments as? [String: Any],
+          let productIds = args["productIds"] as? [String],
+          !productIds.isEmpty
+        else {
+          result(FlutterError(
+            code: "INVALID_PRODUCT_IDS",
+            message: "No App Store product identifiers were supplied",
+            details: nil
+          ))
+          return
+        }
+
+        Task {
+          do {
+            // Temporary TestFlight diagnostic: display the exact StoreKit
+            // storefront and currency beside each native Product.displayPrice.
+            // This does not force or substitute a currency; it only exposes what
+            // StoreKit is returning on the device.
+            let storefront = await StoreKit.Storefront.current
+            let storefrontCountry = storefront?.countryCode ?? "NONE"
+            let products = try await StoreKit.Product.products(for: productIds)
+            var prices: [String: String] = [:]
+            for product in products {
+              let currencyCode = product.priceFormatStyle.currencyCode
+              // Preserve the production invariant explicitly: the visible price
+              // originates from StoreKit's native Product.displayPrice.
+              prices[product.id] = product.displayPrice
+              if let displayPrice = prices[product.id] {
+                prices[product.id] =
+                  "\(displayPrice) [SF:\(storefrontCountry)/\(currencyCode)]"
+              }
+            }
+            await MainActor.run {
+              result(prices)
+            }
+          } catch {
+            await MainActor.run {
+              result(FlutterError(
+                code: "STOREKIT2_PRICE_LOOKUP_FAILED",
+                message: error.localizedDescription,
+                details: nil
+              ))
+            }
+          }
+        }
+
+      case "currentEntitlements":
+        Task {
+          var entitlements: [[String: String]] = []
+          for await verification in StoreKit.Transaction.currentEntitlements {
+            switch verification {
+            case .verified(let transaction):
+              entitlements.append([
+                "productId": transaction.productID,
+                "transactionId": String(transaction.id),
+                "receiptData": verification.jwsRepresentation,
+              ])
+            case .unverified:
+              // An unverified StoreKit transaction must never be used as
+              // entitlement evidence. The Dart/server path remains fail-closed.
+              continue
             }
           }
           await MainActor.run {
-            result(prices)
-          }
-        } catch {
-          await MainActor.run {
-            result(FlutterError(
-              code: "STOREKIT2_PRICE_LOOKUP_FAILED",
-              message: error.localizedDescription,
-              details: nil
-            ))
+            result(entitlements)
           }
         }
+
+      default:
+        result(FlutterMethodNotImplemented)
       }
     }
     storeKit2PriceChannel = channel
