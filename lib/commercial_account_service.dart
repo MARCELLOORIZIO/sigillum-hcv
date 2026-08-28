@@ -42,6 +42,10 @@ class CommercialAccountService {
 
   static const _sessionTokenKey = 'sigillum.auth.session.v1';
   static const _timeout = Duration(seconds: 20);
+  // Render Free can take about a minute to wake after idling. Registration is
+  // a non-idempotent POST, so do not retry it after a client timeout: allow the
+  // original request enough time to finish instead.
+  static const _registrationTimeout = Duration(seconds: 90);
   static const _nativeStoreKit2 = MethodChannel('hcv.storekit2');
   static const _appleCreatorProductIds = <String>{
     'com.sigillum.hcv.creator.weekly',
@@ -80,6 +84,7 @@ class CommercialAccountService {
     await _request(
       'POST',
       '/api/auth/register',
+      timeout: _registrationTimeout,
       body: {
         'email': email.trim(),
         'password': password,
@@ -400,15 +405,17 @@ class CommercialAccountService {
     String path, {
     String? token,
     Map<String, dynamic>? body,
+    Duration? timeout,
   }) async {
-    final client = HttpClient()..connectionTimeout = _timeout;
+    final effectiveTimeout = timeout ?? _timeout;
+    final client = HttpClient()..connectionTimeout = effectiveTimeout;
     try {
       final uri = Uri.parse('$baseUrl$path');
       late HttpClientRequest request;
       if (method == 'GET') {
-        request = await client.getUrl(uri).timeout(_timeout);
+        request = await client.getUrl(uri).timeout(effectiveTimeout);
       } else {
-        request = await client.postUrl(uri).timeout(_timeout);
+        request = await client.postUrl(uri).timeout(effectiveTimeout);
       }
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
@@ -416,8 +423,11 @@ class CommercialAccountService {
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       }
       if (body != null) request.write(jsonEncode(body));
-      final response = await request.close().timeout(_timeout);
-      final raw = await utf8.decoder.bind(response).join().timeout(_timeout);
+      final response = await request.close().timeout(effectiveTimeout);
+      final raw = await utf8.decoder
+          .bind(response)
+          .join()
+          .timeout(effectiveTimeout);
       Map<String, dynamic> decoded = const {};
       try {
         final parsed = jsonDecode(raw.isEmpty ? '{}' : raw);
