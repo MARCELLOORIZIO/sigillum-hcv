@@ -49,10 +49,18 @@ import UIKit
 
       Task {
         do {
+          // Temporary TestFlight diagnostic: display the exact StoreKit
+          // storefront and currency beside each native Product.displayPrice.
+          // This does not force or substitute a currency; it only exposes what
+          // StoreKit is returning on the device.
+          let storefront = await StoreKit.Storefront.current
+          let storefrontCountry = storefront?.countryCode ?? "NONE"
           let products = try await StoreKit.Product.products(for: productIds)
           var prices: [String: String] = [:]
           for product in products {
-            prices[product.id] = product.displayPrice
+            let currencyCode = product.priceFormatStyle.currencyCode
+            prices[product.id] =
+              "\(product.displayPrice) [SF:\(storefrontCountry)/\(currencyCode)]"
           }
           await MainActor.run {
             result(prices)
