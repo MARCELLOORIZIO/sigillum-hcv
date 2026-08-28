@@ -49,6 +49,11 @@ class HCVRegistryRetryReport {
 class HCVRegistryService {
   static const _pendingUploadsKey = 'hcv_registry_pending_uploads_v1';
   static const _requestTimeout = Duration(seconds: 15);
+  static const _pendingUploadRetryDelays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 750),
+    Duration(milliseconds: 2000),
+  ];
   static const _legacyReadBaseUrl = 'https://hcv-registry-server.onrender.com';
   static final RegExp _hcvIdPattern = RegExp(r'^HCV-[A-F0-9]{16}$');
 
@@ -329,28 +334,51 @@ class HCVRegistryService {
       }
 
       attempted++;
-      try {
-        await uploadCertificateFile(path);
-        uploadedPaths.add(path);
-      } on HCVRegistryException catch (e) {
-        if (e.kind == HCVRegistryFailureKind.invalidCertificate) {
-          discarded++;
-          continue;
+      HCVRegistryException? lastRegistryError;
+      Object? lastUnexpectedError;
+      var uploaded = false;
+      var discardCurrent = false;
+
+      for (final delay in _pendingUploadRetryDelays) {
+        if (delay != Duration.zero) {
+          await Future<void>.delayed(delay);
         }
-        remaining.add({
-          ...entry,
-          'attempts': ((entry['attempts'] as num?)?.toInt() ?? 0) + 1,
-          'lastAttemptAt': DateTime.now().toUtc().toIso8601String(),
-          'lastError': e.message,
-        });
-      } catch (e) {
-        remaining.add({
-          ...entry,
-          'attempts': ((entry['attempts'] as num?)?.toInt() ?? 0) + 1,
-          'lastAttemptAt': DateTime.now().toUtc().toIso8601String(),
-          'lastError': e.toString(),
-        });
+        try {
+          await uploadCertificateFile(path);
+          uploaded = true;
+          break;
+        } on HCVRegistryException catch (e) {
+          lastRegistryError = e;
+          if (e.kind == HCVRegistryFailureKind.invalidCertificate) {
+            discarded++;
+            discardCurrent = true;
+            break;
+          }
+          // Authentication, malformed responses and other non-retryable client
+          // errors must not be hammered. Network/timeout/5xx failures get a
+          // short bounded retry window, then remain in the persistent queue.
+          if (!e.isRetryable) break;
+        } catch (e) {
+          lastUnexpectedError = e;
+          break;
+        }
       }
+
+      if (uploaded) {
+        uploadedPaths.add(path);
+        continue;
+      }
+      if (discardCurrent) continue;
+
+      final lastError = lastRegistryError?.message ??
+          lastUnexpectedError?.toString() ??
+          'Registry upload non completato';
+      remaining.add({
+        ...entry,
+        'attempts': ((entry['attempts'] as num?)?.toInt() ?? 0) + 1,
+        'lastAttemptAt': DateTime.now().toUtc().toIso8601String(),
+        'lastError': lastError,
+      });
     }
 
     await _writePendingUploads(remaining);
