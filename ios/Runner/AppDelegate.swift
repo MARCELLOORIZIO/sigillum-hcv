@@ -49,10 +49,18 @@ import UIKit
 
       Task {
         do {
+          // Diagnostic TestFlight branch only: surface the exact StoreKit
+          // storefront and product currency next to each displayPrice. This
+          // lets us distinguish a stale/incorrect sandbox storefront from an
+          // application formatting bug without hardcoding any currency.
+          let storefront = await StoreKit.Storefront.current
+          let storefrontCountry = storefront?.countryCode ?? "NONE"
           let products = try await StoreKit.Product.products(for: productIds)
           var prices: [String: String] = [:]
           for product in products {
-            prices[product.id] = product.displayPrice
+            let currencyCode = product.priceFormatStyle.currencyCode
+            prices[product.id] =
+              "\(product.displayPrice) [SF:\(storefrontCountry)/\(currencyCode)]"
           }
           await MainActor.run {
             result(prices)
