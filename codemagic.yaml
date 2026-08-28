@@ -93,16 +93,16 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
 
   ios-testflight:
-    name: SIGILLUM iOS TestFlight
+    name: SIGILLUM iOS TestFlight Storefront Diagnostic
     max_build_duration: 120
     triggering:
       events:
         - push
       branch_patterns:
-        - pattern: 'release/testflight-final-20260827'
+        - pattern: 'diagnostic/storefront-20260828'
           include: true
           source: true
-      cancel_previous_builds: true
+      cancel_previous_builds: false
     environment:
       flutter: 3.47.1
       xcode: latest
