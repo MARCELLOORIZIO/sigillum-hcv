@@ -19,7 +19,8 @@ void main() {
     );
 
     // Authenticity alone must never grant Creator access. A verified-but-
-    // inactive response keeps being reconciled for the bounded retry window.
+    // inactive response keeps being reconciled for the bounded retry window;
+    // there is deliberately no client-side synthetic active entitlement.
     expect(
       account,
       isNot(contains(
