@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import 'hcv_auth_service.dart';
 import 'hcv_identity.dart';
 import 'hcv_keystore_signer.dart';
@@ -18,6 +20,18 @@ class CommercialAccountException implements Exception {
   String toString() => message;
 }
 
+class _CommercialCurrentAppleEntitlement {
+  const _CommercialCurrentAppleEntitlement({
+    required this.productId,
+    required this.transactionId,
+    required this.receiptData,
+  });
+
+  final String productId;
+  final String transactionId;
+  final String receiptData;
+}
+
 class CommercialAccountService {
   const CommercialAccountService({
     this.baseUrl = const String.fromEnvironment(
@@ -28,6 +42,12 @@ class CommercialAccountService {
 
   static const _sessionTokenKey = 'sigillum.auth.session.v1';
   static const _timeout = Duration(seconds: 20);
+  static const _nativeStoreKit2 = MethodChannel('hcv.storekit2');
+  static const _appleCreatorProductIds = <String>{
+    'com.sigillum.hcv.creator.weekly',
+    'com.sigillum.hcv.creator.monthly',
+    'com.sigillum.hcv.creator.annual',
+  };
   static const _appleVerificationRetryDelays = <Duration>[
     Duration.zero,
     Duration(milliseconds: 600),
@@ -149,7 +169,56 @@ class CommercialAccountService {
   }
 
   Future<Map<String, dynamic>> billingStatus() async {
-    final billing = await _authorizedRequest('GET', '/api/billing/status');
+    final serverBilling = await _authorizedRequest('GET', '/api/billing/status');
+    final normalizedServerBilling = _normalizeServerBilling(serverBilling);
+
+    if (!Platform.isIOS) return normalizedServerBilling;
+
+    // The SIGILLUM backend can retain a previously verified expiry after a
+    // Sandbox purchase history reset, cancellation, revocation or other Apple
+    // state transition. Do not let that cached server record grant Creator
+    // access by itself. StoreKit 2 currentEntitlements is the on-device Apple
+    // snapshot for currently entitled auto-renewable subscriptions; every
+    // transaction found here is still re-submitted to the SIGILLUM backend for
+    // server verification before access is accepted.
+    final currentEntitlements = await _currentAppleEntitlements();
+    if (currentEntitlements.isEmpty) {
+      return <String, dynamic>{
+        ...normalizedServerBilling,
+        'status': 'inactive',
+        'appleEntitlement': 'missing',
+      };
+    }
+
+    Map<String, dynamic>? lastVerification;
+    for (final entitlement in currentEntitlements) {
+      final verified = await verifyApplePurchase(
+        productId: entitlement.productId,
+        transactionId: entitlement.transactionId,
+        receiptData: entitlement.receiptData,
+      );
+      lastVerification = verified;
+      final status = verified['status']?.toString() ?? '';
+      if (verified['verified'] == true &&
+          (status == 'active' || status == 'grace')) {
+        return <String, dynamic>{
+          ...normalizedServerBilling,
+          ...verified,
+          'status': status,
+          'appleEntitlement': 'current',
+        };
+      }
+    }
+
+    return <String, dynamic>{
+      ...normalizedServerBilling,
+      if (lastVerification != null) ...lastVerification,
+      'status': 'inactive',
+      'appleEntitlement': 'not_verified_active',
+    };
+  }
+
+  Map<String, dynamic> _normalizeServerBilling(Map<String, dynamic> billing) {
     final status = billing['status']?.toString() ?? '';
     if (status != 'active') return billing;
 
@@ -159,6 +228,42 @@ class CommercialAccountService {
       return <String, dynamic>{...billing, 'status': 'expired'};
     }
     return billing;
+  }
+
+  Future<List<_CommercialCurrentAppleEntitlement>>
+  _currentAppleEntitlements() async {
+    try {
+      final raw = await _nativeStoreKit2.invokeMethod<List<Object?>>(
+        'currentEntitlements',
+      );
+      if (raw == null) return const [];
+
+      final resolved = <_CommercialCurrentAppleEntitlement>[];
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final productId = item['productId']?.toString() ?? '';
+        final transactionId = item['transactionId']?.toString() ?? '';
+        final receiptData = item['receiptData']?.toString() ?? '';
+        if (!_appleCreatorProductIds.contains(productId) ||
+            transactionId.isEmpty ||
+            receiptData.isEmpty) {
+          continue;
+        }
+        resolved.add(
+          _CommercialCurrentAppleEntitlement(
+            productId: productId,
+            transactionId: transactionId,
+            receiptData: receiptData,
+          ),
+        );
+      }
+      return resolved;
+    } on PlatformException catch (error) {
+      throw CommercialAccountException(
+        'Impossibile verificare l’abbonamento corrente con App Store: ${error.message ?? error.code}',
+        code: error.code,
+      );
+    }
   }
 
   Future<Map<String, dynamic>> verifyApplePurchase({
