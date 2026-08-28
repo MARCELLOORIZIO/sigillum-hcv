@@ -33,6 +33,8 @@ class CommercialAccountService {
     Duration(milliseconds: 600),
     Duration(milliseconds: 1200),
     Duration(milliseconds: 2400),
+    Duration(milliseconds: 4000),
+    Duration(milliseconds: 8000),
   ];
   static const termsVersion = '2026-08-18';
   static const privacyVersion = '2026-08-18';
@@ -196,11 +198,15 @@ class CommercialAccountService {
         );
         lastResult = result;
 
-        // A fresh StoreKit transaction can briefly precede Apple/backend
-        // propagation. Retry only while authenticity is still unresolved.
-        // Entitlement remains fail-closed: the caller still requires verified
-        // server evidence and an active/grace subscription status.
-        if (result['verified'] == true) {
+        // Apple authenticity and SIGILLUM entitlement activation can settle at
+        // slightly different times in TestFlight/Sandbox. Do not stop at the
+        // first verified=true response if the backend still reports inactive.
+        // Re-submit the same server verification for a bounded window and only
+        // return early when the server confirms an active/grace entitlement.
+        // This never grants access locally and preserves fail-closed billing.
+        final status = result['status']?.toString() ?? '';
+        if (result['verified'] == true &&
+            (status == 'active' || status == 'grace')) {
           return result;
         }
       } on CommercialAccountException catch (error) {
@@ -212,8 +218,10 @@ class CommercialAccountService {
       }
     }
 
-    // A 2xx response that remains unverified after the bounded propagation
-    // window is returned unchanged so the existing gate rejects it.
+    // A response that is authentic but never becomes active/grace in the
+    // bounded propagation window stays inactive. The gate will not grant
+    // Creator access; this also exposes a genuine backend product-mapping error
+    // instead of hiding it with a local entitlement.
     return lastResult ??
         const <String, dynamic>{
           'verified': false,
