@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// Regression for TestFlight returning stale USD Product metadata while Apple's
+// subscription sheet already has the correct storefront-localized EUR price.
 void main() {
   group('Storefront price fail-closed contract', () {
     final native = File('ios/Runner/AppDelegate.swift').readAsStringSync();
@@ -29,18 +31,21 @@ void main() {
     });
 
     test('native StoreKit requires product currency to match storefront currency', () {
-      expect(
-        native,
-        contains(
-          'productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) == .orderedSame',
-        ),
+      final matchGuard = native.indexOf(
+        'productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) == .orderedSame',
       );
-      expect(
-        native,
-        isNot(contains(
-          'productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) != .orderedSame {\n                prices[product.id] = "App Store"\n                continue\n              }\n              prices[product.id] = product.displayPrice',
-        )),
+      final mismatchFallback = native.indexOf(
+        'prices[product.id] = "App Store"',
+        matchGuard,
       );
+      final numericPrice = native.indexOf(
+        'prices[product.id] = product.displayPrice',
+        mismatchFallback,
+      );
+
+      expect(matchGuard, greaterThanOrEqualTo(0));
+      expect(mismatchFallback, greaterThan(matchGuard));
+      expect(numericPrice, greaterThan(mismatchFallback));
     });
 
     test('Dart ProductDetails fallback is allowed only with a known storefront currency', () {
