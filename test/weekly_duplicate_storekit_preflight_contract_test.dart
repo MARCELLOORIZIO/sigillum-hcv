@@ -34,7 +34,7 @@ void main() {
       );
       final finishIndex = billing.indexOf(
         'finishUnfinishedAppleTransaction(transaction.transactionId)',
-        verifyIndex,
+        verifiedGuard,
       );
 
       expect(helperStart, greaterThanOrEqualTo(0));

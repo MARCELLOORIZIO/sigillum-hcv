@@ -260,11 +260,27 @@ class CommercialBillingService {
     const account = CommercialAccountService();
     var entitlementActive = false;
     for (final transaction in sameProduct) {
-      final verified = await account.verifyApplePurchase(
-        productId: transaction.productId,
-        transactionId: transaction.transactionId,
-        receiptData: transaction.receiptData,
-      );
+      Map<String, dynamic> verified;
+      try {
+        verified = await account.verifyApplePurchase(
+          productId: transaction.productId,
+          transactionId: transaction.transactionId,
+          receiptData: transaction.receiptData,
+        );
+      } on CommercialAccountException catch (error) {
+        if (error.code != 'APPLE_SUBSCRIPTION_ALREADY_LINKED') rethrow;
+
+        // The backend emits APPLE_SUBSCRIPTION_ALREADY_LINKED only after it has
+        // authenticated the Apple transaction and resolved its durable owner.
+        // Finishing this delivery does not cancel or transfer the subscription;
+        // it only removes the stale StoreKit queue item from this device. That
+        // stale item must not prevent the currently signed-in SIGILLUM account
+        // from submitting a genuinely new payment after Sandbox history reset
+        // or after the previous Apple entitlement has otherwise ended.
+        await finishUnfinishedAppleTransaction(transaction.transactionId);
+        continue;
+      }
+
       if (verified['verified'] != true) {
         throw const CommercialAccountException(
           'Verifica abbonamento App Store non riuscita.',

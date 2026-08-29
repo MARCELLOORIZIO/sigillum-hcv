@@ -342,6 +342,10 @@ class CommercialAccountService {
   static bool _isTransientAppleVerificationError(
     CommercialAccountException error,
   ) {
+    // Ownership conflicts are deliberate and terminal. Retrying them only
+    // delays StoreKit queue cleanup and can make a fresh purchase look stuck.
+    if (error.code == 'APPLE_SUBSCRIPTION_ALREADY_LINKED') return false;
+
     final status = error.statusCode;
     if (status == null) return false;
     return status == 408 ||
