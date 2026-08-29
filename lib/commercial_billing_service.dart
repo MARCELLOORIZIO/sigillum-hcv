@@ -72,6 +72,18 @@ class CommercialBillingService {
     return products;
   }
 
+  Future<String> _currentStorefrontCurrency() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return '';
+    try {
+      final raw = await _nativeStoreKit2.invokeMethod<Map<Object?, Object?>>(
+        'currentStorefrontCurrency',
+      );
+      return raw?['currencyCode']?.toString().trim().toUpperCase() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
   Future<Map<String, String>> localizedDisplayPrices(
     Iterable<ProductDetails> products,
   ) async {
@@ -84,11 +96,16 @@ class CommercialBillingService {
       };
     }
 
-    // ProductDetails can retain a stale sandbox currency in TestFlight. Read
-    // Product.displayPrice directly from native StoreKit 2 and require two
-    // consecutive complete identical snapshots before exposing prices.
+    // Read Storefront immediately before displaying product information. On
+    // modern iOS, native StoreKit omits any Product whose currency conflicts
+    // with the current storefront. ProductDetails is accepted as a secondary
+    // Apple-backed source only when its currency matches that same storefront.
+    // If neither source is consistent, the paywall deliberately shows no
+    // numeric price rather than exposing a stale Sandbox amount/currency.
+    final storefrontCurrency = await _currentStorefrontCurrency();
     final requestedIds = productList.map((product) => product.id).toList();
     Map<String, String>? previousComplete;
+    Map<String, String> lastResolved = const {};
 
     for (final delay in _storefrontPriceRetryDelays) {
       if (delay != Duration.zero) await Future<void>.delayed(delay);
@@ -110,6 +127,17 @@ class CommercialBillingService {
         }
       } catch (_) {}
 
+      if (storefrontCurrency.isNotEmpty) {
+        for (final product in productList) {
+          if (resolved.containsKey(product.id)) continue;
+          final productCurrency = product.currencyCode.trim().toUpperCase();
+          if (productCurrency == storefrontCurrency && product.price.isNotEmpty) {
+            resolved[product.id] = product.price;
+          }
+        }
+      }
+
+      lastResolved = Map<String, String>.from(resolved);
       final complete = resolved.length == requestedIds.length;
       if (!complete) {
         previousComplete = null;
@@ -123,9 +151,10 @@ class CommercialBillingService {
       previousComplete = Map<String, String>.from(resolved);
     }
 
-    throw StateError(
-      'Stable localized App Store price unavailable for current storefront.',
-    );
+    // Never fall back to a currency-inconsistent Product. A missing numeric
+    // price is safer and truthful: the Apple purchase sheet still presents the
+    // exact localized amount before confirmation.
+    return lastResolved;
   }
 
   void startListening() {
