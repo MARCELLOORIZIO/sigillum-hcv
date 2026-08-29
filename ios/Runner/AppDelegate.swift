@@ -63,8 +63,9 @@ import UIKit
               if let storefrontCurrencyCode,
                  !storefrontCurrencyCode.isEmpty,
                  productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) != .orderedSame {
-                // Omit inconsistent metadata. Dart retries and can use another
-                // Apple-backed source only when its currency matches Storefront.
+                // The Apple purchase sheet remains the source of truth. Keep the
+                // plan purchasable, but do not display a known-wrong amount.
+                prices[product.id] = "App Store"
                 continue
               }
               prices[product.id] = product.displayPrice
