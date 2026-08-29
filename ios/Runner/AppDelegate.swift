@@ -48,8 +48,12 @@ import UIKit
         Task {
           do {
             // StoreKit can briefly retain stale Sandbox Product metadata after a
-            // storefront/account change. Never expose a Product.displayPrice
-            // whose currency conflicts with the current Storefront currency.
+            // storefront/account change. A numeric price is displayed only when
+            // the current Storefront currency is available and matches the
+            // Product currency. If StoreKit cannot prove that match, the Apple
+            // purchase sheet remains the source of truth and the paywall shows
+            // the neutral "App Store" label instead of a potentially stale USD
+            // amount.
             let storefront = await StoreKit.Storefront.current
             var storefrontCurrencyCode: String?
             if #available(iOS 17.0, *) {
@@ -59,15 +63,18 @@ import UIKit
             let products = try await StoreKit.Product.products(for: productIds)
             var prices: [String: String] = [:]
             for product in products {
-              let productCurrencyCode = product.priceFormatStyle.currencyCode
-              if let storefrontCurrencyCode,
-                 !storefrontCurrencyCode.isEmpty,
-                 productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) != .orderedSame {
-                // The Apple purchase sheet remains the source of truth. Keep the
-                // plan purchasable, but do not display a known-wrong amount.
+              guard let storefrontCurrencyCode,
+                    !storefrontCurrencyCode.isEmpty else {
                 prices[product.id] = "App Store"
                 continue
               }
+
+              let productCurrencyCode = product.priceFormatStyle.currencyCode
+              guard productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) == .orderedSame else {
+                prices[product.id] = "App Store"
+                continue
+              }
+
               prices[product.id] = product.displayPrice
             }
             await MainActor.run {
