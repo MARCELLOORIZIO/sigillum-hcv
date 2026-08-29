@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// Prevent an Apple subscription owned by another SIGILLUM account from ever
+// reaching a new payment sheet on the currently signed-in SIGILLUM account.
 void main() {
   test('foreign current Apple entitlement is checked before stale recovery and buyNonConsumable', () {
     final billing = File('lib/commercial_billing_service.dart').readAsStringSync();
