@@ -1,4 +1,5 @@
 import Flutter
+import Foundation
 import StoreKit
 import UIKit
 
@@ -11,6 +12,62 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  @available(iOS 15.0, *)
+  private func trustedStorefrontCurrency(
+    _ storefront: StoreKit.Storefront?
+  ) -> (
+    countryCode: String,
+    storefrontCurrencyCode: String,
+    regionCurrencyCode: String,
+    trustedCurrencyCode: String
+  ) {
+    let countryCode = storefront?.countryCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? ""
+
+    var storefrontCurrencyCode = ""
+    if #available(iOS 17.0, *) {
+      storefrontCurrencyCode = storefront?.currency?.identifier
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .uppercased() ?? ""
+    }
+
+    // Storefront.countryCode is ISO-3166 alpha-3. Foundation canonicalizes
+    // identifiers such as en_ITA to region IT and exposes the region currency.
+    // This is a safety cross-check only: if Apple's Storefront currency and the
+    // region-derived currency disagree, SIGILLUM must not display a numeric
+    // amount. The Apple purchase sheet remains the final price source of truth.
+    var regionCurrencyCode = ""
+    if !countryCode.isEmpty {
+      let regionLocale = Locale(identifier: "en_\(countryCode)")
+      if #available(iOS 16.0, *) {
+        regionCurrencyCode = regionLocale.currency?.identifier
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+          .uppercased() ?? ""
+      } else {
+        regionCurrencyCode = regionLocale.currencyCode?
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+          .uppercased() ?? ""
+      }
+    }
+
+    var trustedCurrencyCode = ""
+    if !storefrontCurrencyCode.isEmpty && !regionCurrencyCode.isEmpty {
+      if storefrontCurrencyCode.caseInsensitiveCompare(regionCurrencyCode) == .orderedSame {
+        trustedCurrencyCode = storefrontCurrencyCode
+      }
+    } else if !storefrontCurrencyCode.isEmpty {
+      trustedCurrencyCode = storefrontCurrencyCode
+    } else if !regionCurrencyCode.isEmpty {
+      trustedCurrencyCode = regionCurrencyCode
+    }
+
+    return (
+      countryCode,
+      storefrontCurrencyCode,
+      regionCurrencyCode,
+      trustedCurrencyCode
+    )
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -47,30 +104,29 @@ import UIKit
 
         Task {
           do {
-            // StoreKit can briefly retain stale Sandbox Product metadata after a
-            // storefront/account change. A numeric price is displayed only when
-            // the current Storefront currency is available and matches the
-            // Product currency. If StoreKit cannot prove that match, the Apple
-            // purchase sheet remains the source of truth and the paywall shows
-            // the neutral "App Store" label instead of a potentially stale USD
-            // amount.
+            // A TestFlight/Sandbox StoreKit Product can retain stale pricing
+            // metadata even after Storefront.current has moved to another
+            // country. A numeric amount is therefore shown only when the
+            // Storefront currency, its country-derived currency, and the Product
+            // currency form a consistent snapshot. Any ambiguity fails closed
+            // to the neutral "App Store" label; purchase itself remains enabled
+            // and Apple's sheet shows the exact localized amount before consent.
             let storefront = await StoreKit.Storefront.current
-            var storefrontCurrencyCode: String?
-            if #available(iOS 17.0, *) {
-              storefrontCurrencyCode = storefront?.currency?.identifier
-            }
+            let currencySnapshot = self.trustedStorefrontCurrency(storefront)
 
             let products = try await StoreKit.Product.products(for: productIds)
             var prices: [String: String] = [:]
             for product in products {
-              guard let storefrontCurrencyCode,
-                    !storefrontCurrencyCode.isEmpty else {
+              let trustedCurrencyCode = currencySnapshot.trustedCurrencyCode
+              guard !trustedCurrencyCode.isEmpty else {
                 prices[product.id] = "App Store"
                 continue
               }
 
               let productCurrencyCode = product.priceFormatStyle.currencyCode
-              guard productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) == .orderedSame else {
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .uppercased()
+              guard productCurrencyCode.caseInsensitiveCompare(trustedCurrencyCode) == .orderedSame else {
                 prices[product.id] = "App Store"
                 continue
               }
@@ -94,13 +150,15 @@ import UIKit
       case "currentStorefrontCurrency":
         Task {
           let storefront = await StoreKit.Storefront.current
-          var currencyCode = ""
-          if #available(iOS 17.0, *) {
-            currencyCode = storefront?.currency?.identifier ?? ""
-          }
+          let currencySnapshot = self.trustedStorefrontCurrency(storefront)
           let snapshot: [String: String] = [
-            "countryCode": storefront?.countryCode ?? "",
-            "currencyCode": currencyCode,
+            "countryCode": currencySnapshot.countryCode,
+            // Dart is intentionally given only the trusted value. If the raw
+            // Storefront currency conflicts with the storefront region, an empty
+            // value prevents ProductDetails.price from reintroducing stale USD.
+            "currencyCode": currencySnapshot.trustedCurrencyCode,
+            "storefrontCurrencyCode": currencySnapshot.storefrontCurrencyCode,
+            "regionCurrencyCode": currencySnapshot.regionCurrencyCode,
           ]
           await MainActor.run {
             result(snapshot)
