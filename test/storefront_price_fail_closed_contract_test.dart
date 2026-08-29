@@ -9,46 +9,63 @@ void main() {
     final native = File('ios/Runner/AppDelegate.swift').readAsStringSync();
     final billing = File('lib/commercial_billing_service.dart').readAsStringSync();
 
-    test('native StoreKit never exposes numeric price when storefront currency is unavailable', () {
+    test('native derives a region currency from Storefront alpha-3 country code', () {
+      expect(native, contains('Locale(identifier: "en_\\(countryCode)")'));
+      expect(native, contains('regionCurrencyCode'));
+      expect(native, contains('trustedCurrencyCode'));
+    });
+
+    test('conflicting Storefront and region currencies produce no trusted numeric currency', () {
+      final bothKnown = native.indexOf(
+        'if !storefrontCurrencyCode.isEmpty && !regionCurrencyCode.isEmpty',
+      );
+      final equality = native.indexOf(
+        'storefrontCurrencyCode.caseInsensitiveCompare(regionCurrencyCode) == .orderedSame',
+        bothKnown,
+      );
+      final trustedAssignment = native.indexOf(
+        'trustedCurrencyCode = storefrontCurrencyCode',
+        equality,
+      );
+
+      expect(bothKnown, greaterThanOrEqualTo(0));
+      expect(equality, greaterThan(bothKnown));
+      expect(trustedAssignment, greaterThan(equality));
+      expect(
+        native,
+        isNot(contains(
+          'else {\n        trustedCurrencyCode = storefrontCurrencyCode\n      }',
+        )),
+      );
+    });
+
+    test('native price is numeric only when Product currency matches trusted currency', () {
       final loopStart = native.indexOf('for product in products');
-      final currencyGuard = native.indexOf(
-        'guard let storefrontCurrencyCode,',
+      final trustGuard = native.indexOf(
+        'guard !trustedCurrencyCode.isEmpty',
         loopStart,
+      );
+      final matchGuard = native.indexOf(
+        'productCurrencyCode.caseInsensitiveCompare(trustedCurrencyCode) == .orderedSame',
+        trustGuard,
       );
       final neutralFallback = native.indexOf(
         'prices[product.id] = "App Store"',
-        currencyGuard,
+        trustGuard,
       );
       final numericPrice = native.indexOf(
         'prices[product.id] = product.displayPrice',
-        neutralFallback,
+        matchGuard,
       );
 
       expect(loopStart, greaterThanOrEqualTo(0));
-      expect(currencyGuard, greaterThan(loopStart));
-      expect(neutralFallback, greaterThan(currencyGuard));
-      expect(numericPrice, greaterThan(neutralFallback));
+      expect(trustGuard, greaterThan(loopStart));
+      expect(matchGuard, greaterThan(trustGuard));
+      expect(neutralFallback, greaterThan(trustGuard));
+      expect(numericPrice, greaterThan(matchGuard));
     });
 
-    test('native StoreKit requires product currency to match storefront currency', () {
-      final matchGuard = native.indexOf(
-        'productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) == .orderedSame',
-      );
-      final mismatchFallback = native.indexOf(
-        'prices[product.id] = "App Store"',
-        matchGuard,
-      );
-      final numericPrice = native.indexOf(
-        'prices[product.id] = product.displayPrice',
-        mismatchFallback,
-      );
-
-      expect(matchGuard, greaterThanOrEqualTo(0));
-      expect(mismatchFallback, greaterThan(matchGuard));
-      expect(numericPrice, greaterThan(mismatchFallback));
-    });
-
-    test('Dart ProductDetails fallback is allowed only with a known storefront currency', () {
+    test('Dart ProductDetails fallback is allowed only with trusted storefront currency', () {
       final guard = billing.indexOf('if (storefrontCurrency.isNotEmpty)');
       final fallback = billing.indexOf(
         'if (productCurrency == storefrontCurrency && product.price.isNotEmpty)',
@@ -59,7 +76,7 @@ void main() {
       expect(fallback, greaterThan(guard));
       expect(
         billing,
-        contains('A missing numeric\n    // price is safer and truthful'),
+        contains('Never fall back to a currency-inconsistent Product'),
       );
     });
   });
