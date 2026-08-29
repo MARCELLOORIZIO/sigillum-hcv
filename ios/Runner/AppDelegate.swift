@@ -47,23 +47,28 @@ import UIKit
 
         Task {
           do {
-            // Temporary TestFlight diagnostic: display the exact StoreKit
-            // storefront and currency beside each native Product.displayPrice.
-            // This does not force or substitute a currency; it only exposes what
-            // StoreKit is returning on the device.
+            // StoreKit can briefly retain stale Sandbox Product metadata after a
+            // storefront/account change. Never expose a Product.displayPrice
+            // whose currency conflicts with the current Storefront currency.
             let storefront = await StoreKit.Storefront.current
-            let storefrontCountry = storefront?.countryCode ?? "NONE"
+            var storefrontCurrencyCode: String?
+            if #available(iOS 17.0, *) {
+              storefrontCurrencyCode = storefront?.currency?.identifier
+            }
+
             let products = try await StoreKit.Product.products(for: productIds)
             var prices: [String: String] = [:]
             for product in products {
-              let currencyCode = product.priceFormatStyle.currencyCode
-              // Preserve the production invariant explicitly: the visible price
-              // originates from StoreKit's native Product.displayPrice.
-              prices[product.id] = product.displayPrice
-              if let displayPrice = prices[product.id] {
-                prices[product.id] =
-                  "\(displayPrice) [SF:\(storefrontCountry)/\(currencyCode)]"
+              let productCurrencyCode = product.priceFormatStyle.currencyCode
+              if let storefrontCurrencyCode,
+                 !storefrontCurrencyCode.isEmpty,
+                 productCurrencyCode.caseInsensitiveCompare(storefrontCurrencyCode) != .orderedSame {
+                // The Apple purchase sheet remains the source of truth. Keep the
+                // plan purchasable, but do not display a known-wrong amount.
+                prices[product.id] = "App Store"
+                continue
               }
+              prices[product.id] = product.displayPrice
             }
             await MainActor.run {
               result(prices)
@@ -76,6 +81,22 @@ import UIKit
                 details: nil
               ))
             }
+          }
+        }
+
+      case "currentStorefrontCurrency":
+        Task {
+          let storefront = await StoreKit.Storefront.current
+          var currencyCode = ""
+          if #available(iOS 17.0, *) {
+            currencyCode = storefront?.currency?.identifier ?? ""
+          }
+          let snapshot: [String: String] = [
+            "countryCode": storefront?.countryCode ?? "",
+            "currencyCode": currencyCode,
+          ]
+          await MainActor.run {
+            result(snapshot)
           }
         }
 
