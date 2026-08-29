@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// Regression for account switching + stale StoreKit delivery after Sandbox reset.
 void main() {
   group('foreign StoreKit stale transaction recovery', () {
     final billing = File('lib/commercial_billing_service.dart').readAsStringSync();
