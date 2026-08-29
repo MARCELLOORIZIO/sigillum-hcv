@@ -96,12 +96,12 @@ class CommercialBillingService {
       };
     }
 
-    // Read Storefront immediately before displaying product information. On
-    // modern iOS, native StoreKit omits any Product whose currency conflicts
-    // with the current storefront. ProductDetails is accepted as a secondary
-    // Apple-backed source only when its currency matches that same storefront.
-    // If neither source is consistent, the paywall deliberately shows no
-    // numeric price rather than exposing a stale Sandbox amount/currency.
+    // Read Storefront immediately before displaying product information. The
+    // native channel returns a currency only when the Storefront currency and
+    // storefront-region currency form a trusted snapshot. ProductDetails is
+    // accepted as a secondary Apple-backed source only when its currency
+    // matches that trusted value. If neither source is consistent, the paywall
+    // deliberately shows no numeric price rather than stale Sandbox metadata.
     final storefrontCurrency = await _currentStorefrontCurrency();
     final requestedIds = productList.map((product) => product.id).toList();
     Map<String, String>? previousComplete;
@@ -201,10 +201,33 @@ class CommercialBillingService {
     }
   }
 
+  Future<void> _preflightCurrentAppleEntitlementOwnership() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+
+    try {
+      // billingStatus() reconciles StoreKit 2 currentEntitlements with the
+      // server-side durable originalTransactionId owner. If the Apple ID already
+      // has a current SIGILLUM subscription owned by another SIGILLUM account,
+      // opening another Apple sheet would only attempt a plan change on that
+      // foreign subscription and would necessarily fail server verification.
+      // Block before payment instead. A stale unfinished transaction that is no
+      // longer a current entitlement is still handled separately below and may
+      // be finished safely before a genuinely new purchase.
+      await const CommercialAccountService().billingStatus();
+    } on CommercialAccountException catch (error) {
+      if (error.code == 'APPLE_SUBSCRIPTION_ALREADY_LINKED') rethrow;
+      // Preserve the existing purchase behavior for unrelated/transient status
+      // lookup failures; the actual purchase remains fail-closed because its
+      // resulting transaction must still pass server verification.
+    }
+  }
+
   Future<bool> purchase(ProductDetails product) async {
     if (!productIds.contains(product.id)) {
       throw StateError('Prodotto SIGILLUM non riconosciuto.');
     }
+
+    await _preflightCurrentAppleEntitlementOwnership();
 
     // StoreKit rejects a second purchase object for a product whose previous
     // transaction is still unfinished. Resolve only the same product before
@@ -270,13 +293,11 @@ class CommercialBillingService {
       } on CommercialAccountException catch (error) {
         if (error.code != 'APPLE_SUBSCRIPTION_ALREADY_LINKED') rethrow;
 
-        // The backend emits APPLE_SUBSCRIPTION_ALREADY_LINKED only after it has
-        // authenticated the Apple transaction and resolved its durable owner.
-        // Finishing this delivery does not cancel or transfer the subscription;
-        // it only removes the stale StoreKit queue item from this device. That
-        // stale item must not prevent the currently signed-in SIGILLUM account
-        // from submitting a genuinely new payment after Sandbox history reset
-        // or after the previous Apple entitlement has otherwise ended.
+        // This branch is reached only when the preflight above did not find a
+        // current foreign entitlement. The backend has authenticated this stale
+        // unfinished transaction and resolved a different durable owner, so it
+        // is safe to finish only the queue delivery. No entitlement is granted
+        // or transferred, and a genuinely new payment may then proceed.
         await finishUnfinishedAppleTransaction(transaction.transactionId);
         continue;
       }

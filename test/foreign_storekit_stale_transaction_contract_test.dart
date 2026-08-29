@@ -41,7 +41,7 @@ void main() {
       expect(continueIndex, greaterThan(finishIndex));
       expect(
         billing,
-        contains('Finishing this delivery does not cancel or transfer the subscription'),
+        contains('No entitlement is granted\n        // or transferred'),
       );
     });
 
