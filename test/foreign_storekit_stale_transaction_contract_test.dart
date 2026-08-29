@@ -9,6 +9,14 @@ void main() {
     final account = File('lib/commercial_account_service.dart').readAsStringSync();
 
     test('foreign verified unfinished transaction is finished before new payment', () {
+      final purchaseStart = billing.indexOf(
+        'Future<bool> purchase(ProductDetails product)',
+      );
+      final recoverIndex = billing.indexOf(
+        '_recoverSameProductBeforePurchase(product.id)',
+        purchaseStart,
+      );
+      final buyIndex = billing.indexOf('_iap.buyNonConsumable(', purchaseStart);
       final helperStart = billing.indexOf(
         'Future<bool> _recoverSameProductBeforePurchase(String productId)',
       );
@@ -22,14 +30,15 @@ void main() {
         foreignCatch,
       );
       final continueIndex = billing.indexOf('continue;', finishIndex);
-      final buyIndex = billing.indexOf('_iap.buyNonConsumable(');
 
+      expect(purchaseStart, greaterThanOrEqualTo(0));
+      expect(recoverIndex, greaterThan(purchaseStart));
+      expect(buyIndex, greaterThan(recoverIndex));
       expect(helperStart, greaterThanOrEqualTo(0));
       expect(verifyIndex, greaterThan(helperStart));
       expect(foreignCatch, greaterThan(verifyIndex));
       expect(finishIndex, greaterThan(foreignCatch));
       expect(continueIndex, greaterThan(finishIndex));
-      expect(buyIndex, greaterThan(helperStart));
       expect(
         billing,
         contains('Finishing this delivery does not cancel or transfer the subscription'),
