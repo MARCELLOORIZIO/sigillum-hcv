@@ -6,6 +6,9 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var storeKit2PriceChannel: FlutterMethodChannel?
+  private var storefrontUpdatesTask: Task<Void, Never>?
+  private var storefrontBaselineFingerprint = ""
+  private var storefrontSessionFresh = false
 
   override func application(
     _ application: UIApplication,
@@ -70,6 +73,66 @@ import UIKit
     )
   }
 
+  @available(iOS 15.0, *)
+  private func storefrontFingerprint(
+    _ snapshot: (
+      countryCode: String,
+      storefrontCurrencyCode: String,
+      regionCurrencyCode: String,
+      trustedCurrencyCode: String
+    )
+  ) -> String {
+    return [
+      snapshot.countryCode,
+      snapshot.storefrontCurrencyCode,
+      snapshot.regionCurrencyCode,
+      snapshot.trustedCurrencyCode,
+    ].joined(separator: "|")
+  }
+
+  @available(iOS 15.0, *)
+  private func startStorefrontUpdateMonitoring(channel: FlutterMethodChannel) {
+    storefrontUpdatesTask?.cancel()
+
+    // TestFlight/Sandbox can expose a cached Storefront.current snapshot before
+    // the purchase sheet refreshes the account storefront. Treat the first
+    // snapshot only as a baseline, never as freshness proof. A numeric paywall
+    // price becomes eligible only after Storefront.updates reports a genuinely
+    // different storefront/currency fingerprint during this app session.
+    storefrontUpdatesTask = Task { @MainActor [weak self] in
+      guard let self = self else { return }
+
+      let initialStorefront = await StoreKit.Storefront.current
+      let initialSnapshot = self.trustedStorefrontCurrency(initialStorefront)
+      self.storefrontBaselineFingerprint = self.storefrontFingerprint(initialSnapshot)
+      self.storefrontSessionFresh = false
+
+      for await storefront in StoreKit.Storefront.updates {
+        if Task.isCancelled { return }
+
+        let snapshot = self.trustedStorefrontCurrency(storefront)
+        let fingerprint = self.storefrontFingerprint(snapshot)
+
+        // Some StoreKit sequences may first echo the already-cached current
+        // storefront. An identical first event is still not freshness evidence.
+        guard !fingerprint.isEmpty,
+              fingerprint != self.storefrontBaselineFingerprint else {
+          continue
+        }
+
+        self.storefrontBaselineFingerprint = fingerprint
+        self.storefrontSessionFresh = true
+        channel.invokeMethod(
+          "storefrontChanged",
+          arguments: [
+            "countryCode": snapshot.countryCode,
+            "currencyCode": snapshot.trustedCurrencyCode,
+          ]
+        )
+      }
+    }
+  }
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
@@ -103,14 +166,23 @@ import UIKit
         }
 
         Task {
+          // Do not publish a numeric amount from the launch-time Storefront
+          // snapshot. The user's TestFlight evidence showed that this snapshot
+          // can remain USD while Apple's actual purchase sheet is already EUR.
+          // Until Storefront.updates proves a session refresh, show only the
+          // neutral App Store label and let Apple's sheet disclose the amount.
+          let sessionFresh = await MainActor.run { self.storefrontSessionFresh }
+          guard sessionFresh else {
+            let neutral = Dictionary(
+              uniqueKeysWithValues: productIds.map { ($0, "App Store") }
+            )
+            await MainActor.run {
+              result(neutral)
+            }
+            return
+          }
+
           do {
-            // A TestFlight/Sandbox StoreKit Product can retain stale pricing
-            // metadata even after Storefront.current has moved to another
-            // country. A numeric amount is therefore shown only when the
-            // Storefront currency, its country-derived currency, and the Product
-            // currency form a consistent snapshot. Any ambiguity fails closed
-            // to the neutral "App Store" label; purchase itself remains enabled
-            // and Apple's sheet shows the exact localized amount before consent.
             let storefront = await StoreKit.Storefront.current
             let currencySnapshot = self.trustedStorefrontCurrency(storefront)
 
@@ -151,14 +223,16 @@ import UIKit
         Task {
           let storefront = await StoreKit.Storefront.current
           let currencySnapshot = self.trustedStorefrontCurrency(storefront)
-          let snapshot: [String: String] = [
+          let sessionFresh = await MainActor.run { self.storefrontSessionFresh }
+          let snapshot: [String: Any] = [
             "countryCode": currencySnapshot.countryCode,
-            // Dart is intentionally given only the trusted value. If the raw
-            // Storefront currency conflicts with the storefront region, an empty
-            // value prevents ProductDetails.price from reintroducing stale USD.
-            "currencyCode": currencySnapshot.trustedCurrencyCode,
+            // Dart is intentionally given only the trusted value and only after
+            // a session storefront refresh. Before then it must not reintroduce
+            // stale ProductDetails USD as a fallback numeric price.
+            "currencyCode": sessionFresh ? currencySnapshot.trustedCurrencyCode : "",
             "storefrontCurrencyCode": currencySnapshot.storefrontCurrencyCode,
             "regionCurrencyCode": currencySnapshot.regionCurrencyCode,
+            "sessionFresh": sessionFresh,
           ]
           await MainActor.run {
             result(snapshot)
@@ -192,5 +266,9 @@ import UIKit
       }
     }
     storeKit2PriceChannel = channel
+
+    if #available(iOS 15.0, *) {
+      startStorefrontUpdateMonitoring(channel: channel)
+    }
   }
 }
