@@ -179,48 +179,85 @@ class CommercialAccountService {
 
     if (!Platform.isIOS) return normalizedServerBilling;
 
-    // The SIGILLUM backend can retain a previously verified expiry after a
-    // Sandbox purchase history reset, cancellation, revocation or other Apple
-    // state transition. Do not let that cached server record grant Creator
-    // access by itself. StoreKit 2 currentEntitlements is the on-device Apple
-    // snapshot for currently entitled auto-renewable subscriptions; every
-    // transaction found here is still re-submitted to the SIGILLUM backend for
-    // server verification before access is accepted.
+    // A cached backend row alone is not enough to grant iOS Creator access.
+    // Prefer a verified StoreKit 2 current entitlement when one is available.
+    // If StoreKit exposes no usable active transaction (a condition observed in
+    // TestFlight even while the server-owned subscription is active), fall back
+    // to a fresh server-to-server reconciliation with Apple. The fallback is
+    // still fail-closed: access is granted only after Apple's server confirms
+    // active/grace for the originalTransactionId already owned by this account.
     final currentEntitlements = await _currentAppleEntitlements();
-    if (currentEntitlements.isEmpty) {
-      return <String, dynamic>{
-        ...normalizedServerBilling,
-        'status': 'inactive',
-        'appleEntitlement': 'missing',
-      };
-    }
 
     Map<String, dynamic>? lastVerification;
     for (final entitlement in currentEntitlements) {
-      final verified = await verifyApplePurchase(
-        productId: entitlement.productId,
-        transactionId: entitlement.transactionId,
-        receiptData: entitlement.receiptData,
-      );
-      lastVerification = verified;
-      final status = verified['status']?.toString() ?? '';
-      if (verified['verified'] == true &&
-          (status == 'active' || status == 'grace')) {
-        return <String, dynamic>{
-          ...normalizedServerBilling,
-          ...verified,
-          'status': status,
-          'appleEntitlement': 'current',
-        };
+      try {
+        final verified = await verifyApplePurchase(
+          productId: entitlement.productId,
+          transactionId: entitlement.transactionId,
+          receiptData: entitlement.receiptData,
+        );
+        lastVerification = verified;
+        final status = verified['status']?.toString() ?? '';
+        if (verified['verified'] == true &&
+            (status == 'active' || status == 'grace')) {
+          return <String, dynamic>{
+            ...normalizedServerBilling,
+            ...verified,
+            'status': status,
+            'appleEntitlement': 'current',
+          };
+        }
+      } on CommercialAccountException catch (error) {
+        // StoreKit can expose transactions that are not owned by the currently
+        // authenticated SIGILLUM account. Never grant from those transactions;
+        // continue to the account-bound live Apple server reconciliation.
+        if (error.code != 'APPLE_SUBSCRIPTION_ALREADY_LINKED') {
+          lastVerification = <String, dynamic>{
+            'verified': false,
+            'status': 'inactive',
+            'verificationError': error.code ?? 'APPLE_VERIFY_FAILED',
+          };
+        }
       }
     }
 
-    return <String, dynamic>{
-      ...normalizedServerBilling,
-      if (lastVerification != null) ...lastVerification,
-      'status': 'inactive',
-      'appleEntitlement': 'not_verified_active',
-    };
+    try {
+      final reconciled = await _authorizedRequest(
+        'POST',
+        '/api/billing/apple/reconcile',
+      );
+      final normalizedReconciled = _normalizeServerBilling(reconciled);
+      final reconciledStatus = normalizedReconciled['status']?.toString() ?? '';
+      if (reconciled['verified'] == true &&
+          (reconciledStatus == 'active' || reconciledStatus == 'grace')) {
+        return <String, dynamic>{
+          ...normalizedServerBilling,
+          ...normalizedReconciled,
+          'status': reconciledStatus,
+          'appleEntitlement': 'server_reconciled',
+        };
+      }
+
+      return <String, dynamic>{
+        ...normalizedServerBilling,
+        if (lastVerification != null) ...lastVerification,
+        ...normalizedReconciled,
+        'status': 'inactive',
+        'appleEntitlement': currentEntitlements.isEmpty
+            ? 'missing_server_inactive'
+            : 'not_verified_server_inactive',
+      };
+    } on CommercialAccountException catch (error) {
+      return <String, dynamic>{
+        ...normalizedServerBilling,
+        if (lastVerification != null) ...lastVerification,
+        'status': 'inactive',
+        'appleEntitlement': currentEntitlements.isEmpty
+            ? 'missing_reconcile_failed'
+            : 'not_verified_reconcile_failed',
+        'reconcileError': error.code ?? 'APPLE_RECONCILE_FAILED',
+      };
+    }
   }
 
   Map<String, dynamic> _normalizeServerBilling(Map<String, dynamic> billing) {
