@@ -22,7 +22,9 @@ class CommercialUnfinishedAppleTransaction {
 class CommercialBillingService {
   static const _nativeStoreKit2 = MethodChannel('hcv.storekit2');
 
-  CommercialBillingService._();
+  CommercialBillingService._() {
+    _nativeStoreKit2.setMethodCallHandler(_handleNativeStoreKit2Call);
+  }
 
   static final instance = CommercialBillingService._();
 
@@ -53,11 +55,22 @@ class CommercialBillingService {
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   final StreamController<List<PurchaseDetails>> _purchaseController =
       StreamController<List<PurchaseDetails>>.broadcast();
+  final StreamController<void> _storefrontController =
+      StreamController<void>.broadcast();
   final Set<String> _purchaseInFlight = <String>{};
   final Map<String, Completer<void>> _purchaseTerminalWaiters =
       <String, Completer<void>>{};
 
   Stream<List<PurchaseDetails>> get purchases => _purchaseController.stream;
+  Stream<void> get storefrontChanges => _storefrontController.stream;
+
+  Future<dynamic> _handleNativeStoreKit2Call(MethodCall call) async {
+    if (call.method == 'storefrontChanged') {
+      _storefrontController.add(null);
+      return true;
+    }
+    return null;
+  }
 
   Future<bool> isAvailable() => _iap.isAvailable();
 
@@ -78,11 +91,15 @@ class CommercialBillingService {
       final raw = await _nativeStoreKit2.invokeMethod<Map<Object?, Object?>>(
         'currentStorefrontCurrency',
       );
+      if (raw?['sessionFresh'] != true) return '';
       return raw?['currencyCode']?.toString().trim().toUpperCase() ?? '';
     } catch (_) {
       return '';
     }
   }
+
+  static bool _isNeutralApplePrice(String value) =>
+      value.trim().toLowerCase() == 'app store';
 
   Future<Map<String, String>> localizedDisplayPrices(
     Iterable<ProductDetails> products,
@@ -96,12 +113,12 @@ class CommercialBillingService {
       };
     }
 
-    // Read Storefront immediately before displaying product information. The
-    // native channel returns a currency only when the Storefront currency and
-    // storefront-region currency form a trusted snapshot. ProductDetails is
-    // accepted as a secondary Apple-backed source only when its currency
-    // matches that trusted value. If neither source is consistent, the paywall
-    // deliberately shows no numeric price rather than stale Sandbox metadata.
+    // A launch-time TestFlight/Sandbox storefront snapshot is not freshness
+    // proof. Native StoreKit 2 exposes a trusted currency to Dart only after a
+    // genuine Storefront.updates transition has happened in this app session.
+    // Until then, the native price call returns the neutral "App Store" label.
+    // ProductDetails is accepted as a secondary Apple-backed source only when
+    // that session-fresh trusted currency exists.
     final storefrontCurrency = await _currentStorefrontCurrency();
     final requestedIds = productList.map((product) => product.id).toList();
     Map<String, String>? previousComplete;
@@ -144,6 +161,15 @@ class CommercialBillingService {
         continue;
       }
 
+      final neutralOnly = resolved.values.every(_isNeutralApplePrice);
+      if (neutralOnly && storefrontCurrency.isEmpty) {
+        // Do not settle immediately on the launch-time neutral result. Use the
+        // complete retry window to give Storefront.updates a chance to refresh
+        // Sandbox/TestFlight metadata before the paywall becomes visible.
+        previousComplete = null;
+        continue;
+      }
+
       if (previousComplete != null && mapEquals(previousComplete, resolved)) {
         return resolved;
       }
@@ -151,10 +177,12 @@ class CommercialBillingService {
       previousComplete = Map<String, String>.from(resolved);
     }
 
-    // Never fall back to a currency-inconsistent Product. A missing numeric
-    // price is safer and truthful: the Apple purchase sheet still presents the
-    // exact localized amount before confirmation.
-    return lastResolved;
+    // Never fall back to an unrefreshed numeric Product. If StoreKit did not
+    // prove storefront freshness during the retry window, keep the purchase
+    // available with a truthful neutral label; Apple's sheet remains the final
+    // localized price authority before consent.
+    if (lastResolved.isNotEmpty) return lastResolved;
+    return <String, String>{for (final id in requestedIds) id: 'App Store'};
   }
 
   void startListening() {
