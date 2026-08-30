@@ -25,7 +25,7 @@ void main() {
         'let sessionFresh = await MainActor.run { self.storefrontSessionFresh }',
       );
       final freshnessGuard = native.indexOf('guard sessionFresh else', freshnessRead);
-      final neutral = native.indexOf('($0, "App Store")', freshnessGuard);
+      final neutral = native.indexOf(r'($0, "App Store")', freshnessGuard);
       final numeric = native.indexOf(
         'prices[product.id] = product.displayPrice',
         neutral,
