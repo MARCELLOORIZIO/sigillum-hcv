@@ -65,7 +65,7 @@ void main() {
       expect(numericPrice, greaterThan(matchGuard));
     });
 
-    test('Dart ProductDetails fallback is allowed only with trusted storefront currency', () {
+    test('Dart ProductDetails fallback is allowed only with session-fresh trusted storefront currency', () {
       final guard = billing.indexOf('if (storefrontCurrency.isNotEmpty)');
       final fallback = billing.indexOf(
         'if (productCurrency == storefrontCurrency && product.price.isNotEmpty)',
@@ -76,7 +76,7 @@ void main() {
       expect(fallback, greaterThan(guard));
       expect(
         billing,
-        contains('Never fall back to a currency-inconsistent Product'),
+        contains('Never fall back to an unrefreshed numeric Product'),
       );
     });
   });
