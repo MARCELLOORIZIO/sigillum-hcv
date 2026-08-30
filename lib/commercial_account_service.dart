@@ -179,6 +179,26 @@ class CommercialAccountService {
 
     if (!Platform.isIOS) return normalizedServerBilling;
 
+    // A recent server status is not a generic cached entitlement: the backend
+    // marks verificationFresh=true only after an Apple server verification
+    // completed within its bounded freshness window. Accept that proof before
+    // invoking StoreKit again, because TestFlight can expose an empty or
+    // transient currentEntitlements view immediately after successful server
+    // verification. Stale or non-active server states still continue through
+    // StoreKit/reconcile and remain fail-closed.
+    final freshServerStatus =
+        normalizedServerBilling['status']?.toString() ?? '';
+    final freshServerVerified =
+        normalizedServerBilling['verificationFresh'] == true;
+    if (freshServerVerified &&
+        (freshServerStatus == 'active' || freshServerStatus == 'grace')) {
+      return <String, dynamic>{
+        ...normalizedServerBilling,
+        'verified': true,
+        'appleEntitlement': 'server_fresh',
+      };
+    }
+
     // A cached backend row alone is not enough to grant iOS Creator access.
     // Prefer a verified StoreKit 2 current entitlement when one is available.
     // If StoreKit exposes no usable active transaction (a condition observed in
