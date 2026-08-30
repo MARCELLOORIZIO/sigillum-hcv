@@ -17,16 +17,24 @@ void main() {
       expect(swift, contains('continue'));
     });
 
-    test('cached backend active status cannot grant iOS access without Apple entitlement', () {
+    test('missing StoreKit entitlement requires fresh Apple server reconciliation', () {
       expect(account, contains("'currentEntitlements'"));
-      expect(account, contains('if (currentEntitlements.isEmpty)'));
+      expect(account, contains("'/api/billing/apple/reconcile'"));
+      expect(account, contains("reconciled['verified'] == true"));
+      expect(account, contains("reconciledStatus == 'active' ||"));
+      expect(account, contains("reconciledStatus == 'grace'"));
+      expect(account, contains("'appleEntitlement': 'server_reconciled'"));
+      expect(account, contains("'appleEntitlement': currentEntitlements.isEmpty"));
       expect(account, contains("'status': 'inactive'"));
-      expect(account, contains("'appleEntitlement': 'missing'"));
+    });
+
+    test('StoreKit current entitlement remains a valid verified fast path', () {
       expect(account, contains('verifyApplePurchase('));
+      expect(account, contains("verified['verified'] == true"));
       expect(account, contains("'appleEntitlement': 'current'"));
     });
 
-    test('Creator routing still requires server active or grace after reconciliation', () {
+    test('Creator routing still requires active or grace after reconciliation', () {
       expect(gate, contains("serverStatus == 'active' || serverStatus == 'grace'"));
       expect(gate, contains('billing = await _account.billingStatus();'));
       expect(gate, isNot(contains('appleEntitlement ==')));
