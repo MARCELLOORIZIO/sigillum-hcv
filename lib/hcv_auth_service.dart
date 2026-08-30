@@ -42,6 +42,7 @@ class HCVAuthService {
 
     try {
       final response = await _request('GET', '/api/auth/session', token: token);
+      await _syncServerCreatorId(response);
       return _accountEnvelope(response);
     } on HCVAuthException catch (error) {
       if (error.statusCode == 401) {
@@ -70,6 +71,7 @@ class HCVAuthService {
       },
     );
     await _storeReturnedToken(response);
+    await _syncServerCreatorId(response);
     return _accountEnvelope(response);
   }
 
@@ -84,6 +86,7 @@ class HCVAuthService {
       body: {'email': email.trim(), 'password': password, ...proof},
     );
     await _storeReturnedToken(response);
+    await _syncServerCreatorId(response);
     return _accountEnvelope(response);
   }
 
@@ -97,6 +100,7 @@ class HCVAuthService {
       token: token,
       body: {'creatorName': creatorName.trim()},
     );
+    await _syncServerCreatorId(response);
     return _accountEnvelope(response);
   }
 
@@ -199,6 +203,14 @@ class HCVAuthService {
     final token = response['token']?.toString() ?? '';
     if (token.isEmpty) return;
     await HCVSecureStore.write(_sessionTokenKey, token);
+  }
+
+  Future<void> _syncServerCreatorId(Map<String, dynamic> response) async {
+    final raw = response['account'];
+    if (raw is! Map) return;
+    final creatorId = raw['creatorId']?.toString().trim() ?? '';
+    if (creatorId.isEmpty) return;
+    await HCVIdentity().saveCreatorId(creatorId);
   }
 
   Map<String, dynamic> _accountEnvelope(Map<String, dynamic> response) {

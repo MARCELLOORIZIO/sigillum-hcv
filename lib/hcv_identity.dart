@@ -17,6 +17,15 @@ class HCVIdentity {
   static const String _kycLegalNameKey = "hcv_kyc_legal_name";
   static const String _kycCountryKey = "hcv_kyc_country";
 
+  Future<void> saveCreatorId(String creatorId) async {
+    final normalized = creatorId.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(creatorId, 'creatorId', 'Creator ID is empty');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_creatorIdKey, normalized);
+  }
+
   Future<void> saveCreatorName(String creatorName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_creatorNameKey, creatorName);
