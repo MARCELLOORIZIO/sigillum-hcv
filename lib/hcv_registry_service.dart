@@ -54,8 +54,20 @@ class HCVRegistryService {
     Duration(milliseconds: 750),
     Duration(milliseconds: 2000),
   ];
+  static const _publicationConfirmDelays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 250),
+    Duration(milliseconds: 750),
+  ];
   static const _legacyReadBaseUrl = 'https://hcv-registry-server.onrender.com';
   static final RegExp _hcvIdPattern = RegExp(r'^HCV-[A-F0-9]{16}$');
+
+  // Queue operations must be serialized across every service instance. The
+  // camera starts a background retry when it opens while a first capture can
+  // enqueue another certificate at the same time. Without one shared lock,
+  // two read/modify/write cycles on SharedPreferences can overwrite each
+  // other and lose the first freshly-created certificate.
+  static Future<void> _queueTail = Future<void>.value();
 
   final String baseUrl;
 
@@ -65,6 +77,23 @@ class HCVRegistryService {
       defaultValue: 'https://sigillum-registry-production.onrender.com',
     ),
   });
+
+  Future<T> _withQueueLock<T>(Future<T> Function() action) {
+    final previous = _queueTail;
+    final release = Completer<void>();
+    _queueTail = release.future;
+
+    return () async {
+      await previous;
+      try {
+        return await action();
+      } finally {
+        if (!release.isCompleted) {
+          release.complete();
+        }
+      }
+    }();
+  }
 
   Future<Map<String, dynamic>> uploadCertificateFile(String hcvPath) async {
     final file = File(hcvPath);
@@ -151,6 +180,11 @@ class HCVRegistryService {
         );
       }
 
+      // A successful POST is not enough to tell the UI that publication is
+      // complete. Confirm that this exact HCV-ID is readable from the primary
+      // production Registry before removing it from the persistent queue.
+      await _confirmCertificatePublished(hcvId);
+
       return decoded;
     } on HCVRegistryException {
       rethrow;
@@ -177,6 +211,40 @@ class HCVRegistryService {
     } finally {
       client.close(force: true);
     }
+  }
+
+  Future<void> _confirmCertificatePublished(String hcvId) async {
+    HCVRegistryException? lastError;
+
+    for (final delay in _publicationConfirmDelays) {
+      if (delay != Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+
+      try {
+        final certificate = await _fetchCertificateFromBase(baseUrl, hcvId);
+        final confirmedId = _extractHcvId(certificate);
+        if (confirmedId != hcvId) {
+          throw HCVRegistryException(
+            HCVRegistryFailureKind.invalidResponse,
+            'Il Registry ha restituito un certificato diverso da $hcvId.',
+          );
+        }
+        return;
+      } on HCVRegistryException catch (e) {
+        lastError = e;
+        if (e.kind != HCVRegistryFailureKind.notFound && !e.isRetryable) {
+          rethrow;
+        }
+      }
+    }
+
+    throw HCVRegistryException(
+      HCVRegistryFailureKind.server,
+      'Upload accettato, ma $hcvId non è ancora leggibile dal Registry primario: '
+      '${lastError?.message ?? 'conferma non disponibile'}',
+      statusCode: lastError?.statusCode,
+    );
   }
 
   Future<Map<String, dynamic>> fetchCertificate(String hcvId) async {
@@ -297,7 +365,11 @@ class HCVRegistryService {
     }
   }
 
-  Future<void> enqueueCertificateFile(String hcvPath) async {
+  Future<void> enqueueCertificateFile(String hcvPath) {
+    return _withQueueLock(() => _enqueueCertificateFileUnlocked(hcvPath));
+  }
+
+  Future<void> _enqueueCertificateFileUnlocked(String hcvPath) async {
     final normalizedPath = File(hcvPath).absolute.path;
     final pending = await _readPendingUploads();
     final existing = pending.indexWhere(
@@ -319,7 +391,11 @@ class HCVRegistryService {
     await _writePendingUploads(pending);
   }
 
-  Future<HCVRegistryRetryReport> retryPendingUploads() async {
+  Future<HCVRegistryRetryReport> retryPendingUploads() {
+    return _withQueueLock(_retryPendingUploadsUnlocked);
+  }
+
+  Future<HCVRegistryRetryReport> _retryPendingUploadsUnlocked() async {
     final pending = await _readPendingUploads();
     final remaining = <Map<String, dynamic>>[];
     final uploadedPaths = <String>{};
