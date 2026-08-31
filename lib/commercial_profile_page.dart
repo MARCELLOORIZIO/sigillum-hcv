@@ -68,7 +68,13 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'passwordChanged': 'Password aggiornata.',
       'noDevices': 'Nessun dispositivo disponibile.',
       'thisDevice': 'Questo dispositivo',
+      'otherDevice': 'Altro dispositivo',
       'lastSeen': 'Ultimo accesso',
+      'fingerprint': 'Impronta',
+      'revoke': 'REVOCA',
+      'revokeTitle': 'Revoca dispositivo',
+      'revokeBody': 'Questo dispositivo verrà disconnesso immediatamente e dovrà essere nuovamente autorizzato via email per accedere a SIGILLUM. Inserisci la password del tuo account per continuare.',
+      'revoked': 'Dispositivo revocato.',
     },
     'en': {
       'title': 'Account',
@@ -101,7 +107,13 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'passwordChanged': 'Password updated.',
       'noDevices': 'No devices available.',
       'thisDevice': 'This device',
+      'otherDevice': 'Other device',
       'lastSeen': 'Last access',
+      'fingerprint': 'Fingerprint',
+      'revoke': 'REVOKE',
+      'revokeTitle': 'Revoke device',
+      'revokeBody': 'This device will be signed out immediately and will require email approval before it can access SIGILLUM again. Enter your account password to continue.',
+      'revoked': 'Device revoked.',
     },
   };
 
@@ -137,7 +149,13 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'passwordChanged': 'Contraseña actualizada.',
       'noDevices': 'No hay dispositivos disponibles.',
       'thisDevice': 'Este dispositivo',
+      'otherDevice': 'Otro dispositivo',
       'lastSeen': 'Último acceso',
+      'fingerprint': 'Huella',
+      'revoke': 'REVOCAR',
+      'revokeTitle': 'Revocar dispositivo',
+      'revokeBody': 'Este dispositivo cerrará la sesión inmediatamente y deberá volver a autorizarse por email antes de acceder de nuevo a SIGILLUM. Introduce la contraseña de tu cuenta para continuar.',
+      'revoked': 'Dispositivo revocado.',
     },
     'ru': {
       'title': 'Аккаунт',
@@ -170,7 +188,13 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'passwordChanged': 'Пароль обновлён.',
       'noDevices': 'Нет доступных устройств.',
       'thisDevice': 'Это устройство',
+      'otherDevice': 'Другое устройство',
       'lastSeen': 'Последний вход',
+      'fingerprint': 'Отпечаток',
+      'revoke': 'ОТОЗВАТЬ',
+      'revokeTitle': 'Отозвать устройство',
+      'revokeBody': 'Сеанс на этом устройстве будет немедленно завершён. Для нового доступа к SIGILLUM потребуется повторное подтверждение по email. Введите пароль аккаунта для продолжения.',
+      'revoked': 'Устройство отозвано.',
     },
   };
 
@@ -261,9 +285,10 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     await _run(() async {
       final devices = await _auth.listDevices();
       if (!mounted) return;
-      await showDialog<void>(
+
+      final selected = await showDialog<Map<String, dynamic>>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: Text(_t('devices')),
           content: SizedBox(
             width: double.maxFinite,
@@ -284,25 +309,90 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
                               : Icons.devices_rounded,
                         ),
                         title: Text(
-                          current
-                              ? _t('thisDevice')
-                              : 'Dispositivo ${index + 1}',
+                          current ? _t('thisDevice') : _t('otherDevice'),
                         ),
                         subtitle: Text(
-                          '${_t('lastSeen')}: ${_date(item['lastSeenAt']?.toString())}',
+                          '${_t('lastSeen')}: ${_date(item['lastSeenAt']?.toString())}\n'
+                          '${_t('fingerprint')}: ${_fingerprintTail(item['fingerprint'])}',
                         ),
+                        trailing: current
+                            ? null
+                            : TextButton(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: SigillumTheme.danger,
+                                ),
+                                onPressed: () => Navigator.pop(dialogContext, item),
+                                child: Text(_t('revoke')),
+                              ),
                       );
                     },
                   ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('OK'),
             ),
           ],
         ),
       );
+
+      if (selected == null || !mounted) return;
+      if (selected['current'] == true) return;
+
+      final fingerprint = selected['fingerprint']?.toString().trim() ?? '';
+      if (fingerprint.isEmpty) return;
+
+      final password = TextEditingController();
+      final value = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(_t('revokeTitle')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_t('revokeBody')),
+              const SizedBox(height: 10),
+              Text(
+                '${_t('fingerprint')}: ${_fingerprintTail(fingerprint)}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: InputDecoration(labelText: _t('currentPassword')),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(_t('cancel')),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: SigillumTheme.danger,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, password.text),
+              child: Text(_t('revoke')),
+            ),
+          ],
+        ),
+      );
+      password.dispose();
+
+      if (value == null || value.isEmpty) return;
+      final response = await _auth.revokeDevice(
+        deviceKeyFingerprint: fingerprint,
+        password: value,
+      );
+      if (!mounted) return;
+      final serverMessage = response['message']?.toString().trim() ?? '';
+      setState(() {
+        _message = serverMessage.isNotEmpty ? serverMessage : _t('revoked');
+      });
     });
   }
 
@@ -412,6 +502,13 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       TextInput.finishAutofillContext(shouldSave: false);
       widget.onSessionInvalidated();
     });
+  }
+
+  String _fingerprintTail(dynamic raw) {
+    final value = raw?.toString().trim() ?? '';
+    if (value.isEmpty) return '—';
+    final tail = value.length > 12 ? value.substring(value.length - 12) : value;
+    return '…${tail.toUpperCase()}';
   }
 
   String _date(String? raw) {
