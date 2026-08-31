@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'hcvpack_player_page.dart';
+import 'hcvpack_provenance_gate_page.dart';
 import 'quick_hcv_media_gate_page.dart';
 import 'verify_page.dart';
 import 'registry_verify_page.dart';
@@ -49,12 +49,11 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
 
     if (lower.endsWith(".hcvpack")) {
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => HCVPackPlayerPage(
-            initialPath: path,
+          builder: (_) => HCVPackProvenanceGatePage(
+            path: path,
             languageCode: widget.languageCode,
           ),
         ),
@@ -64,12 +63,13 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
 
     if (lower.endsWith(".hcv")) {
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              VerifyPage(initialPath: path, languageCode: widget.languageCode),
+          builder: (_) => VerifyPage(
+            initialPath: path,
+            languageCode: widget.languageCode,
+          ),
         ),
       );
       return;
@@ -77,7 +77,6 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
 
     if (_isPhotoOrVideo(lower)) {
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -92,7 +91,6 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
 
     if (_isOtherMediaOrTextFile(lower)) {
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
