@@ -206,34 +206,9 @@ class _CameraPageState extends State<CameraPage> {
   String get _physicalProbeStatus => _c('physicalProbe');
 
   bool _hasRequiredParallax(Map<String, dynamic> probe) {
-    final geometry = probe['geometryChallenge'];
-    if (geometry is! Map) return false;
-
-    final matchedRegions = (geometry['matchedRegions'] as num?)?.toInt() ?? 0;
-    final motionMagnitude =
-        (geometry['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
-    final flowReliability =
-        (geometry['flowReliability'] as num?)?.toDouble() ?? 0.0;
-    final directionCoherence =
-        (geometry['directionCoherence'] as num?)?.toDouble() ?? 0.0;
-    final depthDispersion =
-        (geometry['depthDispersion'] as num?)?.toDouble() ?? 0.0;
-    final planarCoherence =
-        (geometry['planarCoherence'] as num?)?.toDouble() ?? 0.0;
-
-    final observable = matchedRegions >= 5 &&
-        motionMagnitude >= 0.16 &&
-        flowReliability >= 0.46;
-    if (!observable) return false;
-
-    final realityGeometry = depthDispersion >= 0.28 &&
-        directionCoherence >= 0.38 &&
-        planarCoherence <= 0.68;
-    final planarGeometry = depthDispersion <= 0.20 &&
-        directionCoherence >= 0.72 &&
-        planarCoherence >= 0.70;
-
-    return realityGeometry || planarGeometry;
+    // Parallax remains part of the probe as non-blocking diagnostic evidence.
+    // Photo and video capture must not require lateral phone movement.
+    return true;
   }
 
   Future<void> _showCaptureReadyMessage() async {
