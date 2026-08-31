@@ -133,6 +133,22 @@ class HCVAuthService {
         .toList(growable: false);
   }
 
+  Future<Map<String, dynamic>> revokeDevice({
+    required String deviceKeyFingerprint,
+    required String password,
+  }) async {
+    final token = await _requiredToken();
+    return _request(
+      'POST',
+      '/api/auth/devices/revoke',
+      token: token,
+      body: {
+        'deviceKeyFingerprint': deviceKeyFingerprint.trim().toLowerCase(),
+        'password': password,
+      },
+    );
+  }
+
   Future<void> logout({bool allDevices = false}) async {
     final token = await HCVSecureStore.read(_sessionTokenKey);
     try {
