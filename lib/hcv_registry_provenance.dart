@@ -90,18 +90,7 @@ class HCVRegistryProvenanceVerifier {
     if (legacy.state == HCVRegistryProvenanceState.notFound) {
       return primary;
     }
-    if (legacy.state == HCVRegistryProvenanceState.verifiedV2) {
-      return legacy;
-    }
-    if (legacy.state == HCVRegistryProvenanceState.invalid) {
-      return legacy;
-    }
-
-    return const HCVRegistryProvenanceCheck(
-      state: HCVRegistryProvenanceState.legacy,
-      message:
-          'Certificato presente nel Registry legacy, senza attestazione di provenienza v2.',
-    );
+    return legacy;
   }
 
   Future<HCVRegistryProvenanceCheck> _verifyFromBase({
