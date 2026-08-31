@@ -453,7 +453,9 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
-  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash() async {
+  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash({
+    bool includeTemporalVideoProbe = true,
+  }) async {
     final camera = controller;
     if (camera == null) {
       return {
@@ -473,6 +475,7 @@ class _CameraPageState extends State<CameraPage> {
       final analysis = await HCVLiveScreenProbe().analyzePreview(
         camera,
         restoreZoomLevel: currentZoom,
+        includeTemporalVideoProbe: includeTemporalVideoProbe,
       );
       analysis['flashSuppressedDuringProbe'] = shouldSuppressFlash;
       analysis['probeFlashMode'] = 'OFF';
@@ -555,7 +558,9 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       try {
-        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
+        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash(
+          includeTemporalVideoProbe: false,
+        );
         if (!_hasRequiredParallax(pendingLiveScreenProbe!)) {
           pendingLiveScreenProbe = null;
           pendingVideoLocation = null;
@@ -617,6 +622,9 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
+      // The live probe may have just stopped image streaming. Let AVFoundation
+      // settle before opening the user's real recording writer.
+      await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
 
@@ -666,9 +674,20 @@ class _CameraPageState extends State<CameraPage> {
         captureLocation: captureLocation,
       );
     } catch (e) {
-      setState(() {
-        status = '${_c('stopError')}: $e';
-      });
+      pendingVideoCapturedAt = null;
+      pendingVideoLocation = null;
+      pendingLiveScreenProbe = null;
+      try {
+        lastLiveSignals = await liveSignals.stopAndBuildSummary();
+      } catch (_) {
+        lastLiveSignals = null;
+      }
+      if (mounted) {
+        setState(() {
+          recording = false;
+          status = '${_c('stopError')}: $e';
+        });
+      }
     }
   }
 

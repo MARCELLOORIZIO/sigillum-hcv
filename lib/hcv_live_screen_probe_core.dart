@@ -7,6 +7,7 @@ class HCVLiveScreenProbe {
     int maxFrames = 45,
     double? restoreZoomLevel,
     bool useOpticalProbeZoom = true,
+    bool includeTemporalVideoProbe = true,
   }) async {
     if (!controller.value.isInitialized) {
       return _unknown('CAMERA_NOT_READY');
@@ -289,15 +290,20 @@ class HCVLiveScreenProbe {
       },
       'activeReasons': finalReasons,
       'geometryReasons': geometry.reasons,
-      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response, low-resolution camera-motion geometry, and a disposable pre-capture mini-video analyzed through the same optical and ML pipeline used for recorded video.',
+      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response and low-resolution camera-motion geometry; still-photo capture can additionally use a disposable pre-capture mini-video for temporal evidence.',
     };
 
-    final temporalProbe = await const HCVTemporalCaptureProbe().analyze(
-      controller,
-    );
+    final temporalProbe = includeTemporalVideoProbe
+        ? await const HCVTemporalCaptureProbe().analyze(controller)
+        : <String, dynamic>{
+            'type': 'SIGILLUM_PHOTO_TEMPORAL_VIDEO_PROBE_V1',
+            'analysisStatus': 'NOT_ANALYZED',
+            'reason': 'SKIPPED_FOR_NATIVE_VIDEO_CAPTURE',
+            'temporaryVideoDeletedAfterAnalysis': true,
+          };
     final temporalOptical = _stringMap(temporalProbe['screenReplayAnalysis']);
     final temporalMl = _stringMap(temporalProbe['mlScreenReplayAnalysis']);
-    final temporalAnalyzed =
+    final temporalAnalyzed = includeTemporalVideoProbe &&
         temporalProbe['analysisStatus'] == 'ANALYZED' &&
         (temporalOptical != null || temporalMl != null);
 
@@ -311,10 +317,11 @@ class HCVLiveScreenProbe {
     }
 
     activeLiveAnalysis['photoTemporalVideoProbe'] = temporalProbe;
-    activeLiveAnalysis['photoDecisionMethod'] =
-        'VIDEO_EQUIVALENT_PRE_CAPTURE_TEMPORAL_ANALYSIS';
+    activeLiveAnalysis['photoDecisionMethod'] = includeTemporalVideoProbe
+        ? 'VIDEO_EQUIVALENT_PRE_CAPTURE_TEMPORAL_ANALYSIS'
+        : 'NATIVE_VIDEO_CAPTURE_USES_POST_CAPTURE_TEMPORAL_ANALYSIS';
     activeLiveAnalysis['videoEquivalentAvailable'] =
-        videoEquivalentRisk != null;
+        includeTemporalVideoProbe && videoEquivalentRisk != null;
     if (videoEquivalentRisk != null) {
       activeLiveAnalysis['videoEquivalentDisplayRisk'] = videoEquivalentRisk
           .toJson();
