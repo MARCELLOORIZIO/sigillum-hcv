@@ -20,7 +20,7 @@ void main() {
     for (final token in <String>[
       'SIGILLUM_REGISTRY_VERIFIED',
       'LEGACY_REGISTRY_RECORD',
-      'REGISTRY_ATTESTATION_INVALID',
+      "status != 'SIGILLUM_REGISTRY_VERIFIED'",
       'certificateSha256',
       'contentSha256',
       'accountSubjectHash',
