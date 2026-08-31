@@ -1,0 +1,39 @@
+name: Validate non-blocking parallax patch
+
+on:
+  push:
+    branches:
+      - fix/non-blocking-parallax-20260901
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Check formatting of changed source
+        run: dart format --output=none --set-exit-if-changed lib/camera_page.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run capture contract tests
+        run: |
+          flutter test \
+            test/camera_ready_video_evidence_contract_test.dart \
+            test/photo_pre_capture_only_contract_test.dart \
+            test/camera_physical_scene_contract_test.dart
