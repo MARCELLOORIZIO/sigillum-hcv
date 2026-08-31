@@ -1,0 +1,94 @@
+name: Apply isolated non-blocking parallax patch
+
+on:
+  push:
+    branches:
+      - fix/non-blocking-parallax-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/non-blocking-parallax-20260901
+          fetch-depth: 0
+
+      - name: Make parallax non-blocking
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/camera_page.dart')
+          text = path.read_text()
+          old = '''  bool _hasRequiredParallax(Map<String, dynamic> probe) {
+            final geometry = probe['geometryChallenge'];
+            if (geometry is! Map) return false;
+
+            final matchedRegions = (geometry['matchedRegions'] as num?)?.toInt() ?? 0;
+            final motionMagnitude =
+                (geometry['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
+            final flowReliability =
+                (geometry['flowReliability'] as num?)?.toDouble() ?? 0.0;
+            final directionCoherence =
+                (geometry['directionCoherence'] as num?)?.toDouble() ?? 0.0;
+            final depthDispersion =
+                (geometry['depthDispersion'] as num?)?.toDouble() ?? 0.0;
+            final planarCoherence =
+                (geometry['planarCoherence'] as num?)?.toDouble() ?? 0.0;
+
+            final observable = matchedRegions >= 5 &&
+                motionMagnitude >= 0.16 &&
+                flowReliability >= 0.46;
+            if (!observable) return false;
+
+            final realityGeometry = depthDispersion >= 0.28 &&
+                directionCoherence >= 0.38 &&
+                planarCoherence <= 0.68;
+            final planarGeometry = depthDispersion <= 0.20 &&
+                directionCoherence >= 0.72 &&
+                planarCoherence >= 0.70;
+
+            return realityGeometry || planarGeometry;
+          }
+          '''
+          new = '''  bool _hasRequiredParallax(Map<String, dynamic> probe) {
+            // Parallax remains part of the probe as non-blocking diagnostic evidence.
+            // Photo and video capture must not require lateral phone movement.
+            return true;
+          }
+          '''
+
+          if text.count(old) != 1:
+              raise SystemExit('Expected exactly one original parallax helper; aborting')
+
+          patched = text.replace(old, new, 1)
+
+          # Guardrails: preserve the PHOTO temporal mini-video probe and the current
+          # iOS VIDEO handling; change only the shared parallax gate semantics.
+          if 'liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();' not in patched:
+              raise SystemExit('PHOTO live/temporal probe call not found; aborting')
+          if 'includeTemporalVideoProbe: false' not in patched:
+              raise SystemExit('Current VIDEO probe handling not found; aborting')
+          if patched.count('_hasRequiredParallax(') != 3:
+              raise SystemExit('Unexpected parallax call-site count; aborting')
+
+          path.write_text(patched)
+          PY
+
+          git diff --check
+          git diff -- lib/camera_page.dart
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/camera_page.dart
+          git commit -m "fix: make parallax non-blocking"
+          git push origin HEAD:fix/non-blocking-parallax-20260901
