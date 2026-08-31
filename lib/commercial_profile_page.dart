@@ -238,7 +238,10 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     final name = _name.text.trim();
     if (name.isEmpty) return;
     await _run(() async {
-      final envelope = await _auth.updateProfile(creatorName: name);
+      final envelope = await _auth.updateProfile(
+        creatorName: name,
+        languageCode: _languageCode,
+      );
       final raw = envelope['account'];
       if (!mounted) return;
       setState(() {
