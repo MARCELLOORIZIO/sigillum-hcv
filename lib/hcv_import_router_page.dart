@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'hcv_file_provenance_gate_page.dart';
 import 'hcvpack_provenance_gate_page.dart';
 import 'quick_hcv_media_gate_page.dart';
-import 'verify_page.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
 import 'verification_ui_copy.dart';
@@ -66,8 +66,8 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => VerifyPage(
-            initialPath: path,
+          builder: (_) => HCVFileProvenanceGatePage(
+            path: path,
             languageCode: widget.languageCode,
           ),
         ),
