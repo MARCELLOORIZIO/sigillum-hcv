@@ -26,48 +26,23 @@ jobs:
 
           path = Path('lib/camera_page.dart')
           text = path.read_text()
-          old = '''  bool _hasRequiredParallax(Map<String, dynamic> probe) {
-            final geometry = probe['geometryChallenge'];
-            if (geometry is! Map) return false;
 
-            final matchedRegions = (geometry['matchedRegions'] as num?)?.toInt() ?? 0;
-            final motionMagnitude =
-                (geometry['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
-            final flowReliability =
-                (geometry['flowReliability'] as num?)?.toDouble() ?? 0.0;
-            final directionCoherence =
-                (geometry['directionCoherence'] as num?)?.toDouble() ?? 0.0;
-            final depthDispersion =
-                (geometry['depthDispersion'] as num?)?.toDouble() ?? 0.0;
-            final planarCoherence =
-                (geometry['planarCoherence'] as num?)?.toDouble() ?? 0.0;
+          start_marker = "  bool _hasRequiredParallax(Map<String, dynamic> probe) {\n"
+          end_marker = "\n  Future<void> _showCaptureReadyMessage() async {"
 
-            final observable = matchedRegions >= 5 &&
-                motionMagnitude >= 0.16 &&
-                flowReliability >= 0.46;
-            if (!observable) return false;
+          if text.count(start_marker) != 1:
+              raise SystemExit('Expected exactly one parallax helper; aborting')
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
 
-            final realityGeometry = depthDispersion >= 0.28 &&
-                directionCoherence >= 0.38 &&
-                planarCoherence <= 0.68;
-            final planarGeometry = depthDispersion <= 0.20 &&
-                directionCoherence >= 0.72 &&
-                planarCoherence >= 0.70;
-
-            return realityGeometry || planarGeometry;
-          }
-          '''
-          new = '''  bool _hasRequiredParallax(Map<String, dynamic> probe) {
-            // Parallax remains part of the probe as non-blocking diagnostic evidence.
-            // Photo and video capture must not require lateral phone movement.
-            return true;
-          }
-          '''
-
-          if text.count(old) != 1:
-              raise SystemExit('Expected exactly one original parallax helper; aborting')
-
-          patched = text.replace(old, new, 1)
+          new_helper = (
+              "  bool _hasRequiredParallax(Map<String, dynamic> probe) {\n"
+              "    // Parallax remains part of the probe as non-blocking diagnostic evidence.\n"
+              "    // Photo and video capture must not require lateral phone movement.\n"
+              "    return true;\n"
+              "  }\n"
+          )
+          patched = text[:start] + new_helper + text[end:]
 
           # Guardrails: preserve the PHOTO temporal mini-video probe and the current
           # iOS VIDEO handling; change only the shared parallax gate semantics.
@@ -77,6 +52,8 @@ jobs:
               raise SystemExit('Current VIDEO probe handling not found; aborting')
           if patched.count('_hasRequiredParallax(') != 3:
               raise SystemExit('Unexpected parallax call-site count; aborting')
+          if "return true;\n  }\n\n  Future<void> _showCaptureReadyMessage() async {" not in patched:
+              raise SystemExit('Patched helper verification failed; aborting')
 
           path.write_text(patched)
           PY
