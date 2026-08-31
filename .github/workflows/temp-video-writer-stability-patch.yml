@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, 'avoid pre-capture writer collision') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,29 +23,29 @@ jobs:
           from pathlib import Path
 
           def replace_once(text, old, new, label):
-              count = text.count(old)
-              if count < 1:
+              if old not in text:
                   raise SystemExit(f'{label}: anchor missing')
               return text.replace(old, new, 1)
 
           core_path = Path('lib/hcv_live_screen_probe_core.dart')
           core = core_path.read_text()
 
-          core = replace_once(
-              core,
-              "    bool useOpticalProbeZoom = true,\n  }) async {",
-              "    bool useOpticalProbeZoom = true,\n    bool includeTemporalVideoProbe = true,\n  }) async {",
-              'core signature',
-          )
+          if 'bool includeTemporalVideoProbe = true' not in core:
+              core = replace_once(
+                  core,
+                  "    bool useOpticalProbeZoom = true,\n  }) async {",
+                  "    bool useOpticalProbeZoom = true,\n    bool includeTemporalVideoProbe = true,\n  }) async {",
+                  'core signature',
+              )
 
-          core = replace_once(
-              core,
-              "      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response, low-resolution camera-motion geometry, and a disposable pre-capture mini-video analyzed through the same optical and ML pipeline used for recorded video.',",
-              "      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response and low-resolution camera-motion geometry; still-photo capture can additionally use a disposable pre-capture mini-video for temporal evidence.',",
-              'core note',
-          )
+              core = replace_once(
+                  core,
+                  "      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response, low-resolution camera-motion geometry, and a disposable pre-capture mini-video analyzed through the same optical and ML pipeline used for recorded video.',",
+                  "      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response and low-resolution camera-motion geometry; still-photo capture can additionally use a disposable pre-capture mini-video for temporal evidence.',",
+                  'core note',
+              )
 
-          old_temporal = """    final temporalProbe = await const HCVTemporalCaptureProbe().analyze(
+              old_temporal = """    final temporalProbe = await const HCVTemporalCaptureProbe().analyze(
       controller,
     );
     final temporalOptical = _stringMap(temporalProbe['screenReplayAnalysis']);
@@ -70,7 +69,7 @@ jobs:
     activeLiveAnalysis['videoEquivalentAvailable'] =
         videoEquivalentRisk != null;
 """
-          new_temporal = """    final temporalProbe = includeTemporalVideoProbe
+              new_temporal = """    final temporalProbe = includeTemporalVideoProbe
         ? await const HCVTemporalCaptureProbe().analyze(controller)
         : <String, dynamic>{
             'type': 'SIGILLUM_PHOTO_TEMPORAL_VIDEO_PROBE_V1',
@@ -100,41 +99,42 @@ jobs:
     activeLiveAnalysis['videoEquivalentAvailable'] =
         includeTemporalVideoProbe && videoEquivalentRisk != null;
 """
-          core = replace_once(core, old_temporal, new_temporal, 'core temporal block')
-          core_path.write_text(core)
+              core = replace_once(core, old_temporal, new_temporal, 'core temporal block')
+              core_path.write_text(core)
 
           camera_path = Path('lib/camera_page.dart')
           camera = camera_path.read_text()
 
-          camera = replace_once(
-              camera,
-              "  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash() async {",
-              "  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash({\n    bool includeTemporalVideoProbe = true,\n  }) async {",
-              'camera probe wrapper signature',
-          )
+          if 'bool includeTemporalVideoProbe = true' not in camera:
+              camera = replace_once(
+                  camera,
+                  "  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash() async {",
+                  "  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash({\n    bool includeTemporalVideoProbe = true,\n  }) async {",
+                  'camera probe wrapper signature',
+              )
 
-          camera = replace_once(
-              camera,
-              "      final analysis = await HCVLiveScreenProbe().analyzePreview(\n        camera,\n        restoreZoomLevel: currentZoom,\n      );",
-              "      final analysis = await HCVLiveScreenProbe().analyzePreview(\n        camera,\n        restoreZoomLevel: currentZoom,\n        includeTemporalVideoProbe: includeTemporalVideoProbe,\n      );",
-              'camera probe wrapper call',
-          )
+              camera = replace_once(
+                  camera,
+                  "      final analysis = await HCVLiveScreenProbe().analyzePreview(\n        camera,\n        restoreZoomLevel: currentZoom,\n      );",
+                  "      final analysis = await HCVLiveScreenProbe().analyzePreview(\n        camera,\n        restoreZoomLevel: currentZoom,\n        includeTemporalVideoProbe: includeTemporalVideoProbe,\n      );",
+                  'camera probe wrapper call',
+              )
 
-          camera = replace_once(
-              camera,
-              "        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();",
-              "        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash(\n          includeTemporalVideoProbe: false,\n        );",
-              'video arm probe call',
-          )
+              camera = replace_once(
+                  camera,
+                  "        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();",
+                  "        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash(\n          includeTemporalVideoProbe: false,\n        );",
+                  'video arm probe call',
+              )
 
-          camera = replace_once(
-              camera,
-              "    try {\n      await controller!.startVideoRecording();\n      pendingVideoCapturedAt = DateTime.now();",
-              "    try {\n      // The live probe may have just stopped image streaming. Let AVFoundation\n      // settle before opening the user's real recording writer.\n      await _settleCameraAfterLiveProbe();\n      await controller!.startVideoRecording();\n      pendingVideoCapturedAt = DateTime.now();",
-              'video start settle',
-          )
+              camera = replace_once(
+                  camera,
+                  "    try {\n      await controller!.startVideoRecording();\n      pendingVideoCapturedAt = DateTime.now();",
+                  "    try {\n      // The live probe may have just stopped image streaming. Let AVFoundation\n      // settle before opening the user's real recording writer.\n      await _settleCameraAfterLiveProbe();\n      await controller!.startVideoRecording();\n      pendingVideoCapturedAt = DateTime.now();",
+                  'video start settle',
+              )
 
-          old_stop_catch = """    } catch (e) {
+              old_stop_catch = """    } catch (e) {
       setState(() {
         status = '${_c('stopError')}: $e';
       });
@@ -143,7 +143,7 @@ jobs:
 
   Future<void> takePhoto() async {
 """
-          new_stop_catch = """    } catch (e) {
+              new_stop_catch = """    } catch (e) {
       pendingVideoCapturedAt = null;
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
@@ -163,11 +163,12 @@ jobs:
 
   Future<void> takePhoto() async {
 """
-          camera = replace_once(camera, old_stop_catch, new_stop_catch, 'video stop recovery')
-          camera_path.write_text(camera)
+              camera = replace_once(camera, old_stop_catch, new_stop_catch, 'video stop recovery')
+              camera_path.write_text(camera)
 
           test_path = Path('test/video_native_capture_writer_stability_contract_test.dart')
-          test_path.write_text(r'''import 'dart:io';
+          if not test_path.exists():
+              test_path.write_text(r'''import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -200,7 +201,7 @@ void main() {
 
   test('video stop failure clears recording UI state', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    expect(camera, contains("status = '${_c('stopError')}: $e';"));
+    expect(camera, contains('pendingVideoCapturedAt = null;'));
     expect(camera, contains('recording = false;'));
   });
 }
@@ -212,6 +213,7 @@ void main() {
           git config user.name "SIGILLUM CI"
           git config user.email "ci@sigillum-hcv.com"
           git add lib/hcv_live_screen_probe_core.dart lib/camera_page.dart test/video_native_capture_writer_stability_contract_test.dart
+          git diff --cached --quiet && exit 0
           git diff --cached --check
           git commit -m "Video: avoid pre-capture writer collision on iOS"
           git push origin HEAD:fix/video-first-capture-ios-writer-20260831
