@@ -35,7 +35,7 @@ void main() {
     expect(source, contains('if (confirmedId != hcvId)'));
     expect(
       source,
-      contains('Upload accettato, ma $hcvId non è ancora leggibile dal Registry primario'),
+      contains(r'Upload accettato, ma $hcvId non è ancora leggibile dal Registry primario'),
     );
   });
 }
