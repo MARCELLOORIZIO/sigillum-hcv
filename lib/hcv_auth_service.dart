@@ -92,13 +92,18 @@ class HCVAuthService {
 
   Future<Map<String, dynamic>> updateProfile({
     required String creatorName,
+    String? languageCode,
   }) async {
     final token = await _requiredToken();
     final response = await _request(
       'POST',
       '/api/auth/profile',
       token: token,
-      body: {'creatorName': creatorName.trim()},
+      body: {
+        'creatorName': creatorName.trim(),
+        if (languageCode != null && languageCode.trim().isNotEmpty)
+          'languageCode': languageCode.trim(),
+      },
     );
     await _syncServerCreatorId(response);
     return _accountEnvelope(response);
