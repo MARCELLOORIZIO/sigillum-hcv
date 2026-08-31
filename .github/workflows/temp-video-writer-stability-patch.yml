@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, 'Video: avoid pre-capture writer collision on iOS') }}
+    if: ${{ !contains(github.event.head_commit.message, 'avoid pre-capture writer collision') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -182,14 +182,8 @@ void main() {
       core,
       contains('NATIVE_VIDEO_CAPTURE_USES_POST_CAPTURE_TEMPORAL_ANALYSIS'),
     );
-    expect(
-      camera,
-      contains('includeTemporalVideoProbe: false'),
-    );
-    expect(
-      camera,
-      contains('await _settleCameraAfterLiveProbe();'),
-    );
+    expect(camera, contains('includeTemporalVideoProbe: false'));
+    expect(camera, contains('await _settleCameraAfterLiveProbe();'));
   });
 
   test('photo path keeps temporal video probe enabled by default', () {
