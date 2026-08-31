@@ -18,7 +18,7 @@ void main() {
     expect(source, contains('bool _videoArmed = false;'));
 
     final probe = source.indexOf(
-      'pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();',
+      'pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash(',
     );
     final ready = source.indexOf("_c('armedVideoReady')");
     final record = source.indexOf('await controller!.startVideoRecording();');
