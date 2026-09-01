@@ -21,8 +21,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart
+        run: dart format --output=none --set-exit-if-changed lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart lib/registry_verify_page.dart test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_ocr_registry_recovery_contract_test.dart
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Run targeted verification tests
-        run: flutter test test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/camera_physical_scene_contract_test.dart
+        run: flutter test test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_ocr_registry_recovery_contract_test.dart test/photo_pre_capture_only_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/camera_physical_scene_contract_test.dart
