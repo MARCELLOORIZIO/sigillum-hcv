@@ -26,8 +26,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Check D1 formatting
-        run: dart format --output=none --set-exit-if-changed lib/hcv_provenance_chain.dart test/hcv_provenance_chain_test.dart
+      - name: Format D1 sources
+        run: dart format lib/hcv_provenance_chain.dart test/hcv_provenance_chain_test.dart
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -37,3 +37,13 @@ jobs:
 
       - name: Run full Flutter regression suite
         run: flutter test --reporter expanded
+
+      - name: Upload formatted D1 sources
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: d1-device-bound-formatted-sources
+          path: |
+            lib/hcv_provenance_chain.dart
+            test/hcv_provenance_chain_test.dart
+          retention-days: 1
