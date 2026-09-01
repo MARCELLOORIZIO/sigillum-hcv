@@ -34,8 +34,16 @@ jobs:
         run: flutter test test/ios_photo_picker_lifecycle_contract_test.dart
       - name: Test shared-media cold start
         run: flutter test test/shared_media_cold_start_contract_test.dart
-      - name: Test OCR and picker contracts
-        run: flutter test test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_ocr_registry_recovery_contract_test.dart
+      - name: Test OCR parser consensus
+        run: flutter test test/hcv_media_id_ocr_test.dart
+      - name: Test fast media precheck contract
+        run: flutter test test/fast_uncertified_media_precheck_contract_test.dart
+      - name: Test quick media gate contract
+        run: flutter test test/quick_hcv_media_gate_contract_test.dart
+      - name: Test iOS limited Photos picker contract
+        run: flutter test test/ios_photo_picker_limited_access_fallback_contract_test.dart
+      - name: Test Registry OCR recovery contract
+        run: flutter test test/photo_ocr_registry_recovery_contract_test.dart
       - name: Test preserved capture contracts
         run: flutter test test/photo_pre_capture_only_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/camera_physical_scene_contract_test.dart
       - name: Commit validated patch
