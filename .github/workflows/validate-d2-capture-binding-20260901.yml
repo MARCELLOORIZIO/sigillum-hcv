@@ -1,0 +1,48 @@
+name: Validate D2 Capture Binding
+
+on:
+  push:
+    branches:
+      - phase-d2-capture-binding-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  validate-d2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Format D2 sources
+        run: dart format lib/hcv_capture_provenance.dart test/hcv_capture_provenance_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run D2 regression tests
+        run: flutter test test/hcv_capture_provenance_test.dart --reporter expanded
+
+      - name: Run full Flutter regression suite
+        run: flutter test --reporter expanded
+
+      - name: Materialize only tested D2 formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/hcv_capture_provenance.dart test/hcv_capture_provenance_test.dart
+          if ! git diff --cached --quiet; then
+            git commit -m "style: materialize tested D2 formatting [skip ci]"
+            git push origin HEAD:phase-d2-capture-binding-20260901
+          fi
