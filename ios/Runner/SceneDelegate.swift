@@ -234,6 +234,16 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
         }
 
         self.localizedProductPrices(productIds: ids, result: result)
+      } else if call.method == "validateImageForOcr" {
+        guard
+          let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String,
+          !path.isEmpty
+        else {
+          result(false)
+          return
+        }
+        self.validateImageForOcr(path: path, result: result)
       } else if call.method == "extractVideoFrame" {
         guard
           let args = call.arguments as? [String: Any],
@@ -281,6 +291,16 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     mediaChannel = channel
   }
 
+
+  private func validateImageForOcr(path: String, result: @escaping FlutterResult) {
+    DispatchQueue.global(qos: .userInitiated).async {
+      let fileExists = FileManager.default.fileExists(atPath: path)
+      let image = fileExists ? UIImage(contentsOfFile: path) : nil
+      DispatchQueue.main.async {
+        result(image != nil)
+      }
+    }
+  }
 
   private func pickOriginalPhoto(result: @escaping FlutterResult) {
     guard let presenter = self.window?.rootViewController else {
