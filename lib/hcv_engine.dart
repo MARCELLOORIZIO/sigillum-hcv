@@ -117,7 +117,8 @@ class HCVEngine {
       throw StateError("Camera capture content is unavailable");
     }
 
-    final mediaType = currentContent["type"]?.toString().trim().toLowerCase();
+    final mediaType =
+        currentContent["type"]?.toString().trim().toLowerCase() ?? "";
     if (mediaType != "photo" && mediaType != "video") {
       throw StateError("Unsupported HCV camera capture type: $mediaType");
     }
