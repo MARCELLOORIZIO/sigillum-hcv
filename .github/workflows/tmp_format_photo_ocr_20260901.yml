@@ -1,0 +1,35 @@
+name: Temporary photo OCR formatter
+
+on:
+  push:
+    branches:
+      - fix/robust-photo-hcv-ocr-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Format changed Dart files
+        run: dart format lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart lib/registry_verify_page.dart test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_ocr_registry_recovery_contract_test.dart
+      - name: Commit formatting
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart lib/registry_verify_page.dart test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_ocr_registry_recovery_contract_test.dart
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "style: format photo OCR verification fix"
+          git push
