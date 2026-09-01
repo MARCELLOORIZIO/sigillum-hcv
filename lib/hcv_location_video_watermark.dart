@@ -71,7 +71,7 @@ class HCVLocationVideoWatermark {
         return outputPath;
       }
 
-      final logs = await session.getAllLogsAsString();
+      final logs = await session.getAllLogsAsString() ?? '';
       lastLogs = logs;
 
       // Archive 42 exposed a device-only iOS failure while resolving the
