@@ -119,11 +119,27 @@ class HCVActiveDisplayClassifier {
     final lowElectronicScene = electronicCueScore <= 0.46;
     final reflectedRealityEvidence = diffuseReflection && lowElectronicScene;
 
+    // Moire is useful supporting evidence but can also appear on real-world
+    // textures. Do not let a high moire score plus otherwise weak structure
+    // become physical display evidence by itself. Require two independent
+    // electronic families before the torch-resistance branch is allowed to
+    // label the scene as emissive. Thresholds retain the existing current-
+    // device monitor profiles while rejecting the Archive 42 real-scene
+    // false positives.
+    final rawElectronicDisplayStructure = electronicCueScore >= 0.48;
+    final electronicFamilies = <bool>[
+      refreshBand >= 0.135,
+      fineStripe >= 0.18,
+      fineGrid >= 0.45,
+      localFlicker >= 0.50,
+    ].where((present) => present).length;
+    final electronicDisplayStructure =
+        rawElectronicDisplayStructure && electronicFamilies >= 2;
+
     // A display can reflect the torch from its glass. That reflection is
     // generally concentrated in a small area while the emitted image remains
-    // stable elsewhere. Electronic structure is therefore required together
-    // with weak/directed illumination response.
-    final electronicDisplayStructure = electronicCueScore >= 0.48;
+    // stable elsewhere. Corroborated electronic structure is therefore
+    // required together with weak/directed illumination response.
     final directedGlare = hotspot >= 0.52 || coverage <= 0.34;
     final weakDiffuseResponse = illuminationResponseScore <= 0.58;
     final emissiveDisplayEvidence = challengeValid &&
@@ -138,6 +154,9 @@ class HCVActiveDisplayClassifier {
     if (reflectedRealityEvidence) {
       reasons.add('DIFFUSE_REFLECTED_SCENE_RESPONSE');
       reasons.add('LOW_ELECTRONIC_DISPLAY_STRUCTURE');
+    }
+    if (rawElectronicDisplayStructure && !electronicDisplayStructure) {
+      reasons.add('ACTIVE_ELECTRONIC_CUES_UNCORROBORATED');
     }
     if (emissiveDisplayEvidence) {
       reasons.add('EMISSIVE_SCENE_RESISTS_DIFFUSE_TORCH');
