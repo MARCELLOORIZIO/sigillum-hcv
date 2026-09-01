@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -334,9 +335,12 @@ class HCVProvenanceChain {
       return value.map<Object?>((item) => _normalizeJson(item)).toList();
     }
     if (value is Map) {
-      final keys = value.keys.map((key) => key.toString()).toList()..sort();
+      final entries = value.entries
+          .map((entry) => MapEntry(entry.key.toString(), entry.value))
+          .toList()
+        ..sort((left, right) => left.key.compareTo(right.key));
       return <String, dynamic>{
-        for (final key in keys) key: _normalizeJson(value[key]),
+        for (final entry in entries) entry.key: _normalizeJson(entry.value),
       };
     }
     throw ArgumentError('Unsupported canonical JSON value: ${value.runtimeType}');
