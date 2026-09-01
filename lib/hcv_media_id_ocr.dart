@@ -59,10 +59,7 @@ class HCVMediaIdOcr {
     return null;
   }
 
-  /// Chooses the HCV-ID supported by the largest number of independent OCR
-  /// readings. Ties preserve first-seen order, so the direct full-image pass
-  /// remains the deterministic fallback when every reading disagrees.
-  static String? selectConsensusCandidate(Iterable<String?> candidates) {
+  static List<String> rankConsensusCandidates(Iterable<String?> candidates) {
     final counts = <String, int>{};
     final firstSeen = <String>[];
 
@@ -80,18 +77,20 @@ class HCVMediaIdOcr {
       counts[candidate] = counts[candidate]! + 1;
     }
 
-    if (firstSeen.isEmpty) return null;
+    firstSeen.sort((left, right) {
+      final voteOrder = counts[right]!.compareTo(counts[left]!);
+      if (voteOrder != 0) return voteOrder;
+      return 0;
+    });
+    return firstSeen;
+  }
 
-    var winner = firstSeen.first;
-    var winnerVotes = counts[winner]!;
-    for (final candidate in firstSeen.skip(1)) {
-      final votes = counts[candidate]!;
-      if (votes > winnerVotes) {
-        winner = candidate;
-        winnerVotes = votes;
-      }
-    }
-    return winner;
+  /// Chooses the HCV-ID supported by the largest number of independent OCR
+  /// readings. Ties preserve first-seen order, so the direct full-image pass
+  /// remains the deterministic fallback when every reading disagrees.
+  static String? selectConsensusCandidate(Iterable<String?> candidates) {
+    final ranked = rankConsensusCandidates(candidates);
+    return ranked.isEmpty ? null : ranked.first;
   }
 
   /// Fast precheck: exactly one native OCR pass.
@@ -105,15 +104,12 @@ class HCVMediaIdOcr {
     return _recognizePath(path);
   }
 
-  /// Robust still-image OCR.
-  ///
-  /// A syntactically valid first OCR reading is not trusted by itself: SIGILLUM
-  /// also reads enlarged top crops and selects the candidate with the strongest
-  /// independent agreement. This prevents a single 6/0, B/8, or dropped-letter
-  /// OCR error from being sent to the Registry as though it were authoritative.
-  static Future<String?> extractFromImage(String path) async {
+  /// Returns every valid still-image HCV-ID candidate, ranked by independent
+  /// OCR agreement. Registry verification can use lower-ranked candidates only
+  /// after a higher-ranked candidate is confirmed absent online.
+  static Future<List<String>> extractCandidatesFromImage(String path) async {
     final source = File(path);
-    if (!await source.exists()) return null;
+    if (!await source.exists()) return const [];
 
     final detections = <String?>[];
     detections.add(await _recognizePath(path));
@@ -124,7 +120,7 @@ class HCVMediaIdOcr {
       final bytes = await source.readAsBytes();
       final decoded = img.decodeImage(bytes);
       if (decoded == null || decoded.width < 32 || decoded.height < 32) {
-        return selectConsensusCandidate(detections);
+        return rankConsensusCandidates(detections);
       }
 
       final tempDir = await getTemporaryDirectory();
@@ -170,7 +166,7 @@ class HCVMediaIdOcr {
         detections.add(await _recognizePath(candidate.path));
       }
     } catch (_) {
-      return selectConsensusCandidate(detections);
+      return rankConsensusCandidates(detections);
     } finally {
       for (final candidate in temporaryCandidates) {
         try {
@@ -181,7 +177,14 @@ class HCVMediaIdOcr {
       }
     }
 
-    return selectConsensusCandidate(detections);
+    return rankConsensusCandidates(detections);
+  }
+
+  /// Robust still-image OCR. The best candidate is selected from the same
+  /// ranked list that remains available to Registry 404 recovery.
+  static Future<String?> extractFromImage(String path) async {
+    final candidates = await extractCandidatesFromImage(path);
+    return candidates.isEmpty ? null : candidates.first;
   }
 
   static Future<String?> _recognizePath(String path) async {
