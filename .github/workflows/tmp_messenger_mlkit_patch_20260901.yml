@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch-and-validate:
-    if: github.event.head_commit.message == 'chore: add temporary Messenger MLKit crash patcher'
+    if: ${{ !startsWith(github.event.head_commit.message, 'fix: guard Messenger images') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -36,6 +36,6 @@ jobs:
           git config user.name "MARCELLOORIZIO"
           git config user.email "MARCELLOORIZIO@YAHOO.IT"
           git add lib/hcv_media_id_ocr.dart ios/Runner/SceneDelegate.swift ios/SigillumShareExtension/ShareViewController.swift test/messenger_mlkit_image_preflight_contract_test.dart
-          git diff --cached --exit-code && exit 1 || true
+          git diff --cached --quiet && exit 1 || true
           git commit -m "fix: guard Messenger images before ML Kit OCR"
           git push origin HEAD:fix/messenger-mlkit-image-preflight-20260901
