@@ -353,6 +353,41 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  Future<MapEntry<String, Map<String, dynamic>>>
+      _fetchCertificateWithPhotoOcrRecovery(String hcvId) async {
+    try {
+      return await _fetchCertificateWithLocalRecovery(hcvId);
+    } on HCVRegistryException catch (originalError) {
+      final path = mediaPath;
+      if (originalError.kind != HCVRegistryFailureKind.notFound ||
+          path == null) {
+        rethrow;
+      }
+
+      final lower = path.toLowerCase();
+      final isPhoto = lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.png');
+      if (!isPhoto) rethrow;
+
+      final candidates =
+          await HCVMediaIdOcr.extractCandidatesFromImage(path);
+      for (final candidate in candidates) {
+        if (candidate == hcvId) continue;
+        try {
+          return await _fetchCertificate(candidate);
+        } on HCVRegistryException catch (candidateError) {
+          if (candidateError.kind == HCVRegistryFailureKind.notFound) {
+            continue;
+          }
+          rethrow;
+        }
+      }
+
+      throw originalError;
+    }
+  }
+
   int _hexDistance(String left, String right) {
     final maxLength = left.length < right.length ? left.length : right.length;
     var distance = (left.length - right.length).abs() * 4;
@@ -806,7 +841,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     });
 
     try {
-      final resolved = await _fetchCertificateWithLocalRecovery(hcvId);
+      final resolved = await _fetchCertificateWithPhotoOcrRecovery(hcvId);
       hcvId = resolved.key;
       final cert = resolved.value;
       idController.text = hcvId;
