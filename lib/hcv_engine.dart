@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
+import 'hcv_capture_provenance.dart';
 import 'hcv_identity.dart';
 import 'hcv_keystore_signer.dart';
 
@@ -24,12 +25,13 @@ class HCVEngine {
   Map<String, dynamic> meta = {
     "app": "hcv_app",
     "format": "HCV",
-    "version": "2.0.0",    "device": Platform.isIOS
+    "version": "2.0.0",
+    "device": Platform.isIOS
         ? "ios"
         : Platform.isAndroid
             ? "android"
             : Platform.operatingSystem,
-};
+  };
 
   Map<String, dynamic> claims = {};
   Map<String, dynamic>? liveSignals;
@@ -107,6 +109,72 @@ class HCVEngine {
     };
   }
 
+  Future<void> _attachCaptureProvenance(Directory outputDirectory) async {
+    if (claims["captureSource"] != "HCV_CAMERA") return;
+
+    final currentContent = content;
+    if (currentContent == null) {
+      throw StateError("Camera capture content is unavailable");
+    }
+
+    final mediaType =
+        currentContent["type"]?.toString().trim().toLowerCase() ?? "";
+    if (mediaType != "photo" && mediaType != "video") {
+      throw StateError("Unsupported HCV camera capture type: $mediaType");
+    }
+
+    final existingProvenance = claims["provenance"];
+    if (existingProvenance is Map &&
+        existingProvenance["type"] == HCVCaptureProvenance.bindingSchema &&
+        existingProvenance["status"] == "VERIFIED") {
+      return;
+    }
+
+    final contentHash = currentContent["hash"]?.toString().trim() ?? "";
+    final rawSize = currentContent["size"];
+    final contentSize = rawSize is num ? rawSize.toInt() : 0;
+    final contentName = currentContent["name"]?.toString().trim() ?? "";
+    final capturedAtRaw = claims["captureCreatedAt"]?.toString().trim() ?? "";
+    final capturedAt = DateTime.tryParse(capturedAtRaw);
+
+    if (!RegExp(r"^[a-f0-9]{64}$").hasMatch(contentHash)) {
+      throw StateError("Camera capture SHA-256 is invalid");
+    }
+    if (contentSize <= 0) {
+      throw StateError("Camera capture size is unavailable");
+    }
+    if (contentName.isEmpty) {
+      throw StateError("Camera capture name is unavailable");
+    }
+    if (capturedAt == null) {
+      throw StateError("Camera capture timestamp is unavailable");
+    }
+
+    final rawIdentity = meta["identity"];
+    if (rawIdentity is! Map) {
+      throw StateError("HCV identity is unavailable for capture provenance");
+    }
+    final identity = Map<String, dynamic>.from(rawIdentity);
+
+    final binding = await HCVCaptureProvenance(
+      identityLoader: () async => identity,
+    ).bindFinalizedCapture(
+      outputDirectory: outputDirectory,
+      hcvId: hcvId,
+      sessionId: sessionId,
+      mediaType: mediaType,
+      contentHash: contentHash,
+      contentSize: contentSize,
+      contentName: contentName,
+      capturedAt: capturedAt,
+    );
+
+    claims = {
+      ...claims,
+      "provenance": binding.toClaim(hcvId: hcvId),
+    };
+  }
+
   Map<String, dynamic> _buildSignedPayload({
     required String rootHash,
   }) {
@@ -147,6 +215,10 @@ class HCVEngine {
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
+
+    // D2: bind the finalized PHOTO/VIDEO hash to this exact HCV session and
+    // device signing key before the certificate payload itself is signed.
+    await _attachCaptureProvenance(dir);
 
     final rootHash = _computeRootHash();
 
