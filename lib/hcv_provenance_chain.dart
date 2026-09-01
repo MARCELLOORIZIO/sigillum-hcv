@@ -254,8 +254,7 @@ class HCVProvenanceChain {
       }
 
       final rawInputHash = event['inputHash']?.toString() ?? '';
-      final rawDeviceFingerprint =
-          event['deviceFingerprint']?.toString() ?? '';
+      final rawDeviceFingerprint = event['deviceFingerprint']?.toString() ?? '';
       final inputHash = rawInputHash.toLowerCase();
       final deviceFingerprint = rawDeviceFingerprint.toLowerCase();
       if (!_sha256Pattern.hasMatch(inputHash) ||
@@ -300,9 +299,8 @@ class HCVProvenanceChain {
       }
       previousTimestamp = timestamp;
 
-      final expectedParent = index == 0
-          ? 'GENESIS'
-          : events[index - 1]['eventHash']?.toString();
+      final expectedParent =
+          index == 0 ? 'GENESIS' : events[index - 1]['eventHash']?.toString();
       if (event['parentEvent'] != expectedParent) {
         return _invalid('CHAIN', 'Broken parent link at event $index.', events);
       }
@@ -484,9 +482,8 @@ class HCVProvenanceChain {
     try {
       if (publicKey['modulus'] == 'LOCAL_DEV_PUBLIC_KEY' &&
           publicKey['exponent'] == 'LOCAL_DEV') {
-        final expected = sha256
-            .convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data'))
-            .toString();
+        final expected =
+            sha256.convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data')).toString();
         return signature == expected;
       }
 

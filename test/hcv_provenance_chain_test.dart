@@ -110,7 +110,8 @@ void main() {
   });
 
   test('D1 refuses a claimed device fingerprint not bound to signer', () async {
-    final dir = await Directory.systemTemp.createTemp('hcv_provenance_binding_');
+    final dir =
+        await Directory.systemTemp.createTemp('hcv_provenance_binding_');
     addTearDown(() => dir.delete(recursive: true));
     final chain = HCVProvenanceChain(
       logFile: File('${dir.path}/provenance.jsonl'),
@@ -256,9 +257,8 @@ void main() {
         )
         .toString();
     second['eventHash'] = newHash;
-    second['signature'] = sha256
-        .convert(utf8.encode('LOCAL_DEV_SIGNATURE:$newHash'))
-        .toString();
+    second['signature'] =
+        sha256.convert(utf8.encode('LOCAL_DEV_SIGNATURE:$newHash')).toString();
     lines[1] = jsonEncode(second);
     await setup.file.writeAsString('${lines.join('\n')}\n');
 
