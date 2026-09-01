@@ -85,8 +85,7 @@ class HCVActiveDisplayClassifier {
     final hotspot = flashHotspotConcentration.clamp(0.0, 1.0).toDouble();
     final broadDiffuseShape =
         (coverage * 0.55 + entropy * 0.45).clamp(0.0, 1.0).toDouble();
-    final liftStrength =
-        (measuredLiftRatio / 0.20).clamp(0.0, 1.0).toDouble();
+    final liftStrength = (measuredLiftRatio / 0.20).clamp(0.0, 1.0).toDouble();
     final illuminationResponseScore = challengeValid
         ? (liftStrength * 0.52 + broadDiffuseShape * 0.48)
             .clamp(0.0, 1.0)
@@ -101,14 +100,13 @@ class HCVActiveDisplayClassifier {
     final stripeCue = (fineStripe / 0.36).clamp(0.0, 1.0);
     final gridCue = (fineGrid / 0.82).clamp(0.0, 1.0);
     final moireCue = (moire / 0.42).clamp(0.0, 1.0);
-    final electronicCueScore =
-        (flickerCue * 0.26 +
-                refreshCue * 0.24 +
-                stripeCue * 0.16 +
-                gridCue * 0.18 +
-                moireCue * 0.16)
-            .clamp(0.0, 1.0)
-            .toDouble();
+    final electronicCueScore = (flickerCue * 0.26 +
+            refreshCue * 0.24 +
+            stripeCue * 0.16 +
+            gridCue * 0.18 +
+            moireCue * 0.16)
+        .clamp(0.0, 1.0)
+        .toDouble();
 
     final diffuseReflection = challengeValid &&
         measuredLiftRatio >= 0.07 &&
@@ -119,11 +117,27 @@ class HCVActiveDisplayClassifier {
     final lowElectronicScene = electronicCueScore <= 0.46;
     final reflectedRealityEvidence = diffuseReflection && lowElectronicScene;
 
+    // Moire is useful supporting evidence but can also appear on real-world
+    // textures. Do not let a high moire score plus otherwise weak structure
+    // become physical display evidence by itself. Require two independent
+    // electronic families before the torch-resistance branch is allowed to
+    // label the scene as emissive. Thresholds retain the existing current-
+    // device monitor profiles while rejecting the Archive 42 real-scene
+    // false positives.
+    final rawElectronicDisplayStructure = electronicCueScore >= 0.48;
+    final electronicFamilies = <bool>[
+      refreshBand >= 0.135,
+      fineStripe >= 0.18,
+      fineGrid >= 0.45,
+      localFlicker >= 0.50,
+    ].where((present) => present).length;
+    final electronicDisplayStructure =
+        rawElectronicDisplayStructure && electronicFamilies >= 2;
+
     // A display can reflect the torch from its glass. That reflection is
     // generally concentrated in a small area while the emitted image remains
-    // stable elsewhere. Electronic structure is therefore required together
-    // with weak/directed illumination response.
-    final electronicDisplayStructure = electronicCueScore >= 0.48;
+    // stable elsewhere. Corroborated electronic structure is therefore
+    // required together with weak/directed illumination response.
     final directedGlare = hotspot >= 0.52 || coverage <= 0.34;
     final weakDiffuseResponse = illuminationResponseScore <= 0.58;
     final emissiveDisplayEvidence = challengeValid &&
@@ -139,6 +153,9 @@ class HCVActiveDisplayClassifier {
       reasons.add('DIFFUSE_REFLECTED_SCENE_RESPONSE');
       reasons.add('LOW_ELECTRONIC_DISPLAY_STRUCTURE');
     }
+    if (rawElectronicDisplayStructure && !electronicDisplayStructure) {
+      reasons.add('ACTIVE_ELECTRONIC_CUES_UNCORROBORATED');
+    }
     if (emissiveDisplayEvidence) {
       reasons.add('EMISSIVE_SCENE_RESISTS_DIFFUSE_TORCH');
       reasons.add('ELECTRONIC_DISPLAY_CUES_PRESENT');
@@ -146,12 +163,11 @@ class HCVActiveDisplayClassifier {
     }
 
     if (emissiveDisplayEvidence && !reflectedRealityEvidence) {
-      final probability =
-          (electronicCueScore * 0.48 +
-                  emissiveIndependenceScore * 0.32 +
-                  hotspot * 0.20)
-              .clamp(0.0, 1.0)
-              .toDouble();
+      final probability = (electronicCueScore * 0.48 +
+              emissiveIndependenceScore * 0.32 +
+              hotspot * 0.20)
+          .clamp(0.0, 1.0)
+          .toDouble();
       return HCVActiveDisplayClassification(
         decision: 'NON_CONCLUSIVE',
         risk: 'MEDIUM',
@@ -165,12 +181,11 @@ class HCVActiveDisplayClassifier {
     }
 
     if (reflectedRealityEvidence && !emissiveDisplayEvidence) {
-      final probability =
-          ((1.0 - illuminationResponseScore) * 0.52 +
-                  electronicCueScore * 0.28 +
-                  hotspot * 0.20)
-              .clamp(0.0, 1.0)
-              .toDouble();
+      final probability = ((1.0 - illuminationResponseScore) * 0.52 +
+              electronicCueScore * 0.28 +
+              hotspot * 0.20)
+          .clamp(0.0, 1.0)
+          .toDouble();
       return HCVActiveDisplayClassification(
         decision: 'NO_DISPLAY_EVIDENCE',
         risk: 'LOW',
