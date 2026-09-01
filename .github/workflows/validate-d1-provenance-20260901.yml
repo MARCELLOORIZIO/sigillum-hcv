@@ -1,6 +1,9 @@
 name: Validate D1 Provenance Core
 
 on:
+  push:
+    branches:
+      - phase-d1-provenance-core-20260901
   workflow_dispatch:
 
 permissions:
