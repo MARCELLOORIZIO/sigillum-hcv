@@ -1,0 +1,21 @@
+name: Expose Build65 Display Recall Regression
+
+on:
+  push:
+    branches:
+      - phase-c-build65-spatial-multiframe-20260902
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Run Build65 regression only
+        run: flutter test test/build65_display_recall_regression_test.dart --reporter expanded
