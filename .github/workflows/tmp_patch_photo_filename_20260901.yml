@@ -23,53 +23,60 @@ jobs:
 
           path = Path('ios/Runner/SceneDelegate.swift')
           text = path.read_text()
+          marker_a = 'let suggestedLeaf = provider.suggestedName.map'
+          marker_b = 'let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent'
+          if marker_a in text and marker_b in text:
+              raise SystemExit(0)
 
-          old_picker = '''      let rawExtension = source.pathExtension
-      let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
-      let output = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "hcv_picker_\\(UUID().uuidString).\\(fileExtension)"
-      )
-'''
-          new_picker = '''      let rawExtension = source.pathExtension
-      let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
-      let suggestedLeaf = provider.suggestedName.map {
-        URL(fileURLWithPath: $0).lastPathComponent
-      }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-      let suggestedExtension = URL(fileURLWithPath: suggestedLeaf).pathExtension
-      let preservedName: String
-      if suggestedLeaf.isEmpty {
-        preservedName = "hcv_picker_\\(UUID().uuidString).\\(fileExtension)"
-      } else if suggestedExtension.isEmpty {
-        preservedName = "hcv_picker_\\(UUID().uuidString)_\\(suggestedLeaf).\\(fileExtension)"
-      } else {
-        preservedName = "hcv_picker_\\(UUID().uuidString)_\\(suggestedLeaf)"
-      }
-      let output = FileManager.default.temporaryDirectory.appendingPathComponent(
-        preservedName
-      )
-'''
-
-          old_original = '''    let rawExtension = URL(fileURLWithPath: resource.originalFilename).pathExtension
-    let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
-    let output = FileManager.default.temporaryDirectory.appendingPathComponent(
-      "hcv_original_\\(UUID().uuidString).\\(fileExtension)"
-    )
-'''
-          new_original = '''    let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent
-    let rawExtension = URL(fileURLWithPath: originalLeaf).pathExtension
-    let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
-    let preservedName = originalLeaf.isEmpty
-      ? "hcv_original_\\(UUID().uuidString).\\(fileExtension)"
-      : "hcv_original_\\(UUID().uuidString)_\\(originalLeaf)"
-    let output = FileManager.default.temporaryDirectory.appendingPathComponent(
-      preservedName
-    )
-'''
+          old_picker = (
+              '      let rawExtension = source.pathExtension\n'
+              '      let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension\n'
+              '      let output = FileManager.default.temporaryDirectory.appendingPathComponent(\n'
+              '        "hcv_picker_\\(UUID().uuidString).\\(fileExtension)"\n'
+              '      )\n'
+          )
+          new_picker = (
+              '      let rawExtension = source.pathExtension\n'
+              '      let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension\n'
+              '      let suggestedLeaf = provider.suggestedName.map {\n'
+              '        URL(fileURLWithPath: $0).lastPathComponent\n'
+              '      }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""\n'
+              '      let suggestedExtension = URL(fileURLWithPath: suggestedLeaf).pathExtension\n'
+              '      let preservedName: String\n'
+              '      if suggestedLeaf.isEmpty {\n'
+              '        preservedName = "hcv_picker_\\(UUID().uuidString).\\(fileExtension)"\n'
+              '      } else if suggestedExtension.isEmpty {\n'
+              '        preservedName = "hcv_picker_\\(UUID().uuidString)_\\(suggestedLeaf).\\(fileExtension)"\n'
+              '      } else {\n'
+              '        preservedName = "hcv_picker_\\(UUID().uuidString)_\\(suggestedLeaf)"\n'
+              '      }\n'
+              '      let output = FileManager.default.temporaryDirectory.appendingPathComponent(\n'
+              '        preservedName\n'
+              '      )\n'
+          )
+          old_original = (
+              '    let rawExtension = URL(fileURLWithPath: resource.originalFilename).pathExtension\n'
+              '    let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension\n'
+              '    let output = FileManager.default.temporaryDirectory.appendingPathComponent(\n'
+              '      "hcv_original_\\(UUID().uuidString).\\(fileExtension)"\n'
+              '    )\n'
+          )
+          new_original = (
+              '    let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent\n'
+              '    let rawExtension = URL(fileURLWithPath: originalLeaf).pathExtension\n'
+              '    let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension\n'
+              '    let preservedName = originalLeaf.isEmpty\n'
+              '      ? "hcv_original_\\(UUID().uuidString).\\(fileExtension)"\n'
+              '      : "hcv_original_\\(UUID().uuidString)_\\(originalLeaf)"\n'
+              '    let output = FileManager.default.temporaryDirectory.appendingPathComponent(\n'
+              '      preservedName\n'
+              '    )\n'
+          )
 
           if old_picker not in text:
-            raise SystemExit('PHPicker filename block not found')
+              raise SystemExit('PHPicker filename block not found')
           if old_original not in text:
-            raise SystemExit('PhotoKit filename block not found')
+              raise SystemExit('PhotoKit filename block not found')
 
           text = text.replace(old_picker, new_picker, 1)
           text = text.replace(old_original, new_original, 1)
