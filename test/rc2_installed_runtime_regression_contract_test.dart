@@ -33,9 +33,23 @@ void main() {
     final scene = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
     final import = File('lib/import_page.dart').readAsStringSync();
 
-    expect(scene, contains('private func finishOriginalPhotoPick(_ value: Any?)'));
+    expect(
+      scene,
+      contains('private func takePendingOriginalPhotoResult() -> FlutterResult?'),
+    );
+    expect(scene, contains('let flutterResult = pendingOriginalPhotoResult'));
+    expect(scene, contains('pendingOriginalPhotoResult = nil'));
+    expect(
+      scene,
+      contains('guard let flutterResult = takePendingOriginalPhotoResult() else {'),
+    );
     expect(scene, contains('picker.dismiss(animated: true) { [weak self] in'));
-    expect(scene, contains('self.resolveOriginalPhotoSelection(results)'));
+    expect(
+      scene,
+      contains('self.resolveOriginalPhotoSelection(results, result: flutterResult)'),
+    );
+    expect(scene, contains('if let staleResult = pendingOriginalPhotoResult {'));
+    expect(scene, contains('code: "PHOTO_PICK_STALE_RESET"'));
     expect(import, contains('bool _photoPickBusy = false;'));
     expect(import, contains('if (_photoPickBusy) return;'));
     expect(import, contains('setState(() => _photoPickBusy = false)'));
