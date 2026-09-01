@@ -10,17 +10,16 @@ void main() {
     expect(scene, contains('private func copyPickerPhotoRepresentation('));
     expect(
       scene,
-      contains('provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier)'),
+      contains(
+        'provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier)',
+      ),
     );
     expect(scene, contains('copyPickerPhotoRepresentation(selection)'));
 
     // Exact PHAsset bytes remain the preferred path whenever PhotoKit can
     // resolve the user-selected asset, preserving SIGILLUM hash verification.
     expect(scene, contains('PHAssetResource.assetResources(for: asset)'));
-    expect(
-      scene,
-      contains('PHAssetResourceManager.default().writeData('),
-    );
+    expect(scene, contains('PHAssetResourceManager.default().writeData('));
     expect(scene, contains('options.isNetworkAccessAllowed = true'));
 
     // Preserve a useful source filename in both picker paths. SIGILLUM photos
@@ -70,10 +69,7 @@ void main() {
     );
     expect(fallbackAfterFetch, greaterThan(fetchStart));
 
-    expect(
-      scene,
-      isNot(contains('Selected Photos asset was not found')),
-    );
+    expect(scene, isNot(contains('Selected Photos asset was not found')));
     expect(scene, isNot(contains('PHOTO_ASSET_NOT_FOUND')));
   });
 }

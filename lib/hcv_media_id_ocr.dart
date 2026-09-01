@@ -12,10 +12,7 @@ class HCVMediaIdOcr {
   static String? extractFromRecognizedText(String value) {
     if (value.trim().isEmpty) return null;
 
-    final segments = <String>[
-      ...value.split(RegExp(r'[\r\n]+')),
-      value,
-    ];
+    final segments = <String>[...value.split(RegExp(r'[\r\n]+')), value];
 
     for (final segment in segments) {
       final normalized = segment

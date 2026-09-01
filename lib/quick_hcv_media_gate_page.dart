@@ -93,10 +93,7 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
         // A single native OCR miss must not classify a certified photo as
         // uncertified. Still images get one bounded robust fallback; video
         // remains on its one-frame fast path to protect startup latency.
-        detectedId = await _ocrImage(
-          widget.path,
-          allowRobustFallback: true,
-        );
+        detectedId = await _ocrImage(widget.path, allowRobustFallback: true);
       } else if (lower.endsWith('.mp4') ||
           lower.endsWith('.mov') ||
           lower.endsWith('.m4v')) {

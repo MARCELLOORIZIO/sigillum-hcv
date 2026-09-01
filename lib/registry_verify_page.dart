@@ -43,8 +43,9 @@ HCVDisplayRiskClaimValues resolveHCVDisplayRiskClaimValues(
   final evidence = claims['displayRiskEvidence'];
   final signedRisk = evidence is Map ? evidence['risk']?.toString() : null;
   final signedScore = evidence is Map ? evidence['score']?.toString() : null;
-  final signedDecision =
-      evidence is Map ? evidence['decision']?.toString() : null;
+  final signedDecision = evidence is Map
+      ? evidence['decision']?.toString()
+      : null;
   final hasCompleteSignedEvidence =
       signedRisk != null && signedScore != null && signedDecision != null;
 
@@ -112,8 +113,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         .replaceAll('HCV_ID', 'HCV-')
         .replaceAll('HCV_', 'HCV-');
 
-    final match =
-        RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])').firstMatch(normalized);
+    final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')
+        .firstMatch(normalized);
     return match?.group(0);
   }
 
@@ -227,7 +228,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final framePath =
           '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      final command = "-y -ss $time -i '$videoPath' "
+      final command =
+          "-y -ss $time -i '$videoPath' "
           "-vf \"crop=iw:ih*0.40:0:0,scale=iw*2:ih*2,eq=contrast=1.6:brightness=0.05:saturation=1.2\" "
           "-frames:v 1 '$framePath'";
 
@@ -331,7 +333,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   Future<MapEntry<String, Map<String, dynamic>>>
-      _fetchCertificateWithLocalRecovery(String hcvId) async {
+  _fetchCertificateWithLocalRecovery(String hcvId) async {
     try {
       return await _fetchCertificate(hcvId);
     } on HCVRegistryException catch (error) {
@@ -354,7 +356,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   Future<MapEntry<String, Map<String, dynamic>>>
-      _fetchCertificateWithPhotoOcrRecovery(String hcvId) async {
+  _fetchCertificateWithPhotoOcrRecovery(String hcvId) async {
     try {
       return await _fetchCertificateWithLocalRecovery(hcvId);
     } on HCVRegistryException catch (originalError) {
@@ -365,13 +367,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
 
       final lower = path.toLowerCase();
-      final isPhoto = lower.endsWith('.jpg') ||
+      final isPhoto =
+          lower.endsWith('.jpg') ||
           lower.endsWith('.jpeg') ||
           lower.endsWith('.png');
       if (!isPhoto) rethrow;
 
-      final candidates =
-          await HCVMediaIdOcr.extractCandidatesFromImage(path);
+      final candidates = await HCVMediaIdOcr.extractCandidatesFromImage(path);
       for (final candidate in candidates) {
         if (candidate == hcvId) continue;
         try {
@@ -484,8 +486,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
     }
 
-    final comparableCount =
-        expected.length < current.length ? expected.length : current.length;
+    final comparableCount = expected.length < current.length
+        ? expected.length
+        : current.length;
     final requiredMatches = max(2, (comparableCount * 0.35).ceil());
 
     return matched >= requiredMatches;
@@ -623,8 +626,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (!mounted) return;
         setState(() {
           result = 'NOT ANALYZED';
-          status =
-              'File ricevuto ma non accessibile. Riprova da Verifica contenuto.';
+          status = 'File ricevuto ma non accessibile. Riprova da Verifica contenuto.';
         });
         return;
       }
@@ -652,8 +654,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       if (!mounted) return;
       setState(() {
         result = 'NOT ANALYZED';
-        status =
-            'Verifica automatica non completata. Il file e arrivato con un formato non leggibile automaticamente: inserisci HCV-ID e premi VERIFICA DA REGISTRY.';
+        status = 'Verifica automatica non completata. Il file e arrivato con un formato non leggibile automaticamente: inserisci HCV-ID e premi VERIFICA DA REGISTRY.';
       });
     }
   }
@@ -708,8 +709,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       setState(() {
         mediaPath = null;
         result = 'INVALID';
-        status =
-            'Qui devi selezionare il file ORIGINALE (mp4, jpg, pdf, txt, audio), NON .hcv o .hcvpack';
+        status = 'Qui devi selezionare il file ORIGINALE (mp4, jpg, pdf, txt, audio), NON .hcv o .hcvpack';
       });
 
       return;
@@ -859,12 +859,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (screenReplayAnalysis is Map) {
           screenReplaySegmentsAnalyzed =
               screenReplayAnalysis['segmentsAnalyzed']?.toString();
-          screenReplayWorstSecond =
-              screenReplayAnalysis['worstSegmentSecond']?.toString();
+          screenReplayWorstSecond = screenReplayAnalysis['worstSegmentSecond']
+              ?.toString();
           localTemporalFlickerScore =
               screenReplayAnalysis['localTemporalFlickerScore']?.toString();
-          refreshBandScore =
-              screenReplayAnalysis['refreshBandScore']?.toString();
+          refreshBandScore = screenReplayAnalysis['refreshBandScore']
+              ?.toString();
           pixelGridUniformityScore =
               screenReplayAnalysis['pixelGridUniformityScore']?.toString();
         }
@@ -872,19 +872,19 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (liveScreenProbe is Map) {
           liveProbeFrames = liveScreenProbe['framesAnalyzed']?.toString();
           liveProbeRisk = liveScreenProbe['screenReplayRisk']?.toString();
-          liveProbeAnalysisStatus =
-              liveScreenProbe['analysisStatus']?.toString();
+          liveProbeAnalysisStatus = liveScreenProbe['analysisStatus']
+              ?.toString();
           liveProbeReason = liveScreenProbe['reason']?.toString();
           liveProbeError = liveScreenProbe['error']?.toString();
           liveProbeLocalFlickerScore =
               liveScreenProbe['localTemporalFlickerScore']?.toString();
-          liveProbeRefreshBandScore =
-              liveScreenProbe['refreshBandScore']?.toString();
-          liveProbeFineStripeScore =
-              liveScreenProbe['fineStripeScore']?.toString();
+          liveProbeRefreshBandScore = liveScreenProbe['refreshBandScore']
+              ?.toString();
+          liveProbeFineStripeScore = liveScreenProbe['fineStripeScore']
+              ?.toString();
           liveProbeFineGridScore = liveScreenProbe['fineGridScore']?.toString();
-          liveProbeMoireFrequencyScore =
-              liveScreenProbe['moireFrequencyScore']?.toString();
+          liveProbeMoireFrequencyScore = liveScreenProbe['moireFrequencyScore']
+              ?.toString();
           liveProbeDynamicChallengeScore =
               liveScreenProbe['dynamicChallengeScore']?.toString();
           liveProbePersistentPatternScore =
@@ -996,8 +996,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         identityAssuranceLevel = identity['identityAssuranceLevel']?.toString();
         legalIdentityStatus = identity['legalIdentityStatus']?.toString();
         identityFingerprint = identity['identityFingerprint']?.toString();
-        creatorKeyFingerprint =
-            identity['devicePublicKeyFingerprint']?.toString();
+        creatorKeyFingerprint = identity['devicePublicKeyFingerprint']
+            ?.toString();
       }
 
       contentType = contentTypeForVerification;
@@ -1021,30 +1021,31 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           final sceneUncertain = _isDisplayNonConclusive;
           _setVerificationAxes(
             provenance: 'Verificata',
-            provenanceDetail:
-                'Certificato Registry valido, identita tecnica e contenuto collegati.',
-            integrity:
-                exactOriginal ? 'Originale integro' : 'Derivato compatibile',
+            provenanceDetail: 'Certificato Registry valido, identita tecnica e contenuto collegati.',
+            integrity: exactOriginal
+                ? 'Originale integro'
+                : 'Derivato compatibile',
             integrityDetail: exactOriginal
                 ? 'Hash SHA-256 identico all originale certificato.'
                 : 'Hash diverso, ma evidenze compatibili con il certificato.',
             scene: sceneWarning
                 ? 'Forte rischio display'
                 : sceneUncertain
-                    ? 'Non conclusiva'
-                    : 'Nessun indizio display',
+                ? 'Non conclusiva'
+                : 'Nessun indizio display',
             sceneDetail: sceneWarning
                 ? 'Piu segnali coerenti indicano una possibile ripresa da schermo.'
                 : sceneUncertain
-                    ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
-                    : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
+                ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
+                : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
             derivation: exactOriginal ? 'Non necessaria' : 'Compatibile',
             derivationDetail: exactOriginal
                 ? 'Il file corrisponde esattamente all originale.'
                 : 'Il file sembra un derivato o una versione ricompressa.',
           );
           if (sceneWarning) {
-            status = '$cleanStatus\n\n'
+            status =
+                '$cleanStatus\n\n'
                 'ATTENZIONE: possibile ripresa di uno schermo rilevata '
                 '($screenReplayRisk). Il media è collegato al certificato, '
                 'ma la scena non va trattata come ripresa diretta della realtà.';
@@ -1067,8 +1068,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             'SOCIAL VERIFIED OK',
           );
         } else {
-          status =
-              'SOCIAL VERIFIED OK\nHash non identico al file certificato. HCV-ID e certificato Registry sono validi; la causa della differenza non e determinabile automaticamente.';
+          status = 'SOCIAL VERIFIED OK\nHash non identico al file certificato. HCV-ID e certificato Registry sono validi; la causa della differenza non e determinabile automaticamente.';
 
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
           final hcvIdProvided = idController.text.trim().isNotEmpty;
@@ -1128,8 +1128,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               'SOCIAL VERIFIED OK',
             );
           } else {
-            status =
-                'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. Verifica social non conclusiva.';
+            status = 'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. Verifica social non conclusiva.';
 
             result = 'ID VALID / MEDIA NOT VERIFIED';
           }
@@ -1142,37 +1141,30 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         switch (e.kind) {
           case HCVRegistryFailureKind.notFound:
-            status =
-                'Certificato non presente nel Registry. Questo non dimostra che il file sia stato modificato: la pubblicazione online potrebbe essere ancora in attesa.';
+            status = 'Certificato non presente nel Registry. Questo non dimostra che il file sia stato modificato: la pubblicazione online potrebbe essere ancora in attesa.';
             result = 'REGISTRY NOT FOUND';
             _setVerificationAxes(
               provenance: 'Non presente online',
-              provenanceDetail:
-                  'Il Registry non contiene ancora questo HCV-ID. Il file non viene dichiarato alterato.',
+              provenanceDetail: 'Il Registry non contiene ancora questo HCV-ID. Il file non viene dichiarato alterato.',
               integrity: 'Non determinata',
-              integrityDetail:
-                  'Senza il certificato online non e possibile confrontare firma e contenuto.',
+              integrityDetail: 'Senza il certificato online non e possibile confrontare firma e contenuto.',
               scene: 'Non analizzata',
-              sceneDetail:
-                  'Il controllo della scena non viene eseguito senza certificato.',
+              sceneDetail: 'Il controllo della scena non viene eseguito senza certificato.',
               derivation: null,
               derivationDetail: null,
             );
             break;
           case HCVRegistryFailureKind.unavailable:
           case HCVRegistryFailureKind.server:
-            status =
-                'Registry temporaneamente non raggiungibile. Il file locale non viene considerato invalido; riprova quando la connessione e disponibile.';
+            status = 'Registry temporaneamente non raggiungibile. Il file locale non viene considerato invalido; riprova quando la connessione e disponibile.';
             result = 'REGISTRY UNAVAILABLE';
             _setVerificationAxes(
               provenance: 'Registry non raggiungibile',
-              provenanceDetail:
-                  'La verifica online non e stata completata per un problema di rete o del server.',
+              provenanceDetail: 'La verifica online non e stata completata per un problema di rete o del server.',
               integrity: 'Non determinata',
               integrityDetail: 'Nessun verdetto di modifica e stato emesso.',
               scene: 'Non analizzata',
-              sceneDetail:
-                  'Il controllo della scena non viene eseguito senza certificato.',
+              sceneDetail: 'Il controllo della scena non viene eseguito senza certificato.',
               derivation: null,
               derivationDetail: null,
             );
@@ -1182,13 +1174,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             result = 'REGISTRY ERROR';
             _setVerificationAxes(
               provenance: 'Verifica online incompleta',
-              provenanceDetail:
-                  'Il Registry ha risposto, ma la risposta non consente una verifica affidabile.',
+              provenanceDetail: 'Il Registry ha risposto, ma la risposta non consente una verifica affidabile.',
               integrity: 'Non determinata',
               integrityDetail: 'Nessun verdetto di modifica e stato emesso.',
               scene: 'Non analizzata',
-              sceneDetail:
-                  'Il controllo della scena non viene eseguito senza certificato valido.',
+              sceneDetail: 'Il controllo della scena non viene eseguito senza certificato valido.',
               derivation: null,
               derivationDetail: null,
             );
@@ -1203,8 +1193,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               integrity: 'Non verificata',
               integrityDetail: 'Integrita non dimostrata.',
               scene: 'Non analizzata',
-              sceneDetail:
-                  'Il controllo della scena non viene usato per questo verdetto.',
+              sceneDetail: 'Il controllo della scena non viene usato per questo verdetto.',
               derivation: null,
               derivationDetail: null,
             );
@@ -1264,8 +1253,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return score >= 70
         ? 'HIGH'
         : score >= 45
-            ? 'MEDIUM'
-            : 'LOW';
+        ? 'MEDIUM'
+        : 'LOW';
   }
 
   void _normalizeScreenReplayRiskFromClaims(Map<dynamic, dynamic> claims) {
@@ -1278,10 +1267,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final ml = claims['mlScreenReplayAnalysis'];
     final passive = claims['screenReplayAnalysis'];
     final mlClass = ml is Map ? ml['predictedClass']?.toString() : null;
-    final mlConfidence =
-        ml is Map ? _asDouble(ml['predictedClassConfidence']) : 0.0;
-    final mlScreenProbability =
-        ml is Map ? _asDouble(ml['screenProbability']) : 1.0;
+    final mlConfidence = ml is Map
+        ? _asDouble(ml['predictedClassConfidence'])
+        : 0.0;
+    final mlScreenProbability = ml is Map
+        ? _asDouble(ml['screenProbability'])
+        : 1.0;
     final passiveScore = passive is Map
         ? (passive['screenReplayRiskScore'] as num?)?.toInt()
         : null;
@@ -1290,7 +1281,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final liveFineStripe = _asDouble(liveProbe['fineStripeScore']);
     final livePersistent = _asDouble(liveProbe['persistentPatternScore']);
     final liveDynamic = _asDouble(liveProbe['dynamicChallengeScore']);
-    final closeDisplaySpatialTrace = (liveSignals is Map &&
+    final closeDisplaySpatialTrace =
+        (liveSignals is Map &&
             liveSignals['closeDisplaySpatialTrace'] == true) ||
         (liveSignals is Map &&
             liveSignals['dynamicScreenChallengeTrace'] == true &&
@@ -1300,7 +1292,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             liveDynamic < 0.18);
     final confirmedTemporalTrace =
         liveSignals is Map && liveSignals['confirmedDisplayTrace'] == true;
-    final mlSaysReality = mlClass != null &&
+    final mlSaysReality =
+        mlClass != null &&
         (mlClass.startsWith('REALITY_') || mlClass == 'REAL_SCENE') &&
         mlConfidence >= 0.60 &&
         mlScreenProbability < 0.35;
@@ -1323,8 +1316,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final downgradedScore = passiveScore ?? 34;
       screenReplayRiskScore = downgradedScore.toString();
       screenReplayRisk = _screenReplayRiskLabel(downgradedScore);
-      displayRiskDecision =
-          downgradedScore >= 45 ? 'NON_CONCLUSIVE' : 'NO_DISPLAY_EVIDENCE';
+      displayRiskDecision = downgradedScore >= 45
+          ? 'NON_CONCLUSIVE'
+          : 'NO_DISPLAY_EVIDENCE';
       return;
     }
 
@@ -1552,7 +1546,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return _v('verified');
     if (axis == 'integrity' &&
         value.contains('originale') &&
-        value.contains('integro')) return _v('originalIntact');
+        value.contains('integro'))
+      return _v('originalIntact');
     if (axis == 'integrity' && value.contains('derivato'))
       return _v('compatibleDerivative');
     if (axis == 'scene' &&
@@ -1747,10 +1742,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               Text(
                 _v('registryHelper'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               if (_hasVerificationAxes) ...[
                 const SizedBox(height: 18),
@@ -1787,8 +1779,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   color: _isStrongDisplayRisk
                       ? Colors.red
                       : _isDisplayNonConclusive
-                          ? Colors.orange
-                          : _axisColor(_effectiveSceneState),
+                      ? Colors.orange
+                      : _axisColor(_effectiveSceneState),
                 ),
                 if (_effectiveDerivationState != null) ...[
                   const SizedBox(height: 10),
