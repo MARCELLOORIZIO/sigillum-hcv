@@ -15,7 +15,8 @@ void main() {
     expect(source, contains('_isFontResolutionFailure(logs)'));
   });
 
-  test('archive 42 does not expose the complete FFmpeg banner in camera UI', () {
+  test('archive 42 does not expose the complete FFmpeg banner in camera UI',
+      () {
     final source =
         File('lib/hcv_location_video_watermark.dart').readAsStringSync();
 
@@ -28,7 +29,8 @@ void main() {
     );
   });
 
-  test('archive 42 patch does not change video codec or camera orchestration', () {
+  test('archive 42 patch does not change video codec or camera orchestration',
+      () {
     final watermark =
         File('lib/hcv_location_video_watermark.dart').readAsStringSync();
     final camera = File('lib/camera_page.dart').readAsStringSync();
@@ -37,6 +39,7 @@ void main() {
     expect(watermark, contains("'-preset veryfast '"));
     expect(watermark, contains("'-crf 23 '"));
     expect(camera, contains('includeTemporalVideoProbe: false'));
-    expect(camera, contains('HCVLocationVideoWatermark().createPublishedVideo'));
+    expect(
+        camera, contains('HCVLocationVideoWatermark().createPublishedVideo'));
   });
 }

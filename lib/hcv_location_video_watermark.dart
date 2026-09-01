@@ -154,14 +154,13 @@ class HCVLocationVideoWatermark {
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .where((line) {
-          final lower = line.toLowerCase();
-          return !lower.startsWith('ffmpeg version') &&
-              !lower.startsWith('copyright') &&
-              !lower.startsWith('built with') &&
-              !lower.startsWith('configuration:') &&
-              !RegExp(r'^lib[a-z0-9_]+\s+').hasMatch(lower);
-        })
-        .toList();
+      final lower = line.toLowerCase();
+      return !lower.startsWith('ffmpeg version') &&
+          !lower.startsWith('copyright') &&
+          !lower.startsWith('built with') &&
+          !lower.startsWith('configuration:') &&
+          !RegExp(r'^lib[a-z0-9_]+\s+').hasMatch(lower);
+    }).toList();
 
     if (lines.isEmpty) return 'errore FFmpeg senza dettagli';
     final tail = lines.length <= 6 ? lines : lines.sublist(lines.length - 6);
