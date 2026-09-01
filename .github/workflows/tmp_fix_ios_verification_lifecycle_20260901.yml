@@ -1,4 +1,4 @@
-name: Temporary iOS verification lifecycle fix
+name: Temporary iOS verification lifecycle validation
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-validate:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -20,238 +20,26 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Apply bounded photo precheck and lifecycle fixes
-        shell: bash
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-
-          def replace_once(path, old, new, marker=None):
-              p = Path(path)
-              text = p.read_text()
-              if marker and marker in text:
-                  return
-              if old not in text:
-                  raise SystemExit(f'Patch anchor not found in {path}: {old[:80]!r}')
-              p.write_text(text.replace(old, new, 1))
-
-          # 1) PHOTO quick precheck: one full OCR + one focused top crop only.
-          path = Path('lib/hcv_media_id_ocr.dart')
-          text = path.read_text()
-          if 'static Future<String?> extractFocusedFromImage' not in text:
-              anchor = '''  /// Returns every valid still-image HCV-ID candidate, ranked by independent\n'''
-              method = '''  /// Bounded still-image fallback for the public PHOTO precheck.\n  ///\n  /// The fast pass has already inspected the full image. This method performs\n  /// exactly one additional OCR reading on an enlarged top crop, where the\n  /// visible SIGILLUM HCV-ID watermark is rendered. Full multi-crop consensus\n  /// remains reserved for deeper Registry recovery.\n  static Future<String?> extractFocusedFromImage(String path) async {\n    final source = File(path);\n    if (!await source.exists()) return null;\n\n    File? candidate;\n    try {\n      final bytes = await source.readAsBytes();\n      final decoded = img.decodeImage(bytes);\n      if (decoded == null || decoded.width < 32 || decoded.height < 32) {\n        return null;\n      }\n\n      final cropHeight = max(\n        32,\n        min(decoded.height, (decoded.height * 0.28).round()),\n      );\n      final cropWidth = max(32, (decoded.width * 0.98).round());\n      final cropped = img.copyCrop(\n        decoded,\n        x: 0,\n        y: 0,\n        width: cropWidth,\n        height: cropHeight,\n      );\n      final targetWidth = min(2000, max(1000, cropped.width * 3));\n      final targetHeight = max(\n        120,\n        (cropped.height * targetWidth / cropped.width).round(),\n      );\n      final enlarged = img.copyResize(\n        cropped,\n        width: targetWidth,\n        height: targetHeight,\n        interpolation: img.Interpolation.cubic,\n      );\n\n      final tempDir = await getTemporaryDirectory();\n      candidate = File(\n        p.join(\n          tempDir.path,\n          'hcv_id_ocr_focused_${DateTime.now().microsecondsSinceEpoch}.png',\n        ),\n      );\n      await candidate.writeAsBytes(img.encodePng(enlarged), flush: true);\n      return await _recognizePath(candidate.path);\n    } catch (_) {\n      return null;\n    } finally {\n      try {\n        if (candidate != null && await candidate.exists()) {\n          await candidate.delete();\n        }\n      } catch (_) {}\n    }\n  }\n\n'''
-              if anchor not in text:
-                  raise SystemExit('Focused OCR insertion anchor not found')
-              path.write_text(text.replace(anchor, method + anchor, 1))
-
-          replace_once(
-              'lib/quick_hcv_media_gate_page.dart',
-              '''  Future<String?> _ocrImage(\n    String sourcePath, {\n    bool allowRobustFallback = false,\n  }) async {\n    final fast = await HCVMediaIdOcr.extractFastFromImage(sourcePath);\n    if (fast != null || !allowRobustFallback) return fast;\n    return HCVMediaIdOcr.extractFromImage(sourcePath);\n  }\n''',
-              '''  Future<String?> _ocrImage(\n    String sourcePath, {\n    bool allowFocusedFallback = false,\n  }) async {\n    final fast = await HCVMediaIdOcr.extractFastFromImage(sourcePath);\n    if (fast != null || !allowFocusedFallback) return fast;\n    return HCVMediaIdOcr.extractFocusedFromImage(sourcePath);\n  }\n''',
-              marker='allowFocusedFallback = false',
-          )
-          replace_once(
-              'lib/quick_hcv_media_gate_page.dart',
-              '''        // A single native OCR miss must not classify a certified photo as\n        // uncertified. Still images get one bounded robust fallback; video\n        // remains on its one-frame fast path to protect startup latency.\n        detectedId = await _ocrImage(widget.path, allowRobustFallback: true);\n''',
-              '''        // A single native OCR miss must not classify a certified photo as\n        // uncertified. Still images get one focused top-crop fallback only;\n        // the full multi-crop consensus remains a deeper Registry recovery.\n        detectedId = await _ocrImage(widget.path, allowFocusedFallback: true);\n''',
-              marker='allowFocusedFallback: true',
-          )
-
-          # Pass the already-detected ID forward so RegistryVerifyPage does not OCR again.
-          replace_once(
-              'lib/registry_verify_page.dart',
-              '''class RegistryVerifyPage extends StatefulWidget {\n  final String? initialMediaPath;\n  final String languageCode;\n\n  const RegistryVerifyPage({\n    super.key,\n    this.initialMediaPath,\n    this.languageCode = 'it',\n  });\n''',
-              '''class RegistryVerifyPage extends StatefulWidget {\n  final String? initialMediaPath;\n  final String? initialHcvId;\n  final String languageCode;\n\n  const RegistryVerifyPage({\n    super.key,\n    this.initialMediaPath,\n    this.initialHcvId,\n    this.languageCode = 'it',\n  });\n''',
-              marker='final String? initialHcvId;',
-          )
-          replace_once(
-              'lib/registry_verify_page.dart',
-              '''      final detectedId = await detectHcvIdFromMediaPath(path);\n\n      if (!mounted) return;\n''',
-              '''      final suppliedId = widget.initialHcvId?.trim().toUpperCase();\n      final detectedId = suppliedId != null &&\n              RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(suppliedId)\n          ? suppliedId\n          : await detectHcvIdFromMediaPath(path);\n\n      if (!mounted) return;\n''',
-              marker="final suppliedId = widget.initialHcvId?.trim().toUpperCase();",
-          )
-          replace_once(
-              'lib/quick_hcv_media_gate_page.dart',
-              '''        builder: (_) => RegistryVerifyPage(\n          initialMediaPath: widget.path,\n          languageCode: widget.languageCode,\n        ),\n''',
-              '''        builder: (_) => RegistryVerifyPage(\n          initialMediaPath: widget.path,\n          initialHcvId: detectedId,\n          languageCode: widget.languageCode,\n        ),\n''',
-              marker='initialHcvId: detectedId,',
-          )
-
-          # 2) Host app share handoff: queue until after first frame, deduplicate,
-          # and route through the lightweight import router instead of starting
-          # Registry OCR directly during cold start.
-          replace_once(
-              'lib/user_home_page.dart',
-              "import 'registry_verify_page.dart';\n",
-              '',
-              marker=None,
-          )
-          replace_once(
-              'lib/user_home_page.dart',
-              '''  String? _lastOpenedSharedPath;\n  String languageCode = SigillumCopy.initialLanguageCode();\n''',
-              '''  String? _lastOpenedSharedPath;\n  String? _pendingSharedPath;\n  bool _sharedOpenScheduled = false;\n  String languageCode = SigillumCopy.initialLanguageCode();\n''',
-              marker='bool _sharedOpenScheduled = false;',
-          )
-          text = Path('lib/user_home_page.dart').read_text()
-          text = text.replace('_openImportedPath(path);', '_queueImportedPath(path);', 2)
-          old_block = '''  void _openImportedPath(String path) {\n    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;\n    _lastOpenedSharedPath = path;\n\n    final lower = path.toLowerCase();\n    if (lower.endsWith('.txt')) {\n      File(path)\n          .readAsString()\n          .then((sharedText) {\n            if (!mounted) return;\n            Navigator.push(\n              context,\n              MaterialPageRoute(\n                builder: (_) => TextSocialVerifyPage(\n                  languageCode: languageCode,\n                  initialText: sharedText,\n                ),\n              ),\n            );\n          })\n          .catchError((_) {});\n      return;\n    }\n    final isMedia =\n        lower.endsWith('.mp4') ||\n        lower.endsWith('.mov') ||\n        lower.endsWith('.jpg') ||\n        lower.endsWith('.jpeg') ||\n        lower.endsWith('.png') ||\n        lower.endsWith('.txt') ||\n        lower.endsWith('.pdf') ||\n        lower.endsWith('.mp3') ||\n        lower.endsWith('.wav');\n\n    Navigator.push(\n      context,\n      MaterialPageRoute(\n        builder: (_) => isMedia\n            ? RegistryVerifyPage(\n                initialMediaPath: path,\n                languageCode: languageCode,\n              )\n            : HCVImportRouterPage(path: path, languageCode: languageCode),\n      ),\n    );\n  }\n'''
-          new_block = '''  void _queueImportedPath(String path) {\n    if (!mounted ||\n        path.isEmpty ||\n        _lastOpenedSharedPath == path ||\n        _pendingSharedPath == path) {\n      return;\n    }\n\n    _pendingSharedPath = path;\n    if (_sharedOpenScheduled) return;\n    _sharedOpenScheduled = true;\n\n    WidgetsBinding.instance.addPostFrameCallback((_) {\n      _sharedOpenScheduled = false;\n      if (!mounted) return;\n      final pending = _pendingSharedPath;\n      _pendingSharedPath = null;\n      if (pending != null && pending.isNotEmpty) {\n        _openImportedPath(pending);\n      }\n    });\n  }\n\n  Future<void> _openImportedPath(String path) async {\n    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;\n    if (!await File(path).exists()) return;\n    if (!mounted) return;\n    _lastOpenedSharedPath = path;\n\n    final lower = path.toLowerCase();\n    if (lower.endsWith('.txt')) {\n      try {\n        final sharedText = await File(path).readAsString();\n        if (!mounted) return;\n        await Navigator.push(\n          context,\n          MaterialPageRoute(\n            builder: (_) => TextSocialVerifyPage(\n              languageCode: languageCode,\n              initialText: sharedText,\n            ),\n          ),\n        );\n      } catch (_) {}\n      return;\n    }\n\n    await Navigator.push(\n      context,\n      MaterialPageRoute(\n        builder: (_) => HCVImportRouterPage(\n          path: path,\n          languageCode: languageCode,\n        ),\n      ),\n    );\n  }\n'''
-          if '_queueImportedPath(String path)' not in text:
-              if old_block not in text:
-                  raise SystemExit('Shared import routing block not found')
-              text = text.replace(old_block, new_block, 1)
-          Path('lib/user_home_page.dart').write_text(text)
-
-          # 3) Native photo picker: global busy state ends as soon as the picker
-          # delegate returns. Async file resolution receives its own callback.
-          scene = Path('ios/Runner/SceneDelegate.swift')
-          text = scene.read_text()
-          if 'private func takePendingOriginalPhotoResult()' not in text:
-              old = '''  private func pickOriginalPhoto(result: @escaping FlutterResult) {\n    guard pendingOriginalPhotoResult == nil else {\n      result(FlutterError(\n        code: "PHOTO_PICK_BUSY",\n        message: "Another original-photo selection is already active",\n        details: nil\n      ))\n      return\n    }\n\n    // PHPicker grants access to the item explicitly chosen by the user and\n    // must remain usable even when Photos permission is LIMITED or DENIED.\n    // If full PHAsset access is available, resolution below still prefers the\n    // original PHAssetResource bytes for exact SIGILLUM hash verification.\n    guard let presenter = self.window?.rootViewController else {\n      result(FlutterError(\n        code: "PHOTO_PICK_NO_PRESENTER",\n        message: "Unable to present Photos picker",\n        details: nil\n      ))\n      return\n    }\n    pendingOriginalPhotoResult = result\n    var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())\n    configuration.filter = .images\n    configuration.selectionLimit = 1\n    configuration.preferredAssetRepresentationMode = .current\n    let picker = PHPickerViewController(configuration: configuration)\n    picker.delegate = self\n    presenter.present(picker, animated: true)\n  }\n\n  private func finishOriginalPhotoPick(_ value: Any?) {\n    guard let flutterResult = pendingOriginalPhotoResult else { return }\n    pendingOriginalPhotoResult = nil\n    flutterResult(value)\n  }\n\n  private func finishOriginalPhotoPick(error: FlutterError) {\n    guard let flutterResult = pendingOriginalPhotoResult else { return }\n    pendingOriginalPhotoResult = nil\n    flutterResult(error)\n  }\n'''
-              new = '''  private func pickOriginalPhoto(result: @escaping FlutterResult) {\n    guard let presenter = self.window?.rootViewController else {\n      result(FlutterError(\n        code: "PHOTO_PICK_NO_PRESENTER",\n        message: "Unable to present Photos picker",\n        details: nil\n      ))\n      return\n    }\n\n    if let staleResult = pendingOriginalPhotoResult {\n      if presenter.presentedViewController is PHPickerViewController {\n        result(FlutterError(\n          code: "PHOTO_PICK_BUSY",\n          message: "Another original-photo selection is already active",\n          details: nil\n        ))\n        return\n      }\n      pendingOriginalPhotoResult = nil\n      staleResult(FlutterError(\n        code: "PHOTO_PICK_STALE_RESET",\n        message: "A stale photo selection was reset",\n        details: nil\n      ))\n    }\n\n    // PHPicker grants access to the item explicitly chosen by the user and\n    // must remain usable even when Photos permission is LIMITED or DENIED.\n    // If full PHAsset access is available, resolution below still prefers the\n    // original PHAssetResource bytes for exact SIGILLUM hash verification.\n    pendingOriginalPhotoResult = result\n    var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())\n    configuration.filter = .images\n    configuration.selectionLimit = 1\n    configuration.preferredAssetRepresentationMode = .current\n    let picker = PHPickerViewController(configuration: configuration)\n    picker.delegate = self\n    presenter.present(picker, animated: true)\n  }\n\n  private func takePendingOriginalPhotoResult() -> FlutterResult? {\n    let flutterResult = pendingOriginalPhotoResult\n    pendingOriginalPhotoResult = nil\n    return flutterResult\n  }\n'''
-              if old not in text:
-                  raise SystemExit('Native picker lifecycle block not found')
-              text = text.replace(old, new, 1)
-
-              text = text.replace(
-                  '''  private func copyPickerPhotoRepresentation(\n    _ selection: PHPickerResult,\n    originalError: FlutterError? = nil\n  ) {\n''',
-                  '''  private func copyPickerPhotoRepresentation(\n    _ selection: PHPickerResult,\n    result: @escaping FlutterResult,\n    originalError: FlutterError? = nil\n  ) {\n''',
-                  1,
-              )
-              text = text.replace('''      finishOriginalPhotoPick(error: originalError ?? FlutterError(\n''', '''      result(originalError ?? FlutterError(\n''', 1)
-              text = text.replace('''          self.finishOriginalPhotoPick(error: originalError ?? FlutterError(\n''', '''          result(originalError ?? FlutterError(\n''', 2)
-              text = text.replace('''          self.finishOriginalPhotoPick(output.path)\n''', '''          result(output.path)\n''', 1)
-
-              text = text.replace(
-                  '''  private func resolveOriginalPhotoSelection(_ results: [PHPickerResult]) {\n    guard let selection = results.first else {\n      finishOriginalPhotoPick(nil)\n      return\n    }\n''',
-                  '''  private func resolveOriginalPhotoSelection(\n    _ results: [PHPickerResult],\n    result: @escaping FlutterResult\n  ) {\n    guard let selection = results.first else {\n      result(nil)\n      return\n    }\n''',
-                  1,
-              )
-              text = text.replace('copyPickerPhotoRepresentation(selection)\n      return', 'copyPickerPhotoRepresentation(selection, result: result)\n      return', 3)
-              text = text.replace(
-                  '''          self.copyPickerPhotoRepresentation(\n            selection,\n            originalError: FlutterError(\n''',
-                  '''          self.copyPickerPhotoRepresentation(\n            selection,\n            result: result,\n            originalError: FlutterError(\n''',
-                  1,
-              )
-              text = text.replace('''          self.finishOriginalPhotoPick(output.path)\n''', '''          result(output.path)\n''', 1)
-              text = text.replace(
-                  '''  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {\n    picker.dismiss(animated: true) { [weak self] in\n      guard let self = self else { return }\n      self.resolveOriginalPhotoSelection(results)\n    }\n  }\n''',
-                  '''  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {\n    guard let flutterResult = takePendingOriginalPhotoResult() else {\n      picker.dismiss(animated: true)\n      return\n    }\n    picker.dismiss(animated: true) { [weak self] in\n      guard let self = self else {\n        flutterResult(nil)\n        return\n      }\n      self.resolveOriginalPhotoSelection(results, result: flutterResult)\n    }\n  }\n''',
-                  1,
-              )
-              scene.write_text(text)
-
-          # Update the existing limited-access contract for the new callback boundary.
-          p = Path('test/ios_photo_picker_limited_access_fallback_contract_test.dart')
-          text = p.read_text()
-          text = text.replace(
-              "      'private func finishOriginalPhotoPick(_ value: Any?)',",
-              "      'private func takePendingOriginalPhotoResult() -> FlutterResult?',",
-          )
-          p.write_text(text)
-
-          Path('test/photo_quick_negative_latency_contract_test.dart').write_text(r'''import 'dart:io';
-
-import 'package:flutter_test/flutter_test.dart';
-
-void main() {
-  test('negative PHOTO precheck is bounded to fast plus one focused OCR pass', () {
-    final gate = File('lib/quick_hcv_media_gate_page.dart').readAsStringSync();
-    final ocr = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
-
-    expect(gate, contains('HCVMediaIdOcr.extractFastFromImage(sourcePath)'));
-    expect(gate, contains('HCVMediaIdOcr.extractFocusedFromImage(sourcePath)'));
-    expect(gate, contains('allowFocusedFallback: true'));
-    expect(gate, isNot(contains('allowRobustFallback: true')));
-
-    final imageMethodStart = gate.indexOf('Future<String?> _ocrImage(');
-    final videoMethodStart = gate.indexOf('Future<String?> _checkVideo()', imageMethodStart);
-    expect(imageMethodStart, greaterThanOrEqualTo(0));
-    expect(videoMethodStart, greaterThan(imageMethodStart));
-    final quickImageBlock = gate.substring(imageMethodStart, videoMethodStart);
-    expect(quickImageBlock, isNot(contains('extractFromImage(sourcePath)')));
-
-    expect(ocr, contains('static Future<String?> extractFocusedFromImage'));
-    expect(ocr, contains('(decoded.height * 0.28).round()'));
-    expect(ocr, contains('hcv_id_ocr_focused_'));
-    expect(ocr, contains('static Future<List<String>> extractCandidatesFromImage'));
-    expect(ocr, contains('final fractions = <double>[0.18, 0.28, 0.42]'));
-  });
-}
-''')
-
-          Path('test/ios_photo_picker_lifecycle_contract_test.dart').write_text(r'''import 'dart:io';
-
-import 'package:flutter_test/flutter_test.dart';
-
-void main() {
-  test('iOS original-photo picker cannot remain globally busy after selection', () {
-    final scene = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
-
-    expect(scene, contains('private func takePendingOriginalPhotoResult() -> FlutterResult?'));
-    expect(scene, contains('pendingOriginalPhotoResult = nil'));
-    expect(scene, contains('PHOTO_PICK_STALE_RESET'));
-    expect(scene, contains('presenter.presentedViewController is PHPickerViewController'));
-
-    final delegateStart = scene.indexOf(
-      'func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult])',
-    );
-    expect(delegateStart, greaterThanOrEqualTo(0));
-    final delegateBlock = scene.substring(delegateStart);
-    final takeIndex = delegateBlock.indexOf('takePendingOriginalPhotoResult()');
-    final resolveIndex = delegateBlock.indexOf('resolveOriginalPhotoSelection(');
-    expect(takeIndex, greaterThanOrEqualTo(0));
-    expect(resolveIndex, greaterThan(takeIndex));
-
-    expect(
-      scene,
-      contains('resolveOriginalPhotoSelection(results, result: flutterResult)'),
-    );
-    expect(
-      scene,
-      contains('copyPickerPhotoRepresentation(selection, result: result)'),
-    );
-  });
-}
-''')
-
-          Path('test/shared_media_cold_start_contract_test.dart').write_text(r'''import 'dart:io';
-
-import 'package:flutter_test/flutter_test.dart';
-
-void main() {
-  test('shared media waits for a frame and enters the lightweight import router', () {
-    final home = File('lib/user_home_page.dart').readAsStringSync();
-
-    expect(home, contains('_queueImportedPath(path);'));
-    expect(home, contains('WidgetsBinding.instance.addPostFrameCallback'));
-    expect(home, contains('if (!await File(path).exists()) return;'));
-    expect(home, contains('builder: (_) => HCVImportRouterPage('));
-    expect(home, isNot(contains("import 'registry_verify_page.dart';")));
-    expect(home, isNot(contains('initialMediaPath: path')));
-  });
-}
-''')
-          PY
+      - name: Apply source patch
+        run: python3 .github/scripts/fix_ios_verification_lifecycle_20260901.py
       - name: Format Dart sources
-        run: dart format lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart lib/registry_verify_page.dart lib/user_home_page.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_quick_negative_latency_contract_test.dart test/ios_photo_picker_lifecycle_contract_test.dart test/shared_media_cold_start_contract_test.dart
+        run: dart format lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart lib/registry_verify_page.dart lib/user_home_page.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_quick_negative_latency_contract_test.dart test/ios_photo_picker_lifecycle_contract_test.dart test/shared_media_cold_start_contract_test.dart
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - name: Test new verification lifecycle regressions
+      - name: Test new lifecycle regressions
         run: flutter test test/photo_quick_negative_latency_contract_test.dart test/ios_photo_picker_lifecycle_contract_test.dart test/shared_media_cold_start_contract_test.dart
-      - name: Test preserved OCR and picker contracts
+      - name: Test OCR and picker contracts
         run: flutter test test/hcv_media_id_ocr_test.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_ocr_registry_recovery_contract_test.dart
-      - name: Test preserved PHOTO VIDEO capture contracts
+      - name: Test preserved capture contracts
         run: flutter test test/photo_pre_capture_only_contract_test.dart test/camera_ready_video_evidence_contract_test.dart test/camera_physical_scene_contract_test.dart
       - name: Commit validated patch
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ios/Runner/SceneDelegate.swift lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart lib/registry_verify_page.dart lib/user_home_page.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_quick_negative_latency_contract_test.dart test/ios_photo_picker_lifecycle_contract_test.dart test/shared_media_cold_start_contract_test.dart
+          git add ios/Runner/SceneDelegate.swift lib/hcv_media_id_ocr.dart lib/quick_hcv_media_gate_page.dart lib/registry_verify_page.dart lib/user_home_page.dart test/fast_uncertified_media_precheck_contract_test.dart test/quick_hcv_media_gate_contract_test.dart test/ios_photo_picker_limited_access_fallback_contract_test.dart test/photo_quick_negative_latency_contract_test.dart test/ios_photo_picker_lifecycle_contract_test.dart test/shared_media_cold_start_contract_test.dart
           if git diff --cached --quiet; then
             exit 0
           fi
