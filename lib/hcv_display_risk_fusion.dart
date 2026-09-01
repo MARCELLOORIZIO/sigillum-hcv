@@ -314,6 +314,29 @@ class HCVDisplayRiskFusion {
             (mlConfidence == null || mlConfidence >= 0.70));
     final mlRealityStrong =
         mlSaysReality && (mlConfidence ?? 0.0) >= 0.90 && mlScore <= 2;
+    final mlFramesAnalyzed = (ml?['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final mlStrongScreenFrameCount =
+        (ml?['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final mlSignals = _signals(ml);
+    final mlFullFrameRisk =
+        (mlSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final mlContentAreaRisk =
+        (mlSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+    final mlPersistentVideoEvidence = mlSaysScreen &&
+        mlFramesAnalyzed >= 3 &&
+        mlStrongScreenFrameCount >= 3 &&
+        mlStrongScreenFrameCount * 4 >= mlFramesAnalyzed * 3 &&
+        (mlAverageFrameScore ?? 0.0) >= 90.0 &&
+        (mlScreenProbability ?? 0.0) >= 0.93 &&
+        (mlConfidence ?? 0.0) >= 0.85;
+    final mlDualRegionPhotoEvidence = mlSaysScreen &&
+        mlFramesAnalyzed == 1 &&
+        mlFullFrameRisk >= 94 &&
+        mlContentAreaRisk >= 90 &&
+        (mlScreenProbability ?? 0.0) >= 0.97 &&
+        (mlConfidence ?? 0.0) >= 0.90;
+    final mlPersistentCorroboratedEvidence =
+        mlPersistentVideoEvidence || mlDualRegionPhotoEvidence;
     final mlOpticalCorroborated = mlStrong &&
         !reflectedRealityEvidence &&
         (liveUnifiedDisplaySignature ||
@@ -359,6 +382,9 @@ class HCVDisplayRiskFusion {
     final geometryReality =
         reflectedRealityEvidence || geometrySceneClass == 'REALITY';
     final geometryPlanar = geometrySceneClass == 'PLANAR';
+    final mlGeometryOverride = !reflectedRealityEvidence &&
+        geometrySceneClass == 'REALITY' &&
+        mlPersistentCorroboratedEvidence;
 
     final strongDisplayFamilies = <String>{};
     if (liveTemporal) strongDisplayFamilies.add('LIVE_TEMPORAL');
@@ -413,9 +439,21 @@ class HCVDisplayRiskFusion {
       score = max(rawScore, 70).clamp(70, 100).toInt();
     } else if (mlOpticalCorroborated) {
       decision = 'STRONG_DISPLAY_RISK';
-      score = max(max(rawScore, mlStrongestFrameScore), 85)
-          .clamp(85, 100)
-          .toInt();
+      score =
+          max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
+    } else if (mlGeometryOverride) {
+      decision = 'STRONG_DISPLAY_RISK';
+      score =
+          max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
+      if (mlPersistentVideoEvidence) {
+        reasons.add('ML_SCREEN_MULTI_FRAME_PERSISTENCE_CONFIRMED');
+      }
+      if (mlDualRegionPhotoEvidence) {
+        reasons.add('ML_SCREEN_DUAL_REGION_CONFIRMED');
+      }
+      reasons.add(
+        'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE',
+      );
     } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
@@ -427,7 +465,8 @@ class HCVDisplayRiskFusion {
     } else if (independentRealityAgreement) {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 20);
-      reasons.add('INDEPENDENT_REALITY_AGREEMENT_OVERRIDES_TEMPORAL_ONLY_SIGNAL');
+      reasons
+          .add('INDEPENDENT_REALITY_AGREEMENT_OVERRIDES_TEMPORAL_ONLY_SIGNAL');
     } else if (mlRealityStrong) {
       if (geometryReality && !hasAnyEvidence && !activeDisplayEvidence) {
         decision = 'NO_DISPLAY_EVIDENCE';

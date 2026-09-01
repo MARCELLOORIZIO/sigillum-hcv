@@ -87,7 +87,8 @@ Map<String, dynamic> _videoRealMl() => {
 
 void main() {
   group('Phase C ML/geometry corroboration regressions', () {
-    test('PHOTO monitor dual-region ML agreement resolves geometry conflict', () {
+    test('PHOTO monitor dual-region ML agreement resolves geometry conflict',
+        () {
       final result = HCVDisplayRiskFusion.combine([
         _geometryRealityLive(),
         _photoMonitorMl(),
@@ -108,7 +109,8 @@ void main() {
       );
     });
 
-    test('VIDEO monitor persistent strong ML frames resolve geometry conflict', () {
+    test('VIDEO monitor persistent strong ML frames resolve geometry conflict',
+        () {
       final result = HCVDisplayRiskFusion.combine([
         _geometryRealityLive(),
         _videoMonitorMl(),
@@ -129,7 +131,8 @@ void main() {
       );
     });
 
-    test('PHOTO real scene is not promoted by the geometry-conflict exception', () {
+    test('PHOTO real scene is not promoted by the geometry-conflict exception',
+        () {
       final result = HCVDisplayRiskFusion.combine([
         _geometryRealityLive(),
         _photoRealMl(),
