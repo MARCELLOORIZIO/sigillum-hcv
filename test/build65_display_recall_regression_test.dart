@@ -67,7 +67,8 @@ Map<String, dynamic> _videoBuild65Live() => {
       'screenReplayRiskScore': 45,
       'displayRiskDecision': 'NON_CONCLUSIVE',
       'sceneClass': 'UNKNOWN',
-      'reason': 'ACTIVE_V5|ACTIVE_CHALLENGE_INDETERMINATE|GEOMETRY_RESPONSE_AMBIGUOUS',
+      'reason':
+          'ACTIVE_V5|ACTIVE_CHALLENGE_INDETERMINATE|GEOMETRY_RESPONSE_AMBIGUOUS',
       'signals': const <String, dynamic>{
         'rawActiveDisplayEvidence': false,
         'activeIlluminationDisplayEvidence': false,
@@ -142,7 +143,8 @@ Map<String, dynamic> _videoRealityMl() => {
 
 void main() {
   group('Build 65 physical display recall regressions', () {
-    test('PHOTO monitor spatially corroborated ML survives false reality geometry',
+    test(
+        'PHOTO monitor spatially corroborated ML survives false reality geometry',
         () {
       final result = combinePhotoDisplayRiskFromPreCaptureEvidence([
         _photoBuild65Live(),
@@ -155,7 +157,8 @@ void main() {
       expect(result.reasons, contains('ML_SCREEN_DUAL_REGION_CONFIRMED'));
     });
 
-    test('VIDEO monitor 4-of-4 medium-or-strong screen frames resolves UNKNOWN geometry',
+    test(
+        'VIDEO monitor 4-of-4 medium-or-strong screen frames resolves UNKNOWN geometry',
         () {
       final result = combineVideoDisplayRiskFromCaptureEvidence([
         _videoBuild65Live(),

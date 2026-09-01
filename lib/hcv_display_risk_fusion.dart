@@ -40,8 +40,7 @@ class HCVDisplayRiskFusion {
     final confidence =
         (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
     final signals = _signals(ml);
-    final fullFrameRisk =
-        (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final fullFrameRisk = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
     final contentAreaRisk =
         (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
 
@@ -69,8 +68,7 @@ class HCVDisplayRiskFusion {
     final confidence =
         (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
     final signals = _signals(ml);
-    final fullFrameRisk =
-        (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final fullFrameRisk = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
     final contentAreaRisk =
         (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
     final strongestFrameScore = max(score, maxFrameScore);
@@ -94,10 +92,10 @@ class HCVDisplayRiskFusion {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
     final postCaptureMl =
         _firstOfType(allAvailable, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
-    final spatialPostCaptureMl = liveCaptureOnly &&
-            hasSpatialScreenCorroboration(postCaptureMl)
-        ? postCaptureMl
-        : null;
+    final spatialPostCaptureMl =
+        liveCaptureOnly && hasSpatialScreenCorroboration(postCaptureMl)
+            ? postCaptureMl
+            : null;
     final available = liveCaptureOnly
         ? allAvailable
             .where(
