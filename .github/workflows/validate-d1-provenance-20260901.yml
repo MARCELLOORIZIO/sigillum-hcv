@@ -1,0 +1,39 @@
+name: Validate D1 Provenance Core
+
+on:
+  push:
+    branches:
+      - phase-d1-provenance-core-20260901
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-d1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check D1 formatting
+        run: dart format --output=none --set-exit-if-changed lib/hcv_provenance_chain.dart test/hcv_provenance_chain_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run D1 regression tests
+        run: flutter test test/hcv_provenance_chain_test.dart --reporter expanded
+
+      - name: Run full Flutter regression suite
+        run: flutter test --reporter expanded
