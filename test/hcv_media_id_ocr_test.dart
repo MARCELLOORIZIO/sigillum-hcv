@@ -25,5 +25,48 @@ void main() {
         'HCV-9DB918C9EC74451F',
       );
     });
+
+    test('consensus rejects a single 6-to-0 OCR error', () {
+      expect(
+        HCVMediaIdOcr.selectConsensusCandidate(const [
+          'HCV-80DF7C6F1B0B4B36',
+          'HCV-80DF7C6F1B6B4B36',
+          'HCV-80DF7C6F1B6B4B36',
+        ]),
+        'HCV-80DF7C6F1B6B4B36',
+      );
+    });
+
+    test('consensus rejects a malformed direct reading when crops agree', () {
+      expect(
+        HCVMediaIdOcr.selectConsensusCandidate(const [
+          'HCV-DBDEC479CD146DCE',
+          'HCV-DBDEC4C79CD146DC',
+          'HCV-DBDEC4C79CD146DC',
+        ]),
+        'HCV-DBDEC4C79CD146DC',
+      );
+    });
+
+    test('single robust reading remains usable after a fast-pass miss', () {
+      expect(
+        HCVMediaIdOcr.selectConsensusCandidate(const [
+          null,
+          'HCV-D2BEECE9BB114783',
+          null,
+        ]),
+        'HCV-D2BEECE9BB114783',
+      );
+    });
+
+    test('ties keep the first reading deterministically', () {
+      expect(
+        HCVMediaIdOcr.selectConsensusCandidate(const [
+          'HCV-D2BEECE9BB114783',
+          'HCV-80DF7C6F1B6B4B36',
+        ]),
+        'HCV-D2BEECE9BB114783',
+      );
+    });
   });
 }

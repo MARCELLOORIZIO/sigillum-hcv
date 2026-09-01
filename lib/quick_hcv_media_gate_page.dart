@@ -48,8 +48,13 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
     ).firstMatch(p.basename(path))?.group(0)?.toUpperCase();
   }
 
-  Future<String?> _ocrImage(String sourcePath) async {
-    return HCVMediaIdOcr.extractFastFromImage(sourcePath);
+  Future<String?> _ocrImage(
+    String sourcePath, {
+    bool allowRobustFallback = false,
+  }) async {
+    final fast = await HCVMediaIdOcr.extractFastFromImage(sourcePath);
+    if (fast != null || !allowRobustFallback) return fast;
+    return HCVMediaIdOcr.extractFromImage(sourcePath);
   }
 
   Future<String?> _checkVideo() async {
@@ -85,7 +90,10 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
       if (lower.endsWith('.jpg') ||
           lower.endsWith('.jpeg') ||
           lower.endsWith('.png')) {
-        detectedId = await _ocrImage(widget.path);
+        // A single native OCR miss must not classify a certified photo as
+        // uncertified. Still images get one bounded robust fallback; video
+        // remains on its one-frame fast path to protect startup latency.
+        detectedId = await _ocrImage(widget.path, allowRobustFallback: true);
       } else if (lower.endsWith('.mp4') ||
           lower.endsWith('.mov') ||
           lower.endsWith('.m4v')) {

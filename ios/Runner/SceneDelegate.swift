@@ -355,8 +355,20 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
 
       let rawExtension = source.pathExtension
       let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
+      let suggestedLeaf = provider.suggestedName.map {
+        URL(fileURLWithPath: $0).lastPathComponent
+      }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+      let suggestedExtension = URL(fileURLWithPath: suggestedLeaf).pathExtension
+      let preservedName: String
+      if suggestedLeaf.isEmpty {
+        preservedName = "hcv_picker_\(UUID().uuidString).\(fileExtension)"
+      } else if suggestedExtension.isEmpty {
+        preservedName = "hcv_picker_\(UUID().uuidString)_\(suggestedLeaf).\(fileExtension)"
+      } else {
+        preservedName = "hcv_picker_\(UUID().uuidString)_\(suggestedLeaf)"
+      }
       let output = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "hcv_picker_\(UUID().uuidString).\(fileExtension)"
+        preservedName
       )
 
       do {
@@ -407,10 +419,14 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
       return
     }
 
-    let rawExtension = URL(fileURLWithPath: resource.originalFilename).pathExtension
+    let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent
+    let rawExtension = URL(fileURLWithPath: originalLeaf).pathExtension
     let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
+    let preservedName = originalLeaf.isEmpty
+      ? "hcv_original_\(UUID().uuidString).\(fileExtension)"
+      : "hcv_original_\(UUID().uuidString)_\(originalLeaf)"
     let output = FileManager.default.temporaryDirectory.appendingPathComponent(
-      "hcv_original_\(UUID().uuidString).\(fileExtension)"
+      preservedName
     )
     try? FileManager.default.removeItem(at: output)
 

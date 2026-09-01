@@ -10,18 +10,36 @@ void main() {
     expect(scene, contains('private func copyPickerPhotoRepresentation('));
     expect(
       scene,
-      contains('provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier)'),
+      contains(
+        'provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier)',
+      ),
     );
     expect(scene, contains('copyPickerPhotoRepresentation(selection)'));
 
     // Exact PHAsset bytes remain the preferred path whenever PhotoKit can
     // resolve the user-selected asset, preserving SIGILLUM hash verification.
     expect(scene, contains('PHAssetResource.assetResources(for: asset)'));
+    expect(scene, contains('PHAssetResourceManager.default().writeData('));
+    expect(scene, contains('options.isNetworkAccessAllowed = true'));
+
+    // Preserve a useful source filename in both picker paths. SIGILLUM photos
+    // include the HCV-ID in their filename, so throwing this information away
+    // would unnecessarily force OCR even when exact original bytes are used.
+    expect(scene, contains('provider.suggestedName.map'));
     expect(
       scene,
-      contains('PHAssetResourceManager.default().writeData('),
+      contains(
+        'let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent',
+      ),
     );
-    expect(scene, contains('options.isNetworkAccessAllowed = true'));
+    expect(
+      scene,
+      contains('"hcv_picker_\\(UUID().uuidString)_\\(suggestedLeaf)"'),
+    );
+    expect(
+      scene,
+      contains('"hcv_original_\\(UUID().uuidString)_\\(originalLeaf)"'),
+    );
 
     // PHPicker itself must not be blocked by read/write Photos authorization:
     // a user-picked image is still readable through its item provider when
@@ -51,10 +69,7 @@ void main() {
     );
     expect(fallbackAfterFetch, greaterThan(fetchStart));
 
-    expect(
-      scene,
-      isNot(contains('Selected Photos asset was not found')),
-    );
+    expect(scene, isNot(contains('Selected Photos asset was not found')));
     expect(scene, isNot(contains('PHOTO_ASSET_NOT_FOUND')));
   });
 }
