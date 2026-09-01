@@ -15,7 +15,10 @@ void main() {
       // fallback before SIGILLUM declares that no HCV-ID is visible.
       expect(gate, contains('HCVMediaIdOcr.extractFastFromImage(sourcePath)'));
       expect(gate, contains('allowFocusedFallback = false'));
-      expect(gate, contains('HCVMediaIdOcr.extractFocusedFromImage(sourcePath)'));
+      expect(
+        gate,
+        contains('HCVMediaIdOcr.extractFocusedFromImage(sourcePath)'),
+      );
       expect(gate, contains('allowFocusedFallback: true'));
 
       // Video remains intentionally short: one frame at 0.2 s and the default

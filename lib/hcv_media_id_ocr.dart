@@ -104,6 +104,68 @@ class HCVMediaIdOcr {
     return _recognizePath(path);
   }
 
+  /// Bounded still-image fallback for the public PHOTO precheck.
+  ///
+  /// The fast pass has already inspected the full image. This method performs
+  /// exactly one additional OCR reading on an enlarged top crop, where the
+  /// visible SIGILLUM HCV-ID watermark is rendered. Full multi-crop consensus
+  /// remains reserved for deeper Registry recovery.
+  static Future<String?> extractFocusedFromImage(String path) async {
+    final source = File(path);
+    if (!await source.exists()) return null;
+
+    File? candidate;
+    try {
+      final bytes = await source.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null || decoded.width < 32 || decoded.height < 32) {
+        return null;
+      }
+
+      final cropHeight = max(
+        32,
+        min(decoded.height, (decoded.height * 0.28).round()),
+      );
+      final cropWidth = max(32, (decoded.width * 0.98).round());
+      final cropped = img.copyCrop(
+        decoded,
+        x: 0,
+        y: 0,
+        width: cropWidth,
+        height: cropHeight,
+      );
+      final targetWidth = min(2000, max(1000, cropped.width * 3));
+      final targetHeight = max(
+        120,
+        (cropped.height * targetWidth / cropped.width).round(),
+      );
+      final enlarged = img.copyResize(
+        cropped,
+        width: targetWidth,
+        height: targetHeight,
+        interpolation: img.Interpolation.cubic,
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      candidate = File(
+        p.join(
+          tempDir.path,
+          'hcv_id_ocr_focused_${DateTime.now().microsecondsSinceEpoch}.png',
+        ),
+      );
+      await candidate.writeAsBytes(img.encodePng(enlarged), flush: true);
+      return await _recognizePath(candidate.path);
+    } catch (_) {
+      return null;
+    } finally {
+      try {
+        if (candidate != null && await candidate.exists()) {
+          await candidate.delete();
+        }
+      } catch (_) {}
+    }
+  }
+
   /// Returns every valid still-image HCV-ID candidate, ranked by independent
   /// OCR agreement. Registry verification can use lower-ranked candidates only
   /// after a higher-ranked candidate is confirmed absent online.

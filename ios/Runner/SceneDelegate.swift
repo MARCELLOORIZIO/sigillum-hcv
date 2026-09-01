@@ -283,19 +283,6 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
 
 
   private func pickOriginalPhoto(result: @escaping FlutterResult) {
-    guard pendingOriginalPhotoResult == nil else {
-      result(FlutterError(
-        code: "PHOTO_PICK_BUSY",
-        message: "Another original-photo selection is already active",
-        details: nil
-      ))
-      return
-    }
-
-    // PHPicker grants access to the item explicitly chosen by the user and
-    // must remain usable even when Photos permission is LIMITED or DENIED.
-    // If full PHAsset access is available, resolution below still prefers the
-    // original PHAssetResource bytes for exact SIGILLUM hash verification.
     guard let presenter = self.window?.rootViewController else {
       result(FlutterError(
         code: "PHOTO_PICK_NO_PRESENTER",
@@ -304,6 +291,28 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
       ))
       return
     }
+
+    if let staleResult = pendingOriginalPhotoResult {
+      if presenter.presentedViewController is PHPickerViewController {
+        result(FlutterError(
+          code: "PHOTO_PICK_BUSY",
+          message: "Another original-photo selection is already active",
+          details: nil
+        ))
+        return
+      }
+      pendingOriginalPhotoResult = nil
+      staleResult(FlutterError(
+        code: "PHOTO_PICK_STALE_RESET",
+        message: "A stale photo selection was reset",
+        details: nil
+      ))
+    }
+
+    // PHPicker grants access to the item explicitly chosen by the user and
+    // must remain usable even when Photos permission is LIMITED or DENIED.
+    // If full PHAsset access is available, resolution below still prefers the
+    // original PHAssetResource bytes for exact SIGILLUM hash verification.
     pendingOriginalPhotoResult = result
     var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
     configuration.filter = .images
@@ -314,25 +323,20 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     presenter.present(picker, animated: true)
   }
 
-  private func finishOriginalPhotoPick(_ value: Any?) {
-    guard let flutterResult = pendingOriginalPhotoResult else { return }
+  private func takePendingOriginalPhotoResult() -> FlutterResult? {
+    let flutterResult = pendingOriginalPhotoResult
     pendingOriginalPhotoResult = nil
-    flutterResult(value)
-  }
-
-  private func finishOriginalPhotoPick(error: FlutterError) {
-    guard let flutterResult = pendingOriginalPhotoResult else { return }
-    pendingOriginalPhotoResult = nil
-    flutterResult(error)
+    return flutterResult
   }
 
   private func copyPickerPhotoRepresentation(
     _ selection: PHPickerResult,
+    result: @escaping FlutterResult,
     originalError: FlutterError? = nil
   ) {
     let provider = selection.itemProvider
     guard provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else {
-      finishOriginalPhotoPick(error: originalError ?? FlutterError(
+      result(originalError ?? FlutterError(
         code: "PHOTO_PICKER_FILE_UNAVAILABLE",
         message: "Selected photo file is unavailable",
         details: nil
@@ -344,7 +348,7 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
       guard let self = self else { return }
       guard let source = url else {
         DispatchQueue.main.async {
-          self.finishOriginalPhotoPick(error: originalError ?? FlutterError(
+          result(originalError ?? FlutterError(
             code: "PHOTO_PICKER_FILE_ERROR",
             message: error?.localizedDescription ?? "Unable to read selected photo",
             details: nil
@@ -375,11 +379,11 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
         try? FileManager.default.removeItem(at: output)
         try FileManager.default.copyItem(at: source, to: output)
         DispatchQueue.main.async {
-          self.finishOriginalPhotoPick(output.path)
+          result(output.path)
         }
       } catch {
         DispatchQueue.main.async {
-          self.finishOriginalPhotoPick(error: originalError ?? FlutterError(
+          result(originalError ?? FlutterError(
             code: "PHOTO_PICKER_FILE_ERROR",
             message: error.localizedDescription,
             details: nil
@@ -389,9 +393,12 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     }
   }
 
-  private func resolveOriginalPhotoSelection(_ results: [PHPickerResult]) {
+  private func resolveOriginalPhotoSelection(
+    _ results: [PHPickerResult],
+    result: @escaping FlutterResult
+  ) {
     guard let selection = results.first else {
-      finishOriginalPhotoPick(nil)
+      result(nil)
       return
     }
 
@@ -401,13 +408,13 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     // query; in that case fall back to the file representation granted by the
     // picker instead of rejecting the photo.
     guard let assetIdentifier = selection.assetIdentifier else {
-      copyPickerPhotoRepresentation(selection)
+      copyPickerPhotoRepresentation(selection, result: result)
       return
     }
 
     let assets = PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil)
     guard let asset = assets.firstObject else {
-      copyPickerPhotoRepresentation(selection)
+      copyPickerPhotoRepresentation(selection, result: result)
       return
     }
 
@@ -415,7 +422,7 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     let original = resources.first(where: { $0.type == .photo })
       ?? resources.first(where: { $0.type == .fullSizePhoto })
     guard let resource = original else {
-      copyPickerPhotoRepresentation(selection)
+      copyPickerPhotoRepresentation(selection, result: result)
       return
     }
 
@@ -442,6 +449,7 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
         if let error = error {
           self.copyPickerPhotoRepresentation(
             selection,
+            result: result,
             originalError: FlutterError(
               code: "PHOTO_ORIGINAL_READ_ERROR",
               message: error.localizedDescription,
@@ -449,16 +457,23 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
             )
           )
         } else {
-          self.finishOriginalPhotoPick(output.path)
+          result(output.path)
         }
       }
     }
   }
 
   func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    guard let flutterResult = takePendingOriginalPhotoResult() else {
+      picker.dismiss(animated: true)
+      return
+    }
     picker.dismiss(animated: true) { [weak self] in
-      guard let self = self else { return }
-      self.resolveOriginalPhotoSelection(results)
+      guard let self = self else {
+        flutterResult(nil)
+        return
+      }
+      self.resolveOriginalPhotoSelection(results, result: flutterResult)
     }
   }
 

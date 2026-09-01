@@ -12,7 +12,10 @@ void main() {
 
       expect(gate, contains("import 'hcv_media_id_ocr.dart';"));
       expect(gate, contains('HCVMediaIdOcr.extractFastFromImage(sourcePath)'));
-      expect(gate, contains('HCVMediaIdOcr.extractFocusedFromImage(sourcePath)'));
+      expect(
+        gate,
+        contains('HCVMediaIdOcr.extractFocusedFromImage(sourcePath)'),
+      );
       expect(gate, contains('allowFocusedFallback: true'));
       expect(gate, contains("'extractVideoFrame'"));
       expect(gate, contains("'seconds': 0.2"));
