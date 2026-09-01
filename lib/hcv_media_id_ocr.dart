@@ -77,10 +77,13 @@ class HCVMediaIdOcr {
       counts[candidate] = counts[candidate]! + 1;
     }
 
+    final firstSeenOrder = <String, int>{
+      for (var i = 0; i < firstSeen.length; i++) firstSeen[i]: i,
+    };
     firstSeen.sort((left, right) {
       final voteOrder = counts[right]!.compareTo(counts[left]!);
       if (voteOrder != 0) return voteOrder;
-      return 0;
+      return firstSeenOrder[left]!.compareTo(firstSeenOrder[right]!);
     });
     return firstSeen;
   }
