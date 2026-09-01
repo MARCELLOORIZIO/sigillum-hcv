@@ -93,9 +93,11 @@ class HCVCaptureProvenance {
     }
 
     final identity = await _identityLoader();
-    final deviceFingerprint =
-        identity['devicePublicKeyFingerprint']?.toString().trim().toLowerCase() ??
-            '';
+    final deviceFingerprint = identity['devicePublicKeyFingerprint']
+            ?.toString()
+            .trim()
+            .toLowerCase() ??
+        '';
 
     if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(deviceFingerprint)) {
       throw StateError('HCV device public-key fingerprint is unavailable');
