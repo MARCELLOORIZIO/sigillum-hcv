@@ -113,6 +113,20 @@ class HCVProvenanceChain {
         );
       }
 
+      if (existing.events.isNotEmpty) {
+        final previous = existing.events.last;
+        if (previous['deviceFingerprint'] != cleanDeviceFingerprint) {
+          throw StateError(
+            'Cannot continue provenance chain with a different device key',
+          );
+        }
+        if (previous['sessionId'] != cleanSessionId) {
+          throw StateError(
+            'Cannot continue provenance chain with a different session',
+          );
+        }
+      }
+
       final sequence = existing.events.length;
       final parentEvent = sequence == 0
           ? 'GENESIS'
@@ -140,6 +154,13 @@ class HCVProvenanceChain {
       final signed = await _signer(eventHash);
       if (signed.signature.trim().isEmpty) {
         throw StateError('Empty provenance signature');
+      }
+
+      final signingDeviceFingerprint = publicKeyFingerprint(signed.publicKey);
+      if (signingDeviceFingerprint != cleanDeviceFingerprint) {
+        throw StateError(
+          'Signing key does not match the declared deviceFingerprint',
+        );
       }
 
       final event = <String, dynamic>{
@@ -191,6 +212,8 @@ class HCVProvenanceChain {
     final events = <Map<String, dynamic>>[];
     final seenNonces = <String>{};
     DateTime? previousTimestamp;
+    String? chainDeviceFingerprint;
+    String? chainSessionId;
 
     for (var index = 0; index < lines.length; index++) {
       dynamic decoded;
@@ -201,31 +224,70 @@ class HCVProvenanceChain {
       }
       if (decoded is! Map<String, dynamic>) {
         return _invalid(
-            'MALFORMED', 'Event $index is not a JSON object.', events);
+          'MALFORMED',
+          'Event $index is not a JSON object.',
+          events,
+        );
       }
       final event = Map<String, dynamic>.from(decoded);
 
       if (event['type'] != eventSchema || event['version'] != eventVersion) {
         return _invalid(
-            'SCHEMA', 'Event $index has an unsupported schema.', events);
+          'SCHEMA',
+          'Event $index has an unsupported schema.',
+          events,
+        );
       }
       if (event['sequence'] != index) {
         return _invalid('ORDER', 'Event sequence is not append order.', events);
       }
 
-      final inputHash = event['inputHash']?.toString().toLowerCase() ?? '';
-      final deviceFingerprint =
-          event['deviceFingerprint']?.toString().toLowerCase() ?? '';
-      if (!_sha256Pattern.hasMatch(inputHash) ||
-          !_sha256Pattern.hasMatch(deviceFingerprint)) {
+      final eventType = event['eventType']?.toString().trim() ?? '';
+      final pipelineVersion = event['pipelineVersion']?.toString().trim() ?? '';
+      final sessionId = event['sessionId']?.toString().trim() ?? '';
+      if (eventType.isEmpty || pipelineVersion.isEmpty || sessionId.isEmpty) {
         return _invalid(
-            'SCHEMA', 'Event $index contains invalid hashes.', events);
+          'SCHEMA',
+          'Event $index is missing required provenance fields.',
+          events,
+        );
+      }
+
+      final rawInputHash = event['inputHash']?.toString() ?? '';
+      final rawDeviceFingerprint =
+          event['deviceFingerprint']?.toString() ?? '';
+      final inputHash = rawInputHash.toLowerCase();
+      final deviceFingerprint = rawDeviceFingerprint.toLowerCase();
+      if (!_sha256Pattern.hasMatch(inputHash) ||
+          !_sha256Pattern.hasMatch(deviceFingerprint) ||
+          rawInputHash != inputHash ||
+          rawDeviceFingerprint != deviceFingerprint) {
+        return _invalid(
+          'SCHEMA',
+          'Event $index contains invalid or non-canonical hashes.',
+          events,
+        );
+      }
+
+      if (index == 0) {
+        chainDeviceFingerprint = deviceFingerprint;
+        chainSessionId = sessionId;
+      } else if (deviceFingerprint != chainDeviceFingerprint ||
+          sessionId != chainSessionId) {
+        return _invalid(
+          'CHAIN_CONTEXT',
+          'Event $index changes device or session inside one provenance chain.',
+          events,
+        );
       }
 
       final nonce = event['nonce']?.toString() ?? '';
       if (nonce.isEmpty || !seenNonces.add(nonce)) {
         return _invalid(
-            'REPLAY', 'Duplicate or empty nonce at event $index.', events);
+          'REPLAY',
+          'Duplicate or empty nonce at event $index.',
+          events,
+        );
       }
 
       final timestampRaw = event['timestamp']?.toString() ?? '';
@@ -238,8 +300,9 @@ class HCVProvenanceChain {
       }
       previousTimestamp = timestamp;
 
-      final expectedParent =
-          index == 0 ? 'GENESIS' : events[index - 1]['eventHash']?.toString();
+      final expectedParent = index == 0
+          ? 'GENESIS'
+          : events[index - 1]['eventHash']?.toString();
       if (event['parentEvent'] != expectedParent) {
         return _invalid('CHAIN', 'Broken parent link at event $index.', events);
       }
@@ -270,15 +333,41 @@ class HCVProvenanceChain {
       final publicKey = event['publicKey'];
       if (signature is! String || publicKey is! Map) {
         return _invalid(
-            'SIGNATURE', 'Missing signature at event $index.', events);
+          'SIGNATURE',
+          'Missing signature at event $index.',
+          events,
+        );
       }
+
+      final normalizedPublicKey = Map<String, dynamic>.from(publicKey);
+      String signingDeviceFingerprint;
+      try {
+        signingDeviceFingerprint = publicKeyFingerprint(normalizedPublicKey);
+      } catch (_) {
+        return _invalid(
+          'DEVICE_BINDING',
+          'Invalid signing public key at event $index.',
+          events,
+        );
+      }
+      if (signingDeviceFingerprint != deviceFingerprint) {
+        return _invalid(
+          'DEVICE_BINDING',
+          'Signing key does not match deviceFingerprint at event $index.',
+          events,
+        );
+      }
+
       if (!_verifySignature(
         data: storedHash,
         signature: signature,
-        publicKey: Map<String, dynamic>.from(publicKey),
+        publicKey: normalizedPublicKey,
       )) {
         return _invalid(
-            'SIGNATURE', 'Invalid signature at event $index.', events);
+          'SIGNATURE',
+          'Invalid signature at event $index.',
+          events,
+        );
       }
 
       events.add(event);
@@ -328,6 +417,30 @@ class HCVProvenanceChain {
     );
   }
 
+  /// Matches the devicePublicKeyFingerprint already used by HCVIdentity.
+  /// Field order is explicit so canonical JSON key sorting cannot change it.
+  static String publicKeyFingerprint(Map<String, dynamic> publicKey) {
+    final modulus = publicKey['modulus'];
+    final exponent = publicKey['exponent'];
+    if (modulus is! String ||
+        modulus.isEmpty ||
+        exponent is! String ||
+        exponent.isEmpty) {
+      throw ArgumentError('Invalid HCV signing public key');
+    }
+
+    return sha256
+        .convert(
+          utf8.encode(
+            jsonEncode({
+              'modulus': modulus,
+              'exponent': exponent,
+            }),
+          ),
+        )
+        .toString();
+  }
+
   static String canonicalJson(Object? value) {
     return jsonEncode(_normalizeJson(value));
   }
@@ -349,7 +462,8 @@ class HCVProvenanceChain {
       };
     }
     throw ArgumentError(
-        'Unsupported canonical JSON value: ${value.runtimeType}');
+      'Unsupported canonical JSON value: ${value.runtimeType}',
+    );
   }
 
   static String _sha256(String value) {
@@ -370,8 +484,9 @@ class HCVProvenanceChain {
     try {
       if (publicKey['modulus'] == 'LOCAL_DEV_PUBLIC_KEY' &&
           publicKey['exponent'] == 'LOCAL_DEV') {
-        final expected =
-            sha256.convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data')).toString();
+        final expected = sha256
+            .convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data'))
+            .toString();
         return signature == expected;
       }
 
