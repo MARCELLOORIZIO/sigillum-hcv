@@ -85,6 +85,13 @@ final class ShareViewController: UIViewController {
     return true
   }
 
+  private func isImageType(_ type: String) -> Bool {
+    return type == UTType.image.identifier ||
+      type == UTType.jpeg.identifier ||
+      type == UTType.png.identifier ||
+      type == kUTTypeImage as String
+  }
+
   private func isFileBackedType(_ type: String) -> Bool {
     return type == UTType.movie.identifier ||
       type == UTType.mpeg4Movie.identifier ||
@@ -137,6 +144,9 @@ final class ShareViewController: UIViewController {
       )
 
       if let url = item as? URL {
+        if isImageType(preferredType) && UIImage(contentsOfFile: url.path) == nil {
+          return nil
+        }
         return try copyFileUrl(url, to: inbox, preferredType: preferredType)
       }
 
@@ -147,14 +157,37 @@ final class ShareViewController: UIViewController {
       }
 
       if let data = item as? Data {
+        if isImageType(preferredType) {
+          guard
+            let image = UIImage(data: data),
+            let normalized = image.jpegData(compressionQuality: 0.95)
+          else {
+            return nil
+          }
+          let destination = inbox.appendingPathComponent(fileName(ext: "jpg"))
+          try normalized.write(to: destination, options: .atomic)
+          return destination
+        }
         let destination = inbox.appendingPathComponent(fileName(ext: extensionForType(preferredType)))
         try data.write(to: destination, options: .atomic)
         return destination
       }
 
       if let data = item as? NSData {
+        let swiftData = data as Data
+        if isImageType(preferredType) {
+          guard
+            let image = UIImage(data: swiftData),
+            let normalized = image.jpegData(compressionQuality: 0.95)
+          else {
+            return nil
+          }
+          let destination = inbox.appendingPathComponent(fileName(ext: "jpg"))
+          try normalized.write(to: destination, options: .atomic)
+          return destination
+        }
         let destination = inbox.appendingPathComponent(fileName(ext: extensionForType(preferredType)))
-        try data.write(to: destination, options: .atomic)
+        try swiftData.write(to: destination, options: .atomic)
         return destination
       }
 
@@ -184,6 +217,9 @@ final class ShareViewController: UIViewController {
         at: inbox,
         withIntermediateDirectories: true
       )
+      if isImageType(preferredType) && UIImage(contentsOfFile: url.path) == nil {
+        return nil
+      }
       return try copyFileUrl(url, to: inbox, preferredType: preferredType)
     } catch {
       return nil

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
@@ -8,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 
 class HCVMediaIdOcr {
   const HCVMediaIdOcr._();
+
+  static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   static String? extractFromRecognizedText(String value) {
     if (value.trim().isEmpty) return null;
@@ -250,6 +253,29 @@ class HCVMediaIdOcr {
   }
 
   static Future<String?> _recognizePath(String path) async {
+    final source = File(path);
+    try {
+      if (!await source.exists() || await source.length() <= 0) return null;
+    } catch (_) {
+      return null;
+    }
+
+    // google_mlkit_text_recognition on iOS constructs MLKVisionImage from a
+    // UIImage. The plugin currently lets ML Kit raise an Objective-C exception
+    // when UIImage(contentsOfFile:) is nil, which aborts the entire process and
+    // cannot be caught by Dart. Preflight with the same UIKit decoder first.
+    if (Platform.isIOS) {
+      try {
+        final decodable = await _mediaChannel.invokeMethod<bool>(
+          'validateImageForOcr',
+          {'path': path},
+        );
+        if (decodable != true) return null;
+      } catch (_) {
+        return null;
+      }
+    }
+
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
       final recognized = await recognizer.processImage(
