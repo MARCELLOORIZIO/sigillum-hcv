@@ -33,7 +33,8 @@ void main() {
       expect(result.decision, 'NON_CONCLUSIVE');
     });
 
-    test('real planar video moire does not become emissive display evidence', () {
+    test('real planar video moire does not become emissive display evidence',
+        () {
       final result = HCVActiveDisplayClassifier.classify(
         framesAnalyzed: 45,
         exposureLocked: true,

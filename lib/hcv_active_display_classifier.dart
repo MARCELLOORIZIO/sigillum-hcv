@@ -85,8 +85,7 @@ class HCVActiveDisplayClassifier {
     final hotspot = flashHotspotConcentration.clamp(0.0, 1.0).toDouble();
     final broadDiffuseShape =
         (coverage * 0.55 + entropy * 0.45).clamp(0.0, 1.0).toDouble();
-    final liftStrength =
-        (measuredLiftRatio / 0.20).clamp(0.0, 1.0).toDouble();
+    final liftStrength = (measuredLiftRatio / 0.20).clamp(0.0, 1.0).toDouble();
     final illuminationResponseScore = challengeValid
         ? (liftStrength * 0.52 + broadDiffuseShape * 0.48)
             .clamp(0.0, 1.0)
@@ -101,14 +100,13 @@ class HCVActiveDisplayClassifier {
     final stripeCue = (fineStripe / 0.36).clamp(0.0, 1.0);
     final gridCue = (fineGrid / 0.82).clamp(0.0, 1.0);
     final moireCue = (moire / 0.42).clamp(0.0, 1.0);
-    final electronicCueScore =
-        (flickerCue * 0.26 +
-                refreshCue * 0.24 +
-                stripeCue * 0.16 +
-                gridCue * 0.18 +
-                moireCue * 0.16)
-            .clamp(0.0, 1.0)
-            .toDouble();
+    final electronicCueScore = (flickerCue * 0.26 +
+            refreshCue * 0.24 +
+            stripeCue * 0.16 +
+            gridCue * 0.18 +
+            moireCue * 0.16)
+        .clamp(0.0, 1.0)
+        .toDouble();
 
     final diffuseReflection = challengeValid &&
         measuredLiftRatio >= 0.07 &&
@@ -165,12 +163,11 @@ class HCVActiveDisplayClassifier {
     }
 
     if (emissiveDisplayEvidence && !reflectedRealityEvidence) {
-      final probability =
-          (electronicCueScore * 0.48 +
-                  emissiveIndependenceScore * 0.32 +
-                  hotspot * 0.20)
-              .clamp(0.0, 1.0)
-              .toDouble();
+      final probability = (electronicCueScore * 0.48 +
+              emissiveIndependenceScore * 0.32 +
+              hotspot * 0.20)
+          .clamp(0.0, 1.0)
+          .toDouble();
       return HCVActiveDisplayClassification(
         decision: 'NON_CONCLUSIVE',
         risk: 'MEDIUM',
@@ -184,12 +181,11 @@ class HCVActiveDisplayClassifier {
     }
 
     if (reflectedRealityEvidence && !emissiveDisplayEvidence) {
-      final probability =
-          ((1.0 - illuminationResponseScore) * 0.52 +
-                  electronicCueScore * 0.28 +
-                  hotspot * 0.20)
-              .clamp(0.0, 1.0)
-              .toDouble();
+      final probability = ((1.0 - illuminationResponseScore) * 0.52 +
+              electronicCueScore * 0.28 +
+              hotspot * 0.20)
+          .clamp(0.0, 1.0)
+          .toDouble();
       return HCVActiveDisplayClassification(
         decision: 'NO_DISPLAY_EVIDENCE',
         risk: 'LOW',
