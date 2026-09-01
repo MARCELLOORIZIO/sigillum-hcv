@@ -91,7 +91,7 @@ void main() {
 
   test('D1 detects payload tampering', () async {
     final setup = await _twoEventChain('tamper');
-    addTearDown(setup.dir.delete);
+    addTearDown(() => setup.dir.delete(recursive: true));
 
     final lines = await setup.file.readAsLines();
     final first = jsonDecode(lines.first) as Map<String, dynamic>;
@@ -106,7 +106,7 @@ void main() {
 
   test('D1 rejects duplicate nonce replay', () async {
     final setup = await _twoEventChain('replay');
-    addTearDown(setup.dir.delete);
+    addTearDown(() => setup.dir.delete(recursive: true));
 
     final lines = await setup.file.readAsLines();
     final first = jsonDecode(lines[0]) as Map<String, dynamic>;
@@ -122,7 +122,7 @@ void main() {
 
   test('D1 rejects reordered append-only events', () async {
     final setup = await _twoEventChain('order');
-    addTearDown(setup.dir.delete);
+    addTearDown(() => setup.dir.delete(recursive: true));
 
     final lines = await setup.file.readAsLines();
     await setup.file.writeAsString('${lines.reversed.join('\n')}\n');
@@ -134,7 +134,7 @@ void main() {
 
   test('D1 rejects broken parent link', () async {
     final setup = await _twoEventChain('parent');
-    addTearDown(setup.dir.delete);
+    addTearDown(() => setup.dir.delete(recursive: true));
 
     final lines = await setup.file.readAsLines();
     final second = jsonDecode(lines[1]) as Map<String, dynamic>;
@@ -149,7 +149,7 @@ void main() {
 
   test('D1 rejects signature tampering', () async {
     final setup = await _twoEventChain('signature');
-    addTearDown(setup.dir.delete);
+    addTearDown(() => setup.dir.delete(recursive: true));
 
     final lines = await setup.file.readAsLines();
     final first = jsonDecode(lines[0]) as Map<String, dynamic>;
@@ -164,12 +164,12 @@ void main() {
 
   test('D1 refuses to append after stored log corruption', () async {
     final setup = await _twoEventChain('append_guard');
-    addTearDown(setup.dir.delete);
+    addTearDown(() => setup.dir.delete(recursive: true));
 
     await setup.file.writeAsString('{broken json}\n');
 
-    expect(
-      () => setup.chain.appendEvent(
+    await expectLater(
+      setup.chain.appendEvent(
         eventType: 'SHOULD_NOT_APPEND',
         inputHash: _hex('d'),
         deviceFingerprint: _hex('b'),
