@@ -31,11 +31,71 @@ class HCVDisplayRiskResult {
 }
 
 class HCVDisplayRiskFusion {
+  static bool hasSpatialScreenCorroboration(Map<String, dynamic>? ml) {
+    if (ml == null) return false;
+    final predictedClass = ml['predictedClass']?.toString() ?? '';
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble() ?? 0.0;
+    final confidence =
+        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
+    final signals = _signals(ml);
+    final fullFrameRisk = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final contentAreaRisk =
+        (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+
+    return predictedClass.startsWith('SCREEN_') &&
+        framesAnalyzed == 1 &&
+        fullFrameRisk >= 94 &&
+        contentAreaRisk >= 89 &&
+        screenProbability >= 0.93 &&
+        confidence >= 0.89;
+  }
+
+  static bool hasMultiFrameScreenConsistency(Map<String, dynamic>? ml) {
+    if (ml == null) return false;
+    final predictedClass = ml['predictedClass']?.toString() ?? '';
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final mediumScreenFrameCount =
+        (ml['mediumScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final score = (ml['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final maxFrameScore =
+        (ml['maxFrameScreenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final averageFrameScore =
+        (ml['averageScreenReplayRiskScore'] as num?)?.toDouble() ?? 0.0;
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble() ?? 0.0;
+    final confidence =
+        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
+    final signals = _signals(ml);
+    final fullFrameRisk = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final contentAreaRisk =
+        (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+    final strongestFrameScore = max(score, maxFrameScore);
+
+    return predictedClass.startsWith('SCREEN_') &&
+        framesAnalyzed >= 2 &&
+        mediumScreenFrameCount >= 2 &&
+        mediumScreenFrameCount * 4 >= framesAnalyzed * 3 &&
+        averageFrameScore >= 88.0 &&
+        strongestFrameScore >= 94 &&
+        screenProbability >= 0.90 &&
+        confidence >= 0.75 &&
+        fullFrameRisk >= 90 &&
+        contentAreaRisk >= 90;
+  }
+
   static HCVDisplayRiskResult combine(
     List<Map<String, dynamic>?> analyses, {
     bool liveCaptureOnly = false,
   }) {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
+    final postCaptureMl =
+        _firstOfType(allAvailable, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
+    final spatialPostCaptureMl =
+        liveCaptureOnly && hasSpatialScreenCorroboration(postCaptureMl)
+            ? postCaptureMl
+            : null;
     final available = liveCaptureOnly
         ? allAvailable
             .where(
@@ -46,18 +106,18 @@ class HCVDisplayRiskFusion {
     final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
     if (liveCaptureOnly) {
       final videoEquivalent = _embeddedVideoEquivalentResult(live);
-      if (videoEquivalent != null) {
+      if (videoEquivalent != null && spatialPostCaptureMl == null) {
         return videoEquivalent;
       }
     }
-    final ml = _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
-    // A post-capture ML REALITY result may corroborate geometric reality even
-    // in the photo pre-capture policy. It is deliberately not assigned to
-    // `ml` above, so a post-capture SCREEN result can never promote risk in
-    // liveCaptureOnly mode by itself.
-    final realityMl = liveCaptureOnly
-        ? _firstOfType(allAvailable, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1')
-        : ml;
+    final ml =
+        _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1') ??
+            spatialPostCaptureMl;
+    // A post-capture ML REALITY result may corroborate geometric reality in
+    // the photo pre-capture policy. A post-capture SCREEN result participates
+    // only when full-frame and content-area evidence independently satisfy the
+    // strict spatial corroboration gate above.
+    final realityMl = liveCaptureOnly ? postCaptureMl : ml;
     final passive = available
         .where(
           (analysis) =>
@@ -329,14 +389,11 @@ class HCVDisplayRiskFusion {
         (mlAverageFrameScore ?? 0.0) >= 90.0 &&
         (mlScreenProbability ?? 0.0) >= 0.93 &&
         (mlConfidence ?? 0.0) >= 0.85;
-    final mlDualRegionPhotoEvidence = mlSaysScreen &&
-        mlFramesAnalyzed == 1 &&
-        mlFullFrameRisk >= 94 &&
-        mlContentAreaRisk >= 90 &&
-        (mlScreenProbability ?? 0.0) >= 0.97 &&
-        (mlConfidence ?? 0.0) >= 0.90;
-    final mlPersistentCorroboratedEvidence =
-        mlPersistentVideoEvidence || mlDualRegionPhotoEvidence;
+    final mlMultiFrameScreenConsistency = hasMultiFrameScreenConsistency(ml);
+    final mlDualRegionPhotoEvidence = hasSpatialScreenCorroboration(ml);
+    final mlPersistentCorroboratedEvidence = mlPersistentVideoEvidence ||
+        mlMultiFrameScreenConsistency ||
+        mlDualRegionPhotoEvidence;
     final mlOpticalCorroborated = mlStrong &&
         !reflectedRealityEvidence &&
         (liveUnifiedDisplaySignature ||
@@ -385,6 +442,9 @@ class HCVDisplayRiskFusion {
     final mlGeometryOverride = !reflectedRealityEvidence &&
         geometrySceneClass == 'REALITY' &&
         mlPersistentCorroboratedEvidence;
+    final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
+        geometrySceneClass == 'UNKNOWN' &&
+        (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
 
     final strongDisplayFamilies = <String>{};
     if (liveTemporal) strongDisplayFamilies.add('LIVE_TEMPORAL');
@@ -441,18 +501,23 @@ class HCVDisplayRiskFusion {
       decision = 'STRONG_DISPLAY_RISK';
       score =
           max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
-    } else if (mlGeometryOverride) {
+    } else if (mlGeometryOverride || mlUnresolvedGeometryOverride) {
       decision = 'STRONG_DISPLAY_RISK';
       score =
           max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
       if (mlPersistentVideoEvidence) {
         reasons.add('ML_SCREEN_MULTI_FRAME_PERSISTENCE_CONFIRMED');
       }
+      if (mlMultiFrameScreenConsistency) {
+        reasons.add('ML_SCREEN_MULTI_FRAME_CONSISTENCY_CONFIRMED');
+      }
       if (mlDualRegionPhotoEvidence) {
         reasons.add('ML_SCREEN_DUAL_REGION_CONFIRMED');
       }
       reasons.add(
-        'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE',
+        mlGeometryOverride
+            ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
+            : 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE',
       );
     } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
