@@ -50,11 +50,11 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
 
   Future<String?> _ocrImage(
     String sourcePath, {
-    bool allowRobustFallback = false,
+    bool allowFocusedFallback = false,
   }) async {
     final fast = await HCVMediaIdOcr.extractFastFromImage(sourcePath);
-    if (fast != null || !allowRobustFallback) return fast;
-    return HCVMediaIdOcr.extractFromImage(sourcePath);
+    if (fast != null || !allowFocusedFallback) return fast;
+    return HCVMediaIdOcr.extractFocusedFromImage(sourcePath);
   }
 
   Future<String?> _checkVideo() async {
@@ -91,9 +91,9 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
           lower.endsWith('.jpeg') ||
           lower.endsWith('.png')) {
         // A single native OCR miss must not classify a certified photo as
-        // uncertified. Still images get one bounded robust fallback; video
-        // remains on its one-frame fast path to protect startup latency.
-        detectedId = await _ocrImage(widget.path, allowRobustFallback: true);
+        // uncertified. Still images get one focused top-crop fallback only;
+        // the full multi-crop consensus remains a deeper Registry recovery.
+        detectedId = await _ocrImage(widget.path, allowFocusedFallback: true);
       } else if (lower.endsWith('.mp4') ||
           lower.endsWith('.mov') ||
           lower.endsWith('.m4v')) {
@@ -120,6 +120,7 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
       MaterialPageRoute(
         builder: (_) => RegistryVerifyPage(
           initialMediaPath: widget.path,
+          initialHcvId: detectedId,
           languageCode: widget.languageCode,
         ),
       ),

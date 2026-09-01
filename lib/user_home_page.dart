@@ -10,7 +10,6 @@ import 'hcv_registry_service.dart';
 import 'commercial_profile_page.dart';
 import 'import_page.dart';
 import 'legal_info_page.dart';
-import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
 import 'sigillum_quick_guide_page.dart';
@@ -29,6 +28,8 @@ class UserHomePage extends StatefulWidget {
 class _UserHomePageState extends State<UserHomePage> {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
   String? _lastOpenedSharedPath;
+  String? _pendingSharedPath;
+  bool _sharedOpenScheduled = false;
   String languageCode = SigillumCopy.initialLanguageCode();
 
   String _t(String key) => SigillumCopy.t(languageCode, key);
@@ -73,7 +74,7 @@ class _UserHomePageState extends State<UserHomePage> {
     if (call.method == 'onSharedPath') {
       final path = call.arguments as String?;
       if (path != null && path.isNotEmpty) {
-        _openImportedPath(path);
+        _queueImportedPath(path);
         try {
           await _intentChannel.invokeMethod<bool>('ackSharedPath', {
             'path': path,
@@ -87,56 +88,65 @@ class _UserHomePageState extends State<UserHomePage> {
     try {
       final path = await _intentChannel.invokeMethod<String>('getSharedPath');
       if (path != null && path.isNotEmpty) {
-        _openImportedPath(path);
+        _queueImportedPath(path);
       }
     } catch (e) {
       debugPrint('Intent error: $e');
     }
   }
 
-  void _openImportedPath(String path) {
+  void _queueImportedPath(String path) {
+    if (!mounted ||
+        path.isEmpty ||
+        _lastOpenedSharedPath == path ||
+        _pendingSharedPath == path) {
+      return;
+    }
+
+    _pendingSharedPath = path;
+    if (_sharedOpenScheduled) return;
+    _sharedOpenScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sharedOpenScheduled = false;
+      if (!mounted) return;
+      final pending = _pendingSharedPath;
+      _pendingSharedPath = null;
+      if (pending != null && pending.isNotEmpty) {
+        _openImportedPath(pending);
+      }
+    });
+  }
+
+  Future<void> _openImportedPath(String path) async {
     if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
+    if (!await File(path).exists()) return;
+    if (!mounted) return;
     _lastOpenedSharedPath = path;
 
     final lower = path.toLowerCase();
     if (lower.endsWith('.txt')) {
-      File(path)
-          .readAsString()
-          .then((sharedText) {
-            if (!mounted) return;
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TextSocialVerifyPage(
-                  languageCode: languageCode,
-                  initialText: sharedText,
-                ),
-              ),
-            );
-          })
-          .catchError((_) {});
+      try {
+        final sharedText = await File(path).readAsString();
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TextSocialVerifyPage(
+              languageCode: languageCode,
+              initialText: sharedText,
+            ),
+          ),
+        );
+      } catch (_) {}
       return;
     }
-    final isMedia =
-        lower.endsWith('.mp4') ||
-        lower.endsWith('.mov') ||
-        lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png') ||
-        lower.endsWith('.txt') ||
-        lower.endsWith('.pdf') ||
-        lower.endsWith('.mp3') ||
-        lower.endsWith('.wav');
 
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => isMedia
-            ? RegistryVerifyPage(
-                initialMediaPath: path,
-                languageCode: languageCode,
-              )
-            : HCVImportRouterPage(path: path, languageCode: languageCode),
+        builder: (_) =>
+            HCVImportRouterPage(path: path, languageCode: languageCode),
       ),
     );
   }

@@ -14,7 +14,10 @@ void main() {
         'provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier)',
       ),
     );
-    expect(scene, contains('copyPickerPhotoRepresentation(selection)'));
+    expect(
+      scene,
+      contains('copyPickerPhotoRepresentation(selection, result: result)'),
+    );
 
     // Exact PHAsset bytes remain the preferred path whenever PhotoKit can
     // resolve the user-selected asset, preserving SIGILLUM hash verification.
@@ -48,7 +51,7 @@ void main() {
       'private func pickOriginalPhoto(result: @escaping FlutterResult)',
     );
     final pickEnd = scene.indexOf(
-      'private func finishOriginalPhotoPick(_ value: Any?)',
+      'private func takePendingOriginalPhotoResult() -> FlutterResult?',
       pickStart,
     );
     expect(pickStart, greaterThanOrEqualTo(0));
@@ -64,7 +67,7 @@ void main() {
     );
     expect(fetchStart, greaterThanOrEqualTo(0));
     final fallbackAfterFetch = scene.indexOf(
-      'copyPickerPhotoRepresentation(selection)',
+      'copyPickerPhotoRepresentation(selection, result: result)',
       fetchStart,
     );
     expect(fallbackAfterFetch, greaterThan(fetchStart));

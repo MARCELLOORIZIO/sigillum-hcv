@@ -68,11 +68,13 @@ HCVDisplayRiskClaimValues resolveHCVDisplayRiskClaimValues(
 
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
+  final String? initialHcvId;
   final String languageCode;
 
   const RegistryVerifyPage({
     super.key,
     this.initialMediaPath,
+    this.initialHcvId,
     this.languageCode = 'it',
   });
 
@@ -631,7 +633,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return;
       }
 
-      final detectedId = await detectHcvIdFromMediaPath(path);
+      final suppliedId = widget.initialHcvId?.trim().toUpperCase();
+      final detectedId =
+          suppliedId != null &&
+              RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(suppliedId)
+          ? suppliedId
+          : await detectHcvIdFromMediaPath(path);
 
       if (!mounted) return;
 
