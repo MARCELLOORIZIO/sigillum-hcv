@@ -38,9 +38,6 @@ class HCVLocationVideoWatermark {
       '${baseName}_SIGILLUM_CAPTURE.mp4',
     );
     final outputFile = File(outputPath);
-    if (await outputFile.exists()) {
-      await outputFile.delete();
-    }
 
     final safeInput = _escapePath(inputPath);
     final safeOutput = _escapePath(outputPath);
@@ -50,9 +47,54 @@ class HCVLocationVideoWatermark {
         ? null
         : _escapeText(captureLocation.watermarkText);
 
-    final fontFile = Platform.isIOS
-        ? '/System/Library/Fonts/Core/Avenir.ttc'
-        : '/system/fonts/Roboto-Regular.ttf';
+    String? lastLogs;
+    for (final fontFile in _fontCandidates()) {
+      if (await outputFile.exists()) {
+        await outputFile.delete();
+      }
+
+      final command = _buildCommand(
+        safeInput: safeInput,
+        safeOutput: safeOutput,
+        safeHcvId: safeHcvId,
+        safeCapturedAt: safeCapturedAt,
+        safeLocation: safeLocation,
+        fontFile: fontFile,
+      );
+
+      final session = await FFmpegKit.execute(command);
+      final returnCode = await session.getReturnCode();
+      if (returnCode != null && ReturnCode.isSuccess(returnCode)) {
+        if (!await outputFile.exists() || await outputFile.length() <= 0) {
+          throw Exception('SIGILLUM watermark output non valido');
+        }
+        return outputPath;
+      }
+
+      final logs = await session.getAllLogsAsString();
+      lastLogs = logs;
+
+      // Archive 42 exposed a device-only iOS failure while resolving the
+      // hard-coded drawtext font. Retry only font-related failures so that
+      // unrelated FFmpeg failures are not repeated several times.
+      if (!_isFontResolutionFailure(logs)) {
+        break;
+      }
+    }
+
+    throw Exception(
+      'SIGILLUM watermark failed: ${_summarizeFfmpegFailure(lastLogs ?? '')}',
+    );
+  }
+
+  String _buildCommand({
+    required String safeInput,
+    required String safeOutput,
+    required String safeHcvId,
+    required String safeCapturedAt,
+    required String? safeLocation,
+    required String fontFile,
+  }) {
     final hasLocation = safeLocation != null;
     final hcvY = hasLocation ? 72 : 56;
 
@@ -66,8 +108,7 @@ class HCVLocationVideoWatermark {
       "drawtext=fontfile=$fontFile:text='$safeHcvId':x=22:y=$hcvY:fontsize=22:fontcolor=yellow:box=1:boxcolor=black@0.58:boxborderw=7",
     ];
 
-    final command =
-        '-y '
+    return '-y '
         "-i '$safeInput' "
         '-vf "${filterParts.join(',')}" '
         '-c:v libx264 '
@@ -77,17 +118,54 @@ class HCVLocationVideoWatermark {
         '-b:a 128k '
         '-movflags +faststart '
         "'$safeOutput'";
+  }
 
-    final session = await FFmpegKit.execute(command);
-    final returnCode = await session.getReturnCode();
-    if (returnCode == null || !ReturnCode.isSuccess(returnCode)) {
-      final logs = await session.getAllLogsAsString();
-      throw Exception('SIGILLUM watermark failed:\n$logs');
+  List<String> _fontCandidates() {
+    if (Platform.isIOS) {
+      return const [
+        '/System/Library/Fonts/Avenir.ttc',
+        '/System/Library/Fonts/Core/Avenir.ttc',
+        '/System/Library/Fonts/Helvetica.ttc',
+        '/System/Library/Fonts/Core/Helvetica.ttc',
+        '/System/Library/Fonts/HelveticaNeue.ttc',
+        '/System/Library/Fonts/Core/HelveticaNeue.ttc',
+      ];
     }
-    if (!await outputFile.exists() || await outputFile.length() <= 0) {
-      throw Exception('SIGILLUM watermark output non valido');
+    return const ['/system/fonts/Roboto-Regular.ttf'];
+  }
+
+  bool _isFontResolutionFailure(String logs) {
+    final lower = logs.toLowerCase();
+    if (lower.contains("no such filter: 'drawtext'") ||
+        lower.contains('no such filter: drawtext')) {
+      return false;
     }
-    return outputPath;
+    return lower.contains('could not load font') ||
+        lower.contains('cannot find a valid font') ||
+        lower.contains('cannot find valid font') ||
+        (lower.contains('error initializing filter') &&
+            lower.contains('drawtext')) ||
+        (lower.contains('error applying option') && lower.contains('font'));
+  }
+
+  String _summarizeFfmpegFailure(String logs) {
+    final lines = logs
+        .split(RegExp(r'[\r\n]+'))
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .where((line) {
+          final lower = line.toLowerCase();
+          return !lower.startsWith('ffmpeg version') &&
+              !lower.startsWith('copyright') &&
+              !lower.startsWith('built with') &&
+              !lower.startsWith('configuration:') &&
+              !RegExp(r'^lib[a-z0-9_]+\s+').hasMatch(lower);
+        })
+        .toList();
+
+    if (lines.isEmpty) return 'errore FFmpeg senza dettagli';
+    final tail = lines.length <= 6 ? lines : lines.sublist(lines.length - 6);
+    return tail.join(' | ');
   }
 
   String _escapePath(String value) => value.replaceAll("'", r"'\''");
