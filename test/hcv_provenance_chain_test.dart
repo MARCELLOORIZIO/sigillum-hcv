@@ -9,9 +9,8 @@ String _hex(String char) => List<String>.filled(64, char).join();
 
 Future<HCVProvenanceSignature> _testSigner(String data) async {
   return HCVProvenanceSignature(
-    signature: sha256
-        .convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data'))
-        .toString(),
+    signature:
+        sha256.convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data')).toString(),
     publicKey: const {
       'modulus': 'LOCAL_DEV_PUBLIC_KEY',
       'exponent': 'LOCAL_DEV',
