@@ -161,13 +161,13 @@ class HCVVerifier {
         event["inputHash"] != contentHash ||
         event["deviceFingerprint"] != deviceFingerprint ||
         event["pipelineVersion"] != "HCV_CAPTURE_BINDING_V1" ||
-        event["signatureAlgorithm"] !=
-            HCVProvenanceChain.signatureAlgorithm) {
+        event["signatureAlgorithm"] != HCVProvenanceChain.signatureAlgorithm) {
       return false;
     }
 
     final nonce = event["nonce"]?.toString() ?? "";
-    final eventTimestamp = DateTime.tryParse(event["timestamp"]?.toString() ?? "");
+    final eventTimestamp =
+        DateTime.tryParse(event["timestamp"]?.toString() ?? "");
     if (nonce.isEmpty || eventTimestamp == null) return false;
 
     final eventHash = event["eventHash"]?.toString() ?? "";
@@ -294,15 +294,19 @@ class HCVVerifier {
     if (creatorId is! String || creatorId.isEmpty) return false;
     if (creatorName is! String || creatorName.isEmpty) return false;
 
-    final actualKeyFingerprint = sha256.convert(
-      utf8.encode(jsonEncode(publicKey)),
-    ).toString();
+    final actualKeyFingerprint = sha256
+        .convert(
+          utf8.encode(jsonEncode(publicKey)),
+        )
+        .toString();
 
     if (declaredKeyFingerprint != actualKeyFingerprint) return false;
 
-    final expectedIdentityFingerprint = sha256.convert(
-      utf8.encode("$creatorId|$creatorName|$declaredKeyFingerprint"),
-    ).toString();
+    final expectedIdentityFingerprint = sha256
+        .convert(
+          utf8.encode("$creatorId|$creatorName|$declaredKeyFingerprint"),
+        )
+        .toString();
 
     return identityFingerprint == expectedIdentityFingerprint;
   }
@@ -365,9 +369,8 @@ class HCVVerifier {
       if (exponent is! String) return false;
 
       if (modulus == "LOCAL_DEV_PUBLIC_KEY" && exponent == "LOCAL_DEV") {
-        final expected = sha256
-            .convert(utf8.encode("LOCAL_DEV_SIGNATURE:$data"))
-            .toString();
+        final expected =
+            sha256.convert(utf8.encode("LOCAL_DEV_SIGNATURE:$data")).toString();
         return signatureBase64 == expected;
       }
 

@@ -96,8 +96,7 @@ Map<String, dynamic> _buildCertificate({bool includeProvenance = true}) {
         'captureSource': 'HCV_CAMERA',
       },
     };
-    final eventHash =
-        _sha(HCVProvenanceChain.canonicalJson(eventBody));
+    final eventHash = _sha(HCVProvenanceChain.canonicalJson(eventBody));
     final event = <String, dynamic>{
       ...eventBody,
       'eventHash': eventHash,
@@ -174,7 +173,8 @@ Future<bool> _verifyCertificate(Map<String, dynamic> certificate) async {
 }
 
 void main() {
-  test('D2 verifier accepts a fully bound signed capture certificate', () async {
+  test('D2 verifier accepts a fully bound signed capture certificate',
+      () async {
     expect(await _verifyCertificate(_buildCertificate()), isTrue);
   });
 
@@ -188,7 +188,8 @@ void main() {
     expect(await _verifyCertificate(certificate), isFalse);
   });
 
-  test('D2 verifier rejects provenance summary changed and re-signed', () async {
+  test('D2 verifier rejects provenance summary changed and re-signed',
+      () async {
     final certificate = _buildCertificate();
     final claims = certificate['claims'] as Map<String, dynamic>;
     final provenance = claims['provenance'] as Map<String, dynamic>;

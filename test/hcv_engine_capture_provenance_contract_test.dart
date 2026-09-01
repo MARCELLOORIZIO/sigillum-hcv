@@ -16,7 +16,8 @@ void main() {
     final attachProvenance =
         source.indexOf('await _attachCaptureProvenance(dir);');
     final computeRoot = source.indexOf('final rootHash = _computeRootHash();');
-    final buildPayload = source.indexOf('final signedPayload = _buildSignedPayload(');
+    final buildPayload =
+        source.indexOf('final signedPayload = _buildSignedPayload(');
     final signPayload = source.indexOf('HCVKeystoreSigner.sign(canonical)');
 
     expect(attachIdentity, greaterThanOrEqualTo(0));
@@ -30,10 +31,13 @@ void main() {
     final camera = File('lib/camera_page.dart').readAsStringSync();
 
     expect(camera, isNot(contains("import 'hcv_capture_provenance.dart';")));
-    expect(camera, contains('final hash = sha256.convert(fileBytes).toString();'));
-    expect(camera, contains('final videoHash = sha256.convert(videoBytes).toString();'));
+    expect(
+        camera, contains('final hash = sha256.convert(fileBytes).toString();'));
+    expect(camera,
+        contains('final videoHash = sha256.convert(videoBytes).toString();'));
     expect(camera, contains('"captureSource": "HCV_CAMERA"'));
-    expect(camera, contains('"captureCreatedAt": capturedAt.toUtc().toIso8601String()'));
+    expect(camera,
+        contains('"captureCreatedAt": capturedAt.toUtc().toIso8601String()'));
     expect(
       camera,
       contains(
