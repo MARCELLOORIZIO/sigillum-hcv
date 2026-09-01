@@ -200,12 +200,14 @@ class HCVProvenanceChain {
         return _invalid('MALFORMED', 'Event $index is not valid JSON.', events);
       }
       if (decoded is! Map<String, dynamic>) {
-        return _invalid('MALFORMED', 'Event $index is not a JSON object.', events);
+        return _invalid(
+            'MALFORMED', 'Event $index is not a JSON object.', events);
       }
       final event = Map<String, dynamic>.from(decoded);
 
       if (event['type'] != eventSchema || event['version'] != eventVersion) {
-        return _invalid('SCHEMA', 'Event $index has an unsupported schema.', events);
+        return _invalid(
+            'SCHEMA', 'Event $index has an unsupported schema.', events);
       }
       if (event['sequence'] != index) {
         return _invalid('ORDER', 'Event sequence is not append order.', events);
@@ -216,12 +218,14 @@ class HCVProvenanceChain {
           event['deviceFingerprint']?.toString().toLowerCase() ?? '';
       if (!_sha256Pattern.hasMatch(inputHash) ||
           !_sha256Pattern.hasMatch(deviceFingerprint)) {
-        return _invalid('SCHEMA', 'Event $index contains invalid hashes.', events);
+        return _invalid(
+            'SCHEMA', 'Event $index contains invalid hashes.', events);
       }
 
       final nonce = event['nonce']?.toString() ?? '';
       if (nonce.isEmpty || !seenNonces.add(nonce)) {
-        return _invalid('REPLAY', 'Duplicate or empty nonce at event $index.', events);
+        return _invalid(
+            'REPLAY', 'Duplicate or empty nonce at event $index.', events);
       }
 
       final timestampRaw = event['timestamp']?.toString() ?? '';
@@ -234,9 +238,8 @@ class HCVProvenanceChain {
       }
       previousTimestamp = timestamp;
 
-      final expectedParent = index == 0
-          ? 'GENESIS'
-          : events[index - 1]['eventHash']?.toString();
+      final expectedParent =
+          index == 0 ? 'GENESIS' : events[index - 1]['eventHash']?.toString();
       if (event['parentEvent'] != expectedParent) {
         return _invalid('CHAIN', 'Broken parent link at event $index.', events);
       }
@@ -266,14 +269,16 @@ class HCVProvenanceChain {
       final signature = event['signature'];
       final publicKey = event['publicKey'];
       if (signature is! String || publicKey is! Map) {
-        return _invalid('SIGNATURE', 'Missing signature at event $index.', events);
+        return _invalid(
+            'SIGNATURE', 'Missing signature at event $index.', events);
       }
       if (!_verifySignature(
         data: storedHash,
         signature: signature,
         publicKey: Map<String, dynamic>.from(publicKey),
       )) {
-        return _invalid('SIGNATURE', 'Invalid signature at event $index.', events);
+        return _invalid(
+            'SIGNATURE', 'Invalid signature at event $index.', events);
       }
 
       events.add(event);
@@ -343,7 +348,8 @@ class HCVProvenanceChain {
         for (final entry in entries) entry.key: _normalizeJson(entry.value),
       };
     }
-    throw ArgumentError('Unsupported canonical JSON value: ${value.runtimeType}');
+    throw ArgumentError(
+        'Unsupported canonical JSON value: ${value.runtimeType}');
   }
 
   static String _sha256(String value) {
@@ -364,9 +370,8 @@ class HCVProvenanceChain {
     try {
       if (publicKey['modulus'] == 'LOCAL_DEV_PUBLIC_KEY' &&
           publicKey['exponent'] == 'LOCAL_DEV') {
-        final expected = sha256
-            .convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data'))
-            .toString();
+        final expected =
+            sha256.convert(utf8.encode('LOCAL_DEV_SIGNATURE:$data')).toString();
         return signature == expected;
       }
 
@@ -390,7 +395,8 @@ class HCVProvenanceChain {
   }
 
   static BigInt _bytesToBigInt(List<int> bytes) {
-    final hex = bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    final hex =
+        bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
     if (hex.isEmpty) throw ArgumentError('Empty RSA integer');
     return BigInt.parse(hex, radix: 16);
   }
