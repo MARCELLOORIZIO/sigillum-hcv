@@ -24,14 +24,14 @@ void main() {
       expect(gate, contains("'seconds': 0.2"));
       expect(gate, contains('return await _ocrImage(framePath);'));
 
-      // Robust still-image OCR keeps the existing bounded crop set and now uses
-      // independent-read consensus instead of trusting the first valid string.
+      // Robust still-image OCR keeps the existing bounded crop set and ranks
+      // independent readings instead of trusting the first valid string.
       expect(ocr, contains('static Future<String?> extractFastFromImage'));
       expect(ocr, contains('return _recognizePath(path);'));
       expect(ocr, contains('static Future<String?> extractFromImage'));
       expect(ocr, contains('img.decodeImage(bytes)'));
       expect(ocr, contains('final fractions = <double>[0.18, 0.28, 0.42]'));
-      expect(ocr, contains('selectConsensusCandidate(detections)'));
+      expect(ocr, contains('rankConsensusCandidates(detections)'));
 
       // Keep the already-materialized Registry safeguards too.
       expect(registry, contains("'00:00:00.2'"));
