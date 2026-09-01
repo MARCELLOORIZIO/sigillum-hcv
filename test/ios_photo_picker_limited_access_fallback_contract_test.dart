@@ -23,6 +23,25 @@ void main() {
     );
     expect(scene, contains('options.isNetworkAccessAllowed = true'));
 
+    // Preserve a useful source filename in both picker paths. SIGILLUM photos
+    // include the HCV-ID in their filename, so throwing this information away
+    // would unnecessarily force OCR even when exact original bytes are used.
+    expect(scene, contains('provider.suggestedName.map'));
+    expect(
+      scene,
+      contains(
+        'let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent',
+      ),
+    );
+    expect(
+      scene,
+      contains('"hcv_picker_\\(UUID().uuidString)_\\(suggestedLeaf)"'),
+    );
+    expect(
+      scene,
+      contains('"hcv_original_\\(UUID().uuidString)_\\(originalLeaf)"'),
+    );
+
     // PHPicker itself must not be blocked by read/write Photos authorization:
     // a user-picked image is still readable through its item provider when
     // PhotoKit access is limited or the PHAsset cannot be fetched.
