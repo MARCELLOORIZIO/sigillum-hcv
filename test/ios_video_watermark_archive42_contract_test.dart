@@ -22,7 +22,10 @@ void main() {
     expect(source, contains('_summarizeFfmpegFailure'));
     expect(source, contains("!lower.startsWith('ffmpeg version')"));
     expect(source, contains("!lower.startsWith('configuration:')"));
-    expect(source, isNot(contains("'SIGILLUM watermark failed:\\n$logs'")));
+    expect(
+      source,
+      isNot(contains(r"'SIGILLUM watermark failed:\n$logs'")),
+    );
   });
 
   test('archive 42 patch does not change video codec or camera orchestration', () {
