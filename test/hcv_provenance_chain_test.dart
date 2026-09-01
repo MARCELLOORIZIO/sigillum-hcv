@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sigillum_hcv/hcv_provenance_chain.dart';
+import 'package:sigillum_iphone/hcv_provenance_chain.dart';
 
 String _hex(String char) => List<String>.filled(64, char).join();
 
