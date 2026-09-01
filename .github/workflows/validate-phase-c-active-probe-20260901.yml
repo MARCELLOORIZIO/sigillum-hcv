@@ -1,0 +1,23 @@
+name: Validate Phase C Active Probe
+
+on:
+  push:
+    branches:
+      - phase-c-active-probe-reality-regression-20260901
+
+permissions:
+  contents: read
+
+jobs:
+  regression-first:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter pub get
+      - name: Run Archive 42 active-probe regression only
+        run: flutter test test/archive42_reality_active_probe_regression_test.dart --reporter expanded
