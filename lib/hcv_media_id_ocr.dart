@@ -59,24 +59,64 @@ class HCVMediaIdOcr {
     return null;
   }
 
-  /// Fast public precheck: exactly one native OCR pass.
+  /// Chooses the HCV-ID supported by the largest number of independent OCR
+  /// readings. Ties preserve first-seen order, so the direct full-image pass
+  /// remains the deterministic fallback when every reading disagrees.
+  static String? selectConsensusCandidate(Iterable<String?> candidates) {
+    final counts = <String, int>{};
+    final firstSeen = <String>[];
+
+    for (final raw in candidates) {
+      final candidate = raw?.trim().toUpperCase();
+      if (candidate == null ||
+          !RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(candidate)) {
+        continue;
+      }
+
+      if (!counts.containsKey(candidate)) {
+        counts[candidate] = 0;
+        firstSeen.add(candidate);
+      }
+      counts[candidate] = counts[candidate]! + 1;
+    }
+
+    if (firstSeen.isEmpty) return null;
+
+    var winner = firstSeen.first;
+    var winnerVotes = counts[winner]!;
+    for (final candidate in firstSeen.skip(1)) {
+      final votes = counts[candidate]!;
+      if (votes > winnerVotes) {
+        winner = candidate;
+        winnerVotes = votes;
+      }
+    }
+    return winner;
+  }
+
+  /// Fast precheck: exactly one native OCR pass.
   ///
-  /// This path is intentionally fail-fast. It must never decode the image,
-  /// create enlarged crops, or run the robust multi-pass fallback used by the
-  /// full Registry verification. If no valid 16-character HCV-ID is visible in
-  /// this pass, the quick gate immediately treats the media as uncertified.
+  /// Video verification uses this bounded path on one extracted frame. Photo
+  /// verification may use it as the first pass and then invoke extractFromImage
+  /// when a more robust still-image decision is required.
   static Future<String?> extractFastFromImage(String path) async {
     final source = File(path);
     if (!await source.exists()) return null;
     return _recognizePath(path);
   }
 
+  /// Robust still-image OCR.
+  ///
+  /// A syntactically valid first OCR reading is not trusted by itself: SIGILLUM
+  /// also reads enlarged top crops and selects the candidate with the strongest
+  /// independent agreement. This prevents a single 6/0, B/8, or dropped-letter
+  /// OCR error from being sent to the Registry as though it were authoritative.
   static Future<String?> extractFromImage(String path) async {
     final source = File(path);
     if (!await source.exists()) return null;
 
-    final direct = await _recognizePath(path);
-    if (direct != null) return direct;
+    final detections = <String?>[];
+    detections.add(await _recognizePath(path));
 
     final temporaryCandidates = <File>[];
 
@@ -84,7 +124,7 @@ class HCVMediaIdOcr {
       final bytes = await source.readAsBytes();
       final decoded = img.decodeImage(bytes);
       if (decoded == null || decoded.width < 32 || decoded.height < 32) {
-        return null;
+        return selectConsensusCandidate(detections);
       }
 
       final tempDir = await getTemporaryDirectory();
@@ -127,11 +167,10 @@ class HCVMediaIdOcr {
       }
 
       for (final candidate in temporaryCandidates) {
-        final detected = await _recognizePath(candidate.path);
-        if (detected != null) return detected;
+        detections.add(await _recognizePath(candidate.path));
       }
     } catch (_) {
-      return null;
+      return selectConsensusCandidate(detections);
     } finally {
       for (final candidate in temporaryCandidates) {
         try {
@@ -142,7 +181,7 @@ class HCVMediaIdOcr {
       }
     }
 
-    return null;
+    return selectConsensusCandidate(detections);
   }
 
   static Future<String?> _recognizePath(String path) async {
