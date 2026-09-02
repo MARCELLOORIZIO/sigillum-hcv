@@ -500,6 +500,22 @@ class HCVDisplayRiskFusion {
         (mlAverageFrameScore ?? 100.0) <= 20.0 &&
         (mlScreenProbability ?? 1.0) <= 0.60 &&
         !mlStrong;
+    final strongMultiFrameRealityWithoutGeometry = !liveCaptureOnly &&
+        mlSaysReality &&
+        mlFramesAnalyzed >= 3 &&
+        mlStrongScreenFrameCount == 0 &&
+        mlMediumScreenFrameCount == 0 &&
+        (mlAverageFrameScore ?? 100.0) <= 12.0 &&
+        (mlScreenProbability ?? 1.0) <= 0.10 &&
+        (mlConfidence ?? 0.0) >= 0.70 &&
+        geometrySceneClass != 'PLANAR' &&
+        !planarSceneEvidence &&
+        !rawActiveDisplayEvidence &&
+        !activeDisplayEvidence &&
+        !passiveStructuralEvidence &&
+        !passiveStrong &&
+        !passiveModerate &&
+        !mlStrong;
     final geometryRealityWithIndependentNonDisplay =
         geometrySceneClass == 'REALITY' &&
             weakScreenAcrossVideoFrames &&
@@ -589,6 +605,12 @@ class HCVDisplayRiskFusion {
       score = min(rawScore, 20);
       reasons.add(
         'GEOMETRIC_REALITY_AND_WEAK_MULTI_FRAME_SCREEN_EVIDENCE_AGREE',
+      );
+    } else if (strongMultiFrameRealityWithoutGeometry) {
+      decision = 'NO_DISPLAY_EVIDENCE';
+      score = min(rawScore, 20);
+      reasons.add(
+        'MULTI_FRAME_REALITY_RESOLVES_UNCORROBORATED_TEMPORAL_SIGNAL',
       );
     } else if (photoDualRealityAgreement &&
         !passiveStructuralEvidence &&
