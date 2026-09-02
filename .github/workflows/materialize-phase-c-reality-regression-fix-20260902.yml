@@ -31,7 +31,9 @@ jobs:
           cache: true
       - name: Materialize narrow fusion fix and regressions
         if: steps.guard.outputs.skip != 'true'
-        run: python3 tool/materialize_reality_regression_fix_20260902.py
+        run: |
+          python3 tool/materialize_reality_regression_fix_20260902.py
+          python3 tool/adjust_reality_regression_test_20260902.py
       - name: Install dependencies
         if: steps.guard.outputs.skip != 'true'
         run: flutter pub get
