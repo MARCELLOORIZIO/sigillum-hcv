@@ -25,55 +25,34 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
+          import re
           from pathlib import Path
 
           path = Path('lib/hcv_display_risk_fusion.dart')
           text = path.read_text()
 
-          old_override = """    final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
-              geometrySceneClass == 'UNKNOWN' &&
-              (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
-          """
-          new_override = """    final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
-              geometrySceneClass == 'UNKNOWN' &&
-              (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
-              final mlPlanarGeometryOverride = !reflectedRealityEvidence &&
-                  geometrySceneClass == 'PLANAR' &&
-                  (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
-          """
-
-          old_branch = """    } else if (mlGeometryOverride || mlUnresolvedGeometryOverride) {
-          """
-          new_branch = """    } else if (mlGeometryOverride ||
-              mlUnresolvedGeometryOverride ||
-              mlPlanarGeometryOverride) {
-          """
-
-          old_reason = """      reasons.add(
-                mlGeometryOverride
-                    ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
-                    : 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE',
-              );
-          """
-          new_reason = """      reasons.add(
-                mlGeometryOverride
-                    ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
-                    : mlUnresolvedGeometryOverride
-                        ? 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
-                        : 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',
-              );
-          """
-
-          if 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE' not in text:
-              if text.count(old_override) != 1:
-                  raise SystemExit('expected mlUnresolvedGeometryOverride block not found exactly once')
-              if text.count(old_branch) != 1:
-                  raise SystemExit('expected geometry override decision branch not found exactly once')
-              if text.count(old_reason) != 1:
-                  raise SystemExit('expected geometry resolution reason block not found exactly once')
-              text = text.replace(old_override, new_override)
-              text = text.replace(old_branch, new_branch)
-              text = text.replace(old_reason, new_reason)
+          marker = 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE'
+          if marker not in text:
+              text, n1 = re.subn(
+                  r"(    final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&\n        geometrySceneClass == 'UNKNOWN' &&\n        \(mlPersistentVideoEvidence \|\| mlMultiFrameScreenConsistency\);)",
+                  r"\1\n    final mlPlanarGeometryOverride = !reflectedRealityEvidence &&\n        geometrySceneClass == 'PLANAR' &&\n        (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);",
+                  text,
+                  count=1,
+              )
+              text, n2 = re.subn(
+                  r"    \} else if \(mlGeometryOverride \|\| mlUnresolvedGeometryOverride\) \{",
+                  "    } else if (mlGeometryOverride ||\n        mlUnresolvedGeometryOverride ||\n        mlPlanarGeometryOverride) {",
+                  text,
+                  count=1,
+              )
+              text, n3 = re.subn(
+                  r"      reasons\.add\(\n        mlGeometryOverride\n            \? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'\n            : 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE',\n      \);",
+                  "      reasons.add(\n        mlGeometryOverride\n            ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'\n            : mlUnresolvedGeometryOverride\n                ? 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'\n                : 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',\n      );",
+                  text,
+                  count=1,
+              )
+              if (n1, n2, n3) != (1, 1, 1):
+                  raise SystemExit(f'unexpected patch counts: {(n1, n2, n3)}')
               path.write_text(text)
           PY
           dart format lib/hcv_display_risk_fusion.dart test/build66_planar_multiframe_regression_test.dart
