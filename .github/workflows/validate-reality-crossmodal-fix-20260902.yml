@@ -1,0 +1,23 @@
+name: Validate Reality Crossmodal Fix
+
+on:
+  push:
+    branches:
+      - phase-c-reality-crossmodal-fix-20260902
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter pub get
+      - name: Run new reality regressions
+        run: flutter test test/phase_c_reality_crossmodal_regression_20260902_test.dart --reporter expanded
