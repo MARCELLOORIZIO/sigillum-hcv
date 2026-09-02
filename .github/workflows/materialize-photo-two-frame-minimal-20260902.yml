@@ -1,0 +1,69 @@
+name: Validate minimal photo two-frame temporal sampling
+
+on:
+  push:
+    branches:
+      - phase-c-photo-two-frame-minimal-validate-20260902
+
+permissions:
+  contents: write
+
+jobs:
+  validate-minimal-patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: phase-c-photo-two-frame-minimal-validate-20260902
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Materialize minimal source patch
+        run: python3 tool/materialize_photo_two_frame_minimal_20260902.py
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Two-frame sampling contract tests
+        run: flutter test test/photo_temporal_two_frame_sampling_contract_test.dart --reporter expanded
+
+      - name: Phase C regression safeguards
+        run: |
+          flutter test test/build69_capture_fusion_integration_test.dart --reporter expanded
+          flutter test test/build67_reality_regression_test.dart --reporter expanded
+          flutter test test/build66_planar_multiframe_regression_test.dart --reporter expanded
+          flutter test test/phase_c_ml_geometry_persistence_regression_test.dart --reporter expanded
+          flutter test test/archive42_reality_active_probe_regression_test.dart --reporter expanded
+
+      - name: Full Flutter test suite
+        run: flutter test --reporter expanded
+
+      - name: Diff sanity
+        run: git diff --check
+
+      - name: Commit validated minimal patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/hcv_ml_screen_replay_classifier.dart \
+                  lib/hcv_temporal_capture_probe.dart \
+                  test/photo_temporal_two_frame_sampling_contract_test.dart
+          if git diff --cached --quiet; then
+            echo "No materialized changes to commit"
+            exit 0
+          fi
+          git commit -m "Phase C: sample two pre-capture photo frames"
+          git push origin HEAD:phase-c-photo-two-frame-minimal-validate-20260902
