@@ -6,6 +6,7 @@ on:
       - phase-c-build72-final-fixes-20260902
     paths:
       - tool/materialize_build72_final_fixes_20260902.py
+      - tool/adjust_build72_final_fixes_20260902.py
   workflow_dispatch:
 
 permissions:
@@ -23,7 +24,9 @@ jobs:
           fetch-depth: 0
 
       - name: Materialize source and tests
-        run: python tool/materialize_build72_final_fixes_20260902.py
+        run: |
+          python tool/materialize_build72_final_fixes_20260902.py
+          python tool/adjust_build72_final_fixes_20260902.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
