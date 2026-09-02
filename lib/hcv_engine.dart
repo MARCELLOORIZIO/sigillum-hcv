@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'hcv_capture_provenance.dart';
 import 'hcv_identity.dart';
 import 'hcv_keystore_signer.dart';
+import 'hcv_software_attestation.dart';
 
 class HCVEngine {
   final List<Map<String, dynamic>> chain = [];
@@ -109,6 +110,13 @@ class HCVEngine {
     };
   }
 
+  void _attachSoftwareAttestation() {
+    meta = {
+      ...meta,
+      "softwareAttestation": HCVSoftwareAttestation.current(),
+    };
+  }
+
   Future<void> _attachCaptureProvenance(Directory outputDirectory) async {
     if (claims["captureSource"] != "HCV_CAMERA") return;
 
@@ -203,6 +211,9 @@ class HCVEngine {
 
     await _attachIdentity();
     _attachPublishData();
+    // D3: bind the exact compile-time software identity into meta before the
+    // certificate payload is canonicalized and signed by the device key.
+    _attachSoftwareAttestation();
 
     print("===== HCV ENGINE IDENTITY =====");
     print(meta["identity"]);
