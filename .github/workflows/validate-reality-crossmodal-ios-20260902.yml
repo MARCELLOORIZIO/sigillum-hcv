@@ -1,0 +1,43 @@
+name: Validate Reality Crossmodal iOS
+
+on:
+  push:
+    branches:
+      - phase-c-reality-crossmodal-fix-20260902
+
+permissions:
+  contents: read
+
+jobs:
+  ios-release:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter pub get
+      - name: Pin TensorFlow Lite iOS runtime
+        run: bash tool/pin_tflite_ios_runtime_20260826.sh
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Reality and Phase C regression gates
+        run: |
+          flutter test test/phase_c_reality_crossmodal_regression_20260902_test.dart --reporter expanded
+          flutter test test/build66_planar_multiframe_regression_test.dart --reporter expanded
+          flutter test test/phase_c_ml_geometry_persistence_regression_test.dart --reporter expanded
+          flutter test test/archive42_reality_active_probe_regression_test.dart --reporter expanded
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+          grep -q 'TensorFlowLiteSwift (2.17.0)' Podfile.lock
+      - name: Build unsigned iOS Release
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=SIGILLUM_EDITION=user \
+            --dart-define=GIT_COMMIT="$GITHUB_SHA"
+          test -d build/ios/iphoneos/Runner.app
+          test -d ios/ShareExtension
