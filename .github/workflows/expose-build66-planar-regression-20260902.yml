@@ -1,4 +1,4 @@
-name: Expose Build66 Planar Monitor Regression
+name: Validate Build66 Planar Monitor Fix
 
 on:
   push:
@@ -6,10 +6,10 @@ on:
       - phase-c-build66-planar-multiframe-20260902
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  regression:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,5 +20,89 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Materialize narrow PLANAR multi-frame fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/hcv_display_risk_fusion.dart')
+          text = path.read_text()
+
+          old_override = """    final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
+              geometrySceneClass == 'UNKNOWN' &&
+              (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
+          """
+          new_override = """    final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
+              geometrySceneClass == 'UNKNOWN' &&
+              (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
+              final mlPlanarGeometryOverride = !reflectedRealityEvidence &&
+                  geometrySceneClass == 'PLANAR' &&
+                  (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
+          """
+
+          old_branch = """    } else if (mlGeometryOverride || mlUnresolvedGeometryOverride) {
+          """
+          new_branch = """    } else if (mlGeometryOverride ||
+              mlUnresolvedGeometryOverride ||
+              mlPlanarGeometryOverride) {
+          """
+
+          old_reason = """      reasons.add(
+                mlGeometryOverride
+                    ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
+                    : 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE',
+              );
+          """
+          new_reason = """      reasons.add(
+                mlGeometryOverride
+                    ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
+                    : mlUnresolvedGeometryOverride
+                        ? 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
+                        : 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',
+              );
+          """
+
+          if 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE' not in text:
+              if text.count(old_override) != 1:
+                  raise SystemExit('expected mlUnresolvedGeometryOverride block not found exactly once')
+              if text.count(old_branch) != 1:
+                  raise SystemExit('expected geometry override decision branch not found exactly once')
+              if text.count(old_reason) != 1:
+                  raise SystemExit('expected geometry resolution reason block not found exactly once')
+              text = text.replace(old_override, new_override)
+              text = text.replace(old_branch, new_branch)
+              text = text.replace(old_reason, new_reason)
+              path.write_text(text)
+          PY
+          dart format lib/hcv_display_risk_fusion.dart test/build66_planar_multiframe_regression_test.dart
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Run Build66 planar regression
         run: flutter test test/build66_planar_multiframe_regression_test.dart --reporter expanded
+      - name: Run 48-case and Phase C regression matrices
+        run: |
+          flutter test test/phase_c_48_case_promotion_matrix_test.dart --reporter expanded
+          flutter test test/build65_display_recall_regression_test.dart --reporter expanded
+          flutter test test/phase_c_ml_geometry_persistence_regression_test.dart --reporter expanded
+          flutter test test/archive42_reality_active_probe_regression_test.dart --reporter expanded
+          flutter test test/current_device_monitor_recall_regression_test.dart --reporter expanded
+          flutter test test/reality_temporal_false_positive_regression_test.dart --reporter expanded
+          flutter test test/hcv_display_risk_fusion_test.dart --reporter expanded
+          flutter test test/hcv_display_risk_conflict_regression_test.dart --reporter expanded
+      - name: Run full Flutter regression suite
+        run: flutter test --reporter expanded
+      - name: Commit tested runtime fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- lib/hcv_display_risk_fusion.dart test/build66_planar_multiframe_regression_test.dart; then
+            echo 'No runtime/test changes to commit.'
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/hcv_display_risk_fusion.dart test/build66_planar_multiframe_regression_test.dart
+          git commit -m "fix: allow corroborated multi-frame ML for planar geometry"
+          git push
