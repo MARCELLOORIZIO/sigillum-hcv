@@ -1,0 +1,33 @@
+name: Validate Phase D Build Attestation
+
+on:
+  push:
+    branches:
+      - phase-d-build-attestation-20260902
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Run Phase D attestation tests
+        run: |
+          flutter test test/hcv_software_attestation_test.dart --reporter expanded
+          flutter test test/hcv_software_attestation_contract_test.dart --reporter expanded
+          flutter test test/hcv_engine_capture_provenance_contract_test.dart --reporter expanded
+          flutter test test/hcv_capture_provenance_test.dart --reporter expanded
+          flutter test test/hcv_capture_provenance_verifier_test.dart --reporter expanded
+      - name: Run full regression suite
+        run: flutter test --reporter expanded
