@@ -2,11 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_software_attestation.dart';
 
 void main() {
-  test('D3 binds a valid Git SHA-1 into the software attestation', () {
+  test('D3 binds Git, app version and build into software attestation', () {
     const commit = '1fe680665ac1cec7a4e749149413cd63a45fe0c7';
     final attestation = HCVSoftwareAttestation.fromValues(
       sourceCommit: commit.toUpperCase(),
       edition: 'user',
+      appVersion: '1.0.0',
+      buildNumber: '67',
     );
 
     expect(attestation['type'], 'SIGILLUM_SOFTWARE_ATTESTATION');
@@ -15,6 +17,8 @@ void main() {
     expect(attestation['sourceCommit'], commit);
     expect(attestation['sourceCommitAlgorithm'], 'GIT_SHA1');
     expect(attestation['edition'], 'user');
+    expect(attestation['appVersion'], '1.0.0');
+    expect(attestation['buildNumber'], '67');
     expect(HCVSoftwareAttestation.isValid(attestation), isTrue);
   });
 
@@ -34,11 +38,15 @@ void main() {
     final attestation = HCVSoftwareAttestation.fromValues(
       sourceCommit: 'not-a-git-commit',
       edition: 'dev',
+      appVersion: '1.0.0',
+      buildNumber: 'local',
     );
 
     expect(attestation['status'], 'UNBOUND');
     expect(attestation.containsKey('sourceCommit'), isFalse);
     expect(attestation.containsKey('sourceCommitAlgorithm'), isFalse);
+    expect(attestation['appVersion'], '1.0.0');
+    expect(attestation['buildNumber'], 'local');
     expect(HCVSoftwareAttestation.isValid(attestation), isTrue);
   });
 
@@ -51,6 +59,8 @@ void main() {
       'sourceCommit': 'invalid',
       'sourceCommitAlgorithm': 'GIT_SHA1',
       'edition': 'user',
+      'appVersion': '1.0.0',
+      'buildNumber': '67',
     };
 
     expect(HCVSoftwareAttestation.isValid(malformed), isFalse);
