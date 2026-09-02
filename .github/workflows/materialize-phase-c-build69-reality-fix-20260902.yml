@@ -1,0 +1,64 @@
+name: Materialize Phase C build69 reality integration fix
+
+on:
+  push:
+    branches:
+      - phase-c-build69-final-fusion-integration-20260902
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: phase-c-build69-final-fusion-integration-20260902
+      - name: Stop after materialized commit
+        id: guard
+        run: |
+          if git log -1 --pretty=%B | grep -q '\[materialized-build69-reality-fix\]'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: subosito/flutter-action@v2
+        if: steps.guard.outputs.skip != 'true'
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Materialize integration fix and build69 regressions
+        if: steps.guard.outputs.skip != 'true'
+        run: python3 tool/materialize_build69_reality_fix_20260902.py
+      - name: Install dependencies
+        if: steps.guard.outputs.skip != 'true'
+        run: flutter pub get
+      - name: Format
+        if: steps.guard.outputs.skip != 'true'
+        run: dart format lib/hcv_display_risk_fusion.dart lib/camera_page.dart test/build69_capture_fusion_integration_test.dart
+      - name: Analyze
+        if: steps.guard.outputs.skip != 'true'
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Build69 physical REALITY regressions
+        if: steps.guard.outputs.skip != 'true'
+        run: flutter test test/build69_capture_fusion_integration_test.dart --reporter expanded
+      - name: Previous REALITY and display safeguards
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          flutter test test/build67_reality_regression_test.dart --reporter expanded
+          flutter test test/build66_planar_multiframe_regression_test.dart --reporter expanded
+          flutter test test/phase_c_ml_geometry_persistence_regression_test.dart --reporter expanded
+          flutter test test/archive42_reality_active_probe_regression_test.dart --reporter expanded
+      - name: Full regression suite
+        if: steps.guard.outputs.skip != 'true'
+        run: flutter test --reporter expanded
+      - name: Commit materialized fix
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          git config user.name "MARCELLOORIZIO"
+          git config user.email "MARCELLOORIZIO@YAHOO.IT"
+          git add lib/hcv_display_risk_fusion.dart lib/camera_page.dart test/build69_capture_fusion_integration_test.dart
+          git commit -m "fix: honor final REALITY evidence in capture wrappers [materialized-build69-reality-fix]"
+          git push origin HEAD:phase-c-build69-final-fusion-integration-20260902
