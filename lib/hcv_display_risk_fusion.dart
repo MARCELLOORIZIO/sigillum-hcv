@@ -445,6 +445,9 @@ class HCVDisplayRiskFusion {
     final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
         geometrySceneClass == 'UNKNOWN' &&
         (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
+    final mlPlanarGeometryOverride = !reflectedRealityEvidence &&
+        geometrySceneClass == 'PLANAR' &&
+        (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
 
     final strongDisplayFamilies = <String>{};
     if (liveTemporal) strongDisplayFamilies.add('LIVE_TEMPORAL');
@@ -501,7 +504,9 @@ class HCVDisplayRiskFusion {
       decision = 'STRONG_DISPLAY_RISK';
       score =
           max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
-    } else if (mlGeometryOverride || mlUnresolvedGeometryOverride) {
+    } else if (mlGeometryOverride ||
+        mlUnresolvedGeometryOverride ||
+        mlPlanarGeometryOverride) {
       decision = 'STRONG_DISPLAY_RISK';
       score =
           max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
@@ -517,7 +522,9 @@ class HCVDisplayRiskFusion {
       reasons.add(
         mlGeometryOverride
             ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
-            : 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE',
+            : mlUnresolvedGeometryOverride
+                ? 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
+                : 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',
       );
     } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
