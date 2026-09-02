@@ -43,8 +43,9 @@ class HCVTemporalCaptureProbe {
       late Map<String, dynamic> mlAnalysis;
 
       try {
-        opticalAnalysis =
-            await HCVScreenReplayAnalyzer().analyzeVideo(temporaryVideoPath);
+        opticalAnalysis = await HCVScreenReplayAnalyzer().analyzeVideo(
+          temporaryVideoPath,
+        );
       } catch (e) {
         opticalAnalysis = _analysisUnknown(
           type: 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
@@ -54,9 +55,10 @@ class HCVTemporalCaptureProbe {
       }
 
       try {
-        mlAnalysis =
-            await HCVMLScreenReplayClassifier.instance.analyzeVideo(
+        mlAnalysis = await HCVMLScreenReplayClassifier.instance.analyzeVideo(
           temporaryVideoPath,
+          frameIntervalSeconds: 1,
+          maxFrames: 2,
         );
       } catch (e) {
         mlAnalysis = _analysisUnknown(
@@ -66,12 +68,13 @@ class HCVTemporalCaptureProbe {
         );
       }
 
-      final opticalScore =
-          (opticalAnalysis['screenReplayRiskScore'] as num?)?.toInt();
+      final opticalScore = (opticalAnalysis['screenReplayRiskScore'] as num?)
+          ?.toInt();
       final mlScore = (mlAnalysis['screenReplayRiskScore'] as num?)?.toInt();
       final analyzed = opticalScore != null || mlScore != null;
-      final temporaryVideoDeleted =
-          await _deleteTemporaryVideo(temporaryVideoPath);
+      final temporaryVideoDeleted = await _deleteTemporaryVideo(
+        temporaryVideoPath,
+      );
       if (temporaryVideoDeleted) {
         temporaryVideoPath = null;
       }
