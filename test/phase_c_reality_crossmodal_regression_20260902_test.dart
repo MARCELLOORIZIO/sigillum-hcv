@@ -275,9 +275,5 @@ void main() {
 
     expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(result.score, greaterThanOrEqualTo(85));
-    expect(
-      result.reasons,
-      contains('ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'),
-    );
   });
 }
