@@ -13,19 +13,28 @@ class HCVSoftwareAttestation {
     defaultValue: 'unknown',
   );
 
-  static Map<String, dynamic> current() {
+  static Map<String, dynamic> current({
+    required String appVersion,
+    required String buildNumber,
+  }) {
     return fromValues(
       sourceCommit: _runtimeGitCommit,
       edition: _runtimeEdition,
+      appVersion: appVersion,
+      buildNumber: buildNumber,
     );
   }
 
   static Map<String, dynamic> fromValues({
     required String sourceCommit,
     required String edition,
+    String appVersion = '',
+    String buildNumber = '',
   }) {
     final cleanCommit = sourceCommit.trim().toLowerCase();
     final cleanEdition = edition.trim();
+    final cleanAppVersion = appVersion.trim();
+    final cleanBuildNumber = buildNumber.trim();
     final algorithm = _commitAlgorithm(cleanCommit);
     final bound = algorithm != null;
 
@@ -37,6 +46,8 @@ class HCVSoftwareAttestation {
       if (bound) 'sourceCommit': cleanCommit,
       if (algorithm != null) 'sourceCommitAlgorithm': algorithm,
       if (cleanEdition.isNotEmpty) 'edition': cleanEdition,
+      if (cleanAppVersion.isNotEmpty) 'appVersion': cleanAppVersion,
+      if (cleanBuildNumber.isNotEmpty) 'buildNumber': cleanBuildNumber,
     };
   }
 
@@ -49,10 +60,11 @@ class HCVSoftwareAttestation {
     final status = value['status'];
     if (status != 'BOUND' && status != 'UNBOUND') return false;
 
-    final rawEdition = value['edition'];
-    if (rawEdition != null &&
-        (rawEdition is! String || rawEdition.trim().isEmpty)) {
-      return false;
+    for (final field in ['edition', 'appVersion', 'buildNumber']) {
+      final raw = value[field];
+      if (raw != null && (raw is! String || raw.trim().isEmpty)) {
+        return false;
+      }
     }
 
     if (status == 'UNBOUND') {
