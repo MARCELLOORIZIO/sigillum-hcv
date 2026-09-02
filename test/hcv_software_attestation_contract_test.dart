@@ -20,10 +20,10 @@ void main() {
     expect(attachIndex, greaterThanOrEqualTo(0));
     expect(payloadIndex, greaterThan(attachIndex));
 
-    expect(releaseBuilder, contains('BUILD_COMMIT="$(git rev-parse HEAD)"'));
+    expect(releaseBuilder, contains(r'BUILD_COMMIT="$(git rev-parse HEAD)"'));
     expect(
       releaseBuilder,
-      contains('--dart-define=GIT_COMMIT="$BUILD_COMMIT"'),
+      contains(r'--dart-define=GIT_COMMIT="$BUILD_COMMIT"'),
     );
   });
 }
