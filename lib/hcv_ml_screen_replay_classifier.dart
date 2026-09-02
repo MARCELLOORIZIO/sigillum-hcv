@@ -49,7 +49,11 @@ class HCVMLScreenReplayClassifier {
     _modelSha256 = null;
   }
 
-  Future<Map<String, dynamic>> analyzeVideo(String videoPath) async {
+  Future<Map<String, dynamic>> analyzeVideo(
+    String videoPath, {
+    int frameIntervalSeconds = 3,
+    int maxFrames = 8,
+  }) async {
     final file = File(videoPath);
     if (!await file.exists()) {
       return _unknown('VIDEO_NOT_FOUND');
@@ -65,12 +69,14 @@ class HCVMLScreenReplayClassifier {
 
     try {
       await workDir.create(recursive: true);
+      final samplingIntervalSeconds = max(1, frameIntervalSeconds);
+      final frameLimit = max(1, maxFrames);
       final framePattern = p.join(workDir.path, 'frame_%03d.jpg');
       final command = "-y -i '$videoPath' "
           "-vf \"scale=720:720:force_original_aspect_ratio=decrease,"
           "pad=720:720:(ow-iw)/2:(oh-ih)/2,"
-          "fps=1/3\" "
-          "-frames:v 8 "
+          "fps=1/$samplingIntervalSeconds\" "
+          "-frames:v $frameLimit "
           "'$framePattern'";
 
       final session = await FFmpegKit.execute(command);
@@ -94,7 +100,7 @@ class HCVMLScreenReplayClassifier {
       for (var i = 0; i < frames.length; i++) {
         final analysis = await analyzeImage(frames[i].path);
         analysis['videoFrameIndex'] = i;
-        analysis['approxVideoSecond'] = i * 3;
+        analysis['approxVideoSecond'] = i * samplingIntervalSeconds;
         analyses.add(analysis);
       }
 
@@ -139,6 +145,8 @@ class HCVMLScreenReplayClassifier {
       );
       worst['averageScreenReplayRiskScore'] =
           averageScore == null ? null : _round(averageScore);
+      worst['videoFrameSamplingIntervalSeconds'] = samplingIntervalSeconds;
+      worst['videoFrameSamplingLimit'] = frameLimit;
       worst['videoFrameAnalyses'] = analyses.take(12).toList();
       return worst;
     } catch (e) {
