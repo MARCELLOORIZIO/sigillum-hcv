@@ -49,6 +49,16 @@ Map<String, dynamic> _livePlanarMonitor() => {
       'videoEquivalentAvailable': false,
     };
 
+Map<String, dynamic> _livePlanarReflectedReality() {
+  final live = Map<String, dynamic>.from(_livePlanarMonitor());
+  live['signals'] = <String, dynamic>{
+    ...(live['signals'] as Map<String, dynamic>),
+    'reflectedRealityEvidence': true,
+    'sceneRealityEvidence': true,
+  };
+  return live;
+}
+
 Map<String, dynamic> _mlPlanarMonitor() => {
       'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
       'analysisStatus': 'ANALYZED',
@@ -118,6 +128,25 @@ void main() {
 
       expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
       expect(result.score, lessThan(85));
+    });
+
+    test('reflected reality remains a hard blocker for PLANAR override', () {
+      final result = HCVDisplayRiskFusion.combine([
+        _livePlanarReflectedReality(),
+        _mlPlanarMonitor(),
+      ]);
+
+      expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
+      expect(
+        result.reasons,
+        contains('ML_SCREEN_AND_REFLECTED_REALITY_CONFLICT'),
+      );
+      expect(
+        result.reasons,
+        isNot(contains(
+          'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',
+        )),
+      );
     });
   });
 }
