@@ -1,0 +1,24 @@
+name: Expose Build66 Planar Monitor Regression
+
+on:
+  push:
+    branches:
+      - phase-c-build66-planar-multiframe-20260902
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Run Build66 planar regression
+        run: flutter test test/build66_planar_multiframe_regression_test.dart --reporter expanded
