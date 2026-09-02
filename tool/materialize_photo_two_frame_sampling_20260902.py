@@ -92,8 +92,8 @@ void main() {
 
     expect(source, contains('int frameIntervalSeconds = 3'));
     expect(source, contains('int maxFrames = 8'));
-    expect(source, contains('fps=1/$samplingIntervalSeconds'));
-    expect(source, contains('-frames:v $frameLimit'));
+    expect(source, contains('fps=1/\$samplingIntervalSeconds'));
+    expect(source, contains('-frames:v \$frameLimit'));
     expect(
       source,
       contains(
