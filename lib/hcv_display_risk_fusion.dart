@@ -162,6 +162,44 @@ class HCVDisplayRiskFusion {
         screenProbability <= 0.30;
   }
 
+  static bool hasShortGeometricSemanticRealityAcrossVideoFrames(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null) return false;
+    final predictedClass = ml['predictedClass']?.toString() ?? '';
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final strongScreenFrameCount =
+        (ml['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final mediumScreenFrameCount =
+        (ml['mediumScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final averageFrameScore =
+        (ml['averageScreenReplayRiskScore'] as num?)?.toDouble() ?? 100.0;
+    final maxFrameScore =
+        (ml['maxFrameScreenReplayRiskScore'] as num?)?.toInt() ?? 100;
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble() ?? 1.0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (framesAnalyzed < 2 ||
+        framesAnalyzed > 3 ||
+        rawFrames is! List ||
+        rawFrames.length != framesAnalyzed) {
+      return false;
+    }
+    final allFramesReality = rawFrames.every(
+      (frame) =>
+          frame is Map &&
+          (frame['predictedClass']?.toString() ?? '').startsWith('REALITY_'),
+    );
+
+    return predictedClass.startsWith('REALITY_') &&
+        allFramesReality &&
+        strongScreenFrameCount == 0 &&
+        mediumScreenFrameCount == 0 &&
+        averageFrameScore <= 20.0 &&
+        maxFrameScore <= 30 &&
+        screenProbability <= 0.30;
+  }
+
   static bool _isCredibleRealityMl(
     Map<String, dynamic>? ml, {
     required double maxScreenProbability,
@@ -516,6 +554,8 @@ class HCVDisplayRiskFusion {
         hasPersistentSemanticScreenAcrossVideoFrames(ml);
     final mlSemanticRealityPersistence =
         hasPersistentSemanticRealityAcrossVideoFrames(ml);
+    final mlShortGeometricSemanticReality =
+        hasShortGeometricSemanticRealityAcrossVideoFrames(ml);
     final mlDualRegionPhotoEvidence = hasSpatialScreenCorroboration(ml);
     final mlPersistentCorroboratedEvidence = mlPersistentVideoEvidence ||
         mlMultiFrameScreenConsistency ||
@@ -602,11 +642,30 @@ class HCVDisplayRiskFusion {
         !passiveStrong &&
         !passiveModerate &&
         !mlStrong;
+    final activeOnlyCanBeOverriddenBySemanticReality =
+        (!rawActiveDisplayEvidence && !activeDisplayEvidence) ||
+            (geometrySceneClass != 'PLANAR' &&
+                !planarSceneEvidence &&
+                mlFramesAnalyzed >= 4 &&
+                mlStrongScreenFrameCount == 0 &&
+                mlMediumScreenFrameCount == 0 &&
+                (mlAverageFrameScore ?? 100.0) <= 10.0 &&
+                (mlScreenProbability ?? 1.0) <= 0.12);
     final semanticMultiFrameRealityWithoutDisplayCorroboration =
         !liveCaptureOnly &&
             mlSemanticRealityPersistence &&
-            !rawActiveDisplayEvidence &&
-            !activeDisplayEvidence &&
+            activeOnlyCanBeOverriddenBySemanticReality &&
+            liveSignals['confirmedDisplayTrace'] != true &&
+            liveSignals['periodicLightTrace'] != true &&
+            !passiveStructuralEvidence &&
+            !passiveStrong &&
+            !passiveModerate &&
+            !mlStrong;
+    final shortGeometricSemanticRealityAgreement =
+        !liveCaptureOnly &&
+            geometrySceneClass == 'REALITY' &&
+            !reflectedRealityEvidence &&
+            mlShortGeometricSemanticReality &&
             liveSignals['confirmedDisplayTrace'] != true &&
             liveSignals['periodicLightTrace'] != true &&
             !passiveStructuralEvidence &&
@@ -709,6 +768,13 @@ class HCVDisplayRiskFusion {
       reasons.add(
         'MULTI_FRAME_SEMANTIC_REALITY_RESOLVES_UNCORROBORATED_DISPLAY_SIGNALS',
       );
+    } else if (shortGeometricSemanticRealityAgreement) {
+      decision = 'NO_DISPLAY_EVIDENCE';
+      score = min(rawScore, 20);
+      strongSources.remove('PHYSICAL_DISPLAY_COMBINATION');
+      reasons.remove('PLANAR_GEOMETRY_AND_TEMPORAL_BANDS_CONFIRMED');
+      reasons.remove('ACTIVE_ILLUMINATION_AND_TEMPORAL_BANDS_CONFIRMED');
+      reasons.add('SHORT_VIDEO_GEOMETRIC_AND_SEMANTIC_REALITY_AGREE');
     } else if (geometryRealityWithIndependentNonDisplay) {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 20);

@@ -131,6 +131,9 @@ HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
           ) ||
           normalResult.reasons.contains(
             'MULTI_FRAME_SEMANTIC_REALITY_RESOLVES_UNCORROBORATED_DISPLAY_SIGNALS',
+          ) ||
+          normalResult.reasons.contains(
+            'SHORT_VIDEO_GEOMETRIC_AND_SEMANTIC_REALITY_AGREE',
           ));
   if (resolvedFinalReality) return normalResult;
 
@@ -195,6 +198,7 @@ class _CameraPageState extends State<CameraPage> {
 
   bool ready = false;
   bool recording = false;
+  bool _videoFinalizeInProgress = false;
 
   bool photoMode = false;
 
@@ -640,8 +644,37 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
+  Future<void> _waitForFinalizedVideoContainer(String path) async {
+    final file = File(path);
+    const pollInterval = Duration(milliseconds: 250);
+    final deadline = DateTime.now().add(const Duration(seconds: 6));
+    int? lastSize;
+    var stableReads = 0;
+
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        if (await file.exists()) {
+          final size = await file.length();
+          if (size > 1024 && lastSize == size) {
+            stableReads++;
+            if (stableReads >= 3) return;
+          } else {
+            lastSize = size;
+            stableReads = 0;
+          }
+        }
+      } catch (_) {
+        stableReads = 0;
+      }
+      await Future.delayed(pollInterval);
+    }
+
+    throw StateError('VIDEO_CONTAINER_NOT_FINALIZED');
+  }
+
   Future<void> stop() async {
-    if (controller == null) return;
+    if (controller == null || _videoFinalizeInProgress) return;
+    _videoFinalizeInProgress = true;
 
     try {
       final file = await controller!.stopVideoRecording();
@@ -651,6 +684,8 @@ class _CameraPageState extends State<CameraPage> {
       } catch (_) {
         lastLiveSignals = null;
       }
+
+      await _waitForFinalizedVideoContainer(file.path);
 
       final capturedAt = pendingVideoCapturedAt ?? DateTime.now();
       final captureLocation = pendingVideoLocation;
@@ -682,6 +717,8 @@ class _CameraPageState extends State<CameraPage> {
           status = '${_c('stopError')}: $e';
         });
       }
+    } finally {
+      _videoFinalizeInProgress = false;
     }
   }
 
@@ -976,11 +1013,24 @@ class _CameraPageState extends State<CameraPage> {
     final dir = await _downloadsDirectory();
 
     final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      throw FileSystemException('Recorded video source not found', sourcePath);
+    }
+    final sourceSize = await sourceFile.length();
+    if (sourceSize <= 1024) {
+      throw StateError('VIDEO_CONTAINER_TOO_SMALL');
+    }
+
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-
     final savedPath = p.join(dir.path, 'hcv_video_$timestamp.mp4');
-
     final savedFile = await sourceFile.copy(savedPath);
+    final copiedSize = await savedFile.length();
+    if (copiedSize != sourceSize) {
+      try {
+        await savedFile.delete();
+      } catch (_) {}
+      throw StateError('VIDEO_CONTAINER_CHANGED_DURING_COPY');
+    }
 
     return savedFile.path;
   }
@@ -2133,7 +2183,7 @@ class _CameraPageState extends State<CameraPage> {
                       ),
                       const SizedBox(height: 20),
                       GestureDetector(
-                        onTap: !ready
+                        onTap: !ready || _videoFinalizeInProgress
                             ? null
                             : () async {
                                 if (photoMode) {

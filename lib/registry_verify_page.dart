@@ -1557,13 +1557,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return _v('originalIntact');
     if (axis == 'integrity' && value.contains('derivato'))
       return _v('compatibleDerivative');
-    if (axis == 'scene' &&
-        (value.contains('forte rischio') || value.contains('display')))
-      return _v('screenRisk');
-    if (axis == 'scene' && value.contains('conclusiva'))
-      return _v('sceneUncertain');
     if (axis == 'scene' && value.contains('nessun'))
       return _v('noScreenEvidence');
+    if (axis == 'scene' && value.contains('conclusiva'))
+      return _v('sceneUncertain');
+    if (axis == 'scene' && value.contains('forte rischio'))
+      return _v('screenRisk');
     if (axis == 'derivation' && value.contains('non necessaria'))
       return _v('derivationNotNeeded');
     if (axis == 'derivation' && value.contains('compatibile'))
