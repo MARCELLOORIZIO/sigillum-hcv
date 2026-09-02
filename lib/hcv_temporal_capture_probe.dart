@@ -57,6 +57,8 @@ class HCVTemporalCaptureProbe {
         mlAnalysis =
             await HCVMLScreenReplayClassifier.instance.analyzeVideo(
           temporaryVideoPath,
+          frameIntervalSeconds: 1,
+          maxFrames: 2,
         );
       } catch (e) {
         mlAnalysis = _analysisUnknown(
