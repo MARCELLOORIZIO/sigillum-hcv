@@ -125,6 +125,68 @@ class HCVDisplayRiskFusion {
         confidence >= 0.85;
   }
 
+  static bool hasSemanticScreenPersistenceV2(
+    Map<String, dynamic>? ml, {
+    required String geometrySceneClass,
+    required bool reflectedRealityEvidence,
+  }) {
+    if (ml == null || reflectedRealityEvidence) return false;
+    final predictedClass = ml['predictedClass']?.toString() ?? '';
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final strongScreenFrameCount =
+        (ml['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final mediumScreenFrameCount =
+        (ml['mediumScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final averageFrameScore =
+        (ml['averageScreenReplayRiskScore'] as num?)?.toDouble() ?? 0.0;
+    final maxFrameScore =
+        (ml['maxFrameScreenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble() ?? 0.0;
+    final confidence =
+        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (framesAnalyzed < 4 ||
+        rawFrames is! List ||
+        rawFrames.length != framesAnalyzed) {
+      return false;
+    }
+
+    final screenFrameCount = rawFrames
+        .where(
+          (frame) =>
+              frame is Map &&
+              (frame['predictedClass']?.toString() ?? '').startsWith('SCREEN_'),
+        )
+        .length;
+    final atLeastEightyPercentScreen =
+        screenFrameCount * 5 >= framesAnalyzed * 4;
+    final atLeastHalfMedium =
+        mediumScreenFrameCount * 2 >= framesAnalyzed;
+
+    final commonPersistenceGate = predictedClass.startsWith('SCREEN_') &&
+        atLeastEightyPercentScreen &&
+        strongScreenFrameCount >= 2 &&
+        atLeastHalfMedium &&
+        maxFrameScore >= 94 &&
+        screenProbability >= 0.93;
+    if (!commonPersistenceGate) return false;
+
+    if (geometrySceneClass == 'REALITY') {
+      final unanimousScreen =
+          screenFrameCount == framesAnalyzed && averageFrameScore >= 85.0;
+      final nearUnanimousWithStrongAnchor = atLeastEightyPercentScreen &&
+          averageFrameScore >= 70.0 &&
+          maxFrameScore >= 96 &&
+          screenProbability >= 0.97 &&
+          confidence >= 0.95 &&
+          strongScreenFrameCount >= 3;
+      return unanimousScreen || nearUnanimousWithStrongAnchor;
+    }
+
+    return averageFrameScore >= 85.0;
+  }
+
   static bool hasPersistentSemanticRealityAcrossVideoFrames(
     Map<String, dynamic>? ml,
   ) {
@@ -606,19 +668,30 @@ class HCVDisplayRiskFusion {
     final geometryReality =
         reflectedRealityEvidence || geometrySceneClass == 'REALITY';
     final geometryPlanar = geometrySceneClass == 'PLANAR';
+    final mlSemanticScreenPersistenceV2 = hasSemanticScreenPersistenceV2(
+      ml,
+      geometrySceneClass: geometrySceneClass,
+      reflectedRealityEvidence: reflectedRealityEvidence,
+    );
+    if (mlSemanticScreenPersistenceV2) {
+      evidenceSources.add('ML_SCREEN_CLASS');
+      strongSources.add('ML_SCREEN_CLASS');
+    }
     final mlGeometryOverride = !reflectedRealityEvidence &&
         geometrySceneClass == 'REALITY' &&
-        mlPersistentCorroboratedEvidence;
+        (mlPersistentCorroboratedEvidence || mlSemanticScreenPersistenceV2);
     final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
         geometrySceneClass == 'UNKNOWN' &&
         (mlPersistentVideoEvidence ||
             mlMultiFrameScreenConsistency ||
-            mlSemanticScreenPersistence);
+            mlSemanticScreenPersistence ||
+            mlSemanticScreenPersistenceV2);
     final mlPlanarGeometryOverride = !reflectedRealityEvidence &&
         geometrySceneClass == 'PLANAR' &&
         (mlPersistentVideoEvidence ||
             mlMultiFrameScreenConsistency ||
-            mlSemanticScreenPersistence);
+            mlSemanticScreenPersistence ||
+            mlSemanticScreenPersistenceV2);
     final weakScreenAcrossVideoFrames = !liveCaptureOnly &&
         mlFramesAnalyzed >= 3 &&
         mlStrongScreenFrameCount == 0 &&
@@ -748,6 +821,9 @@ class HCVDisplayRiskFusion {
       }
       if (mlSemanticScreenPersistence) {
         reasons.add('ML_SCREEN_ALL_FRAME_SEMANTIC_PERSISTENCE_CONFIRMED');
+      }
+      if (mlSemanticScreenPersistenceV2) {
+        reasons.add('ML_SCREEN_SEMANTIC_PERSISTENCE_V2_CONFIRMED');
       }
       if (mlDualRegionPhotoEvidence) {
         reasons.add('ML_SCREEN_DUAL_REGION_CONFIRMED');
