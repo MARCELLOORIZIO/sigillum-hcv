@@ -128,6 +128,9 @@ HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
           ) ||
           normalResult.reasons.contains(
             'MULTI_FRAME_REALITY_RESOLVES_UNCORROBORATED_TEMPORAL_SIGNAL',
+          ) ||
+          normalResult.reasons.contains(
+            'MULTI_FRAME_SEMANTIC_REALITY_RESOLVES_UNCORROBORATED_DISPLAY_SIGNALS',
           ));
   if (resolvedFinalReality) return normalResult;
 
