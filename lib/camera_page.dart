@@ -105,6 +105,13 @@ HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
   if (!_hasLiveTemporalScreenCorroboration(liveProbe)) return preCapture;
 
   final corroborated = HCVDisplayRiskFusion.combine(analyses);
+  final resolvedPhotoReality = preCapture.decision == 'NO_DISPLAY_EVIDENCE' &&
+      preCapture.reasons.contains(
+        'PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL',
+      );
+  if (resolvedPhotoReality && corroborated.decision != 'STRONG_DISPLAY_RISK') {
+    return preCapture;
+  }
   return _displayDecisionRank(corroborated.decision) >
           _displayDecisionRank(preCapture.decision)
       ? corroborated
@@ -115,6 +122,15 @@ HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
   List<Map<String, dynamic>?> analyses,
 ) {
   final normalResult = HCVDisplayRiskFusion.combine(analyses);
+  final resolvedFinalReality = normalResult.decision == 'NO_DISPLAY_EVIDENCE' &&
+      (normalResult.reasons.contains(
+            'GEOMETRIC_REALITY_AND_WEAK_MULTI_FRAME_SCREEN_EVIDENCE_AGREE',
+          ) ||
+          normalResult.reasons.contains(
+            'MULTI_FRAME_REALITY_RESOLVES_UNCORROBORATED_TEMPORAL_SIGNAL',
+          ));
+  if (resolvedFinalReality) return normalResult;
+
   final liveProbe = _liveProbeFromAnalyses(analyses);
   if (liveProbe == null || liveProbe['videoEquivalentAvailable'] != true) {
     return normalResult;
