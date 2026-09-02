@@ -85,6 +85,34 @@ class HCVDisplayRiskFusion {
         contentAreaRisk >= 90;
   }
 
+  static bool _isCredibleRealityMl(
+    Map<String, dynamic>? ml, {
+    required double maxScreenProbability,
+    required double minConfidence,
+  }) {
+    if (ml == null) return false;
+    final predictedClass = ml['predictedClass']?.toString() ?? '';
+    final score = (ml['screenReplayRiskScore'] as num?)?.toInt() ?? 100;
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble() ?? 1.0;
+    final confidence =
+        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
+    return predictedClass.startsWith('REALITY_') &&
+        score <= 2 &&
+        screenProbability <= maxScreenProbability &&
+        confidence >= minConfidence;
+  }
+
+  static Map<String, dynamic>? _embeddedPhotoTemporalMl(
+    Map<String, dynamic>? live,
+  ) {
+    final probe = live?['photoTemporalVideoProbe'];
+    if (probe is! Map) return null;
+    final ml = probe['mlScreenReplayAnalysis'];
+    if (ml is! Map) return null;
+    return Map<String, dynamic>.from(ml);
+  }
+
   static HCVDisplayRiskResult combine(
     List<Map<String, dynamic>?> analyses, {
     bool liveCaptureOnly = false,
@@ -104,9 +132,24 @@ class HCVDisplayRiskFusion {
             .toList()
         : allAvailable;
     final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
+    final photoTemporalMl =
+        liveCaptureOnly ? _embeddedPhotoTemporalMl(live) : null;
+    final photoDualRealityAgreement = liveCaptureOnly &&
+        _isCredibleRealityMl(
+          postCaptureMl,
+          maxScreenProbability: 0.02,
+          minConfidence: 0.40,
+        ) &&
+        _isCredibleRealityMl(
+          photoTemporalMl,
+          maxScreenProbability: 0.02,
+          minConfidence: 0.60,
+        );
     if (liveCaptureOnly) {
       final videoEquivalent = _embeddedVideoEquivalentResult(live);
-      if (videoEquivalent != null && spatialPostCaptureMl == null) {
+      if (videoEquivalent != null &&
+          spatialPostCaptureMl == null &&
+          !photoDualRealityAgreement) {
         return videoEquivalent;
       }
     }
@@ -377,6 +420,8 @@ class HCVDisplayRiskFusion {
     final mlFramesAnalyzed = (ml?['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final mlStrongScreenFrameCount =
         (ml?['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final mlMediumScreenFrameCount =
+        (ml?['mediumScreenFrameCount'] as num?)?.toInt() ?? 0;
     final mlSignals = _signals(ml);
     final mlFullFrameRisk =
         (mlSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
@@ -448,6 +493,19 @@ class HCVDisplayRiskFusion {
     final mlPlanarGeometryOverride = !reflectedRealityEvidence &&
         geometrySceneClass == 'PLANAR' &&
         (mlPersistentVideoEvidence || mlMultiFrameScreenConsistency);
+    final weakScreenAcrossVideoFrames = !liveCaptureOnly &&
+        mlFramesAnalyzed >= 3 &&
+        mlStrongScreenFrameCount == 0 &&
+        mlMediumScreenFrameCount == 0 &&
+        (mlAverageFrameScore ?? 100.0) <= 20.0 &&
+        (mlScreenProbability ?? 1.0) <= 0.60 &&
+        !mlStrong;
+    final geometryRealityWithIndependentNonDisplay =
+        geometrySceneClass == 'REALITY' &&
+            weakScreenAcrossVideoFrames &&
+            !passiveStructuralEvidence &&
+            !passiveStrong &&
+            !passiveModerate;
 
     final strongDisplayFamilies = <String>{};
     if (liveTemporal) strongDisplayFamilies.add('LIVE_TEMPORAL');
@@ -526,6 +584,20 @@ class HCVDisplayRiskFusion {
                 ? 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
                 : 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',
       );
+    } else if (geometryRealityWithIndependentNonDisplay) {
+      decision = 'NO_DISPLAY_EVIDENCE';
+      score = min(rawScore, 20);
+      reasons.add(
+        'GEOMETRIC_REALITY_AND_WEAK_MULTI_FRAME_SCREEN_EVIDENCE_AGREE',
+      );
+    } else if (photoDualRealityAgreement &&
+        !passiveStructuralEvidence &&
+        !hasIndependentCorroboration &&
+        !mlStrong) {
+      decision = 'NO_DISPLAY_EVIDENCE';
+      score = min(rawScore, 20);
+      reasons
+          .add('PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL');
     } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
