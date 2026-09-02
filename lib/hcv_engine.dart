@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
@@ -110,10 +111,14 @@ class HCVEngine {
     };
   }
 
-  void _attachSoftwareAttestation() {
+  Future<void> _attachSoftwareAttestation() async {
+    final packageInfo = await PackageInfo.fromPlatform();
     meta = {
       ...meta,
-      "softwareAttestation": HCVSoftwareAttestation.current(),
+      "softwareAttestation": HCVSoftwareAttestation.current(
+        appVersion: packageInfo.version,
+        buildNumber: packageInfo.buildNumber,
+      ),
     };
   }
 
@@ -211,9 +216,9 @@ class HCVEngine {
 
     await _attachIdentity();
     _attachPublishData();
-    // D3: bind the exact compile-time software identity into meta before the
-    // certificate payload is canonicalized and signed by the device key.
-    _attachSoftwareAttestation();
+    // D3: bind the exact software identity into meta before the certificate
+    // payload is canonicalized and signed by the device key.
+    await _attachSoftwareAttestation();
 
     print("===== HCV ENGINE IDENTITY =====");
     print(meta["identity"]);
