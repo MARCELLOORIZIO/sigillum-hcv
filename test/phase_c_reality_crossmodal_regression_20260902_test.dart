@@ -235,7 +235,8 @@ Map<String, dynamic> _strongMonitorMl() => {
     };
 
 void main() {
-  test('HCV-729930 photo reality overrides uncorroborated ACTIVE texture cues', () {
+  test('HCV-729930 photo reality overrides uncorroborated ACTIVE texture cues',
+      () {
     final result = HCVDisplayRiskFusion.combine([
       _photoRealityLive(),
       _photoRealityPassive(),
@@ -246,7 +247,8 @@ void main() {
     expect(result.score, lessThanOrEqualTo(20));
     expect(
       result.reasons,
-      contains('CROSS_MODAL_REALITY_AGREEMENT_OVERRIDES_UNCORROBORATED_ACTIVE_SIGNAL'),
+      contains(
+          'CROSS_MODAL_REALITY_AGREEMENT_OVERRIDES_UNCORROBORATED_ACTIVE_SIGNAL'),
     );
   });
 
@@ -259,10 +261,12 @@ void main() {
 
     expect(result.decision, 'NO_DISPLAY_EVIDENCE');
     expect(result.score, lessThanOrEqualTo(20));
-    expect(result.reasons, contains('ML_REALITY_MULTI_FRAME_CONSISTENCY_CONFIRMED'));
+    expect(result.reasons,
+        contains('ML_REALITY_MULTI_FRAME_CONSISTENCY_CONFIRMED'));
     expect(
       result.reasons,
-      contains('CROSS_MODAL_REALITY_AGREEMENT_OVERRIDES_UNCORROBORATED_ACTIVE_SIGNAL'),
+      contains(
+          'CROSS_MODAL_REALITY_AGREEMENT_OVERRIDES_UNCORROBORATED_ACTIVE_SIGNAL'),
     );
   });
 
