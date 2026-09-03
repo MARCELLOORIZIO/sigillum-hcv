@@ -19,14 +19,19 @@ void main() {
     );
   });
 
-  test('photo mini-video requests two ML frames one second apart', () {
+  test('photo Temporal V2 captures 2.4s and requests up to four ML frames', () {
     final source = File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();
 
-    expect(source, contains('frameIntervalSeconds: 1'));
-    expect(source, contains('maxFrames: 2'));
     expect(
       source,
-      contains('static const Duration defaultDuration = Duration(milliseconds: 1800)'),
+      contains(
+        'static const Duration defaultDuration = Duration(milliseconds: 2400)',
+      ),
     );
+    expect(source, contains('Future<HCVTemporalCaptureClip> capture('));
+    expect(source, contains('Future<Map<String, dynamic>> analyzeCapturedClip('));
+    expect(source, contains('frameIntervalSeconds: 1'));
+    expect(source, contains('maxFrames: 4'));
+    expect(source, contains('PHOTO_TECHNICAL_MINI_VIDEO_V2'));
   });
 }
