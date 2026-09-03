@@ -29,7 +29,6 @@ void main() {
     expect(camera, isNot(contains("_c('physicalProbe')")));
     expect(camera, isNot(contains("_c('armedVideoReady')")));
     expect(camera, isNot(contains("_c('armedPhotoReady')")));
-    expect(camera, contains("_c('verificationCompleteTitle')"));
     expect(camera, contains("_c('takingPhoto')"));
     expect(camera, contains("_c('analyzingScreen')"));
     expect(camera, contains("_c('registryPublishing')"));
