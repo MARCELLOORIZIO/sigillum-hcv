@@ -112,9 +112,6 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
         detectedId = await _ocrImage(widget.path, allowFocusedFallback: true);
         if (!mounted) return;
         if (detectedId == null || detectedId.isEmpty) {
-          setState(() {
-            _status = _v('idDetected');
-          });
           await _openRegistry();
           return;
         }
