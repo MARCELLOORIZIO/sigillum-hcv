@@ -11,20 +11,20 @@ void main() {
     expect(source, contains('TextInput.finishAutofillContext(shouldSave: true)'));
   });
 
-  test('camera UX is capped at 10x and video waits for explicit REC', () {
+  test('camera UX is capped at 10x and video starts on the first REC tap', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
     expect(source, contains('deviceMaxZoom.clamp(minZoom, 10.0)'));
-    expect(source, contains("_c('armedVideoReady')"));
-    expect(source, contains('bool _videoArmed = false;'));
+    expect(source, isNot(contains("_c('armedVideoReady')")));
+    expect(source, isNot(contains('bool _videoArmed = false;')));
+    expect(source, isNot(contains('_analyzeLiveScreenProbeWithoutFlash')));
 
-    final probe = source.indexOf(
-      'pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash(',
-    );
-    final ready = source.indexOf("_c('armedVideoReady')");
     final record = source.indexOf('await controller!.startVideoRecording();');
-    expect(probe, greaterThanOrEqualTo(0));
-    expect(ready, greaterThan(probe));
-    expect(record, greaterThan(ready));
+    final capturedAt = source.indexOf('pendingVideoCapturedAt = DateTime.now();', record);
+    final liveSignals = source.indexOf('await liveSignals.start();', record);
+    expect(record, greaterThanOrEqualTo(0));
+    expect(capturedAt, greaterThan(record));
+    expect(liveSignals, greaterThan(record));
+    expect(source, contains('combineVideoDisplayRiskFromCaptureEvidence'));
   });
 
   test('consumer theme enlarges primary CTAs and iOS domains are configured', () {

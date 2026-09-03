@@ -23,14 +23,14 @@ void main() {
     expect(page, contains("_v('verifyVideo')"));
   });
 
-  test('camera status is white and proceed control is double height', () {
+  test('camera status stays white and photo capture has no proceed gate', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    expect(
-      camera,
-      contains('_parallaxRetryRequired ? Colors.redAccent : Colors.white'),
-    );
-    expect(camera, contains("status = _c('parallaxRequired')"));
-    expect(camera, contains('minimumSize: const Size(0, 56)'));
+    expect(camera, contains('color: Colors.white'));
+    expect(camera, contains("status = _c('takingPhoto')"));
+    expect(camera, contains('await temporalProbeEngine.capture('));
+    expect(camera, contains('file = await controller!.takePicture();'));
+    expect(camera, isNot(contains('_parallaxRetryRequired')));
+    expect(camera, isNot(contains('_showCaptureReadyMessage')));
   });
 
   test('captioned video is a derived synchronized copy', () {
