@@ -1,9 +1,9 @@
 name: Flutter CI
 
 on:
-  pull_request:
+  push:
     branches:
-      - fix/display-kyc-zoom-20260723
+      - validation/photo-temporal-four-frames-20260903
   workflow_dispatch:
 
 permissions:
