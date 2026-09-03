@@ -1,0 +1,42 @@
+name: Apply Photo Temporal V2 refactor
+
+on:
+  push:
+    branches:
+      - feature/photo-temporal-v2-no-parallax-20260903
+    paths:
+      - tool/apply_photo_temporal_v2_no_parallax.py
+      - .github/workflows/apply-photo-temporal-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-source-refactor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/photo-temporal-v2-no-parallax-20260903
+          fetch-depth: 0
+
+      - name: Apply exact source refactor
+        run: python3 tool/apply_photo_temporal_v2_no_parallax.py
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/camera_page.dart
+          if git diff --cached --quiet; then
+            echo "No source changes to commit"
+            exit 0
+          fi
+          git commit -m "Refactor photo temporal capture and remove pre-video parallax"
+          git push origin HEAD:feature/photo-temporal-v2-no-parallax-20260903
