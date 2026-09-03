@@ -52,6 +52,7 @@ class HCVMLScreenReplayClassifier {
   Future<Map<String, dynamic>> analyzeVideo(
     String videoPath, {
     int frameIntervalSeconds = 3,
+    double? frameSamplingIntervalSeconds,
     int maxFrames = 8,
   }) async {
     final file = File(videoPath);
@@ -69,7 +70,9 @@ class HCVMLScreenReplayClassifier {
 
     try {
       await workDir.create(recursive: true);
-      final samplingIntervalSeconds = max(1, frameIntervalSeconds);
+      final num samplingIntervalSeconds = frameSamplingIntervalSeconds == null
+          ? max(1, frameIntervalSeconds)
+          : max(0.1, frameSamplingIntervalSeconds);
       final frameLimit = max(1, maxFrames);
       final framePattern = p.join(workDir.path, 'frame_%03d.jpg');
       final command = "-y -i '$videoPath' "
@@ -100,7 +103,8 @@ class HCVMLScreenReplayClassifier {
       for (var i = 0; i < frames.length; i++) {
         final analysis = await analyzeImage(frames[i].path);
         analysis['videoFrameIndex'] = i;
-        analysis['approxVideoSecond'] = i * samplingIntervalSeconds;
+        analysis['approxVideoSecond'] =
+            _round(i * samplingIntervalSeconds.toDouble());
         analyses.add(analysis);
       }
 
