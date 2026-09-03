@@ -6,6 +6,7 @@ on:
       - phase-c-build74-fusion-fixes-20260903
     paths:
       - tool/materialize_build74_fusion_fixes_20260903.py
+      - tool/adjust_build74_fusion_fixes_20260903.py
       - .github/workflows/materialize-build74-fusion-fixes-20260903.yml
   workflow_dispatch:
 
@@ -24,7 +25,9 @@ jobs:
           fetch-depth: 0
 
       - name: Materialize source and regressions
-        run: python tool/materialize_build74_fusion_fixes_20260903.py
+        run: |
+          python tool/materialize_build74_fusion_fixes_20260903.py
+          python tool/adjust_build74_fusion_fixes_20260903.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
