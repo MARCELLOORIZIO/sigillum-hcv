@@ -67,18 +67,31 @@ final class ShareViewController: UIViewController {
     if isFileBackedType(type) {
       provider.loadFileRepresentation(forTypeIdentifier: type) { [weak self] url, _ in
         guard let self = self else { return }
-        if let url, let destination = self.copyFileUrlToSharedContainer(url, preferredType: type) {
+        if let url,
+           let destination = self.copyFileUrlToSharedContainer(
+             url,
+             preferredType: type,
+             suggestedName: provider.suggestedName
+           ) {
           self.storePathAndOpen(destination)
           return
         }
 
         provider.loadItem(forTypeIdentifier: type, options: nil) { [weak self] item, _ in
-          self?.storeAndOpen(item, preferredType: type)
+          self?.storeAndOpen(
+            item,
+            preferredType: type,
+            suggestedName: provider.suggestedName
+          )
         }
       }
     } else {
       provider.loadItem(forTypeIdentifier: type, options: nil) { [weak self] item, _ in
-        self?.storeAndOpen(item, preferredType: type)
+        self?.storeAndOpen(
+          item,
+          preferredType: type,
+          suggestedName: provider.suggestedName
+        )
       }
     }
 
@@ -107,8 +120,16 @@ final class ShareViewController: UIViewController {
       type == kUTTypeURL as String
   }
 
-  private func storeAndOpen(_ item: NSSecureCoding?, preferredType: String) {
-    guard let destination = copyToSharedContainer(item, preferredType: preferredType) else {
+  private func storeAndOpen(
+    _ item: NSSecureCoding?,
+    preferredType: String,
+    suggestedName: String? = nil
+  ) {
+    guard let destination = copyToSharedContainer(
+      item,
+      preferredType: preferredType,
+      suggestedName: suggestedName
+    ) else {
       finish()
       return
     }
@@ -127,7 +148,8 @@ final class ShareViewController: UIViewController {
 
   private func copyToSharedContainer(
     _ item: NSSecureCoding?,
-    preferredType: String
+    preferredType: String,
+    suggestedName: String? = nil
   ) -> URL? {
     guard let container = FileManager.default.containerURL(
       forSecurityApplicationGroupIdentifier: appGroupId
@@ -147,11 +169,18 @@ final class ShareViewController: UIViewController {
         if isImageType(preferredType) && UIImage(contentsOfFile: url.path) == nil {
           return nil
         }
-        return try copyFileUrl(url, to: inbox, preferredType: preferredType)
+        return try copyFileUrl(
+          url,
+          to: inbox,
+          preferredType: preferredType,
+          suggestedName: suggestedName
+        )
       }
 
       if let image = item as? UIImage, let data = image.jpegData(compressionQuality: 0.95) {
-        let destination = inbox.appendingPathComponent(fileName(ext: "jpg"))
+        let destination = inbox.appendingPathComponent(
+          fileName(ext: "jpg", originalName: suggestedName)
+        )
         try data.write(to: destination, options: .atomic)
         return destination
       }
@@ -164,11 +193,18 @@ final class ShareViewController: UIViewController {
           else {
             return nil
           }
-          let destination = inbox.appendingPathComponent(fileName(ext: "jpg"))
+          let destination = inbox.appendingPathComponent(
+            fileName(ext: "jpg", originalName: suggestedName)
+          )
           try normalized.write(to: destination, options: .atomic)
           return destination
         }
-        let destination = inbox.appendingPathComponent(fileName(ext: extensionForType(preferredType)))
+        let destination = inbox.appendingPathComponent(
+          fileName(
+            ext: extensionForType(preferredType),
+            originalName: suggestedName
+          )
+        )
         try data.write(to: destination, options: .atomic)
         return destination
       }
@@ -182,17 +218,26 @@ final class ShareViewController: UIViewController {
           else {
             return nil
           }
-          let destination = inbox.appendingPathComponent(fileName(ext: "jpg"))
+          let destination = inbox.appendingPathComponent(
+            fileName(ext: "jpg", originalName: suggestedName)
+          )
           try normalized.write(to: destination, options: .atomic)
           return destination
         }
-        let destination = inbox.appendingPathComponent(fileName(ext: extensionForType(preferredType)))
+        let destination = inbox.appendingPathComponent(
+          fileName(
+            ext: extensionForType(preferredType),
+            originalName: suggestedName
+          )
+        )
         try swiftData.write(to: destination, options: .atomic)
         return destination
       }
 
       if let text = item as? String, let data = text.data(using: .utf8) {
-        let destination = inbox.appendingPathComponent(fileName(ext: "txt"))
+        let destination = inbox.appendingPathComponent(
+          fileName(ext: "txt", originalName: suggestedName)
+        )
         try data.write(to: destination, options: .atomic)
         return destination
       }
@@ -203,7 +248,11 @@ final class ShareViewController: UIViewController {
     return nil
   }
 
-  private func copyFileUrlToSharedContainer(_ url: URL, preferredType: String) -> URL? {
+  private func copyFileUrlToSharedContainer(
+    _ url: URL,
+    preferredType: String,
+    suggestedName: String? = nil
+  ) -> URL? {
     guard let container = FileManager.default.containerURL(
       forSecurityApplicationGroupIdentifier: appGroupId
     ) else {
@@ -220,13 +269,23 @@ final class ShareViewController: UIViewController {
       if isImageType(preferredType) && UIImage(contentsOfFile: url.path) == nil {
         return nil
       }
-      return try copyFileUrl(url, to: inbox, preferredType: preferredType)
+      return try copyFileUrl(
+        url,
+        to: inbox,
+        preferredType: preferredType,
+        suggestedName: suggestedName
+      )
     } catch {
       return nil
     }
   }
 
-  private func copyFileUrl(_ url: URL, to inbox: URL, preferredType: String) throws -> URL {
+  private func copyFileUrl(
+    _ url: URL,
+    to inbox: URL,
+    preferredType: String,
+    suggestedName: String? = nil
+  ) throws -> URL {
     let didAccess = url.startAccessingSecurityScopedResource()
     defer {
       if didAccess {
@@ -235,7 +294,12 @@ final class ShareViewController: UIViewController {
     }
 
     let ext = url.pathExtension.isEmpty ? extensionForType(preferredType) : url.pathExtension
-    let destination = inbox.appendingPathComponent(fileName(ext: ext))
+    let originalName = suggestedName?.isEmpty == false
+      ? suggestedName
+      : url.lastPathComponent
+    let destination = inbox.appendingPathComponent(
+      fileName(ext: ext, originalName: originalName)
+    )
     if FileManager.default.fileExists(atPath: destination.path) {
       try FileManager.default.removeItem(at: destination)
     }
@@ -243,9 +307,27 @@ final class ShareViewController: UIViewController {
     return destination
   }
 
-  private func fileName(ext: String) -> String {
+  private func fileName(ext: String, originalName: String? = nil) -> String {
     let cleanExt = ext.isEmpty ? "bin" : ext
-    return "sigillum_shared_\(Int(Date().timeIntervalSince1970 * 1000)).\(cleanExt)"
+    let stamp = Int(Date().timeIntervalSince1970 * 1000)
+
+    guard let originalName, !originalName.isEmpty else {
+      return "sigillum_shared_\(stamp).\(cleanExt)"
+    }
+
+    let source = URL(fileURLWithPath: originalName)
+    let stem = source.deletingPathExtension().lastPathComponent
+    let safeStem = stem.replacingOccurrences(
+      of: "[^A-Za-z0-9._-]",
+      with: "_",
+      options: .regularExpression
+    )
+
+    guard !safeStem.isEmpty else {
+      return "sigillum_shared_\(stamp).\(cleanExt)"
+    }
+
+    return "sigillum_shared_\(stamp)_\(safeStem).\(cleanExt)"
   }
 
   private func extensionForType(_ type: String) -> String {

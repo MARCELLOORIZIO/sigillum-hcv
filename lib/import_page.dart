@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'hcv_id_lookup_page.dart';
 import 'hcv_import_router_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
@@ -31,6 +32,19 @@ class _ImportPageState extends State<ImportPage> {
   String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
   // Legacy build-contract marker only; visible copy comes from _v: 'VERIFICA TESTO'.
 
+  String get _lookupLabel {
+    switch (widget.languageCode) {
+      case 'it':
+        return 'CONSULTA HCV-ID';
+      case 'es':
+        return 'CONSULTAR HCV-ID';
+      case 'ru':
+        return 'ПРОВЕРИТЬ HCV-ID';
+      default:
+        return 'LOOK UP HCV-ID';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +66,15 @@ class _ImportPageState extends State<ImportPage> {
     );
 
     if (mounted) setState(() => status = _t('selectFileToVerify'));
+  }
+
+  Future<void> _openHcvIdLookup() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HcvIdLookupPage(languageCode: widget.languageCode),
+      ),
+    );
   }
 
   Future<void> pickDocument() async {
@@ -220,6 +243,12 @@ class _ImportPageState extends State<ImportPage> {
                     onPressed: pickVideo,
                     icon: const Icon(Icons.video_library_outlined),
                     label: Text(_v('verifyVideo')),
+                  ),
+                  const SizedBox(height: 18),
+                  OutlinedButton.icon(
+                    onPressed: _openHcvIdLookup,
+                    icon: const Icon(Icons.manage_search_rounded),
+                    label: Text(_lookupLabel),
                   ),
                   const SizedBox(height: 22),
                   Text(
