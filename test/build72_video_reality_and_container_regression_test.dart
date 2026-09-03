@@ -260,7 +260,7 @@ void main() {
     expect(result.decision, isNot('NO_DISPLAY_EVIDENCE'));
   });
 
-  test('short semantic REALITY does not override PLANAR geometry', () {
+  test('ML-first: short strong REALITY is not vetoed by PLANAR alone', () {
     final result = combineVideoDisplayRiskFromCaptureEvidence([
       _live(
         sceneClass: 'UNKNOWN',
@@ -284,7 +284,11 @@ void main() {
       ),
     ]);
 
-    expect(result.decision, isNot('NO_DISPLAY_EVIDENCE'));
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(
+      result.reasons,
+      contains('ML_FIRST_VIDEO_NO_SCREEN_MAJORITY_LOW_PROBABILITY'),
+    );
   });
 
   test('camera stop path serializes finalization before video processing', () {
