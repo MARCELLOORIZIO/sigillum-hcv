@@ -134,6 +134,9 @@ HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
           ) ||
           normalResult.reasons.contains(
             'SHORT_VIDEO_GEOMETRIC_AND_SEMANTIC_REALITY_AGREE',
+          ) ||
+          normalResult.reasons.contains(
+            'PLANAR_GEOMETRY_RESOLVED_BY_SEMANTIC_REALITY_WITHOUT_HARD_DISPLAY_EVIDENCE',
           ));
   if (resolvedFinalReality) return normalResult;
 
