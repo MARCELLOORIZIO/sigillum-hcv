@@ -1,0 +1,112 @@
+name: Apply Photo Temporal V2 moderate cross-capture patch
+
+on:
+  push:
+    branches:
+      - fix/photo-temporal-v2-moderate-cross-capture-20260903
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/photo-temporal-v2-moderate-cross-capture-20260903
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Apply camera PHOTO-only integration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/camera_page.dart')
+          source = path.read_text()
+
+          import_old = "import 'hcv_display_risk_fusion.dart';\n"
+          import_new = import_old + "import 'hcv_photo_temporal_v2_policy.dart';\n"
+          if "import 'hcv_photo_temporal_v2_policy.dart';" not in source:
+              if source.count(import_old) != 1:
+                  raise RuntimeError('display-risk import anchor not unique')
+              source = source.replace(import_old, import_new, 1)
+
+          old = """  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {
+            return legacy;
+          }
+
+          if (mlFirst != null &&
+"""
+          new = """  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {
+            return legacy;
+          }
+
+          final moderateCrossCaptureAgreement = isTemporalV2 &&
+              legacy.decision == 'NO_DISPLAY_EVIDENCE' &&
+              HCVPhotoTemporalV2Policy.hasModerateCrossCaptureScreenAgreement(
+                stillMl: _mlAnalysisFromAnalyses(analyses),
+                liveProbe: liveProbe,
+              );
+          if (moderateCrossCaptureAgreement) {
+            final evidenceSources = <String>{
+              ...legacy.evidenceSources,
+              'ML_SCREEN_CLASS',
+              'PHOTO_TEMPORAL_CROSS_CAPTURE',
+            }.toList()
+              ..sort();
+            final reasons = <String>{
+              ...legacy.reasons,
+              'PHOTO_TEMPORAL_V2_MODERATE_SCREEN_CROSS_CAPTURE_AGREEMENT',
+            }.toList();
+            return HCVDisplayRiskResult(
+              risk: 'MEDIUM',
+              score: 45,
+              decision: 'NON_CONCLUSIVE',
+              analysisStatus: legacy.analysisStatus,
+              evidenceSources: evidenceSources,
+              strongSources: legacy.strongSources,
+              reasons: reasons,
+            );
+          }
+
+          if (mlFirst != null &&
+"""
+          if 'PHOTO_TEMPORAL_V2_MODERATE_SCREEN_CROSS_CAPTURE_AGREEMENT' not in source:
+              if source.count(old) != 1:
+                  raise RuntimeError('photo decision anchor not unique')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          PY
+          dart format lib/camera_page.dart lib/hcv_photo_temporal_v2_policy.dart test/photo_temporal_v2_hcvpack_regression_31_test.dart test/photo_temporal_v2_moderate_cross_capture_integration_test.dart
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Full test suite
+        run: flutter test --reporter expanded
+
+      - name: Commit validated patch and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/apply-photo-temporal-v2-moderate-cross-capture-20260903.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/camera_page.dart lib/hcv_photo_temporal_v2_policy.dart test/photo_temporal_v2_hcvpack_regression_31_test.dart test/photo_temporal_v2_moderate_cross_capture_integration_test.dart .github/workflows/apply-photo-temporal-v2-moderate-cross-capture-20260903.yml
+          git diff --cached --exit-code && exit 0 || true
+          git commit -m "Apply validated Photo Temporal V2 moderate cross-capture gate"
+          git push origin HEAD:fix/photo-temporal-v2-moderate-cross-capture-20260903
