@@ -6,6 +6,7 @@ on:
       - phase-c-build74-fusion-fixes-20260903
     paths:
       - tool/materialize_build74_fusion_fixes_20260903.py
+      - .github/workflows/materialize-build74-fusion-fixes-20260903.yml
   workflow_dispatch:
 
 permissions:
