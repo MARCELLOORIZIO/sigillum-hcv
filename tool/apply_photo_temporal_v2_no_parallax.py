@@ -51,15 +51,17 @@ require_regex(
     'remove manual parallax/proceed UI helpers',
 )
 
-for line in (
-    '    _videoArmed = false;\n',
-    '    _videoArmExpiresAt = null;\n',
-    '    _videoArmCameraIndex = null;\n',
-    '    _videoArmZoom = null;\n',
+# Remove arming resets from camera switches and PHOTO/VIDEO mode switches. The
+# main start()/takePhoto() bodies are replaced below, so any remaining reset is
+# an obsolete UI-state reference rather than capture logic.
+for assignment in (
+    '_videoArmed = false;',
+    '_videoArmExpiresAt = null;',
+    '_videoArmCameraIndex = null;',
+    '_videoArmZoom = null;',
 ):
-    if line not in source:
-        raise SystemExit(f'Missing video arming reset: {line.strip()}')
-    source = source.replace(line, '', 1)
+    pattern = rf"^\s*{re.escape(assignment)}\n"
+    source = re.sub(pattern, '', source, flags=re.M)
 
 require_regex(
     r"  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash\(\{.*?"
@@ -300,6 +302,12 @@ require_replace(
     old_photo_combiner,
     new_photo_combiner,
     'protect strong Temporal V2 evidence from still ML reality override',
+)
+
+require_replace(
+    '          color: _parallaxRetryRequired ? Colors.redAccent : Colors.white,\n',
+    '          color: Colors.white,\n',
+    'remove parallax-specific status coloring',
 )
 
 # The camera capture path must no longer contain any manual arming/parallax
