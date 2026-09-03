@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Final validation revision: retain legacy low-risk score semantics.
 path = Path('lib/camera_page.dart')
 text = path.read_text()
 old = """  return HCVDisplayRiskResult(
