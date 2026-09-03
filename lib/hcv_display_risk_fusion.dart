@@ -31,6 +31,100 @@ class HCVDisplayRiskResult {
 }
 
 class HCVDisplayRiskFusion {
+  static HCVDisplayRiskResult? mlFirstPhotoDecision(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
+    final predictedClass = ml['predictedClass']?.toString() ?? '';
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble();
+    if (screenProbability == null) return null;
+    final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
+        (screenProbability * 100).round();
+
+    if (predictedClass.startsWith('SCREEN_') && screenProbability >= 0.90) {
+      final score = mlScore.clamp(90, 100).toInt();
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: score,
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const ['ML_SCREEN_CLASS'],
+        strongSources: const ['ML_SCREEN_CLASS'],
+        reasons: const ['ML_FIRST_PHOTO_SCREEN_FAMILY_HIGH_PROBABILITY'],
+      );
+    }
+
+    if (predictedClass.startsWith('REALITY_') && screenProbability <= 0.20) {
+      final score = mlScore.clamp(0, 20).toInt();
+      return HCVDisplayRiskResult(
+        risk: 'LOW',
+        score: score,
+        decision: 'NO_DISPLAY_EVIDENCE',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const ['ML_REALITY_CLASS'],
+        strongSources: const [],
+        reasons: const ['ML_FIRST_PHOTO_REALITY_FAMILY_LOW_SCREEN_PROBABILITY'],
+      );
+    }
+
+    return null;
+  }
+
+  static HCVDisplayRiskResult? mlFirstVideoDecision(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble();
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (screenProbability == null ||
+        framesAnalyzed < 2 ||
+        rawFrames is! List ||
+        rawFrames.length != framesAnalyzed) {
+      return null;
+    }
+
+    final screenFrames = rawFrames.where((frame) {
+      if (frame is! Map) return false;
+      return (frame['predictedClass']?.toString() ?? '')
+          .startsWith('SCREEN_');
+    }).length;
+    final screenMajority = screenFrames * 2 > framesAnalyzed;
+    final noScreenMajority = screenFrames * 2 <= framesAnalyzed;
+    final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
+        (screenProbability * 100).round();
+
+    if (screenProbability >= 0.75 && screenMajority) {
+      final score = mlScore.clamp(75, 100).toInt();
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: score,
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const ['ML_SCREEN_CLASS'],
+        strongSources: const ['ML_SCREEN_CLASS'],
+        reasons: const ['ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY'],
+      );
+    }
+
+    if (screenProbability <= 0.70 && noScreenMajority) {
+      final score = mlScore.clamp(0, 20).toInt();
+      return HCVDisplayRiskResult(
+        risk: 'LOW',
+        score: score,
+        decision: 'NO_DISPLAY_EVIDENCE',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const ['ML_REALITY_CLASS'],
+        strongSources: const [],
+        reasons: const ['ML_FIRST_VIDEO_NO_SCREEN_MAJORITY_LOW_PROBABILITY'],
+      );
+    }
+
+    return null;
+  }
+
   static bool hasSpatialScreenCorroboration(Map<String, dynamic>? ml) {
     if (ml == null) return false;
     final predictedClass = ml['predictedClass']?.toString() ?? '';

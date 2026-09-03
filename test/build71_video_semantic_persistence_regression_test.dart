@@ -267,7 +267,7 @@ void main() {
     expect(result.score, lessThanOrEqualTo(20));
   });
 
-  test('REALITY override is blocked by one semantic SCREEN frame', () {
+  test('ML-first: one weak SCREEN frame cannot veto low-probability REALITY majority', () {
     final result = combineVideoDisplayRiskFromCaptureEvidence([
       _live(
         sceneClass: 'UNKNOWN',
@@ -279,10 +279,14 @@ void main() {
       _reality43Ml(includeScreenFrame: true),
     ]);
 
-    expect(result.decision, isNot('NO_DISPLAY_EVIDENCE'));
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(
+      result.reasons,
+      contains('ML_FIRST_VIDEO_NO_SCREEN_MAJORITY_LOW_PROBABILITY'),
+    );
   });
 
-  test('REALITY override is blocked by active display evidence', () {
+  test('ML-first: active-only evidence is diagnostic, not a veto of strong REALITY ML', () {
     final result = combineVideoDisplayRiskFromCaptureEvidence([
       _live(
         sceneClass: 'UNKNOWN',
@@ -296,16 +300,24 @@ void main() {
       _reality43Ml(),
     ]);
 
-    expect(result.decision, isNot('NO_DISPLAY_EVIDENCE'));
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(
+      result.reasons,
+      contains('ML_FIRST_VIDEO_NO_SCREEN_MAJORITY_LOW_PROBABILITY'),
+    );
   });
 
-  test('SCREEN semantic persistence cannot defeat reflected REALITY evidence', () {
+  test('ML-first: reflected REALITY cannot veto unanimous high-probability SCREEN ML', () {
     final result = combineVideoDisplayRiskFromCaptureEvidence([
       _d3Live(reflectedReality: true),
       _passive(score: 0),
       _d3Ml(),
     ]);
 
-    expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(
+      result.reasons,
+      contains('ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY'),
+    );
   });
 }
