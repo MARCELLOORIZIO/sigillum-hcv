@@ -7,6 +7,7 @@ on:
     paths:
       - tool/materialize_ml_first_calibration_v1_20260903.py
       - tool/adjust_ml_first_diagnostic_merge_20260903.py
+      - tool/update_ml_first_regression_contract_20260903.py
       - test/ml_calibration_corpus_v1_test.dart
   workflow_dispatch:
 
@@ -28,6 +29,7 @@ jobs:
         run: |
           python tool/materialize_ml_first_calibration_v1_20260903.py
           python tool/adjust_ml_first_diagnostic_merge_20260903.py
+          python tool/update_ml_first_regression_contract_20260903.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -67,7 +69,8 @@ jobs:
           git add \
             lib/camera_page.dart \
             lib/hcv_display_risk_fusion.dart \
-            test/ml_calibration_corpus_v1_test.dart
+            test/ml_calibration_corpus_v1_test.dart \
+            test/build73_video_screen_persistence_v2_regression_test.dart
           if git diff --cached --quiet; then
             echo "No materialized changes to commit"
             exit 0
