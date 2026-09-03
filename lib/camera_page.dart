@@ -25,6 +25,7 @@ import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_temporal_capture_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
+import 'photo_temporal_screen_concordance.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
@@ -151,9 +152,8 @@ bool _hasLiveTemporalScreenCorroboration(Map<String, dynamic>? live) {
 HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
   List<Map<String, dynamic>?> analyses,
 ) {
-  final mlFirst = HCVDisplayRiskFusion.mlFirstPhotoDecision(
-    _mlAnalysisFromAnalyses(analyses),
-  );
+  final finalStillMl = _mlAnalysisFromAnalyses(analyses);
+  final mlFirst = HCVDisplayRiskFusion.mlFirstPhotoDecision(finalStillMl);
   final legacy = _combinePhotoDisplayRiskLegacy(analyses);
   final liveProbe = _liveProbeFromAnalyses(analyses);
   final isTemporalV2 =
@@ -165,6 +165,10 @@ HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
   if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {
     return legacy;
   }
+
+  final moderateConcordance =
+      PhotoTemporalScreenConcordance.evaluate(finalStillMl, liveProbe);
+  if (moderateConcordance != null) return moderateConcordance;
 
   if (mlFirst != null &&
       (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
