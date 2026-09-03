@@ -1,0 +1,71 @@
+name: Materialize build74 fusion fixes
+
+on:
+  push:
+    branches:
+      - phase-c-build74-fusion-fixes-20260903
+    paths:
+      - tool/materialize_build74_fusion_fixes_20260903.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize source and regressions
+        run: python tool/materialize_build74_fusion_fixes_20260903.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Targeted regressions
+        run: |
+          flutter test test/build74_fusion_regression_test.dart
+          flutter test test/build73_video_screen_persistence_v2_regression_test.dart
+          flutter test test/build72_video_reality_and_container_regression_test.dart
+          flutter test test/build71_video_semantic_persistence_regression_test.dart
+          flutter test test/build69_capture_fusion_integration_test.dart
+
+      - name: Full Flutter test suite
+        run: flutter test
+
+      - name: Diff sanity
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Commit validated materialized patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            lib/hcv_display_risk_fusion.dart \
+            lib/camera_page.dart \
+            test/build74_fusion_regression_test.dart
+          if git diff --cached --quiet; then
+            echo "No materialized changes to commit"
+            exit 0
+          fi
+          git commit -m "Phase C: resolve build74 photo and video fusion edge cases"
+          git push origin HEAD:phase-c-build74-fusion-fixes-20260903
