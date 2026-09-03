@@ -1,6 +1,9 @@
 name: Flutter CI
 
 on:
+  push:
+    branches:
+      - validation/c8ff-share-hcv-id-lookup-20260903
   pull_request:
     branches:
       - fix/display-kyc-zoom-20260723
