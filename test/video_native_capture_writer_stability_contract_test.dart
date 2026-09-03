@@ -3,30 +3,32 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('native video capture skips disposable temporal mini-video', () {
-    final core = File('lib/hcv_live_screen_probe_core.dart').readAsStringSync();
+  test('native video capture starts directly without disposable pre-probe', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
 
-    expect(core, contains('bool includeTemporalVideoProbe = true'));
-    expect(core, contains('SKIPPED_FOR_NATIVE_VIDEO_CAPTURE'));
-    expect(
-      core,
-      contains('NATIVE_VIDEO_CAPTURE_USES_POST_CAPTURE_TEMPORAL_ANALYSIS'),
-    );
-    expect(camera, contains('includeTemporalVideoProbe: false'));
+    expect(camera, isNot(contains('includeTemporalVideoProbe: false')));
+    expect(camera, isNot(contains('_analyzeLiveScreenProbeWithoutFlash')));
+    expect(camera, isNot(contains('_showCaptureReadyMessage')));
     expect(camera, contains('await _settleCameraAfterLiveProbe();'));
+    expect(camera, contains('await controller!.startVideoRecording();'));
   });
 
-  test('photo path keeps temporal video probe enabled by default', () {
-    final core = File('lib/hcv_live_screen_probe_core.dart').readAsStringSync();
-    expect(
-      core,
-      contains('? await const HCVTemporalCaptureProbe().analyze(controller)'),
+  test('photo path captures temporal clip before still and analyzes it after', () {
+    final camera = File('lib/camera_page.dart').readAsStringSync();
+    final temporal = File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();
+
+    final miniVideo = camera.indexOf('await temporalProbeEngine.capture(');
+    final still = camera.indexOf('await controller!.takePicture();', miniVideo);
+    final analysis = camera.indexOf(
+      'await temporalProbeEngine.analyzeCapturedClip(temporalClip)',
+      still,
     );
-    expect(
-      core,
-      contains('VIDEO_EQUIVALENT_PRE_CAPTURE_TEMPORAL_ANALYSIS'),
-    );
+
+    expect(miniVideo, greaterThanOrEqualTo(0));
+    expect(still, greaterThan(miniVideo));
+    expect(analysis, greaterThan(still));
+    expect(temporal, contains('Duration(milliseconds: 2400)'));
+    expect(temporal, contains('maxFrames: 4'));
   });
 
   test('video stop failure clears recording UI state', () {
