@@ -19,6 +19,8 @@ class HCVTemporalCaptureProbe {
   const HCVTemporalCaptureProbe();
 
   static const Duration defaultDuration = Duration(milliseconds: 2400);
+  static const double photoMlFrameIntervalSeconds = 0.6;
+  static const int photoMlFrameLimit = 4;
 
   /// Captures only the disposable pre-photo temporal clip.
   ///
@@ -73,9 +75,9 @@ class HCVTemporalCaptureProbe {
   }
 
   /// Analyzes a clip already captured immediately before a still photo.
-  /// Up to four ML samples are requested; a 2.4 s clip normally yields three
-  /// or four samples depending on container timing. Optical analysis keeps its
-  /// denser temporal sampling for refresh/flicker evidence.
+  /// Four ML samples are requested at 0.6 s spacing inside the 2.4 s clip,
+  /// while optical analysis keeps its denser temporal sampling for
+  /// refresh/flicker evidence.
   Future<Map<String, dynamic>> analyzeCapturedClip(
     HCVTemporalCaptureClip clip,
   ) async {
@@ -100,8 +102,8 @@ class HCVTemporalCaptureProbe {
         mlAnalysis =
             await HCVMLScreenReplayClassifier.instance.analyzeVideo(
           temporaryVideoPath,
-          frameIntervalSeconds: 1,
-          maxFrames: 4,
+          frameSamplingIntervalSeconds: photoMlFrameIntervalSeconds,
+          maxFrames: photoMlFrameLimit,
         );
       } catch (e) {
         mlAnalysis = _analysisUnknown(
