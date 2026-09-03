@@ -720,6 +720,16 @@ class _CameraPageState extends State<CameraPage> {
         );
       }
 
+      // The technical temporal clip is always captured with flash disabled.
+      // Restore the user's selected photo flash/torch before the real still.
+      if (currentFlashMode != FlashMode.off &&
+          controller!.value.isInitialized) {
+        try {
+          await controller!.setFlashMode(currentFlashMode);
+          await Future.delayed(const Duration(milliseconds: 150));
+        } catch (_) {}
+      }
+
       await _settleCameraAfterLiveProbe();
 
       late final XFile file;
@@ -926,6 +936,9 @@ class _CameraPageState extends State<CameraPage> {
         await uploadCertificateToRegistry();
       }
     } catch (e) {
+      if (temporalClip != null) {
+        await temporalProbeEngine.discard(temporalClip.path);
+      }
       setState(() {
         status = '${_c('photoError')}: $e';
       });
