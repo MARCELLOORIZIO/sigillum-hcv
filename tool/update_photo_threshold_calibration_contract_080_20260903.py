@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Trigger full validation after workflow update.
 path = Path('test/ml_calibration_corpus_v1_test.dart')
 text = path.read_text()
 old = """  test('photo thresholds preserve a wide gray zone', () {
