@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'photo keeps live evidence primary and requires structural corroboration',
+    'photo Temporal V2 keeps pre-capture temporal evidence primary over one still false negative',
     () {
       final camera = File('lib/camera_page.dart').readAsStringSync();
 
@@ -13,19 +13,20 @@ void main() {
       expect(
         camera,
         contains(
-          'if (!_hasLiveTemporalScreenCorroboration(liveProbe)) return preCapture;',
+          "liveProbe?['photoDecisionMethod'] == 'PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT'",
         ),
       );
       expect(
         camera,
         contains(
-          'final corroborated = HCVDisplayRiskFusion.combine(analyses);',
+          "if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK')",
         ),
       );
       expect(
         camera,
         contains("'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY'"),
       );
+      expect(camera, isNot(contains('_showCaptureReadyMessage')));
     },
   );
 }

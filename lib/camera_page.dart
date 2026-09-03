@@ -22,7 +22,7 @@ import 'hcv_social_fingerprint.dart';
 import 'hcv_location_image_watermark.dart';
 import 'hcv_capture_location.dart';
 import 'hcv_screen_replay_analyzer.dart';
-import 'hcv_live_screen_probe.dart';
+import 'hcv_temporal_capture_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_capture_timestamp.dart';
@@ -155,6 +155,17 @@ HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
     _mlAnalysisFromAnalyses(analyses),
   );
   final legacy = _combinePhotoDisplayRiskLegacy(analyses);
+  final liveProbe = _liveProbeFromAnalyses(analyses);
+  final isTemporalV2 =
+      liveProbe?['photoDecisionMethod'] == 'PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT';
+
+  // A strong multi-frame/temporal DISPLAY result from the clip captured
+  // immediately before the automatic still must not be erased by one semantic
+  // still-image REALITY false negative (the C8FF failure mode).
+  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {
+    return legacy;
+  }
+
   if (mlFirst != null &&
       (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
           !_hasHardDisplayCorroboration(analyses))) {
@@ -276,18 +287,8 @@ class _CameraPageState extends State<CameraPage> {
   HCVCaptureLocation? pendingVideoLocation;
   HCVCaptureLocation? _lastCaptureLocation;
   DateTime? pendingVideoCapturedAt;
-  Map<String, dynamic>? _armedPhotoScreenProbe;
-  HCVCaptureLocation? _armedPhotoLocation;
-  DateTime? _armedPhotoExpiresAt;
-  int? _armedPhotoCameraIndex;
-  double? _armedPhotoZoom;
-  bool _videoArmed = false;
-  DateTime? _videoArmExpiresAt;
-  int? _videoArmCameraIndex;
-  double? _videoArmZoom;
   bool _printCoordinates = false;
   bool _locationBusy = false;
-  bool _parallaxRetryRequired = false;
 
   bool ready = false;
   bool recording = false;
@@ -318,85 +319,6 @@ class _CameraPageState extends State<CameraPage> {
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _c(String key) => CameraUiExtendedCopy.t(widget.languageCode, key);
-
-  String get _physicalProbeStatus => _c('physicalProbe');
-
-  bool _hasRequiredParallax(Map<String, dynamic> probe) {
-    // Parallax remains part of the probe as non-blocking diagnostic evidence.
-    // Photo and video capture must not require lateral phone movement.
-    return true;
-  }
-
-  Future<void> _showCaptureReadyMessage() async {
-    if (!mounted) return;
-
-    // Legacy presentation-contract marker only: 'PROSEGUI'.
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      barrierLabel: 'SIGILLUM_CAPTURE_READY',
-      barrierColor: Colors.black38,
-      transitionDuration: const Duration(milliseconds: 160),
-      pageBuilder: (dialogContext, _, __) {
-        return SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Material(
-                color: Colors.transparent,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 18,
-                          offset: Offset(0, 7),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _c('verificationCompleteTitle'),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _c('returnPhoneInstruction'),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 13, height: 1.3),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 56),
-                          ),
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          child: Text(_c('proceedNow')),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Future<void> _toggleCoordinateStamp() async {
     if (_locationBusy) return;
@@ -502,11 +424,6 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> switchCamera() async {
     if (cameras == null || cameras!.length < 2) return;
-
-    _videoArmed = false;
-    _videoArmExpiresAt = null;
-    _videoArmCameraIndex = null;
-    _videoArmZoom = null;
     pendingLiveScreenProbe = null;
     pendingVideoLocation = null;
 
@@ -544,43 +461,6 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
-  Future<Map<String, dynamic>> _analyzeLiveScreenProbeWithoutFlash({
-    bool includeTemporalVideoProbe = true,
-  }) async {
-    final camera = controller;
-    if (camera == null) {
-      return {
-        'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-        'analysisStatus': 'NOT_ANALYZED',
-        'reason': 'CAMERA_NOT_READY',
-      };
-    }
-
-    final flashToRestore = currentFlashMode;
-    final shouldSuppressFlash = flashToRestore != FlashMode.off;
-
-    try {
-      await camera.setFlashMode(FlashMode.off);
-      await Future.delayed(const Duration(milliseconds: 250));
-
-      final analysis = await HCVLiveScreenProbe().analyzePreview(
-        camera,
-        restoreZoomLevel: currentZoom,
-        includeTemporalVideoProbe: includeTemporalVideoProbe,
-      );
-      analysis['flashSuppressedDuringProbe'] = shouldSuppressFlash;
-      analysis['probeFlashMode'] = 'OFF';
-      return analysis;
-    } finally {
-      if (shouldSuppressFlash && camera.value.isInitialized) {
-        try {
-          await camera.setFlashMode(flashToRestore);
-          await Future.delayed(const Duration(milliseconds: 150));
-        } catch (_) {}
-      }
-    }
-  }
-
   Future<void> _settleCameraAfterLiveProbe() async {
     final camera = controller;
     if (camera == null || !camera.value.isInitialized) return;
@@ -616,105 +496,29 @@ class _CameraPageState extends State<CameraPage> {
     if (controller == null || !controller!.value.isInitialized) return;
     if (controller!.value.isRecordingVideo) return;
 
-    final now = DateTime.now();
-    final armedIsValid = _videoArmed &&
-        pendingLiveScreenProbe != null &&
-        _videoArmExpiresAt != null &&
-        now.isBefore(_videoArmExpiresAt!) &&
-        _videoArmCameraIndex == selectedCameraIndex &&
-        _videoArmZoom != null &&
-        (currentZoom - _videoArmZoom!).abs() < 0.01;
+    final captureLocation = await _locationForCapture();
+    if (_printCoordinates && captureLocation == null) return;
 
-    if (!armedIsValid) {
-      _videoArmed = false;
-      _videoArmExpiresAt = null;
-      _videoArmCameraIndex = null;
-      _videoArmZoom = null;
-      pendingLiveScreenProbe = null;
-      pendingVideoLocation = null;
-
-      final captureLocation = await _locationForCapture();
-      if (_printCoordinates && captureLocation == null) return;
-
-      setState(() {
-        status = _physicalProbeStatus;
-        result = null;
-        videoPath = null;
-        hcvPath = null;
-        packagePath = null;
-        hcvId = null;
-        verificationUrl = null;
-        registryStatus = null;
-        recording = false;
-      });
-
-      try {
-        pendingLiveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash(
-          includeTemporalVideoProbe: false,
-        );
-        if (!_hasRequiredParallax(pendingLiveScreenProbe!)) {
-          pendingLiveScreenProbe = null;
-          pendingVideoLocation = null;
-          _videoArmed = false;
-          _videoArmExpiresAt = null;
-          _videoArmCameraIndex = null;
-          _videoArmZoom = null;
-          if (mounted) {
-            setState(() {
-              _parallaxRetryRequired = true;
-              status = _c('parallaxRequired');
-              recording = false;
-            });
-          }
-          return;
-        }
-        if (mounted) {
-          setState(() {
-            _parallaxRetryRequired = false;
-          });
-        }
-        pendingVideoLocation = captureLocation;
-        _videoArmed = true;
-        _videoArmExpiresAt = DateTime.now().add(const Duration(seconds: 15));
-        _videoArmCameraIndex = selectedCameraIndex;
-        _videoArmZoom = currentZoom;
-        await _showCaptureReadyMessage();
-        if (!mounted) return;
-        setState(() {
-          status = _c('armedVideoReady');
-          recording = false;
-        });
-      } catch (e) {
-        pendingLiveScreenProbe = null;
-        pendingVideoLocation = null;
-        _videoArmed = false;
-        _videoArmExpiresAt = null;
-        _videoArmCameraIndex = null;
-        _videoArmZoom = null;
-        if (mounted) {
-          setState(() {
-            recording = false;
-            status = '${_c('startError')}: $e';
-          });
-        }
-      }
-      return;
-    }
-
-    _videoArmed = false;
-    _videoArmExpiresAt = null;
-    _videoArmCameraIndex = null;
-    _videoArmZoom = null;
+    pendingLiveScreenProbe = null;
+    pendingVideoLocation = captureLocation;
     lastLiveSignals = null;
 
     setState(() {
       recording = true;
       status = _c('starting');
+      result = null;
+      videoPath = null;
+      hcvPath = null;
+      packagePath = null;
+      hcvId = null;
+      verificationUrl = null;
+      registryStatus = null;
     });
 
     try {
-      // The live probe may have just stopped image streaming. Let AVFoundation
-      // settle before opening the user's real recording writer.
+      // VIDEO starts on the user's first REC tap. There is no disposable
+      // pre-capture clip and no parallax/geometry gate; display evidence comes
+      // from the actual recorded video during post-capture analysis.
       await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
@@ -815,88 +619,144 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
+  Map<String, dynamic> _photoTemporalV2Unavailable(
+    String reason, {
+    Object? error,
+  }) {
+    return {
+      'type': 'SIGILLUM_PHOTO_TEMPORAL_VIDEO_PROBE_V2',
+      'analysisStatus': 'NOT_ANALYZED',
+      'captureDurationMs':
+          HCVTemporalCaptureProbe.defaultDuration.inMilliseconds,
+      'temporaryVideoDeletedAfterAnalysis': true,
+      'reason': reason,
+      if (error != null) 'error': error.toString(),
+    };
+  }
+
+  Map<String, dynamic> _buildPhotoTemporalV2LiveProbe(
+    Map<String, dynamic> temporalProbe,
+  ) {
+    final opticalRaw = temporalProbe['screenReplayAnalysis'];
+    final mlRaw = temporalProbe['mlScreenReplayAnalysis'];
+    final optical = opticalRaw is Map
+        ? Map<String, dynamic>.from(opticalRaw)
+        : null;
+    final ml = mlRaw is Map ? Map<String, dynamic>.from(mlRaw) : null;
+    final analyzed = temporalProbe['analysisStatus'] == 'ANALYZED' &&
+        (optical != null || ml != null);
+
+    final temporalRisk = analyzed
+        ? combineVideoDisplayRiskFromCaptureEvidence([optical, ml])
+        : null;
+    final opticalFrames = (optical?['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final mlFrames = (ml?['framesAnalyzed'] as num?)?.toInt() ?? 0;
+
+    return {
+      'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+      'activeProbeVersion': 6,
+      'analysisStatus': analyzed ? 'ANALYZED' : 'NOT_ANALYZED',
+      'framesAnalyzed': opticalFrames > mlFrames ? opticalFrames : mlFrames,
+      'screenReplayRisk': temporalRisk?.risk ?? 'UNKNOWN',
+      'screenReplayRiskScore': temporalRisk?.score,
+      'displayRiskDecision': temporalRisk?.decision ?? 'NOT_ANALYZED',
+      'sceneClass': 'UNKNOWN',
+      'reason': 'PHOTO_TEMPORAL_V2_PRE_CAPTURE_NO_PARALLAX',
+      'geometryChallenge': const {
+        'sceneClass': 'UNKNOWN',
+        'realityEvidence': false,
+        'planarEvidence': false,
+        'reasons': ['PHOTO_TEMPORAL_V2_NO_PARALLAX'],
+      },
+      'signals': {
+        'photoTemporalVideoAnalyzed': analyzed,
+        'photoTemporalVideoDeletedAfterAnalysis':
+            temporalProbe['temporaryVideoDeletedAfterAnalysis'] == true,
+        'rawActiveDisplayEvidence': false,
+        'activeIlluminationDisplayEvidence': false,
+        'reflectedRealityEvidence': false,
+        'planarSceneEvidence': false,
+        'geometryChallengeCompleted': false,
+        'activeChallengeIndeterminate': false,
+      },
+      'photoTemporalVideoProbe': temporalProbe,
+      'photoDecisionMethod': 'PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT',
+      'videoEquivalentAvailable': analyzed && temporalRisk != null,
+      if (temporalRisk != null)
+        'videoEquivalentDisplayRisk': temporalRisk.toJson(),
+      'note':
+          'Photo Temporal V2 uses a disposable 2.4 s clip immediately before automatic still capture. Manual parallax is not used.',
+    };
+  }
+
   Future<void> takePhoto() async {
-    if (controller == null) return;
+    if (controller == null || !controller!.value.isInitialized) return;
+    if (controller!.value.isRecordingVideo) return;
 
-    final now = DateTime.now();
-    final armedProbe = _armedPhotoScreenProbe;
-    final armedUntil = _armedPhotoExpiresAt;
-    final armedIsValid = armedProbe != null &&
-        armedUntil != null &&
-        now.isBefore(armedUntil) &&
-        _armedPhotoCameraIndex == selectedCameraIndex &&
-        _armedPhotoZoom != null &&
-        (currentZoom - _armedPhotoZoom!).abs() < 0.01;
+    final captureLocation = await _locationForCapture();
+    if (_printCoordinates && captureLocation == null) return;
 
-    HCVCaptureLocation? captureLocation;
-    if (armedIsValid) {
-      captureLocation = _armedPhotoLocation;
-    } else {
-      _armedPhotoScreenProbe = null;
-      _armedPhotoLocation = null;
-      _armedPhotoExpiresAt = null;
-      _armedPhotoCameraIndex = null;
-      _armedPhotoZoom = null;
-      captureLocation = await _locationForCapture();
-      if (_printCoordinates && captureLocation == null) return;
-    }
+    const temporalProbeEngine = HCVTemporalCaptureProbe();
+    HCVTemporalCaptureClip? temporalClip;
+    Map<String, dynamic>? temporalProbe;
 
     try {
-      late final Map<String, dynamic> liveScreenProbe;
-      if (armedIsValid) {
-        liveScreenProbe = armedProbe;
-        _armedPhotoScreenProbe = null;
-        _armedPhotoLocation = null;
-        _armedPhotoExpiresAt = null;
-        _armedPhotoCameraIndex = null;
-        _armedPhotoZoom = null;
-      } else {
-        setState(() {
-          status = _physicalProbeStatus;
-        });
-        liveScreenProbe = await _analyzeLiveScreenProbeWithoutFlash();
-        if (!_hasRequiredParallax(liveScreenProbe)) {
-          _armedPhotoScreenProbe = null;
-          _armedPhotoLocation = null;
-          _armedPhotoExpiresAt = null;
-          _armedPhotoCameraIndex = null;
-          _armedPhotoZoom = null;
-          if (mounted) {
-            setState(() {
-              _parallaxRetryRequired = true;
-              status = _c('parallaxRequired');
-            });
-          }
-          return;
-        }
-        if (mounted) {
-          setState(() {
-            _parallaxRetryRequired = false;
-          });
-        }
-        _armedPhotoScreenProbe = liveScreenProbe;
-        _armedPhotoLocation = captureLocation;
-        _armedPhotoExpiresAt = DateTime.now().add(const Duration(seconds: 15));
-        _armedPhotoCameraIndex = selectedCameraIndex;
-        _armedPhotoZoom = currentZoom;
-        await _showCaptureReadyMessage();
-        if (!mounted) return;
-        setState(() {
-          status = _c('armedPhotoReady');
-        });
-        return;
+      // One user tap starts the technical clip and automatically finishes with
+      // the actual still. No PROSEGUI step and no 15-second scene gap remain.
+      setState(() {
+        status = _c('takingPhoto');
+        result = null;
+      });
+
+      try {
+        temporalClip = await temporalProbeEngine.capture(
+          controller!,
+          duration: HCVTemporalCaptureProbe.defaultDuration,
+        );
+      } catch (e) {
+        temporalProbe = _photoTemporalV2Unavailable(
+          'PHOTO_TEMPORAL_CAPTURE_FAILED',
+          error: e,
+        );
+      }
+
+      // The technical temporal clip is always captured with flash disabled.
+      // Restore the user's selected photo flash/torch before the real still.
+      if (currentFlashMode != FlashMode.off &&
+          controller!.value.isInitialized) {
+        try {
+          await controller!.setFlashMode(currentFlashMode);
+          await Future.delayed(const Duration(milliseconds: 150));
+        } catch (_) {}
       }
 
       await _settleCameraAfterLiveProbe();
 
-      setState(() {
-        status = _c('takingPhoto');
-      });
-
-      final file = await controller!.takePicture();
+      late final XFile file;
+      try {
+        file = await controller!.takePicture();
+      } catch (_) {
+        if (temporalClip != null) {
+          await temporalProbeEngine.discard(temporalClip.path);
+        }
+        rethrow;
+      }
       final capturedAt = DateTime.now();
 
       final savedPhotoPath = await savePhotoToDocuments(file.path);
+
+      if (temporalClip != null) {
+        setState(() {
+          status = _c('analyzingScreen');
+        });
+        temporalProbe =
+            await temporalProbeEngine.analyzeCapturedClip(temporalClip);
+        temporalClip = null;
+      }
+      temporalProbe ??= _photoTemporalV2Unavailable(
+        'PHOTO_TEMPORAL_NOT_AVAILABLE',
+      );
+      final liveScreenProbe = _buildPhotoTemporalV2LiveProbe(temporalProbe);
 
       final engine = HCVEngine();
 
@@ -1076,6 +936,9 @@ class _CameraPageState extends State<CameraPage> {
         await uploadCertificateToRegistry();
       }
     } catch (e) {
+      if (temporalClip != null) {
+        await temporalProbeEngine.discard(temporalClip.path);
+      }
       setState(() {
         status = '${_c('photoError')}: $e';
       });
@@ -1782,7 +1645,7 @@ class _CameraPageState extends State<CameraPage> {
         status,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: _parallaxRetryRequired ? Colors.redAccent : Colors.white,
+          color: Colors.white,
           fontSize: 14,
           fontWeight: FontWeight.w800,
         ),
@@ -2261,10 +2124,6 @@ class _CameraPageState extends State<CameraPage> {
                               fontWeight: FontWeight.bold,
                             ),
                             onSelected: (_) {
-                              _videoArmed = false;
-                              _videoArmExpiresAt = null;
-                              _videoArmCameraIndex = null;
-                              _videoArmZoom = null;
                               pendingLiveScreenProbe = null;
                               pendingVideoLocation = null;
                               setState(() {

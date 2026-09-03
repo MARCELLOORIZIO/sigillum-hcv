@@ -26,10 +26,10 @@ void main() {
       camera,
       contains('CameraUiExtendedCopy.t(widget.languageCode, key)'),
     );
-    expect(camera, contains("_c('physicalProbe')"));
-    expect(camera, contains("_c('verificationCompleteTitle')"));
-    expect(camera, contains("_c('armedVideoReady')"));
-    expect(camera, contains("_c('armedPhotoReady')"));
+    expect(camera, isNot(contains("_c('physicalProbe')")));
+    expect(camera, isNot(contains("_c('armedVideoReady')")));
+    expect(camera, isNot(contains("_c('armedPhotoReady')")));
+    expect(camera, contains("_c('takingPhoto')"));
     expect(camera, contains("_c('analyzingScreen')"));
     expect(camera, contains("_c('registryPublishing')"));
     expect(camera, contains("_c('createCaptionedVideo')"));

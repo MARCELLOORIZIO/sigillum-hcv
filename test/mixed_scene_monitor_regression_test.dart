@@ -63,17 +63,21 @@ void main() {
     expect(geometry, contains('HCVProjectiveMotionModel.fit'));
   });
 
-  test('capture confirmation is compact and above the zoom strip', () {
+  test('photo Temporal V2 auto-shots without a capture confirmation gap', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    final start = camera.indexOf('_showCaptureReadyMessage');
-    final end = camera.indexOf('_toggleCoordinateStamp', start);
-    final confirmation = camera.substring(start, end);
+    final temporal = camera.indexOf('temporalClip = await temporalProbeEngine.capture(');
+    final settle = camera.indexOf('await _settleCameraAfterLiveProbe();', temporal);
+    final photo = camera.indexOf('file = await controller!.takePicture();', temporal);
+    final analysis = camera.indexOf(
+      'await temporalProbeEngine.analyzeCapturedClip(temporalClip)',
+      photo,
+    );
 
-    expect(confirmation, contains('Alignment.topCenter'));
-    expect(confirmation, contains("'PROSEGUI'"));
-    expect(confirmation, contains('BoxConstraints(maxWidth: 320)'));
-    expect(confirmation, contains('minimumSize: const Size(0, 56)'));
-    expect(confirmation, isNot(contains('AlertDialog')));
+    expect(temporal, greaterThanOrEqualTo(0));
+    expect(settle, greaterThan(temporal));
+    expect(photo, greaterThan(settle));
+    expect(analysis, greaterThan(photo));
+    expect(camera, isNot(contains('_showCaptureReadyMessage')));
   });
 
   test('raw display flash and geometric depth stay distinct', () {

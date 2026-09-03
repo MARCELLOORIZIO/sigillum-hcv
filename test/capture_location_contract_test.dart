@@ -4,12 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'camera preserves the original monitor probe and adds safe confirmation',
+    'camera uses Photo Temporal V2 and keeps video display fusion',
     () {
       final camera = File('lib/camera_page.dart').readAsStringSync();
-      expect(camera, contains('await _analyzeLiveScreenProbeWithoutFlash()'));
-      expect(camera, contains('await _showCaptureReadyMessage()'));
+      expect(camera, contains('const temporalProbeEngine = HCVTemporalCaptureProbe();'));
+      expect(camera, contains('await temporalProbeEngine.capture('));
+      expect(camera, contains('PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT'));
       expect(camera, contains('combineVideoDisplayRiskFromCaptureEvidence'));
+      expect(camera, isNot(contains('_analyzeLiveScreenProbeWithoutFlash')));
+      expect(camera, isNot(contains('_showCaptureReadyMessage')));
       expect(camera, isNot(contains('_captureProbeReady')));
       expect(camera, isNot(contains('geometryOverride')));
       expect(camera, isNot(contains('waitForSufficientMovement')));

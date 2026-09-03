@@ -5,23 +5,38 @@ import 'package:camera/camera.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_screen_replay_analyzer.dart';
 
+class HCVTemporalCaptureClip {
+  const HCVTemporalCaptureClip({
+    required this.path,
+    required this.captureDurationMs,
+  });
+
+  final String path;
+  final int captureDurationMs;
+}
+
 class HCVTemporalCaptureProbe {
   const HCVTemporalCaptureProbe();
 
-  static const Duration defaultDuration = Duration(milliseconds: 1800);
+  static const Duration defaultDuration = Duration(milliseconds: 2400);
 
-  Future<Map<String, dynamic>> analyze(
+  /// Captures only the disposable pre-photo temporal clip.
+  ///
+  /// Analysis is intentionally deferred until after the still image is taken,
+  /// so no ML/optical processing delay can separate the end of this clip from
+  /// the actual photo capture.
+  Future<HCVTemporalCaptureClip> capture(
     CameraController controller, {
     Duration duration = defaultDuration,
   }) async {
     if (!controller.value.isInitialized) {
-      return _unknown('CAMERA_NOT_READY');
+      throw StateError('CAMERA_NOT_READY');
     }
     if (controller.value.isStreamingImages) {
-      return _unknown('IMAGE_STREAM_ACTIVE');
+      throw StateError('IMAGE_STREAM_ACTIVE');
     }
     if (controller.value.isRecordingVideo) {
-      return _unknown('CAMERA_ALREADY_RECORDING');
+      throw StateError('CAMERA_ALREADY_RECORDING');
     }
 
     String? temporaryVideoPath;
@@ -29,7 +44,7 @@ class HCVTemporalCaptureProbe {
 
     try {
       await controller.setFlashMode(FlashMode.off);
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 120));
 
       await controller.startVideoRecording();
       recordingStarted = true;
@@ -39,6 +54,34 @@ class HCVTemporalCaptureProbe {
       recordingStarted = false;
       temporaryVideoPath = capture.path;
 
+      return HCVTemporalCaptureClip(
+        path: temporaryVideoPath,
+        captureDurationMs: duration.inMilliseconds,
+      );
+    } catch (_) {
+      if (recordingStarted && controller.value.isRecordingVideo) {
+        try {
+          final capture = await controller.stopVideoRecording();
+          temporaryVideoPath ??= capture.path;
+        } catch (_) {}
+      }
+      if (temporaryVideoPath != null) {
+        await discard(temporaryVideoPath);
+      }
+      rethrow;
+    }
+  }
+
+  /// Analyzes a clip already captured immediately before a still photo.
+  /// Up to four ML samples are requested; a 2.4 s clip normally yields three
+  /// or four samples depending on container timing. Optical analysis keeps its
+  /// denser temporal sampling for refresh/flicker evidence.
+  Future<Map<String, dynamic>> analyzeCapturedClip(
+    HCVTemporalCaptureClip clip,
+  ) async {
+    var temporaryVideoPath = clip.path;
+
+    try {
       late Map<String, dynamic> opticalAnalysis;
       late Map<String, dynamic> mlAnalysis;
 
@@ -58,7 +101,7 @@ class HCVTemporalCaptureProbe {
             await HCVMLScreenReplayClassifier.instance.analyzeVideo(
           temporaryVideoPath,
           frameIntervalSeconds: 1,
-          maxFrames: 2,
+          maxFrames: 4,
         );
       } catch (e) {
         mlAnalysis = _analysisUnknown(
@@ -72,49 +115,58 @@ class HCVTemporalCaptureProbe {
           (opticalAnalysis['screenReplayRiskScore'] as num?)?.toInt();
       final mlScore = (mlAnalysis['screenReplayRiskScore'] as num?)?.toInt();
       final analyzed = opticalScore != null || mlScore != null;
-      final temporaryVideoDeleted =
-          await _deleteTemporaryVideo(temporaryVideoPath);
+      final temporaryVideoDeleted = await discard(temporaryVideoPath);
       if (temporaryVideoDeleted) {
-        temporaryVideoPath = null;
+        temporaryVideoPath = '';
       }
 
       return {
-        'type': 'SIGILLUM_PHOTO_TEMPORAL_VIDEO_PROBE_V1',
+        'type': 'SIGILLUM_PHOTO_TEMPORAL_VIDEO_PROBE_V2',
         'analysisStatus': analyzed ? 'ANALYZED' : 'NOT_ANALYZED',
-        'captureDurationMs': duration.inMilliseconds,
+        'captureDurationMs': clip.captureDurationMs,
         'temporaryVideoDeletedAfterAnalysis': temporaryVideoDeleted,
         'screenReplayAnalysis': {
           ...opticalAnalysis,
           'decisionRole': 'PRE_CAPTURE_TEMPORAL_EVIDENCE',
-          'captureSource': 'PHOTO_TECHNICAL_MINI_VIDEO',
+          'captureSource': 'PHOTO_TECHNICAL_MINI_VIDEO_V2',
         },
         'mlScreenReplayAnalysis': {
           ...mlAnalysis,
           'decisionRole': 'PRE_CAPTURE_TEMPORAL_EVIDENCE',
-          'captureSource': 'PHOTO_TECHNICAL_MINI_VIDEO',
+          'captureSource': 'PHOTO_TECHNICAL_MINI_VIDEO_V2',
         },
       };
     } catch (e) {
-      if (recordingStarted && controller.value.isRecordingVideo) {
-        try {
-          final capture = await controller.stopVideoRecording();
-          temporaryVideoPath ??= capture.path;
-        } catch (_) {}
-      }
-      return _unknown('PHOTO_TEMPORAL_CAPTURE_FAILED', error: e);
+      return _unknown(
+        'PHOTO_TEMPORAL_ANALYSIS_FAILED',
+        captureDurationMs: clip.captureDurationMs,
+        error: e,
+      );
     } finally {
-      if (temporaryVideoPath != null) {
-        try {
-          final file = File(temporaryVideoPath);
-          if (await file.exists()) {
-            await file.delete();
-          }
-        } catch (_) {}
+      if (temporaryVideoPath.isNotEmpty) {
+        await discard(temporaryVideoPath);
       }
     }
   }
 
-  Future<bool> _deleteTemporaryVideo(String? path) async {
+  /// Backward-compatible convenience path for legacy callers.
+  Future<Map<String, dynamic>> analyze(
+    CameraController controller, {
+    Duration duration = defaultDuration,
+  }) async {
+    try {
+      final clip = await capture(controller, duration: duration);
+      return await analyzeCapturedClip(clip);
+    } catch (e) {
+      return _unknown(
+        'PHOTO_TEMPORAL_CAPTURE_FAILED',
+        captureDurationMs: duration.inMilliseconds,
+        error: e,
+      );
+    }
+  }
+
+  Future<bool> discard(String? path) async {
     if (path == null || path.isEmpty) return true;
     try {
       final file = File(path);
@@ -126,10 +178,16 @@ class HCVTemporalCaptureProbe {
     }
   }
 
-  Map<String, dynamic> _unknown(String reason, {Object? error}) {
+  Map<String, dynamic> _unknown(
+    String reason, {
+    int? captureDurationMs,
+    Object? error,
+  }) {
     return {
-      'type': 'SIGILLUM_PHOTO_TEMPORAL_VIDEO_PROBE_V1',
+      'type': 'SIGILLUM_PHOTO_TEMPORAL_VIDEO_PROBE_V2',
       'analysisStatus': 'NOT_ANALYZED',
+      if (captureDurationMs != null) 'captureDurationMs': captureDurationMs,
+      'temporaryVideoDeletedAfterAnalysis': true,
       'reason': reason,
       if (error != null) 'error': error.toString(),
     };

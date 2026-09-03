@@ -29,7 +29,7 @@ void main() {
     );
   });
 
-  test('archive 42 patch does not change video codec or camera orchestration',
+  test('archive 42 watermark codec remains unchanged under current camera orchestration',
       () {
     final watermark =
         File('lib/hcv_location_video_watermark.dart').readAsStringSync();
@@ -38,7 +38,9 @@ void main() {
     expect(watermark, contains("'-c:v libx264 '"));
     expect(watermark, contains("'-preset veryfast '"));
     expect(watermark, contains("'-crf 23 '"));
-    expect(camera, contains('includeTemporalVideoProbe: false'));
+    expect(camera, contains('await controller!.startVideoRecording();'));
+    expect(camera, contains('combineVideoDisplayRiskFromCaptureEvidence'));
+    expect(camera, isNot(contains('includeTemporalVideoProbe: false')));
     expect(
         camera, contains('HCVLocationVideoWatermark().createPublishedVideo'));
   });
