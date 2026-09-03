@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import Foundation
 import StoreKit
@@ -6,6 +7,7 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var storeKit2PriceChannel: FlutterMethodChannel?
+  private var cameraProbeChannel: FlutterMethodChannel?
   private var storefrontUpdatesTask: Task<Void, Never>?
   private var storefrontBaselineFingerprint = ""
   private var storefrontSessionFresh = false
@@ -15,6 +17,282 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  private func cameraProbeDevice(uniqueID: String) -> AVCaptureDevice? {
+    let deviceTypes: [AVCaptureDevice.DeviceType] = [
+      .builtInWideAngleCamera,
+      .builtInTelephotoCamera,
+      .builtInUltraWideCamera,
+      .builtInDualCamera,
+      .builtInDualWideCamera,
+      .builtInTripleCamera,
+      .builtInTrueDepthCamera,
+    ]
+    let discovery = AVCaptureDevice.DiscoverySession(
+      deviceTypes: deviceTypes,
+      mediaType: .video,
+      position: .unspecified
+    )
+    return discovery.devices.first(where: { $0.uniqueID == uniqueID })
+  }
+
+  private func exposureModeName(_ mode: AVCaptureDevice.ExposureMode) -> String {
+    switch mode {
+    case .locked:
+      return "LOCKED"
+    case .autoExpose:
+      return "AUTO_EXPOSE"
+    case .continuousAutoExposure:
+      return "CONTINUOUS_AUTO"
+    case .custom:
+      return "CUSTOM"
+    @unknown default:
+      return "UNKNOWN"
+    }
+  }
+
+  private func cameraProbeState(_ device: AVCaptureDevice) -> [String: Any] {
+    let duration = CMTimeGetSeconds(device.exposureDuration)
+    let minDuration = CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+    let maxDuration = CMTimeGetSeconds(device.activeFormat.maxExposureDuration)
+    return [
+      "deviceUniqueId": device.uniqueID,
+      "zoomFactor": Double(device.videoZoomFactor),
+      "exposureMode": exposureModeName(device.exposureMode),
+      "exposureDurationSeconds": duration.isFinite ? duration : 0.0,
+      "iso": Double(device.iso),
+      "minISO": Double(device.activeFormat.minISO),
+      "maxISO": Double(device.activeFormat.maxISO),
+      "minExposureDurationSeconds": minDuration.isFinite ? minDuration : 0.0,
+      "maxExposureDurationSeconds": maxDuration.isFinite ? maxDuration : 0.0,
+    ]
+  }
+
+  private func cameraProbeDevice(
+    from call: FlutterMethodCall,
+    result: FlutterResult
+  ) -> AVCaptureDevice? {
+    guard
+      let args = call.arguments as? [String: Any],
+      let uniqueID = args["deviceUniqueId"] as? String,
+      !uniqueID.isEmpty
+    else {
+      result(FlutterError(
+        code: "CAMERA_PROBE_INVALID_ARGUMENTS",
+        message: "Missing iOS camera unique identifier",
+        details: nil
+      ))
+      return nil
+    }
+    guard let device = cameraProbeDevice(uniqueID: uniqueID) else {
+      result(FlutterError(
+        code: "CAMERA_PROBE_DEVICE_NOT_FOUND",
+        message: "The active iOS camera device could not be resolved",
+        details: uniqueID
+      ))
+      return nil
+    }
+    return device
+  }
+
+  private func handleCameraProbeCall(
+    _ call: FlutterMethodCall,
+    result: @escaping FlutterResult
+  ) {
+    guard let device = cameraProbeDevice(from: call, result: result) else {
+      return
+    }
+
+    switch call.method {
+    case "snapshotCameraState":
+      result(cameraProbeState(device))
+
+    case "setContinuousAutoExposure":
+      do {
+        try device.lockForConfiguration()
+        defer { device.unlockForConfiguration() }
+        guard device.isExposureModeSupported(.continuousAutoExposure) else {
+          result(FlutterError(
+            code: "CONTINUOUS_AUTO_EXPOSURE_UNSUPPORTED",
+            message: "Continuous auto exposure is unavailable on this camera",
+            details: nil
+          ))
+          return
+        }
+        device.exposureMode = .continuousAutoExposure
+        result(cameraProbeState(device))
+      } catch {
+        result(FlutterError(
+          code: "CAMERA_CONFIGURATION_LOCK_FAILED",
+          message: error.localizedDescription,
+          details: nil
+        ))
+      }
+
+    case "applyShortExposure":
+      guard
+        let args = call.arguments as? [String: Any],
+        let requestedDuration = args["targetDurationSeconds"] as? Double,
+        requestedDuration > 0
+      else {
+        result(FlutterError(
+          code: "INVALID_EXPOSURE_DURATION",
+          message: "A positive target exposure duration is required",
+          details: nil
+        ))
+        return
+      }
+
+      let currentDuration = max(
+        CMTimeGetSeconds(device.exposureDuration),
+        CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+      )
+      let minimumDuration = CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+      let maximumDuration = CMTimeGetSeconds(device.activeFormat.maxExposureDuration)
+      let adaptiveShortDuration = currentDuration / 4.0
+      let targetDurationSeconds = min(
+        maximumDuration,
+        max(minimumDuration, min(requestedDuration, adaptiveShortDuration))
+      )
+      let currentISO = max(device.iso, device.activeFormat.minISO)
+      let exposureCompensation = currentDuration / max(targetDurationSeconds, 0.000001)
+      let compensatedISO = min(
+        device.activeFormat.maxISO,
+        max(device.activeFormat.minISO, currentISO * Float(exposureCompensation))
+      )
+      let targetDuration = CMTimeMakeWithSeconds(
+        targetDurationSeconds,
+        preferredTimescale: 1_000_000_000
+      )
+
+      do {
+        try device.lockForConfiguration()
+        guard device.isExposureModeSupported(.custom) else {
+          device.unlockForConfiguration()
+          result(FlutterError(
+            code: "CUSTOM_EXPOSURE_UNSUPPORTED",
+            message: "Custom shutter/ISO exposure is unavailable on this camera",
+            details: nil
+          ))
+          return
+        }
+        device.setExposureModeCustom(
+          duration: targetDuration,
+          iso: compensatedISO
+        ) { [weak self, weak device] _ in
+          guard let self = self, let device = device else {
+            result(FlutterError(
+              code: "CAMERA_PROBE_DEVICE_RELEASED",
+              message: "Camera device was released during exposure change",
+              details: nil
+            ))
+            return
+          }
+          DispatchQueue.main.async {
+            var state = self.cameraProbeState(device)
+            state["requestedExposureDurationSeconds"] = requestedDuration
+            state["baselineExposureDurationSeconds"] = currentDuration
+            state["baselineISO"] = Double(currentISO)
+            state["isoCompensationClamped"] =
+              compensatedISO >= device.activeFormat.maxISO - 0.5
+            result(state)
+          }
+        }
+        device.unlockForConfiguration()
+      } catch {
+        result(FlutterError(
+          code: "CAMERA_CONFIGURATION_LOCK_FAILED",
+          message: error.localizedDescription,
+          details: nil
+        ))
+      }
+
+    case "restoreCameraState":
+      guard
+        let args = call.arguments as? [String: Any],
+        let state = args["state"] as? [String: Any]
+      else {
+        result(FlutterError(
+          code: "CAMERA_STATE_MISSING",
+          message: "Original camera state is required for restore",
+          details: nil
+        ))
+        return
+      }
+
+      let originalMode = state["exposureMode"] as? String ?? "CONTINUOUS_AUTO"
+      if originalMode == "CONTINUOUS_AUTO" || originalMode == "AUTO_EXPOSE" {
+        do {
+          try device.lockForConfiguration()
+          defer { device.unlockForConfiguration() }
+          let desiredMode: AVCaptureDevice.ExposureMode =
+            originalMode == "AUTO_EXPOSE" ? .autoExpose : .continuousAutoExposure
+          if device.isExposureModeSupported(desiredMode) {
+            device.exposureMode = desiredMode
+          } else if device.isExposureModeSupported(.continuousAutoExposure) {
+            device.exposureMode = .continuousAutoExposure
+          }
+          result(cameraProbeState(device))
+        } catch {
+          result(FlutterError(
+            code: "CAMERA_CONFIGURATION_LOCK_FAILED",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        }
+        return
+      }
+
+      let durationSeconds =
+        state["exposureDurationSeconds"] as? Double ?? CMTimeGetSeconds(device.exposureDuration)
+      let requestedISO = Float(state["iso"] as? Double ?? Double(device.iso))
+      let duration = CMTimeMakeWithSeconds(
+        durationSeconds,
+        preferredTimescale: 1_000_000_000
+      )
+      let restoredISO = min(
+        device.activeFormat.maxISO,
+        max(device.activeFormat.minISO, requestedISO)
+      )
+
+      do {
+        try device.lockForConfiguration()
+        guard device.isExposureModeSupported(.custom) else {
+          device.unlockForConfiguration()
+          result(FlutterError(
+            code: "CUSTOM_EXPOSURE_UNSUPPORTED",
+            message: "Original custom exposure could not be restored",
+            details: nil
+          ))
+          return
+        }
+        device.setExposureModeCustom(duration: duration, iso: restoredISO) {
+          [weak self, weak device] _ in
+          guard let self = self, let device = device else {
+            result(FlutterError(
+              code: "CAMERA_PROBE_DEVICE_RELEASED",
+              message: "Camera device was released during state restore",
+              details: nil
+            ))
+            return
+          }
+          DispatchQueue.main.async {
+            result(self.cameraProbeState(device))
+          }
+        }
+        device.unlockForConfiguration()
+      } catch {
+        result(FlutterError(
+          code: "CAMERA_CONFIGURATION_LOCK_FAILED",
+          message: error.localizedDescription,
+          details: nil
+        ))
+      }
+
+    default:
+      result(FlutterMethodNotImplemented)
+    }
   }
 
   @available(iOS 15.0, *)
@@ -35,11 +313,6 @@ import UIKit
         .uppercased() ?? ""
     }
 
-    // Storefront.countryCode is ISO-3166 alpha-3. Foundation canonicalizes
-    // identifiers such as en_ITA to region IT and exposes the region currency.
-    // This is a safety cross-check only: if Apple's Storefront currency and the
-    // region-derived currency disagree, SIGILLUM must not display a numeric
-    // amount. The Apple purchase sheet remains the final price source of truth.
     var regionCurrencyCode = ""
     if !countryCode.isEmpty {
       let regionLocale = Locale(identifier: "en_\(countryCode)")
@@ -94,11 +367,6 @@ import UIKit
   private func startStorefrontUpdateMonitoring(channel: FlutterMethodChannel) {
     storefrontUpdatesTask?.cancel()
 
-    // TestFlight/Sandbox can expose a cached Storefront.current snapshot before
-    // the purchase sheet refreshes the account storefront. Treat the first
-    // snapshot only as a baseline, never as freshness proof. A numeric paywall
-    // price becomes eligible only after Storefront.updates reports a genuinely
-    // different storefront/currency fingerprint during this app session.
     storefrontUpdatesTask = Task { @MainActor [weak self] in
       guard let self = self else { return }
 
@@ -113,8 +381,6 @@ import UIKit
         let snapshot = self.trustedStorefrontCurrency(storefront)
         let fingerprint = self.storefrontFingerprint(snapshot)
 
-        // Some StoreKit sequences may first echo the already-cached current
-        // storefront. An identical first event is still not freshness evidence.
         guard !fingerprint.isEmpty,
               fingerprint != self.storefrontBaselineFingerprint else {
           continue
@@ -135,6 +401,23 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    let cameraChannel = FlutterMethodChannel(
+      name: "hcv.cameraProbe",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    cameraChannel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else {
+        result(FlutterError(
+          code: "CAMERA_PROBE_UNAVAILABLE",
+          message: "Camera probe bridge is unavailable",
+          details: nil
+        ))
+        return
+      }
+      self.handleCameraProbeCall(call, result: result)
+    }
+    cameraProbeChannel = cameraChannel
 
     let channel = FlutterMethodChannel(
       name: "hcv.storekit2",
@@ -166,11 +449,6 @@ import UIKit
         }
 
         Task {
-          // Do not publish a numeric amount from the launch-time Storefront
-          // snapshot. The user's TestFlight evidence showed that this snapshot
-          // can remain USD while Apple's actual purchase sheet is already EUR.
-          // Until Storefront.updates proves a session refresh, show only the
-          // neutral App Store label and let Apple's sheet disclose the amount.
           let sessionFresh = await MainActor.run { self.storefrontSessionFresh }
           guard sessionFresh else {
             let neutral = Dictionary(
@@ -226,9 +504,6 @@ import UIKit
           let sessionFresh = await MainActor.run { self.storefrontSessionFresh }
           let snapshot: [String: Any] = [
             "countryCode": currencySnapshot.countryCode,
-            // Dart is intentionally given only the trusted value and only after
-            // a session storefront refresh. Before then it must not reintroduce
-            // stale ProductDetails USD as a fallback numeric price.
             "currencyCode": sessionFresh ? currencySnapshot.trustedCurrencyCode : "",
             "storefrontCurrencyCode": currencySnapshot.storefrontCurrencyCode,
             "regionCurrencyCode": currencySnapshot.regionCurrencyCode,
@@ -251,8 +526,6 @@ import UIKit
                 "receiptData": verification.jwsRepresentation,
               ])
             case .unverified:
-              // An unverified StoreKit transaction must never be used as
-              // entitlement evidence. The Dart/server path remains fail-closed.
               continue
             }
           }
