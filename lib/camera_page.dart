@@ -53,6 +53,66 @@ Map<String, dynamic>? _liveProbeFromAnalyses(
   return null;
 }
 
+Map<String, dynamic>? _mlAnalysisFromAnalyses(
+  List<Map<String, dynamic>?> analyses,
+) {
+  for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
+    if (analysis['type'] == 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1') {
+      return analysis;
+    }
+  }
+  return null;
+}
+
+bool _hasHardDisplayCorroboration(
+  List<Map<String, dynamic>?> analyses,
+) {
+  for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
+    final rawSignals = analysis['signals'];
+    if (rawSignals is! Map) continue;
+    if (rawSignals['confirmedDisplayTrace'] == true ||
+        rawSignals['periodicLightTrace'] == true ||
+        rawSignals['opticalCorroboratedTrace'] == true) {
+      return true;
+    }
+  }
+  return false;
+}
+
+HCVDisplayRiskResult _mergeMlPrimaryWithDiagnostics(
+  HCVDisplayRiskResult primary,
+  HCVDisplayRiskResult diagnostics,
+) {
+  final evidenceSources = <String>{
+    ...primary.evidenceSources,
+    ...diagnostics.evidenceSources,
+  }.toList()
+    ..sort();
+  final strongSources = <String>{
+    ...primary.strongSources,
+    ...diagnostics.strongSources,
+  }.toList()
+    ..sort();
+  final reasons = <String>{
+    ...primary.reasons,
+    ...diagnostics.reasons,
+  }.toList();
+
+  final finalScore = primary.decision == 'NO_DISPLAY_EVIDENCE'
+      ? diagnostics.score.clamp(primary.score, 20).toInt()
+      : primary.score;
+
+  return HCVDisplayRiskResult(
+    risk: primary.risk,
+    score: finalScore,
+    decision: primary.decision,
+    analysisStatus: primary.analysisStatus,
+    evidenceSources: evidenceSources,
+    strongSources: strongSources,
+    reasons: reasons,
+  );
+}
+
 bool _hasLiveTemporalScreenCorroboration(Map<String, dynamic>? live) {
   if (live == null ||
       live['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' ||
@@ -91,6 +151,21 @@ bool _hasLiveTemporalScreenCorroboration(Map<String, dynamic>? live) {
 HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
   List<Map<String, dynamic>?> analyses,
 ) {
+  final mlFirst = HCVDisplayRiskFusion.mlFirstPhotoDecision(
+    _mlAnalysisFromAnalyses(analyses),
+  );
+  final legacy = _combinePhotoDisplayRiskLegacy(analyses);
+  if (mlFirst != null &&
+      (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
+          !_hasHardDisplayCorroboration(analyses))) {
+    return _mergeMlPrimaryWithDiagnostics(mlFirst, legacy);
+  }
+  return legacy;
+}
+
+HCVDisplayRiskResult _combinePhotoDisplayRiskLegacy(
+  List<Map<String, dynamic>?> analyses,
+) {
   final preCapture = HCVDisplayRiskFusion.combine(
     analyses,
     liveCaptureOnly: true,
@@ -119,6 +194,21 @@ HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
 }
 
 HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
+  List<Map<String, dynamic>?> analyses,
+) {
+  final mlFirst = HCVDisplayRiskFusion.mlFirstVideoDecision(
+    _mlAnalysisFromAnalyses(analyses),
+  );
+  final legacy = _combineVideoDisplayRiskLegacy(analyses);
+  if (mlFirst != null &&
+      (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
+          !_hasHardDisplayCorroboration(analyses))) {
+    return _mergeMlPrimaryWithDiagnostics(mlFirst, legacy);
+  }
+  return legacy;
+}
+
+HCVDisplayRiskResult _combineVideoDisplayRiskLegacy(
   List<Map<String, dynamic>?> analyses,
 ) {
   final normalResult = HCVDisplayRiskFusion.combine(analyses);

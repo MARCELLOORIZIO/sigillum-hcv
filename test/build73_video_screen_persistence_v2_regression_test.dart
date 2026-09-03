@@ -179,7 +179,7 @@ void main() {
     expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
   });
 
-  test('80 percent SCREEN is not enough against REALITY without strong anchor', () {
+  test('ML-first: 80 percent SCREEN at p=.95 overrides geometry REALITY', () {
     final result = combineVideoDisplayRiskFromCaptureEvidence([
       _live(geometryClass: 'REALITY'),
       _passive(score: 20),
@@ -203,7 +203,11 @@ void main() {
       ),
     ]);
 
-    expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(
+      result.reasons,
+      contains('ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY'),
+    );
   });
 
   test('reflected REALITY blocks persistence V2', () {
