@@ -36,25 +36,31 @@ if old_body_arrow in import_page:
 # ---------------------------------------------------------------------------
 # Camera public copy must follow the selected language. Internal HCV enums are
 # intentionally not translated and are therefore not part of this check.
+# Photo Temporal V2 intentionally removed the old physical-probe/parallax and
+# armed-capture UI states; validate the current one-tap capture flow instead.
 # ---------------------------------------------------------------------------
 camera = text('lib/camera_page.dart')
 for token in [
     "import 'camera_ui_extended_copy.dart';",
     'CameraUiExtendedCopy.t(widget.languageCode, key)',
-    "_c('physicalProbe')",
-    "_c('verificationCompleteTitle')",
-    "_c('armedVideoReady')",
-    "_c('armedPhotoReady')",
+    "_c('takingPhoto')",
     "_c('analyzingScreen')",
     "_c('registryPublishing')",
     "_c('createCaptionedVideo')",
     "_c('filesWhere')",
     "_c('humanVerified')",
+    'PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT',
 ]:
     if token not in camera:
-        raise RuntimeError(f'camera selected-language token missing: {token}')
+        raise RuntimeError(f'camera selected-language/current-flow token missing: {token}')
 
 for forbidden in [
+    "_c('physicalProbe')",
+    "_c('armedVideoReady')",
+    "_c('armedPhotoReady')",
+    "_c('parallaxRequired')",
+    '_hasRequiredParallax',
+    '_showCaptureReadyMessage',
     "widget.languageCode.toLowerCase().startsWith('it')",
     "status = 'STARTING...'",
     "status = 'RECORDING...'",
@@ -73,7 +79,7 @@ for forbidden in [
     "'DOVE TROVI I FILE'",
 ]:
     if forbidden in camera:
-        raise RuntimeError(f'camera mixed-language public status survived: {forbidden}')
+        raise RuntimeError(f'camera obsolete/mixed-language public status survived: {forbidden}')
 
 # Both catalogs must carry all four languages.
 for copy_file in [
@@ -179,6 +185,7 @@ critical_files = [
     'lib/hcv_display_risk_fusion.dart',
     'lib/hcv_planar_motion_model.dart',
     'lib/hcv_projective_motion_model.dart',
+    'lib/hcv_temporal_capture_probe.dart',
     'lib/hcv_ml_screen_replay_classifier.dart',
     'lib/hcv_ml_model_store.dart',
     'lib/import_page.dart',
