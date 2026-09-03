@@ -6,6 +6,7 @@ on:
       - phase-c-ml-first-calibration-v1-20260903
     paths:
       - tool/materialize_ml_first_calibration_v1_20260903.py
+      - tool/adjust_ml_first_diagnostic_merge_20260903.py
       - test/ml_calibration_corpus_v1_test.dart
   workflow_dispatch:
 
@@ -24,7 +25,9 @@ jobs:
           fetch-depth: 0
 
       - name: Materialize ML-first runtime patch
-        run: python tool/materialize_ml_first_calibration_v1_20260903.py
+        run: |
+          python tool/materialize_ml_first_calibration_v1_20260903.py
+          python tool/adjust_ml_first_diagnostic_merge_20260903.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
