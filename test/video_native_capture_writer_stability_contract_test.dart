@@ -28,7 +28,16 @@ void main() {
     expect(still, greaterThan(miniVideo));
     expect(analysis, greaterThan(still));
     expect(temporal, contains('Duration(milliseconds: 2400)'));
-    expect(temporal, contains('maxFrames: 4'));
+    expect(
+      temporal,
+      contains('static const double photoMlFrameIntervalSeconds = 0.6'),
+    );
+    expect(temporal, contains('static const int photoMlFrameLimit = 4'));
+    expect(
+      temporal,
+      contains('frameSamplingIntervalSeconds: photoMlFrameIntervalSeconds'),
+    );
+    expect(temporal, contains('maxFrames: photoMlFrameLimit'));
   });
 
   test('video stop failure clears recording UI state', () {
