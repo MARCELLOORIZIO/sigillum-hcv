@@ -1,0 +1,78 @@
+name: Temporary Photo Dual Screen Concordance
+
+on:
+  push:
+    branches:
+      - fix/photo-dual-screen-concordance-20260903
+
+permissions:
+  contents: write
+
+jobs:
+  patch-validate-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[dual-screen-patched]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/photo-dual-screen-concordance-20260903
+          fetch-depth: 0
+
+      - name: Patch camera integration deterministically
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/camera_page.dart')
+          s = p.read_text()
+
+          old_import = "import 'hcv_display_risk_fusion.dart';\n"
+          new_import = old_import + "import 'photo_temporal_screen_concordance.dart';\n"
+          if "import 'photo_temporal_screen_concordance.dart';" not in s:
+              if old_import not in s:
+                  raise SystemExit('camera import anchor missing')
+              s = s.replace(old_import, new_import, 1)
+
+          old_ml = """  final mlFirst = HCVDisplayRiskFusion.mlFirstPhotoDecision(\n    _mlAnalysisFromAnalyses(analyses),\n  );\n"""
+          new_ml = """  final finalStillMl = _mlAnalysisFromAnalyses(analyses);\n  final mlFirst = HCVDisplayRiskFusion.mlFirstPhotoDecision(finalStillMl);\n"""
+          if old_ml in s:
+              s = s.replace(old_ml, new_ml, 1)
+          elif new_ml not in s:
+              raise SystemExit('photo ML anchor missing')
+
+          old_gate = """  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {\n    return legacy;\n  }\n\n  if (mlFirst != null &&\n"""
+          new_gate = """  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {\n    return legacy;\n  }\n\n  final moderateConcordance =\n      PhotoTemporalScreenConcordance.evaluate(finalStillMl, liveProbe);\n  if (moderateConcordance != null) return moderateConcordance;\n\n  if (mlFirst != null &&\n"""
+          if old_gate in s:
+              s = s.replace(old_gate, new_gate, 1)
+          elif new_gate not in s:
+              raise SystemExit('photo fusion anchor missing')
+
+          p.write_text(s)
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Full test suite
+        run: flutter test --reporter expanded
+
+      - name: Remove temporary workflow and commit validated patch
+        shell: bash
+        run: |
+          rm .github/workflows/temp-photo-dual-screen-concordance.yml
+          git config user.name "MARCELLOORIZIO"
+          git config user.email "MARCELLOORIZIO@YAHOO.IT"
+          git add lib/camera_page.dart lib/photo_temporal_screen_concordance.dart test/photo_temporal_dual_screen_corpus_regression_test.dart .github/workflows/temp-photo-dual-screen-concordance.yml
+          git commit -m "Apply validated photo dual-screen concordance [dual-screen-patched]"
+          git push origin HEAD:fix/photo-dual-screen-concordance-20260903
