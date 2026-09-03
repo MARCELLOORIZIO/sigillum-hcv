@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Triggered after the workflow learned about this updater path.
 path = Path('test/build71_video_semantic_persistence_regression_test.dart')
 text = path.read_text()
 replacements = {
