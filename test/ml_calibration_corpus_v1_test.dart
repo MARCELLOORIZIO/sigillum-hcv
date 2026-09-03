@@ -163,12 +163,12 @@ void main() {
     expect(gray, ['4C1DFC2A05CE4537']);
   });
 
-  test('photo thresholds preserve a wide gray zone', () {
+  test('photo thresholds preserve the 0.80/0.20 gray zone', () {
     final almostScreen = {
       'analysisStatus': 'ANALYZED',
       'predictedClass': 'SCREEN_MONITOR',
-      'screenProbability': 0.899,
-      'screenReplayRiskScore': 90,
+      'screenProbability': 0.799,
+      'screenReplayRiskScore': 79,
       'framesAnalyzed': 1,
     };
     final almostReality = {

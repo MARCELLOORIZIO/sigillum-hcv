@@ -42,8 +42,8 @@ class HCVDisplayRiskFusion {
     final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
         (screenProbability * 100).round();
 
-    if (predictedClass.startsWith('SCREEN_') && screenProbability >= 0.90) {
-      final score = mlScore.clamp(90, 100).toInt();
+    if (predictedClass.startsWith('SCREEN_') && screenProbability >= 0.80) {
+      final score = mlScore.clamp(80, 100).toInt();
       return HCVDisplayRiskResult(
         risk: 'HIGH',
         score: score,
