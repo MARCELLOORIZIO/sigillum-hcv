@@ -1,0 +1,71 @@
+name: Materialize photo SCREEN threshold 0.80
+
+on:
+  push:
+    branches:
+      - phase-c-photo-screen-threshold-080-20260903
+    paths:
+      - tool/materialize_photo_screen_threshold_080_20260903.py
+      - test/photo_ml_first_threshold_080_regression_test.dart
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize threshold change
+        run: python tool/materialize_photo_screen_threshold_080_20260903.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Targeted photo threshold tests
+        run: |
+          flutter test test/photo_ml_first_threshold_080_regression_test.dart
+          flutter test test/ml_calibration_corpus_v1_test.dart
+          flutter test test/build74_fusion_regression_test.dart
+          flutter test test/build73_video_screen_persistence_v2_regression_test.dart
+          flutter test test/build72_video_reality_and_container_regression_test.dart
+          flutter test test/build71_video_semantic_persistence_regression_test.dart
+          flutter test test/build69_capture_fusion_integration_test.dart
+
+      - name: Full Flutter test suite
+        run: flutter test
+
+      - name: Diff sanity
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Commit validated patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/hcv_display_risk_fusion.dart test/photo_ml_first_threshold_080_regression_test.dart
+          if git diff --cached --quiet; then
+            echo "No materialized changes to commit"
+            exit 0
+          fi
+          git commit -m "Phase C: lower photo ML-first SCREEN threshold to 0.80"
+          git push origin HEAD:phase-c-photo-screen-threshold-080-20260903
