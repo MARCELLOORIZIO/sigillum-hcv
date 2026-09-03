@@ -12,160 +12,127 @@ import 'package:path_provider/path_provider.dart';
 class HCVDisplayMicrotextureShadowProbe {
   const HCVDisplayMicrotextureShadowProbe();
 
-  static const MethodChannel _cameraProbeChannel =
-      MethodChannel('hcv.cameraProbe');
-
+  static const MethodChannel _channel = MethodChannel('hcv.cameraProbe');
   static const Duration _phaseDuration = Duration(milliseconds: 350);
   static const Duration _exposureSettle = Duration(milliseconds: 90);
   static const Duration _zoomSettle = Duration(milliseconds: 180);
-  static const double _shortExposureSeconds = 1.0 / 240.0;
+  static const double _requestedShortExposure = 1.0 / 240.0;
 
   Future<Map<String, dynamic>> capture(CameraController controller) async {
-    if (!Platform.isIOS) {
-      return _unavailable('IOS_ONLY_ACTIVE_EXPOSURE_PROBE');
-    }
+    if (!Platform.isIOS) return _captureUnavailable('IOS_ONLY');
     if (!controller.value.isInitialized) {
-      return _unavailable('CAMERA_NOT_READY');
+      return _captureUnavailable('CAMERA_NOT_READY');
     }
     if (controller.value.isStreamingImages ||
         controller.value.isRecordingVideo) {
-      return _unavailable('CAMERA_BUSY');
+      return _captureUnavailable('CAMERA_BUSY');
     }
 
-    final deviceUniqueId = controller.description.name;
+    final uniqueId = controller.description.name;
     Map<String, dynamic>? originalState;
-    String? temporaryVideoPath;
-    var recordingStarted = false;
+    String? path;
+    var recording = false;
 
     try {
       originalState = await _invokeMap(
         'snapshotCameraState',
-        {'deviceUniqueId': deviceUniqueId},
+        {'deviceUniqueId': uniqueId},
       );
       if (originalState == null) {
-        return _unavailable('CAMERA_STATE_UNAVAILABLE');
+        return _captureUnavailable('CAMERA_STATE_UNAVAILABLE');
       }
 
       final minZoom = await controller.getMinZoomLevel();
-      final deviceMaxZoom = await controller.getMaxZoomLevel();
+      final maxZoom = await controller.getMaxZoomLevel();
       final originalZoom =
           (originalState['zoomFactor'] as num?)?.toDouble() ?? minZoom;
-      final oneX = 1.0.clamp(minZoom, deviceMaxZoom).toDouble();
-      final tenX = 10.0.clamp(minZoom, deviceMaxZoom).toDouble();
+      final oneX = 1.0.clamp(minZoom, maxZoom).toDouble();
+      final tenX = 10.0.clamp(minZoom, maxZoom).toDouble();
 
       await controller.setFlashMode(FlashMode.off);
       await _invokeMap(
         'setContinuousAutoExposure',
-        {'deviceUniqueId': deviceUniqueId},
+        {'deviceUniqueId': uniqueId},
       );
       await controller.setZoomLevel(oneX);
       await Future.delayed(_zoomSettle);
 
       await controller.startVideoRecording();
-      recordingStarted = true;
-      final stopwatch = Stopwatch()..start();
+      recording = true;
+      final clock = Stopwatch()..start();
       final phases = <Map<String, dynamic>>[];
 
-      Future<void> recordPhase({
-        required String id,
-        required double zoom,
-        required String exposureMode,
-        Map<String, dynamic>? exposureState,
-      }) async {
-        final startMs = stopwatch.elapsedMilliseconds;
+      Future<void> phase(String id, double zoom, String exposure) async {
+        final state = await _invokeMap(
+          'snapshotCameraState',
+          {'deviceUniqueId': uniqueId},
+        );
+        final start = clock.elapsedMilliseconds;
         await Future.delayed(_phaseDuration);
         phases.add({
           'id': id,
-          'startMs': startMs,
-          'endMs': stopwatch.elapsedMilliseconds,
+          'startMs': start,
+          'endMs': clock.elapsedMilliseconds,
           'requestedZoom': zoom,
-          'exposureMode': exposureMode,
-          if (exposureState != null) 'exposureState': exposureState,
+          'exposureMode': exposure,
+          if (state != null) 'exposureState': state,
         });
       }
 
-      final normal1xState = await _invokeMap(
-        'snapshotCameraState',
-        {'deviceUniqueId': deviceUniqueId},
-      );
-      await recordPhase(
-        id: 'NORMAL_1X',
-        zoom: oneX,
-        exposureMode: 'CONTINUOUS_AUTO',
-        exposureState: normal1xState,
-      );
+      await phase('NORMAL_1X', oneX, 'CONTINUOUS_AUTO');
 
-      final short1xState = await _invokeMap(
+      await _invokeMap(
         'applyShortExposure',
         {
-          'deviceUniqueId': deviceUniqueId,
-          'targetDurationSeconds': _shortExposureSeconds,
+          'deviceUniqueId': uniqueId,
+          'targetDurationSeconds': _requestedShortExposure,
         },
       );
       await Future.delayed(_exposureSettle);
-      await recordPhase(
-        id: 'SHORT_1X',
-        zoom: oneX,
-        exposureMode: 'CUSTOM_SHORT',
-        exposureState: short1xState,
-      );
+      await phase('SHORT_1X', oneX, 'CUSTOM_SHORT');
 
       await _invokeMap(
         'setContinuousAutoExposure',
-        {'deviceUniqueId': deviceUniqueId},
+        {'deviceUniqueId': uniqueId},
       );
       await controller.setZoomLevel(tenX);
       await Future.delayed(_zoomSettle);
-      final normal10xState = await _invokeMap(
-        'snapshotCameraState',
-        {'deviceUniqueId': deviceUniqueId},
-      );
-      await recordPhase(
-        id: 'NORMAL_10X',
-        zoom: tenX,
-        exposureMode: 'CONTINUOUS_AUTO',
-        exposureState: normal10xState,
-      );
+      await phase('NORMAL_10X', tenX, 'CONTINUOUS_AUTO');
 
-      final short10xState = await _invokeMap(
+      await _invokeMap(
         'applyShortExposure',
         {
-          'deviceUniqueId': deviceUniqueId,
-          'targetDurationSeconds': _shortExposureSeconds,
+          'deviceUniqueId': uniqueId,
+          'targetDurationSeconds': _requestedShortExposure,
         },
       );
       await Future.delayed(_exposureSettle);
-      await recordPhase(
-        id: 'SHORT_10X',
-        zoom: tenX,
-        exposureMode: 'CUSTOM_SHORT',
-        exposureState: short10xState,
-      );
+      await phase('SHORT_10X', tenX, 'CUSTOM_SHORT');
 
-      final capture = await controller.stopVideoRecording();
-      recordingStarted = false;
-      stopwatch.stop();
-      temporaryVideoPath = capture.path;
+      final video = await controller.stopVideoRecording();
+      recording = false;
+      clock.stop();
+      path = video.path;
 
-      await _restoreCameraState(
+      await _restore(
         controller,
-        deviceUniqueId: deviceUniqueId,
+        uniqueId: uniqueId,
         originalState: originalState,
         originalZoom: originalZoom,
         minZoom: minZoom,
-        maxZoom: deviceMaxZoom,
+        maxZoom: maxZoom,
       );
 
       return {
         'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
         'analysisStatus': 'CAPTURED_NOT_ANALYZED',
         'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'path': temporaryVideoPath,
-        'deviceUniqueId': deviceUniqueId,
+        'path': path,
+        'deviceUniqueId': uniqueId,
         'originalCameraState': originalState,
         'targetZoom': tenX,
-        'targetShortExposureSeconds': _shortExposureSeconds,
-        'captureDurationMs': stopwatch.elapsedMilliseconds,
+        'targetShortExposureSeconds': _requestedShortExposure,
+        'captureDurationMs': clock.elapsedMilliseconds,
         'phases': phases,
         'spatialPolicy': const {
           'gridRows': 3,
@@ -174,26 +141,23 @@ class HCVDisplayMicrotextureShadowProbe {
           'allowedRealityEscapeCells': 0,
           'decisionEnabled': false,
           'note':
-              'The 9/9 rule is recorded now, but no production threshold is applied until calibrated on physical HCVPACK data.',
+              '9/9 coverage is the future policy; no numeric production threshold is applied in shadow mode.',
         },
       };
     } catch (error) {
-      if (recordingStarted && controller.value.isRecordingVideo) {
+      if (recording && controller.value.isRecordingVideo) {
         try {
-          final capture = await controller.stopVideoRecording();
-          temporaryVideoPath ??= capture.path;
+          path = (await controller.stopVideoRecording()).path;
         } catch (_) {}
       }
-      if (temporaryVideoPath != null) {
-        await _deletePath(temporaryVideoPath);
-      }
+      if (path != null) await _delete(path);
       if (originalState != null) {
         try {
           final minZoom = await controller.getMinZoomLevel();
           final maxZoom = await controller.getMaxZoomLevel();
-          await _restoreCameraState(
+          await _restore(
             controller,
-            deviceUniqueId: deviceUniqueId,
+            uniqueId: uniqueId,
             originalState: originalState,
             originalZoom:
                 (originalState['zoomFactor'] as num?)?.toDouble() ?? minZoom,
@@ -202,141 +166,120 @@ class HCVDisplayMicrotextureShadowProbe {
           );
         } catch (_) {}
       }
-      return _unavailable(
-        'ACTIVE_SHADOW_CAPTURE_FAILED',
-        error: error,
-      );
+      return _captureUnavailable('ACTIVE_SHADOW_CAPTURE_FAILED', error: error);
     }
   }
 
   Future<Map<String, dynamic>> analyzeCapture(
     Map<String, dynamic>? capture,
   ) async {
-    if (capture == null) {
-      return _analysisUnavailable('SHADOW_CAPTURE_MISSING');
-    }
-    final path = capture['path']?.toString();
-    if (path == null || path.isEmpty || !await File(path).exists()) {
+    final videoPath = capture?['path']?.toString();
+    if (videoPath == null ||
+        videoPath.isEmpty ||
+        !await File(videoPath).exists()) {
       return _analysisUnavailable('SHADOW_VIDEO_NOT_FOUND');
     }
-
-    final rawPhases = capture['phases'];
+    final rawPhases = capture?['phases'];
     if (rawPhases is! List || rawPhases.isEmpty) {
-      return _analysisUnavailable('SHADOW_PHASE_METADATA_MISSING');
+      return _analysisUnavailable('PHASE_METADATA_MISSING');
     }
 
-    final tempDir = await getTemporaryDirectory();
-    final workDir = Directory(
+    final root = Directory(
       p.join(
-        tempDir.path,
+        (await getTemporaryDirectory()).path,
         'hcv_microtexture_${DateTime.now().millisecondsSinceEpoch}',
       ),
     );
 
     try {
-      await workDir.create(recursive: true);
-      final phaseResults = <String, Map<String, dynamic>>{};
-
-      for (var index = 0; index < rawPhases.length; index++) {
-        final raw = rawPhases[index];
+      await root.create(recursive: true);
+      final results = <String, Map<String, dynamic>>{};
+      for (var i = 0; i < rawPhases.length; i++) {
+        final raw = rawPhases[i];
         if (raw is! Map) continue;
         final phase = Map<String, dynamic>.from(raw);
-        final id = phase['id']?.toString() ?? 'PHASE_$index';
+        final id = phase['id']?.toString() ?? 'PHASE_$i';
         final startMs = (phase['startMs'] as num?)?.toInt();
         final endMs = (phase['endMs'] as num?)?.toInt();
         if (startMs == null || endMs == null || endMs <= startMs) continue;
-
-        final phaseDir = Directory(p.join(workDir.path, id.toLowerCase()));
-        await phaseDir.create(recursive: true);
-        final frames = await _extractPhaseFrames(
-          path,
-          phaseDir,
+        final dir = Directory(p.join(root.path, id.toLowerCase()));
+        await dir.create(recursive: true);
+        final frames = await _extractFrames(
+          videoPath,
+          dir,
           startMs: startMs,
           endMs: endMs,
         );
-        phaseResults[id] = {
-          ...phase,
-          ..._analyzeFrames(frames),
-        };
+        results[id] = {...phase, ..._phaseMetrics(frames)};
       }
 
-      final normal1x = phaseResults['NORMAL_1X'];
-      final short1x = phaseResults['SHORT_1X'];
-      final normal10x = phaseResults['NORMAL_10X'];
-      final short10x = phaseResults['SHORT_10X'];
-
-      double? ratio(Map<String, dynamic>? value) =>
-          (value?['structuredTemporalAxisRatio'] as num?)?.toDouble();
+      double? structured(String id) =>
+          (results[id]?['structuredTemporalAxisRatio'] as num?)?.toDouble();
 
       return {
         'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
-        'analysisStatus': phaseResults.isEmpty ? 'NOT_ANALYZED' : 'ANALYZED',
+        'analysisStatus': results.isEmpty ? 'NOT_ANALYZED' : 'ANALYZED',
         'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
         'productionDecisionChanged': false,
-        'phaseResults': phaseResults,
+        'phaseResults': results,
         'comparisons': {
-          'shortExposureGain1x': _safeGain(ratio(short1x), ratio(normal1x)),
+          'shortExposureGain1x':
+              _gain(structured('SHORT_1X'), structured('NORMAL_1X')),
           'shortExposureGain10x':
-              _safeGain(ratio(short10x), ratio(normal10x)),
-          'zoomGainNormal': _safeGain(ratio(normal10x), ratio(normal1x)),
-          'zoomGainShort': _safeGain(ratio(short10x), ratio(short1x)),
+              _gain(structured('SHORT_10X'), structured('NORMAL_10X')),
+          'zoomGainNormal':
+              _gain(structured('NORMAL_10X'), structured('NORMAL_1X')),
+          'zoomGainShort':
+              _gain(structured('SHORT_10X'), structured('SHORT_1X')),
         },
-        'spatialPolicy': capture['spatialPolicy'],
+        'spatialPolicy': capture?['spatialPolicy'],
         'note':
-            'Raw 1x/10x and normal/short-exposure physical metrics only. No threshold or fusion rule is applied in shadow mode.',
+            'Raw 1x/10x and normal/short-shutter metrics. This block is never supplied to production fusion.',
       };
     } catch (error) {
-      return _analysisUnavailable(
-        'SHADOW_ANALYSIS_FAILED',
-        error: error,
-      );
+      return _analysisUnavailable('SHADOW_ANALYSIS_FAILED', error: error);
     } finally {
       try {
-        if (await workDir.exists()) {
-          await workDir.delete(recursive: true);
-        }
+        if (await root.exists()) await root.delete(recursive: true);
       } catch (_) {}
     }
   }
 
   Future<bool> discardCapture(Map<String, dynamic>? capture) async {
     final path = capture?['path']?.toString();
-    if (path == null || path.isEmpty) return true;
-    return _deletePath(path);
+    return path == null || path.isEmpty ? true : _delete(path);
   }
 
-  Future<List<img.Image>> _extractPhaseFrames(
+  Future<List<img.Image>> _extractFrames(
     String videoPath,
-    Directory phaseDir, {
+    Directory dir, {
     required int startMs,
     required int endMs,
   }) async {
-    final startSeconds = startMs / 1000.0;
-    final durationSeconds = max(0.10, (endMs - startMs) / 1000.0);
-    final pattern = p.join(phaseDir.path, 'frame_%03d.png');
-    final command = "-y -ss ${startSeconds.toStringAsFixed(4)} -i '$videoPath' "
-        "-t ${durationSeconds.toStringAsFixed(4)} -vf \"fps=15\" "
-        "-frames:v 6 '$pattern'";
+    final start = startMs / 1000.0;
+    final duration = max(0.10, (endMs - startMs) / 1000.0).toDouble();
+    final pattern = p.join(dir.path, 'frame_%03d.png');
+    final command = "-y -ss ${start.toStringAsFixed(4)} -i '$videoPath' "
+        "-t ${duration.toStringAsFixed(4)} -vf \"fps=15\" -frames:v 6 '$pattern'";
     final session = await FFmpegKit.execute(command);
     final code = await session.getReturnCode();
-    if (code == null || !ReturnCode.isSuccess(code)) return const [];
+    if (code == null || !ReturnCode.isSuccess(code)) return <img.Image>[];
 
-    final files = phaseDir
+    final files = dir
         .listSync()
         .whereType<File>()
         .where((file) => file.path.toLowerCase().endsWith('.png'))
         .toList()
       ..sort((a, b) => a.path.compareTo(b.path));
-
-    final images = <img.Image>[];
+    final frames = <img.Image>[];
     for (final file in files) {
       final decoded = img.decodeImage(await file.readAsBytes());
-      if (decoded != null) images.add(decoded);
+      if (decoded != null) frames.add(decoded);
     }
-    return images;
+    return frames;
   }
 
-  Map<String, dynamic> _analyzeFrames(List<img.Image> frames) {
+  Map<String, dynamic> _phaseMetrics(List<img.Image> frames) {
     if (frames.length < 3) {
       return const {
         'analysisStatus': 'NOT_ANALYZED',
@@ -344,163 +287,148 @@ class HCVDisplayMicrotextureShadowProbe {
       };
     }
 
-    final cellMetrics = <Map<String, dynamic>>[];
+    final cells = <Map<String, dynamic>>[];
     for (var row = 0; row < 3; row++) {
       for (var column = 0; column < 3; column++) {
-        final metrics = _analyzeCell(frames, row: row, column: column);
-        cellMetrics.add({
+        cells.add({
           'row': row,
           'column': column,
-          ...metrics,
+          ..._cellMetrics(frames, row: row, column: column),
         });
       }
     }
 
-    final valid = cellMetrics
-        .where((cell) => cell['structuredTemporalAxisRatio'] is num)
-        .toList();
-    final structured = valid
+    final temporal = cells
         .map((cell) =>
-            (cell['structuredTemporalAxisRatio'] as num).toDouble())
+            (cell['structuredTemporalAxisRatio'] as num?)?.toDouble())
+        .whereType<double>()
         .toList()
       ..sort();
-    final fineChroma = valid
+    final chroma = cells
         .map((cell) => (cell['fineChromaLumaRatio'] as num?)?.toDouble())
         .whereType<double>()
         .toList();
-    final lattice = valid
+    final lattice = cells
         .map((cell) => (cell['flatFieldLatticeScore'] as num?)?.toDouble())
         .whereType<double>()
         .toList();
 
     return {
-      'analysisStatus': structured.length == 9 ? 'ANALYZED' : 'PARTIAL',
+      'analysisStatus': temporal.length == 9 ? 'ANALYZED' : 'PARTIAL',
       'framesAnalyzed': frames.length,
-      'gridRows': 3,
-      'gridColumns': 3,
-      'cellsAnalyzed': structured.length,
+      'cellsAnalyzed': temporal.length,
       'requiredDisplayCoverageCells': 9,
       'allowedRealityEscapeCells': 0,
       'coverageDecisionEnabled': false,
-      'structuredTemporalAxisRatio': _mean(structured),
+      'structuredTemporalAxisRatio': _mean(temporal),
       'minimumCellStructuredTemporalAxisRatio':
-          structured.isEmpty ? null : structured.first,
-      'medianCellStructuredTemporalAxisRatio': _median(structured),
+          temporal.isEmpty ? null : temporal.first,
+      'medianCellStructuredTemporalAxisRatio': _median(temporal),
       'maximumCellStructuredTemporalAxisRatio':
-          structured.isEmpty ? null : structured.last,
-      'fineChromaLumaRatio': _mean(fineChroma),
+          temporal.isEmpty ? null : temporal.last,
+      'fineChromaLumaRatio': _mean(chroma),
       'flatFieldLatticeScore': _mean(lattice),
-      'cells': cellMetrics,
+      'cells': cells,
     };
   }
 
-  Map<String, dynamic> _analyzeCell(
+  Map<String, dynamic> _cellMetrics(
     List<img.Image> frames, {
     required int row,
     required int column,
   }) {
-    final axisRatios = <double>[];
-    final rowCoherence = <double>[];
-    final columnCoherence = <double>[];
-
-    for (var index = 1; index < frames.length; index++) {
-      final pair = _temporalPairMetrics(
-        frames[index - 1],
-        frames[index],
+    final axis = <double>[];
+    final rows = <double>[];
+    final columns = <double>[];
+    for (var i = 1; i < frames.length; i++) {
+      final temporal = _temporalMetrics(
+        frames[i - 1],
+        frames[i],
         row: row,
         column: column,
       );
-      axisRatios.add(pair.axisRatio);
-      rowCoherence.add(pair.rowCoherence);
-      columnCoherence.add(pair.columnCoherence);
+      axis.add(temporal['axis']!);
+      rows.add(temporal['row']!);
+      columns.add(temporal['column']!);
     }
-
-    final spatial = _spatialMicrotexture(frames.last, row: row, column: column);
+    final spatial = _spatialMetrics(frames.last, row: row, column: column);
     return {
-      'structuredTemporalAxisRatio': _mean(axisRatios),
-      'rowTemporalCoherence': _mean(rowCoherence),
-      'columnTemporalCoherence': _mean(columnCoherence),
-      'fineChromaLumaRatio': spatial.fineChromaLumaRatio,
-      'chromaAnisotropy': spatial.chromaAnisotropy,
-      'flatFieldLatticeScore': spatial.latticeScore,
-      'highFrequencyLumaEnergy': spatial.highFrequencyLumaEnergy,
+      'structuredTemporalAxisRatio': _mean(axis),
+      'rowTemporalCoherence': _mean(rows),
+      'columnTemporalCoherence': _mean(columns),
+      ...spatial,
     };
   }
 
-  _TemporalPairMetrics _temporalPairMetrics(
-    img.Image previous,
-    img.Image current, {
+  Map<String, double> _temporalMetrics(
+    img.Image a,
+    img.Image b, {
     required int row,
     required int column,
   }) {
-    final width = min(previous.width, current.width);
-    final height = min(previous.height, current.height);
+    final width = min(a.width, b.width);
+    final height = min(a.height, b.height);
     final x0 = (width * column / 3).floor();
     final x1 = (width * (column + 1) / 3).floor();
     final y0 = (height * row / 3).floor();
     final y1 = (height * (row + 1) / 3).floor();
     const step = 4;
 
-    var globalSum = 0.0;
-    var sampleCount = 0;
+    var global = 0.0;
+    var count = 0;
     for (var y = y0; y < y1; y += step) {
       for (var x = x0; x < x1; x += step) {
-        globalSum += _luma(current.getPixel(x, y)) -
-            _luma(previous.getPixel(x, y));
-        sampleCount++;
+        global += _luma(b.getPixel(x, y)) - _luma(a.getPixel(x, y));
+        count++;
       }
     }
-    if (sampleCount == 0) return const _TemporalPairMetrics.zero();
-    final globalDelta = globalSum / sampleCount;
+    if (count == 0) return const {'axis': 0.0, 'row': 0.0, 'column': 0.0};
+    final globalDelta = global / count;
 
-    final rows = <double>[];
-    final columns = <double>[];
-    var residualEnergy = 0.0;
+    final rowProfile = <double>[];
+    final columnProfile = <double>[];
+    var residualSq = 0.0;
     var residualCount = 0;
 
     for (var y = y0; y < y1; y += step) {
       var sum = 0.0;
-      var count = 0;
+      var n = 0;
       for (var x = x0; x < x1; x += step) {
-        final residual = _luma(current.getPixel(x, y)) -
-            _luma(previous.getPixel(x, y)) -
+        final d = _luma(b.getPixel(x, y)) -
+            _luma(a.getPixel(x, y)) -
             globalDelta;
-        sum += residual;
-        residualEnergy += residual * residual;
+        sum += d;
+        residualSq += d * d;
         residualCount++;
-        count++;
+        n++;
       }
-      if (count > 0) rows.add(sum / count);
+      if (n > 0) rowProfile.add(sum / n);
     }
 
     for (var x = x0; x < x1; x += step) {
       var sum = 0.0;
-      var count = 0;
+      var n = 0;
       for (var y = y0; y < y1; y += step) {
-        final residual = _luma(current.getPixel(x, y)) -
-            _luma(previous.getPixel(x, y)) -
+        sum += _luma(b.getPixel(x, y)) -
+            _luma(a.getPixel(x, y)) -
             globalDelta;
-        sum += residual;
-        count++;
+        n++;
       }
-      if (count > 0) columns.add(sum / count);
+      if (n > 0) columnProfile.add(sum / n);
     }
 
-    final residualRms =
-        sqrt(residualEnergy / max(1, residualCount)).clamp(0.0, 1.0);
-    final rowRms = _rms(rows);
-    final columnRms = _rms(columns);
-    final axisRms = sqrt(rowRms * rowRms + columnRms * columnRms);
-    final denominator = max(1e-6, residualRms);
-
-    return _TemporalPairMetrics(
-      axisRatio: axisRms / denominator,
-      rowCoherence: rowRms / denominator,
-      columnCoherence: columnRms / denominator,
-    );
+    final residual = sqrt(residualSq / max(1, residualCount));
+    final rowRms = _rms(rowProfile);
+    final columnRms = _rms(columnProfile);
+    final denom = max(1e-6, residual);
+    return {
+      'axis': sqrt(rowRms * rowRms + columnRms * columnRms) / denom,
+      'row': rowRms / denom,
+      'column': columnRms / denom,
+    };
   }
 
-  _SpatialMicrotexture _spatialMicrotexture(
+  Map<String, double> _spatialMetrics(
     img.Image image, {
     required int row,
     required int column,
@@ -510,72 +438,71 @@ class HCVDisplayMicrotextureShadowProbe {
     final y0 = (image.height * row / 3).floor();
     final y1 = (image.height * (row + 1) / 3).floor();
     const step = 2;
-
     var lumaEnergy = 0.0;
-    var chromaHorizontal = 0.0;
-    var chromaVertical = 0.0;
+    var chromaH = 0.0;
+    var chromaV = 0.0;
     var samples = 0;
     final chromaSeries = <double>[];
 
     for (var y = y0; y < y1 - step; y += step) {
       for (var x = x0; x < x1 - step; x += step) {
-        final center = image.getPixel(x, y);
+        final c = image.getPixel(x, y);
         final right = image.getPixel(x + step, y);
         final down = image.getPixel(x, y + step);
-        final l = _luma(center);
-        final lr = _luma(right);
-        final ld = _luma(down);
-        final c = _chroma(center);
-        final cr = _chroma(right);
-        final cd = _chroma(down);
-
-        lumaEnergy += (l - lr).abs() + (l - ld).abs();
-        chromaHorizontal += (c - cr).abs();
-        chromaVertical += (c - cd).abs();
-        chromaSeries.add(c);
+        final lc = _luma(c);
+        lumaEnergy += (lc - _luma(right)).abs() + (lc - _luma(down)).abs();
+        final cc = _chroma(c);
+        chromaH += (cc - _chroma(right)).abs();
+        chromaV += (cc - _chroma(down)).abs();
+        chromaSeries.add(cc);
         samples++;
       }
     }
 
-    if (samples == 0) return const _SpatialMicrotexture.zero();
-    final normalizedLuma = lumaEnergy / (2 * samples);
-    final normalizedChroma =
-        (chromaHorizontal + chromaVertical) / (2 * samples);
-    final anisotropy = max(chromaHorizontal, chromaVertical) /
-        max(1e-6, min(chromaHorizontal, chromaVertical));
-
-    return _SpatialMicrotexture(
-      highFrequencyLumaEnergy: normalizedLuma,
-      fineChromaLumaRatio: normalizedChroma / max(1e-6, normalizedLuma),
-      chromaAnisotropy: anisotropy,
-      latticeScore: _shortLagAutocorrelation(chromaSeries),
-    );
+    if (samples == 0) {
+      return const {
+        'highFrequencyLumaEnergy': 0.0,
+        'fineChromaLumaRatio': 0.0,
+        'chromaAnisotropy': 0.0,
+        'flatFieldLatticeScore': 0.0,
+      };
+    }
+    final luma = lumaEnergy / (2 * samples);
+    final chroma = (chromaH + chromaV) / (2 * samples);
+    return {
+      'highFrequencyLumaEnergy': luma,
+      'fineChromaLumaRatio': chroma / max(1e-6, luma),
+      'chromaAnisotropy':
+          max(chromaH, chromaV) / max(1e-6, min(chromaH, chromaV)),
+      'flatFieldLatticeScore': _autocorrelationPeak(chromaSeries),
+    };
   }
 
-  double _shortLagAutocorrelation(List<double> values) {
+  double _autocorrelationPeak(List<double> values) {
     if (values.length < 32) return 0.0;
     final mean = _mean(values) ?? 0.0;
     var variance = 0.0;
     for (final value in values) {
-      final centered = value - mean;
-      variance += centered * centered;
+      final d = value - mean;
+      variance += d * d;
     }
     if (variance <= 1e-9) return 0.0;
-
     var best = 0.0;
     for (var lag = 1; lag <= 8; lag++) {
       var covariance = 0.0;
       for (var i = lag; i < values.length; i++) {
         covariance += (values[i] - mean) * (values[i - lag] - mean);
       }
-      final correlation = covariance / variance;
-      if (correlation > best) best = correlation;
+      best = max(best, covariance / variance);
     }
-    return best.clamp(0.0, 1.0);
+    return best.clamp(0.0, 1.0).toDouble();
   }
 
   double _luma(img.Pixel pixel) {
-    return (0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b) / 255.0;
+    final r = pixel.r.toDouble();
+    final g = pixel.g.toDouble();
+    final b = pixel.b.toDouble();
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
   }
 
   double _chroma(img.Pixel pixel) {
@@ -588,9 +515,7 @@ class HCVDisplayMicrotextureShadowProbe {
   double _rms(List<double> values) {
     if (values.isEmpty) return 0.0;
     var total = 0.0;
-    for (final value in values) {
-      total += value * value;
-    }
+    for (final value in values) total += value * value;
     return sqrt(total / values.length);
   }
 
@@ -599,14 +524,13 @@ class HCVDisplayMicrotextureShadowProbe {
     return values.reduce((a, b) => a + b) / values.length;
   }
 
-  double? _median(List<double> sortedValues) {
-    if (sortedValues.isEmpty) return null;
-    final middle = sortedValues.length ~/ 2;
-    if (sortedValues.length.isOdd) return sortedValues[middle];
-    return (sortedValues[middle - 1] + sortedValues[middle]) / 2.0;
+  double? _median(List<double> sorted) {
+    if (sorted.isEmpty) return null;
+    final i = sorted.length ~/ 2;
+    return sorted.length.isOdd ? sorted[i] : (sorted[i - 1] + sorted[i]) / 2.0;
   }
 
-  double? _safeGain(double? numerator, double? denominator) {
+  double? _gain(double? numerator, double? denominator) {
     if (numerator == null || denominator == null || denominator.abs() < 1e-9) {
       return null;
     }
@@ -615,33 +539,26 @@ class HCVDisplayMicrotextureShadowProbe {
 
   Future<Map<String, dynamic>?> _invokeMap(
     String method,
-    Map<String, dynamic> arguments,
+    Map<String, dynamic> args,
   ) async {
-    final value = await _cameraProbeChannel.invokeMapMethod<String, dynamic>(
-      method,
-      arguments,
-    );
+    final value = await _channel.invokeMapMethod<String, dynamic>(method, args);
     return value == null ? null : Map<String, dynamic>.from(value);
   }
 
-  Future<void> _restoreCameraState(
+  Future<void> _restore(
     CameraController controller, {
-    required String deviceUniqueId,
+    required String uniqueId,
     required Map<String, dynamic> originalState,
     required double originalZoom,
     required double minZoom,
     required double maxZoom,
   }) async {
     try {
-      await _cameraProbeChannel.invokeMethod<void>(
+      await _channel.invokeMethod<void>(
         'restoreCameraState',
-        {
-          'deviceUniqueId': deviceUniqueId,
-          'state': originalState,
-        },
+        {'deviceUniqueId': uniqueId, 'state': originalState},
       );
     } catch (_) {}
-
     try {
       await controller.setZoomLevel(
         originalZoom.clamp(minZoom, maxZoom).toDouble(),
@@ -650,7 +567,7 @@ class HCVDisplayMicrotextureShadowProbe {
     await Future.delayed(const Duration(milliseconds: 260));
   }
 
-  Future<bool> _deletePath(String path) async {
+  Future<bool> _delete(String path) async {
     try {
       final file = File(path);
       if (!await file.exists()) return true;
@@ -661,67 +578,20 @@ class HCVDisplayMicrotextureShadowProbe {
     }
   }
 
-  Map<String, dynamic> _unavailable(
-    String reason, {
-    Object? error,
-  }) {
-    return {
-      'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
-      'analysisStatus': 'NOT_CAPTURED',
-      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-      'reason': reason,
-      if (error != null) 'error': error.toString(),
-    };
-  }
+  Map<String, dynamic> _captureUnavailable(String reason, {Object? error}) => {
+        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
+        'analysisStatus': 'NOT_CAPTURED',
+        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+        'reason': reason,
+        if (error != null) 'error': error.toString(),
+      };
 
-  Map<String, dynamic> _analysisUnavailable(
-    String reason, {
-    Object? error,
-  }) {
-    return {
-      'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
-      'analysisStatus': 'NOT_ANALYZED',
-      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-      'productionDecisionChanged': false,
-      'reason': reason,
-      if (error != null) 'error': error.toString(),
-    };
-  }
-}
-
-class _TemporalPairMetrics {
-  const _TemporalPairMetrics({
-    required this.axisRatio,
-    required this.rowCoherence,
-    required this.columnCoherence,
-  });
-
-  const _TemporalPairMetrics.zero()
-      : axisRatio = 0.0,
-        rowCoherence = 0.0,
-        columnCoherence = 0.0;
-
-  final double axisRatio;
-  final double rowCoherence;
-  final double columnCoherence;
-}
-
-class _SpatialMicrotexture {
-  const _SpatialMicrotexture({
-    required this.highFrequencyLumaEnergy,
-    required this.fineChromaLumaRatio,
-    required this.chromaAnisotropy,
-    required this.latticeScore,
-  });
-
-  const _SpatialMicrotexture.zero()
-      : highFrequencyLumaEnergy = 0.0,
-        fineChromaLumaRatio = 0.0,
-        chromaAnisotropy = 0.0,
-        latticeScore = 0.0;
-
-  final double highFrequencyLumaEnergy;
-  final double fineChromaLumaRatio;
-  final double chromaAnisotropy;
-  final double latticeScore;
+  Map<String, dynamic> _analysisUnavailable(String reason, {Object? error}) => {
+        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+        'productionDecisionChanged': false,
+        'reason': reason,
+        if (error != null) 'error': error.toString(),
+      };
 }
