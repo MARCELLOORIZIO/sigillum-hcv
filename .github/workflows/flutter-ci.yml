@@ -1,6 +1,9 @@
 name: Flutter CI
 
 on:
+  push:
+    branches:
+      - validation/photo-temporal-v2-no-parallax-20260903
   pull_request:
     branches:
       - fix/display-kyc-zoom-20260723
