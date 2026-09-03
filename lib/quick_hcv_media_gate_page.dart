@@ -79,21 +79,45 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
     }
   }
 
+  Future<void> _openRegistry({String? detectedId}) async {
+    if (!mounted) return;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => RegistryVerifyPage(
+          initialMediaPath: widget.path,
+          initialHcvId: detectedId,
+          languageCode: widget.languageCode,
+        ),
+      ),
+    );
+  }
+
   Future<void> _runPrecheck() async {
     if (!mounted) return;
 
     final fromName = _extractHcvIdFromName(widget.path);
     String? detectedId = fromName;
     final lower = widget.path.toLowerCase();
+    final isPhoto =
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
 
     if (detectedId == null) {
-      if (lower.endsWith('.jpg') ||
-          lower.endsWith('.jpeg') ||
-          lower.endsWith('.png')) {
+      if (isPhoto) {
         // A single native OCR miss must not classify a certified photo as
-        // uncertified. Still images get one focused top-crop fallback only;
-        // the full multi-crop consensus remains a deeper Registry recovery.
+        // uncertified. Still images get one focused top-crop fallback first.
+        // If that fast path is inconclusive, RegistryVerifyPage performs the
+        // existing deeper multi-crop OCR recovery before any final verdict.
         detectedId = await _ocrImage(widget.path, allowFocusedFallback: true);
+        if (!mounted) return;
+        if (detectedId == null || detectedId.isEmpty) {
+          setState(() {
+            _status = _v('idDetected');
+          });
+          await _openRegistry();
+          return;
+        }
       } else if (lower.endsWith('.mp4') ||
           lower.endsWith('.mov') ||
           lower.endsWith('.m4v')) {
@@ -116,15 +140,7 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
       _status = _v('idDetected');
     });
 
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => RegistryVerifyPage(
-          initialMediaPath: widget.path,
-          initialHcvId: detectedId,
-          languageCode: widget.languageCode,
-        ),
-      ),
-    );
+    await _openRegistry(detectedId: detectedId);
   }
 
   Widget _brand() {
