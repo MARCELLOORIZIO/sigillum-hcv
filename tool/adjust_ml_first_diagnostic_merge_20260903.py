@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Validation revision 2: keep legacy reasons as diagnostics under ML-first.
 
 def replace_once(path: str, old: str, new: str) -> None:
     p = Path(path)
