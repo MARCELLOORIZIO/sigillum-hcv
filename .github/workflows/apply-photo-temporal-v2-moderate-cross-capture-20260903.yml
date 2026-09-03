@@ -41,46 +41,48 @@ jobs:
                   raise RuntimeError('display-risk import anchor not unique')
               source = source.replace(import_old, import_new, 1)
 
-          old = """  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {
-            return legacy;
-          }
-
-          if (mlFirst != null &&
-"""
-          new = """  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {
-            return legacy;
-          }
-
-          final moderateCrossCaptureAgreement = isTemporalV2 &&
-              legacy.decision == 'NO_DISPLAY_EVIDENCE' &&
-              HCVPhotoTemporalV2Policy.hasModerateCrossCaptureScreenAgreement(
-                stillMl: _mlAnalysisFromAnalyses(analyses),
-                liveProbe: liveProbe,
-              );
-          if (moderateCrossCaptureAgreement) {
-            final evidenceSources = <String>{
-              ...legacy.evidenceSources,
-              'ML_SCREEN_CLASS',
-              'PHOTO_TEMPORAL_CROSS_CAPTURE',
-            }.toList()
-              ..sort();
-            final reasons = <String>{
-              ...legacy.reasons,
-              'PHOTO_TEMPORAL_V2_MODERATE_SCREEN_CROSS_CAPTURE_AGREEMENT',
-            }.toList();
-            return HCVDisplayRiskResult(
-              risk: 'MEDIUM',
-              score: 45,
-              decision: 'NON_CONCLUSIVE',
-              analysisStatus: legacy.analysisStatus,
-              evidenceSources: evidenceSources,
-              strongSources: legacy.strongSources,
-              reasons: reasons,
-            );
-          }
-
-          if (mlFirst != null &&
-"""
+          old = ''.join([
+              "  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {\n",
+              "    return legacy;\n",
+              "  }\n",
+              "\n",
+              "  if (mlFirst != null &&\n",
+          ])
+          new = ''.join([
+              "  if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {\n",
+              "    return legacy;\n",
+              "  }\n",
+              "\n",
+              "  final moderateCrossCaptureAgreement = isTemporalV2 &&\n",
+              "      legacy.decision == 'NO_DISPLAY_EVIDENCE' &&\n",
+              "      HCVPhotoTemporalV2Policy.hasModerateCrossCaptureScreenAgreement(\n",
+              "        stillMl: _mlAnalysisFromAnalyses(analyses),\n",
+              "        liveProbe: liveProbe,\n",
+              "      );\n",
+              "  if (moderateCrossCaptureAgreement) {\n",
+              "    final evidenceSources = <String>{\n",
+              "      ...legacy.evidenceSources,\n",
+              "      'ML_SCREEN_CLASS',\n",
+              "      'PHOTO_TEMPORAL_CROSS_CAPTURE',\n",
+              "    }.toList()\n",
+              "      ..sort();\n",
+              "    final reasons = <String>{\n",
+              "      ...legacy.reasons,\n",
+              "      'PHOTO_TEMPORAL_V2_MODERATE_SCREEN_CROSS_CAPTURE_AGREEMENT',\n",
+              "    }.toList();\n",
+              "    return HCVDisplayRiskResult(\n",
+              "      risk: 'MEDIUM',\n",
+              "      score: 45,\n",
+              "      decision: 'NON_CONCLUSIVE',\n",
+              "      analysisStatus: legacy.analysisStatus,\n",
+              "      evidenceSources: evidenceSources,\n",
+              "      strongSources: legacy.strongSources,\n",
+              "      reasons: reasons,\n",
+              "    );\n",
+              "  }\n",
+              "\n",
+              "  if (mlFirst != null &&\n",
+          ])
           if 'PHOTO_TEMPORAL_V2_MODERATE_SCREEN_CROSS_CAPTURE_AGREEMENT' not in source:
               if source.count(old) != 1:
                   raise RuntimeError('photo decision anchor not unique')
