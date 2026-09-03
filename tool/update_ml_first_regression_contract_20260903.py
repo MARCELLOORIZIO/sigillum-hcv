@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Validation revision: supersede the obsolete geometry-veto contract.
 path = Path('test/build73_video_screen_persistence_v2_regression_test.dart')
 text = path.read_text()
 old = """  test('80 percent SCREEN is not enough against REALITY without strong anchor', () {
