@@ -1,0 +1,54 @@
+name: Active physical display V1 validation
+
+on:
+  push:
+    branches:
+      - feature/active-physical-display-v1
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/active-physical-display-v1
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply deterministic source patch
+        run: python3 tool/apply_active_physical_display_v1.py
+
+      - name: Format changed Dart
+        run: dart format lib/hcv_display_microtexture_probe.dart lib/hcv_temporal_capture_probe.dart lib/hcv_physical_display_discriminator.dart lib/camera_page.dart test/hcv_physical_display_discriminator_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Active discriminator regression tests
+        run: flutter test test/hcv_physical_display_discriminator_test.dart --reporter expanded
+
+      - name: Full Flutter tests
+        run: flutter test --reporter expanded
+
+      - name: Materialize validated patch on branch
+        run: |
+          rm -f .github/workflows/active-physical-display-v1-ci.yml
+          rm -f tool/apply_active_physical_display_v1.py
+          git config user.name "SIGILLUM CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Activate short-shutter 1x physical display gate for photo and video"
+          git push origin HEAD:feature/active-physical-display-v1
