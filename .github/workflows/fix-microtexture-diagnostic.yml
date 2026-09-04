@@ -40,11 +40,11 @@ jobs:
 
           p = Path('lib/hcv_temporal_capture_probe.dart')
           s = p.read_text()
-          s = s.replace(
-              "Map<String, dynamic>? displayMicrotextureShadowCapture;",
-              "late Map<String, dynamic> displayMicrotextureShadowCapture;",
-              1,
-          )
+          old_local = """    Map<String, dynamic>? displayMicrotextureShadowCapture;\n    try {\n"""
+          new_local = """    late Map<String, dynamic> displayMicrotextureShadowCapture;\n    try {\n"""
+          if old_local not in s:
+              raise SystemExit('temporal local declaration pattern not found')
+          s = s.replace(old_local, new_local, 1)
           s = s.replace(
               "displayMicrotextureShadowCapture?['path']?.toString() ?? '';",
               "displayMicrotextureShadowCapture['path']?.toString() ?? '';",
