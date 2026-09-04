@@ -1,13 +1,162 @@
 import AVFoundation
+import CoreVideo
 import Flutter
 import Foundation
 import StoreKit
 import UIKit
 
+
+private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+  private let targetFrameCount: Int
+  private let rowBins: Int
+  private let completion: ([String: Any]) -> Void
+  private let lock = NSLock()
+  private var frames: [[[Double]]] = []
+  private var timestamps: [Double] = []
+  private var frameLuma: [Double] = []
+  private var finished = false
+
+  init(
+    targetFrameCount: Int,
+    rowBins: Int,
+    completion: @escaping ([String: Any]) -> Void
+  ) {
+    self.targetFrameCount = targetFrameCount
+    self.rowBins = rowBins
+    self.completion = completion
+  }
+
+  func captureOutput(
+    _ output: AVCaptureOutput,
+    didOutput sampleBuffer: CMSampleBuffer,
+    from connection: AVCaptureConnection
+  ) {
+    lock.lock()
+    let shouldProcess = !finished && frames.count < targetFrameCount
+    lock.unlock()
+    guard shouldProcess,
+          CMSampleBufferDataIsReady(sampleBuffer),
+          let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
+          let extracted = rowProfiles(from: pixelBuffer) else {
+      return
+    }
+
+    let pts = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+    guard pts.isFinite else { return }
+
+    var completedPayload: [String: Any]?
+    lock.lock()
+    if !finished {
+      frames.append(extracted.profiles)
+      timestamps.append(pts)
+      frameLuma.append(extracted.meanLuma)
+      if frames.count >= targetFrameCount {
+        finished = true
+        completedPayload = snapshotLocked()
+      }
+    }
+    lock.unlock()
+
+    if let completedPayload {
+      completion(completedPayload)
+    }
+  }
+
+  func snapshotAndFinish() -> [String: Any] {
+    lock.lock()
+    finished = true
+    let snapshot = snapshotLocked()
+    lock.unlock()
+    return snapshot
+  }
+
+  private func snapshotLocked() -> [String: Any] {
+    return [
+      "frames": frames,
+      "frameTimestampsSeconds": timestamps,
+      "frameLuma": frameLuma,
+      "frameCount": frames.count,
+    ]
+  }
+
+  private func rowProfiles(
+    from pixelBuffer: CVPixelBuffer
+  ) -> (profiles: [[Double]], meanLuma: Double)? {
+    CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+
+    guard CVPixelBufferGetPlaneCount(pixelBuffer) > 0,
+          let baseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else {
+      return nil
+    }
+
+    let width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
+    let height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
+    let bytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+    guard width >= 3, height >= 3, bytesPerRow >= width else { return nil }
+
+    let bytes = baseAddress.assumingMemoryBound(to: UInt8.self)
+    var result: [[Double]] = []
+    result.reserveCapacity(9)
+    var total = 0.0
+    var totalCount = 0
+
+    for gridRow in 0..<3 {
+      for gridColumn in 0..<3 {
+        let x0 = width * gridColumn / 3
+        let x1 = width * (gridColumn + 1) / 3
+        let y0 = height * gridRow / 3
+        let y1 = height * (gridRow + 1) / 3
+        let xStep = max(1, (x1 - x0) / 16)
+        var profile: [Double] = []
+        profile.reserveCapacity(rowBins)
+
+        for bin in 0..<rowBins {
+          let by0 = y0 + (y1 - y0) * bin / rowBins
+          let next = y0 + (y1 - y0) * (bin + 1) / rowBins
+          let by1 = min(y1, max(by0 + 1, next))
+          var sum = 0.0
+          var count = 0
+          if by0 < y1 {
+            for y in by0..<by1 {
+              var x = x0
+              while x < x1 {
+                sum += Double(bytes[y * bytesPerRow + x]) / 255.0
+                count += 1
+                x += xStep
+              }
+            }
+          }
+          let value = count > 0 ? sum / Double(count) : 0.0
+          profile.append(value)
+          total += value
+          totalCount += 1
+        }
+        result.append(profile)
+      }
+    }
+
+    return (result, totalCount > 0 ? total / Double(totalCount) : 0.0)
+  }
+}
+
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var storeKit2PriceChannel: FlutterMethodChannel?
   private var cameraProbeChannel: FlutterMethodChannel?
+  private let temporalFrequencyNativeQueue = DispatchQueue(
+    label: "hcv.temporalFrequency.native",
+    qos: .userInitiated
+  )
+  private let temporalFrequencySampleQueue = DispatchQueue(
+    label: "hcv.temporalFrequency.samples",
+    qos: .userInteractive
+  )
+  private let temporalFrequencyFinishLock = NSLock()
+  private var temporalFrequencyNativeBusy = false
+  private var temporalFrequencyResultDelivered = false
+  private var temporalFrequencyNativeSession: AVCaptureSession?
+  private var temporalFrequencyNativeCollector: HCVTemporalFrequencyNativeCollector?
   private var storefrontUpdatesTask: Task<Void, Never>?
   private var storefrontBaselineFingerprint = ""
   private var storefrontSessionFresh = false
@@ -142,6 +291,350 @@ import UIKit
     )
   }
 
+  private func temporalFrequencyFormat(
+    for device: AVCaptureDevice,
+    requestedMaxFps: Double
+  ) -> (format: AVCaptureDevice.Format, fps: Double)? {
+    let tiers = [240.0, 120.0, 60.0].filter { $0 <= requestedMaxFps + 0.01 }
+    for tier in tiers {
+      var bestFormat: AVCaptureDevice.Format?
+      var bestArea: Int64 = 0
+      for format in device.formats {
+        let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+        if dimensions.width < 640 || dimensions.height < 480 { continue }
+        let supportsTier = format.videoSupportedFrameRateRanges.contains { range in
+          range.minFrameRate <= tier + 0.01 && range.maxFrameRate >= tier - 0.01
+        }
+        if !supportsTier { continue }
+        let area = Int64(dimensions.width) * Int64(dimensions.height)
+        // High-speed formats are typically 720p/1080p. Prefer the largest
+        // native frame that still supports the exact requested tier.
+        if bestFormat == nil || area > bestArea {
+          bestFormat = format
+          bestArea = area
+        }
+      }
+      if let bestFormat {
+        return (bestFormat, tier)
+      }
+    }
+    return nil
+  }
+
+  private func finishTemporalFrequencyNativeCapture(
+    session: AVCaptureSession,
+    output: AVCaptureVideoDataOutput,
+    payload: [String: Any],
+    result: @escaping FlutterResult
+  ) {
+    temporalFrequencyFinishLock.lock()
+    if temporalFrequencyResultDelivered {
+      temporalFrequencyFinishLock.unlock()
+      return
+    }
+    temporalFrequencyResultDelivered = true
+    temporalFrequencyFinishLock.unlock()
+
+    temporalFrequencyNativeQueue.async { [weak self] in
+      output.setSampleBufferDelegate(nil, queue: nil)
+      if session.isRunning {
+        session.stopRunning()
+      }
+      self?.temporalFrequencyNativeCollector = nil
+      self?.temporalFrequencyNativeSession = nil
+      self?.temporalFrequencyNativeBusy = false
+      DispatchQueue.main.async {
+        result(payload)
+      }
+    }
+  }
+
+  private func captureTemporalFrequencyNative(
+    device: AVCaptureDevice,
+    call: FlutterMethodCall,
+    result: @escaping FlutterResult
+  ) {
+    if temporalFrequencyNativeBusy {
+      result(FlutterError(
+        code: "TEMPORAL_FREQUENCY_NATIVE_BUSY",
+        message: "A native temporal-frequency capture is already running",
+        details: nil
+      ))
+      return
+    }
+
+    let args = call.arguments as? [String: Any]
+    let requestedMaxFps = max(
+      60.0,
+      min(240.0, args?["targetMaxFps"] as? Double ?? 240.0)
+    )
+    let requestedDuration = max(
+      0.20,
+      min(0.75, args?["targetDurationSeconds"] as? Double ?? 0.35)
+    )
+    let requestedExposure = max(
+      0.0001,
+      min(0.004, args?["targetExposureSeconds"] as? Double ?? 0.001)
+    )
+    let rowBins = max(24, min(128, args?["rowProfileBins"] as? Int ?? 96))
+
+    temporalFrequencyNativeBusy = true
+    temporalFrequencyFinishLock.lock()
+    temporalFrequencyResultDelivered = false
+    temporalFrequencyFinishLock.unlock()
+
+    temporalFrequencyNativeQueue.async { [weak self] in
+      guard let self else { return }
+      do {
+        guard let selection = self.temporalFrequencyFormat(
+          for: device,
+          requestedMaxFps: requestedMaxFps
+        ) else {
+          throw NSError(
+            domain: "SIGILLUMTemporalFrequency",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "No 60/120/240 fps native format available"]
+          )
+        }
+
+        let session = AVCaptureSession()
+        session.beginConfiguration()
+        session.sessionPreset = .inputPriority
+        let input = try AVCaptureDeviceInput(device: device)
+        guard session.canAddInput(input) else {
+          session.commitConfiguration()
+          throw NSError(
+            domain: "SIGILLUMTemporalFrequency",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "Native camera input unavailable"]
+          )
+        }
+        session.addInput(input)
+
+        let output = AVCaptureVideoDataOutput()
+        output.alwaysDiscardsLateVideoFrames = false
+        output.videoSettings = [
+          kCVPixelBufferPixelFormatTypeKey as String:
+            Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)
+        ]
+        guard session.canAddOutput(output) else {
+          session.commitConfiguration()
+          throw NSError(
+            domain: "SIGILLUMTemporalFrequency",
+            code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "Native video data output unavailable"]
+          )
+        }
+        session.addOutput(output)
+
+        try device.lockForConfiguration()
+        device.activeFormat = selection.format
+        let frameDuration = CMTimeMakeWithSeconds(
+          1.0 / selection.fps,
+          preferredTimescale: 1_000_000_000
+        )
+        device.activeVideoMinFrameDuration = frameDuration
+        device.activeVideoMaxFrameDuration = frameDuration
+        if device.isExposureModeSupported(.continuousAutoExposure) {
+          device.exposureMode = .continuousAutoExposure
+        }
+        if device.isFocusModeSupported(.continuousAutoFocus) {
+          device.focusMode = .continuousAutoFocus
+        }
+        if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+          device.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
+        device.unlockForConfiguration()
+        session.commitConfiguration()
+
+        self.temporalFrequencyNativeSession = session
+        session.startRunning()
+        guard session.isRunning else {
+          throw NSError(
+            domain: "SIGILLUMTemporalFrequency",
+            code: 4,
+            userInfo: [NSLocalizedDescriptionKey: "Native high-speed session failed to start"]
+          )
+        }
+
+        // Let AE settle in the selected high-speed format before locking the
+        // optics and applying the requested short shutter.
+        Thread.sleep(forTimeInterval: 0.18)
+        let baselineDuration = max(
+          CMTimeGetSeconds(device.exposureDuration),
+          CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+        )
+        let baselineISO = max(device.iso, device.activeFormat.minISO)
+        let minExposure = CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+        let maxExposure = min(
+          CMTimeGetSeconds(device.activeFormat.maxExposureDuration),
+          0.9 / selection.fps
+        )
+        let targetExposure = min(
+          maxExposure,
+          max(minExposure, requestedExposure)
+        )
+        let compensation = baselineDuration / max(targetExposure, 0.000001)
+        let compensatedISO = min(
+          device.activeFormat.maxISO,
+          max(device.activeFormat.minISO, baselineISO * Float(compensation))
+        )
+        let targetDuration = CMTimeMakeWithSeconds(
+          targetExposure,
+          preferredTimescale: 1_000_000_000
+        )
+
+        let exposureSemaphore = DispatchSemaphore(value: 0)
+        try device.lockForConfiguration()
+        if device.isFocusModeSupported(.locked) {
+          device.setFocusModeLocked(
+            lensPosition: device.lensPosition,
+            completionHandler: nil
+          )
+        }
+        if device.isWhiteBalanceModeSupported(.locked) {
+          let gains = self.clampedWhiteBalanceGains(
+            device.deviceWhiteBalanceGains,
+            for: device
+          )
+          device.setWhiteBalanceModeLocked(with: gains, completionHandler: nil)
+        }
+        guard device.isExposureModeSupported(.custom) else {
+          device.unlockForConfiguration()
+          throw NSError(
+            domain: "SIGILLUMTemporalFrequency",
+            code: 5,
+            userInfo: [NSLocalizedDescriptionKey: "Custom exposure unavailable"]
+          )
+        }
+        device.setExposureModeCustom(
+          duration: targetDuration,
+          iso: compensatedISO
+        ) { _ in
+          exposureSemaphore.signal()
+        }
+        device.unlockForConfiguration()
+        _ = exposureSemaphore.wait(timeout: .now() + 0.8)
+        Thread.sleep(forTimeInterval: 0.03)
+
+        let actualExposure = CMTimeGetSeconds(device.exposureDuration)
+        let actualISO = Double(device.iso)
+        let exposureTolerance = max(0.00015, targetExposure * 0.20)
+        let exposureVerified = actualExposure.isFinite &&
+          abs(actualExposure - targetExposure) <= exposureTolerance
+        let dimensions = CMVideoFormatDescriptionGetDimensions(
+          selection.format.formatDescription
+        )
+        let formatMaxFps = selection.format.videoSupportedFrameRateRanges
+          .map { $0.maxFrameRate }
+          .max() ?? selection.fps
+        let targetFrameCount = max(
+          24,
+          min(120, Int((requestedDuration * selection.fps).rounded()))
+        )
+
+        let metadata: [String: Any] = [
+          "analysisStatus": "CAPTURED",
+          "captureMode": "ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER",
+          "requestedTargetFps": requestedMaxFps,
+          "configuredFrameRate": selection.fps,
+          "frameRateTier": Int(selection.fps.rounded()),
+          "frameWidth": Int(dimensions.width),
+          "frameHeight": Int(dimensions.height),
+          "configuredFormatMaxSupportedFrameRate": formatMaxFps,
+          "requestedShortExposureSeconds": requestedExposure,
+          "targetShortExposureSecondsAfterClamp": targetExposure,
+          "actualShortExposureSeconds": actualExposure,
+          "shortExposureVerified": exposureVerified,
+          "shortExposureISO": actualISO,
+          "shortExposureISOClamped": compensatedISO >= device.activeFormat.maxISO - 0.5,
+          "exposureLockedForEntireNativeCapture": true,
+          "targetFrameCount": targetFrameCount,
+          "rowProfileBins": rowBins,
+          "sensorNativeOrientation": true,
+          "encodedVideoUsed": false,
+        ]
+
+        let collector = HCVTemporalFrequencyNativeCollector(
+          targetFrameCount: targetFrameCount,
+          rowBins: rowBins
+        ) { [weak self] snapshot in
+          guard let self else { return }
+          var payload = metadata
+          for (key, value) in snapshot {
+            payload[key] = value
+          }
+          let timestamps = snapshot["frameTimestampsSeconds"] as? [Double] ?? []
+          if timestamps.count >= 2,
+             let first = timestamps.first,
+             let last = timestamps.last,
+             last > first {
+            payload["actualFrameRate"] = Double(timestamps.count - 1) / (last - first)
+            payload["captureDurationMs"] = Int(((last - first) * 1000.0).rounded())
+          }
+          self.finishTemporalFrequencyNativeCapture(
+            session: session,
+            output: output,
+            payload: payload,
+            result: result
+          )
+        }
+        self.temporalFrequencyNativeCollector = collector
+        output.setSampleBufferDelegate(
+          collector,
+          queue: self.temporalFrequencySampleQueue
+        )
+
+        // Timeout protects against a device/format that advertises a tier but
+        // does not deliver the requested number of sample buffers in practice.
+        self.temporalFrequencyNativeQueue.asyncAfter(
+          deadline: .now() + requestedDuration + 0.75
+        ) { [weak self, weak collector] in
+          guard let self, let collector else { return }
+          let snapshot = collector.snapshotAndFinish()
+          var payload = metadata
+          for (key, value) in snapshot {
+            payload[key] = value
+          }
+          let count = snapshot["frameCount"] as? Int ?? 0
+          if count < 6 {
+            payload["analysisStatus"] = "NOT_ANALYZED"
+            payload["reason"] = "NATIVE_SAMPLEBUFFER_TIMEOUT"
+          }
+          let timestamps = snapshot["frameTimestampsSeconds"] as? [Double] ?? []
+          if timestamps.count >= 2,
+             let first = timestamps.first,
+             let last = timestamps.last,
+             last > first {
+            payload["actualFrameRate"] = Double(timestamps.count - 1) / (last - first)
+            payload["captureDurationMs"] = Int(((last - first) * 1000.0).rounded())
+          }
+          self.finishTemporalFrequencyNativeCapture(
+            session: session,
+            output: output,
+            payload: payload,
+            result: result
+          )
+        }
+      } catch {
+        if let runningSession = self.temporalFrequencyNativeSession,
+           runningSession.isRunning {
+          runningSession.stopRunning()
+        }
+        self.temporalFrequencyNativeCollector = nil
+        self.temporalFrequencyNativeSession = nil
+        self.temporalFrequencyNativeBusy = false
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "TEMPORAL_FREQUENCY_NATIVE_CAPTURE_FAILED",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        }
+      }
+    }
+  }
+
   private func handleCameraProbeCall(
     _ call: FlutterMethodCall,
     result: @escaping FlutterResult
@@ -151,6 +644,9 @@ import UIKit
     }
 
     switch call.method {
+    case "captureTemporalFrequencyNative":
+      captureTemporalFrequencyNative(device: device, call: call, result: result)
+
     case "snapshotCameraState":
       result(cameraProbeState(device))
 

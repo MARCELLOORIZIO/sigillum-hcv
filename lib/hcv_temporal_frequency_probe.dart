@@ -1,303 +1,225 @@
-import 'dart:io';
 import 'dart:math';
 
-import 'package:camera/camera.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:flutter/services.dart';
-import 'package:image/image.dart' as img;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-class HCVTemporalFrequencyClip {
-  const HCVTemporalFrequencyClip({
-    required this.path,
-    required this.captureDurationMs,
-    required this.requestedTargetFps,
-    required this.configuredState,
-    required this.shortExposureState,
-  });
-
-  final String path;
-  final int captureDurationMs;
-  final double requestedTargetFps;
-  final Map<String, dynamic> configuredState;
-  final Map<String, dynamic> shortExposureState;
-}
-
-/// Shadow-only physical probe for display refresh / PWM periodicity.
+/// Shadow-only native physical probe for display refresh / PWM periodicity.
 ///
-/// This probe is intentionally never supplied to production display fusion.
-/// It captures consecutive frames at the highest iOS camera frame rate that
-/// can be configured up to [targetMaxFps], with a short shutter, then measures
-/// periodic row-profile changes and frame-to-frame luminance modulation.
+/// V2 deliberately does NOT use Flutter camera recording or FFmpeg. The
+/// Flutter CameraController is released before this call, then iOS owns the
+/// camera in a short isolated AVCaptureSession and returns row profiles from
+/// consecutive CMSampleBuffers together with their real presentation times.
 class HCVTemporalFrequencyProbe {
   const HCVTemporalFrequencyProbe();
 
   static const MethodChannel _channel = MethodChannel('hcv.cameraProbe');
-  static const Duration defaultCaptureDuration = Duration(milliseconds: 650);
   static const double targetMaxFps = 240.0;
   static const double requestedShortExposureSeconds = 1.0 / 1000.0;
-  static const int maximumExtractedFrames = 180;
+  static const double targetCaptureDurationSeconds = 0.35;
   static const int rowProfileBins = 96;
 
-  Future<HCVTemporalFrequencyClip> capture(
-    CameraController controller, {
-    Duration duration = defaultCaptureDuration,
-  }) async {
-    if (!Platform.isIOS) throw StateError('IOS_ONLY');
-    if (!controller.value.isInitialized) throw StateError('CAMERA_NOT_READY');
-    if (controller.value.isStreamingImages) {
-      throw StateError('IMAGE_STREAM_ACTIVE');
-    }
-    if (controller.value.isRecordingVideo) {
-      throw StateError('CAMERA_ALREADY_RECORDING');
-    }
-
-    final uniqueId = controller.description.name;
-    final originalFlash = controller.value.flashMode;
-    Map<String, dynamic>? originalState;
-    Map<String, dynamic>? configuredState;
-    Map<String, dynamic>? shortExposureState;
-    String? temporaryVideoPath;
-    var recordingStarted = false;
-    final stopwatch = Stopwatch();
-
+  Future<Map<String, dynamic>> captureNative(String deviceUniqueId) async {
     try {
-      originalState = await _invokeMap('snapshotCameraState', {
-        'deviceUniqueId': uniqueId,
-      });
-      if (originalState == null) throw StateError('CAMERA_STATE_UNAVAILABLE');
-
-      await controller.setFlashMode(FlashMode.off);
-      // Session-safety hotfix: never mutate AVCaptureDevice.activeFormat or
-      // active frame durations behind Flutter camera's active AVCaptureSession.
-      // BUILD 87 crashed on both PHOTO and VIDEO because the plugin controller
-      // retained outputs configured for its original format while the native
-      // bridge changed the device format underneath it.
-      configuredState = Map<String, dynamic>.from(originalState);
-      configuredState['configurationMode'] =
-          'PLUGIN_ACTIVE_FORMAT_PRESERVED_SESSION_SAFE';
-      configuredState['requestedTargetMaxFps'] = targetMaxFps;
-      configuredState['configuredFrameRate'] = null;
-      configuredState['highFpsFormatMutationSkipped'] = true;
-
-      // Keep only the previously validated physical intervention: short shutter.
-      // The actual encoded cadence is measured from the disposable clip rather
-      // than forcing a new device format/frame duration while Flutter owns it.
-      shortExposureState = await _invokeMap('applyShortExposure', {
-        'deviceUniqueId': uniqueId,
-        'targetDurationSeconds': requestedShortExposureSeconds,
-      });
-      if (shortExposureState == null) {
-        throw StateError('SHORT_EXPOSURE_UNAVAILABLE');
-      }
-      await Future.delayed(const Duration(milliseconds: 70));
-
-      stopwatch.start();
-      await controller.startVideoRecording();
-      recordingStarted = true;
-      await Future.delayed(duration);
-      final captured = await controller.stopVideoRecording();
-      recordingStarted = false;
-      stopwatch.stop();
-      temporaryVideoPath = captured.path;
-
-      return HCVTemporalFrequencyClip(
-        path: temporaryVideoPath,
-        captureDurationMs: stopwatch.elapsedMilliseconds,
-        requestedTargetFps: targetMaxFps,
-        configuredState: configuredState,
-        shortExposureState: shortExposureState,
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+        'captureTemporalFrequencyNative',
+        {
+          'deviceUniqueId': deviceUniqueId,
+          'targetMaxFps': targetMaxFps,
+          'targetDurationSeconds': targetCaptureDurationSeconds,
+          'targetExposureSeconds': requestedShortExposureSeconds,
+          'rowProfileBins': rowProfileBins,
+        },
       );
-    } catch (_) {
-      if (recordingStarted && controller.value.isRecordingVideo) {
-        try {
-          final captured = await controller.stopVideoRecording();
-          temporaryVideoPath ??= captured.path;
-        } catch (_) {}
+      if (raw == null) {
+        return unavailable('NATIVE_TEMPORAL_FREQUENCY_NO_RESULT');
       }
-      if (temporaryVideoPath != null) await discard(temporaryVideoPath);
-      rethrow;
-    } finally {
-      if (originalState != null) {
-        try {
-          // Do not allow restoreCameraState to reassign activeFormat or frame
-          // durations either. Only exposure/focus/WB/zoom state is restored.
-          final sessionSafeRestoreState =
-              Map<String, dynamic>.from(originalState)
-                ..remove('activeFormatIndex')
-                ..remove('activeVideoMinFrameDurationSeconds')
-                ..remove('activeVideoMaxFrameDurationSeconds');
-          await _channel.invokeMethod<void>('restoreCameraState', {
-            'deviceUniqueId': uniqueId,
-            'state': sessionSafeRestoreState,
-          });
-        } catch (_) {}
-      }
-      try {
-        await controller.setFlashMode(originalFlash);
-      } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 220));
+      return analyzeNativeCapture(Map<String, dynamic>.from(raw));
+    } catch (error) {
+      return unavailable(
+        'NATIVE_TEMPORAL_FREQUENCY_CAPTURE_FAILED',
+        error: error,
+      );
     }
   }
 
-  Future<Map<String, dynamic>> analyzeCapturedClip(
-    HCVTemporalFrequencyClip clip,
-  ) async {
-    var path = clip.path;
-    final root = Directory(
-      p.join(
-        (await getTemporaryDirectory()).path,
-        'hcv_temporal_frequency_${DateTime.now().microsecondsSinceEpoch}',
-      ),
-    );
-
-    try {
-      if (!await File(path).exists()) {
-        return unavailable('TEMPORAL_FREQUENCY_VIDEO_NOT_FOUND');
-      }
-      await root.create(recursive: true);
-      final frameFiles = await _extractConsecutiveFrames(path, root);
-      if (frameFiles.length < 6) {
-        return {
-          ...unavailable('NOT_ENOUGH_CONSECUTIVE_FRAMES'),
-          'framesExtracted': frameFiles.length,
-          'configuredState': clip.configuredState,
-          'shortExposureState': clip.shortExposureState,
-        };
-      }
-
-      final cellSequences = List.generate(
-        9,
-        (_) => <List<double>>[],
-        growable: false,
-      );
-      final frameLuma = <double>[];
-      int? frameWidth;
-      int? frameHeight;
-      var framesDecoded = 0;
-
-      for (final file in frameFiles) {
-        final decoded = img.decodeImage(await file.readAsBytes());
-        if (decoded == null) continue;
-        frameWidth ??= decoded.width;
-        frameHeight ??= decoded.height;
-        final perCell = _rowProfiles(decoded);
-        if (perCell.length != 9) continue;
-        for (var cell = 0; cell < 9; cell++) {
-          cellSequences[cell].add(perCell[cell]);
-        }
-        final allValues = perCell.expand((values) => values).toList();
-        frameLuma.add(_mean(allValues));
-        framesDecoded++;
-      }
-
-      if (framesDecoded < 6) {
-        return unavailable('NOT_ENOUGH_DECODED_FRAMES');
-      }
-
-      final cellResults = <Map<String, dynamic>>[];
-      for (var cell = 0; cell < 9; cell++) {
-        final result = HCVTemporalFrequencyMath.analyzeRowProfileSequence(
-          cellSequences[cell],
-        );
-        cellResults.add({
-          'row': cell ~/ 3,
-          'column': cell % 3,
-          ...result,
-        });
-      }
-
-      final durationSeconds = max(0.001, clip.captureDurationMs / 1000.0);
-      final approximateEncodedFps = framesDecoded / durationSeconds;
-      final configuredFps =
-          (clip.configuredState['configuredFrameRate'] as num?)?.toDouble();
-      final temporalLuma =
-          HCVTemporalFrequencyMath.analyzeScalarSequence(frameLuma);
-
-      final periodicityStrengths = cellResults
-          .map((e) => (e['periodicityStrength'] as num?)?.toDouble())
-          .whereType<double>()
-          .toList()
-        ..sort();
-      final frequencyStabilities = cellResults
-          .map((e) => (e['dominantFrequencyStability'] as num?)?.toDouble())
-          .whereType<double>()
-          .toList()
-        ..sort();
-      final phaseConsistencies = cellResults
-          .map((e) => (e['phaseStepConsistency'] as num?)?.toDouble())
-          .whereType<double>()
-          .toList()
-        ..sort();
-
-      final deleted = await discard(path);
-      if (deleted) path = '';
-
+  Map<String, dynamic> analyzeNativeCapture(Map<String, dynamic> raw) {
+    if (raw['analysisStatus'] != 'CAPTURED') {
       return {
-        'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V1',
-        'analysisStatus': 'ANALYZED',
-        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'productionDecisionChanged': false,
-        'captureSource': 'DISPOSABLE_HIGH_FPS_SHORT_SHUTTER_PRE_CAPTURE',
-        'captureDurationMs': clip.captureDurationMs,
-        'requestedTargetFps': clip.requestedTargetFps,
-        'configuredFrameRate': configuredFps,
-        'approximateEncodedFrameRate': approximateEncodedFps,
-        'configuredHighSpeedFormatWidth':
-            clip.configuredState['activeFormatWidth'],
-        'configuredHighSpeedFormatHeight':
-            clip.configuredState['activeFormatHeight'],
-        'configuredFormatMaxSupportedFrameRate':
-            clip.configuredState['activeFormatMaxSupportedFrameRate'],
-        'requestedShortExposureSeconds': requestedShortExposureSeconds,
-        'actualShortExposureSeconds':
-            clip.shortExposureState['exposureDurationSeconds'],
-        'shortExposureISO': clip.shortExposureState['iso'],
-        'shortExposureISOClamped':
-            clip.shortExposureState['isoCompensationClamped'] == true,
-        'framesExtracted': frameFiles.length,
-        'framesAnalyzed': framesDecoded,
-        'frameWidth': frameWidth,
-        'frameHeight': frameHeight,
-        'consecutiveFrameExtraction': true,
-        'ffmpegFrameResamplingApplied': false,
-        'globalFrameLumaTemporalSpectrum': temporalLuma,
-        'cellResults': cellResults,
-        'minimumCellPeriodicityStrength':
-            periodicityStrengths.isEmpty ? null : periodicityStrengths.first,
-        'medianCellPeriodicityStrength': _median(periodicityStrengths),
-        'minimumCellFrequencyStability':
-            frequencyStabilities.isEmpty ? null : frequencyStabilities.first,
-        'medianCellFrequencyStability': _median(frequencyStabilities),
-        'minimumCellPhaseStepConsistency':
-            phaseConsistencies.isEmpty ? null : phaseConsistencies.first,
-        'medianCellPhaseStepConsistency': _median(phaseConsistencies),
-        'spatialPolicy': const {
-          'gridRows': 3,
-          'gridColumns': 3,
-          'requiredCoverageCellsForFutureDisplayDecision': 9,
-          'allowedRealityEscapeCellsForFutureDisplayDecision': 0,
-          'decisionEnabled': false,
-        },
-        'temporaryVideoDeletedAfterAnalysis': deleted,
-        'note':
-            'Measures periodic row-profile phase changes and full-frame luminance modulation from native consecutive encoded frames. No score from this probe participates in BUILD 80 display fusion.',
+        ...unavailable(
+          (raw['reason'] as String?) ?? 'NATIVE_CAPTURE_NOT_AVAILABLE',
+        ),
+        'nativeCapture': _withoutRawFrames(raw),
       };
-    } catch (error) {
-      return {
-        ...unavailable('TEMPORAL_FREQUENCY_ANALYSIS_FAILED'),
-        'error': error.toString(),
-        'configuredState': clip.configuredState,
-        'shortExposureState': clip.shortExposureState,
-      };
-    } finally {
-      if (path.isNotEmpty) await discard(path);
-      try {
-        if (await root.exists()) await root.delete(recursive: true);
-      } catch (_) {}
     }
+
+    final rawFrames = raw['frames'];
+    if (rawFrames is! List || rawFrames.length < 6) {
+      return {
+        ...unavailable('NOT_ENOUGH_NATIVE_CONSECUTIVE_FRAMES'),
+        'nativeCapture': _withoutRawFrames(raw),
+      };
+    }
+
+    final cellSequences = List.generate(
+      9,
+      (_) => <List<double>>[],
+      growable: false,
+    );
+    final frameLuma = <double>[];
+    var acceptedFrames = 0;
+
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! List || rawFrame.length != 9) continue;
+      final parsedCells = <List<double>>[];
+      var valid = true;
+      for (final rawCell in rawFrame) {
+        if (rawCell is! List || rawCell.length < 16) {
+          valid = false;
+          break;
+        }
+        final profile = rawCell
+            .whereType<num>()
+            .map((value) => value.toDouble())
+            .toList(growable: false);
+        if (profile.length != rawCell.length) {
+          valid = false;
+          break;
+        }
+        parsedCells.add(profile);
+      }
+      if (!valid || parsedCells.length != 9) continue;
+      for (var cell = 0; cell < 9; cell++) {
+        cellSequences[cell].add(parsedCells[cell]);
+      }
+      final values = parsedCells.expand((profile) => profile).toList();
+      frameLuma.add(_mean(values));
+      acceptedFrames++;
+    }
+
+    if (acceptedFrames < 6) {
+      return {
+        ...unavailable('NOT_ENOUGH_VALID_NATIVE_FRAMES'),
+        'nativeCapture': _withoutRawFrames(raw),
+      };
+    }
+
+    final cellResults = <Map<String, dynamic>>[];
+    for (var cell = 0; cell < 9; cell++) {
+      final result = HCVTemporalFrequencyMath.analyzeRowProfileSequence(
+        cellSequences[cell],
+      );
+      cellResults.add({
+        'row': cell ~/ 3,
+        'column': cell % 3,
+        ...result,
+      });
+    }
+
+    final timestamps = (raw['frameTimestampsSeconds'] as List?)
+            ?.whereType<num>()
+            .map((value) => value.toDouble())
+            .toList(growable: false) ??
+        const <double>[];
+    final normalizedTimestamps = timestamps.isEmpty
+        ? const <double>[]
+        : timestamps.map((value) => value - timestamps.first).toList();
+    final intervals = <double>[];
+    for (var i = 1; i < timestamps.length; i++) {
+      final delta = timestamps[i] - timestamps[i - 1];
+      if (delta > 0 && delta.isFinite) intervals.add(delta);
+    }
+    final sortedIntervals = List<double>.from(intervals)..sort();
+    final medianInterval = _median(sortedIntervals);
+    final actualFps = medianInterval != null && medianInterval > 0
+        ? 1.0 / medianInterval
+        : (raw['actualFrameRate'] as num?)?.toDouble();
+    final intervalMad = medianInterval == null
+        ? null
+        : _median(
+            intervals.map((value) => (value - medianInterval).abs()).toList()
+              ..sort(),
+          );
+
+    final periodicityStrengths = cellResults
+        .map((e) => (e['periodicityStrength'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList()
+      ..sort();
+    final frequencyStabilities = cellResults
+        .map((e) => (e['dominantFrequencyStability'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList()
+      ..sort();
+    final phaseConsistencies = cellResults
+        .map((e) => (e['phaseStepConsistency'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList()
+      ..sort();
+
+    final configuredFps = (raw['configuredFrameRate'] as num?)?.toDouble();
+    final actualExposure =
+        (raw['actualShortExposureSeconds'] as num?)?.toDouble();
+    final framePeriod =
+        configuredFps != null && configuredFps > 0 ? 1.0 / configuredFps : null;
+
+    return {
+      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
+      'analysisStatus': 'ANALYZED',
+      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+      'productionDecisionChanged': false,
+      'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
+      'flutterCameraDisposedDuringProbe': true,
+      'requestedTargetFps': raw['requestedTargetFps'],
+      'configuredFrameRate': configuredFps,
+      'actualFrameRateFromTimestamps': actualFps,
+      'frameRateTier': raw['frameRateTier'],
+      'configuredHighSpeedFormatWidth': raw['frameWidth'],
+      'configuredHighSpeedFormatHeight': raw['frameHeight'],
+      'configuredFormatMaxSupportedFrameRate':
+          raw['configuredFormatMaxSupportedFrameRate'],
+      'requestedShortExposureSeconds': raw['requestedShortExposureSeconds'],
+      'targetShortExposureSecondsAfterClamp':
+          raw['targetShortExposureSecondsAfterClamp'],
+      'actualShortExposureSeconds': actualExposure,
+      'shortExposureVerified': raw['shortExposureVerified'] == true,
+      'shortExposureISO': raw['shortExposureISO'],
+      'shortExposureISOClamped': raw['shortExposureISOClamped'] == true,
+      'exposureLockedForEntireNativeCapture':
+          raw['exposureLockedForEntireNativeCapture'] == true,
+      if (framePeriod != null && actualExposure != null)
+        'exposureToFramePeriodRatio': actualExposure / framePeriod,
+      'framesCaptured': raw['frameCount'],
+      'framesAnalyzed': acceptedFrames,
+      'targetFrameCount': raw['targetFrameCount'],
+      'rowProfileBins': raw['rowProfileBins'],
+      'frameTimestampsSecondsFromFirst': normalizedTimestamps,
+      'medianFrameIntervalSeconds': medianInterval,
+      'frameIntervalMadSeconds': intervalMad,
+      if (actualFps != null) 'temporalNyquistHz': actualFps / 2.0,
+      'consecutiveNativeSampleBuffers': true,
+      'encodedVideoUsed': false,
+      'ffmpegUsed': false,
+      'rawNativeFramesOmittedFromCertificate': true,
+      'globalFrameLumaTemporalSpectrum':
+          HCVTemporalFrequencyMath.analyzeScalarSequence(frameLuma),
+      'cellResults': cellResults,
+      'minimumCellPeriodicityStrength':
+          periodicityStrengths.isEmpty ? null : periodicityStrengths.first,
+      'medianCellPeriodicityStrength': _median(periodicityStrengths),
+      'minimumCellFrequencyStability':
+          frequencyStabilities.isEmpty ? null : frequencyStabilities.first,
+      'medianCellFrequencyStability': _median(frequencyStabilities),
+      'minimumCellPhaseStepConsistency':
+          phaseConsistencies.isEmpty ? null : phaseConsistencies.first,
+      'medianCellPhaseStepConsistency': _median(phaseConsistencies),
+      'spatialPolicy': const {
+        'gridRows': 3,
+        'gridColumns': 3,
+        'decisionEnabled': false,
+      },
+      'nativeCaptureMetadata': _withoutRawFrames(raw),
+      'note':
+          'V2 measures row-profile phase evolution directly from native consecutive CMSampleBuffers at the highest isolated hardware tier available (240, 120, then 60 fps). It never participates in BUILD 80 display fusion.',
+    };
   }
 
   static Map<String, dynamic> unavailable(
@@ -305,7 +227,7 @@ class HCVTemporalFrequencyProbe {
     Object? error,
   }) {
     return {
-      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V1',
+      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
       'analysisStatus': 'NOT_ANALYZED',
       'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
       'productionDecisionChanged': false,
@@ -314,84 +236,10 @@ class HCVTemporalFrequencyProbe {
     };
   }
 
-  Future<List<File>> _extractConsecutiveFrames(
-    String videoPath,
-    Directory root,
-  ) async {
-    final pattern = p.join(root.path, 'frame_%04d.png');
-    final command =
-        "-y -i ${_quote(videoPath)} -an -vsync 0 -frames:v $maximumExtractedFrames ${_quote(pattern)}";
-    final session = await FFmpegKit.execute(command);
-    final code = await session.getReturnCode();
-    if (code == null || !ReturnCode.isSuccess(code)) return <File>[];
-    final files = root
-        .listSync()
-        .whereType<File>()
-        .where((file) => file.path.toLowerCase().endsWith('.png'))
-        .toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
-    return files;
-  }
-
-  List<List<double>> _rowProfiles(img.Image image) {
-    final result = <List<double>>[];
-    for (var row = 0; row < 3; row++) {
-      for (var column = 0; column < 3; column++) {
-        final x0 = (image.width * column / 3).floor();
-        final x1 = (image.width * (column + 1) / 3).floor();
-        final y0 = (image.height * row / 3).floor();
-        final y1 = (image.height * (row + 1) / 3).floor();
-        final profile = <double>[];
-        final xStep = max(1, (x1 - x0) ~/ 64);
-        for (var bin = 0; bin < rowProfileBins; bin++) {
-          final by0 = y0 + ((y1 - y0) * bin / rowProfileBins).floor();
-          final by1 = max(
-            by0 + 1,
-            y0 + ((y1 - y0) * (bin + 1) / rowProfileBins).floor(),
-          );
-          var sum = 0.0;
-          var count = 0;
-          for (var y = by0; y < min(y1, by1); y++) {
-            for (var x = x0; x < x1; x += xStep) {
-              sum += _luma(image.getPixel(x, y));
-              count++;
-            }
-          }
-          profile.add(count == 0 ? 0.0 : sum / count);
-        }
-        result.add(profile);
-      }
-    }
-    return result;
-  }
-
-  Future<Map<String, dynamic>?> _invokeMap(
-    String method,
-    Map<String, dynamic> args,
-  ) async {
-    final value = await _channel.invokeMapMethod<String, dynamic>(method, args);
-    return value == null ? null : Map<String, dynamic>.from(value);
-  }
-
-  Future<bool> discard(String? path) async {
-    if (path == null || path.isEmpty) return true;
-    try {
-      final file = File(path);
-      if (!await file.exists()) return true;
-      await file.delete();
-      return !await file.exists();
-    } catch (_) {
-      return false;
-    }
-  }
-
-  String _quote(String value) => "'${value.replaceAll("'", "'\\''")}'";
-
-  double _luma(img.Pixel pixel) {
-    final r = pixel.r.toDouble();
-    final g = pixel.g.toDouble();
-    final b = pixel.b.toDouble();
-    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
+  Map<String, dynamic> _withoutRawFrames(Map<String, dynamic> raw) {
+    final copy = Map<String, dynamic>.from(raw);
+    copy.remove('frames');
+    return copy;
   }
 
   double _mean(List<double> values) =>
@@ -400,7 +248,7 @@ class HCVTemporalFrequencyProbe {
   double? _median(List<double> sorted) {
     if (sorted.isEmpty) return null;
     final i = sorted.length ~/ 2;
-    return sorted.length.isOdd ? sorted[i] : (sorted[i - 1] + sorted[i]) / 2;
+    return sorted.length.isOdd ? sorted[i] : (sorted[i - 1] + sorted[i]) / 2.0;
   }
 }
 
