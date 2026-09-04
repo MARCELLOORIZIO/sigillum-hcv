@@ -21,15 +21,15 @@ class HCVDisplayPhysicalDiscriminator {
     final shortRaw = phaseResults?['SHORT_1X'];
     final short = shortRaw is Map ? shortRaw : null;
 
-    final mean =
-        (short?['structuredTemporalAxisRatio'] as num?)?.toDouble();
+    final mean = (short?['structuredTemporalAxisRatio'] as num?)?.toDouble();
     final minCell = (short?['minimumCellStructuredTemporalAxisRatio'] as num?)
         ?.toDouble();
     final cells = (short?['cellsAnalyzed'] as num?)?.toInt() ?? 0;
     final frames = (short?['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final shortStatus = short?['analysisStatus']?.toString() ?? 'NOT_ANALYZED';
 
-    final analyzable = microtextureAnalysis?['analysisStatus'] == 'ANALYZED' &&
+    final analyzable =
+        microtextureAnalysis?['analysisStatus'] == 'ANALYZED' &&
         short != null &&
         shortStatus != 'NOT_ANALYZED' &&
         mean != null &&
@@ -50,16 +50,16 @@ class HCVDisplayPhysicalDiscriminator {
       };
     }
 
-    final displayConfirmed = mean >= displayMeanThreshold &&
-        minCell >= displayMinCellThreshold;
-    final realityConfirmed = mean <= realityMeanThreshold &&
-        minCell <= realityMinCellThreshold;
+    final displayConfirmed =
+        mean >= displayMeanThreshold && minCell >= displayMinCellThreshold;
+    final realityConfirmed =
+        mean <= realityMeanThreshold && minCell <= realityMinCellThreshold;
 
     final decision = displayConfirmed
         ? 'PHYSICAL_DISPLAY_CONFIRMED'
         : realityConfirmed
-            ? 'PHYSICAL_REALITY_CONFIRMED'
-            : 'PHYSICAL_INDETERMINATE';
+        ? 'PHYSICAL_REALITY_CONFIRMED'
+        : 'PHYSICAL_INDETERMINATE';
 
     return {
       'type': 'SIGILLUM_DISPLAY_PHYSICAL_DISCRIMINATOR_V1',
@@ -82,8 +82,8 @@ class HCVDisplayPhysicalDiscriminator {
       'reason': displayConfirmed
           ? 'SHORT_1X_FULL_FRAME_9_CELL_DISPLAY_SIGNATURE'
           : realityConfirmed
-              ? 'SHORT_1X_REALITY_SIGNATURE'
-              : 'SHORT_1X_DEAD_BAND_INDETERMINATE',
+          ? 'SHORT_1X_REALITY_SIGNATURE'
+          : 'SHORT_1X_DEAD_BAND_INDETERMINATE',
     };
   }
 }

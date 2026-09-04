@@ -17,8 +17,10 @@ class HCVVideoShortExposureProbe {
 
   Future<Map<String, dynamic>> capture(CameraController controller) async {
     if (!Platform.isIOS) return _unavailable('IOS_ONLY');
-    if (!controller.value.isInitialized) return _unavailable('CAMERA_NOT_READY');
-    if (controller.value.isStreamingImages || controller.value.isRecordingVideo) {
+    if (!controller.value.isInitialized)
+      return _unavailable('CAMERA_NOT_READY');
+    if (controller.value.isStreamingImages ||
+        controller.value.isRecordingVideo) {
       return _unavailable('CAMERA_BUSY');
     }
 
@@ -32,7 +34,8 @@ class HCVVideoShortExposureProbe {
       originalState = await _invokeMap('snapshotCameraState', {
         'deviceUniqueId': uniqueId,
       });
-      if (originalState == null) return _unavailable('CAMERA_STATE_UNAVAILABLE');
+      if (originalState == null)
+        return _unavailable('CAMERA_STATE_UNAVAILABLE');
 
       final minZoom = await controller.getMinZoomLevel();
       final maxZoom = await controller.getMaxZoomLevel();
@@ -130,9 +133,7 @@ class HCVVideoShortExposureProbe {
     }
   }
 
-  Future<Map<String, dynamic>> analyzeCapture(
-    Map<String, dynamic>? capture,
-  ) {
+  Future<Map<String, dynamic>> analyzeCapture(Map<String, dynamic>? capture) {
     return const HCVDisplayMicrotextureShadowProbe().analyzeCapture(capture);
   }
 
@@ -186,10 +187,10 @@ class HCVVideoShortExposureProbe {
   }
 
   Map<String, dynamic> _unavailable(String reason, {Object? error}) => {
-        'type': 'SIGILLUM_VIDEO_SHORT_EXPOSURE_CAPTURE_V1',
-        'analysisStatus': 'NOT_CAPTURED',
-        'decisionRole': 'ACTIVE_PHYSICAL_DISPLAY_DISCRIMINATOR',
-        'reason': reason,
-        if (error != null) 'error': error.toString(),
-      };
+    'type': 'SIGILLUM_VIDEO_SHORT_EXPOSURE_CAPTURE_V1',
+    'analysisStatus': 'NOT_CAPTURED',
+    'decisionRole': 'ACTIVE_PHYSICAL_DISPLAY_DISCRIMINATOR',
+    'reason': reason,
+    if (error != null) 'error': error.toString(),
+  };
 }
