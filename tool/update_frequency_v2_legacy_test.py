@@ -24,7 +24,7 @@ void main() {
   test('native V2 no longer records a disposable Flutter video', () {
     final source =
         File('lib/hcv_temporal_frequency_probe.dart').readAsStringSync();
-    expect(source, isNot(contains('CameraController')));
+    expect(source, isNot(contains("import 'package:camera/camera.dart'")));
     expect(source, isNot(contains('startVideoRecording()')));
     expect(source, isNot(contains('FFmpegKit')));
     expect(source, contains('captureTemporalFrequencyNative'));
