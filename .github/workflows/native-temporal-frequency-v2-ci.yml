@@ -46,8 +46,8 @@ jobs:
       - name: Full Flutter tests
         run: flutter test
 
-      - name: Compile iOS simulator
-        run: flutter build ios --simulator --debug
+      - name: Compile iOS device without signing
+        run: flutter build ios --debug --no-codesign
 
       - name: Materialize validated source
         shell: bash
