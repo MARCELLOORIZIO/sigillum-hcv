@@ -34,10 +34,9 @@ class HCVDisplayMicrotextureShadowProbe {
     var recording = false;
 
     try {
-      originalState = await _invokeMap(
-        'snapshotCameraState',
-        {'deviceUniqueId': uniqueId},
-      );
+      originalState = await _invokeMap('snapshotCameraState', {
+        'deviceUniqueId': uniqueId,
+      });
       if (originalState == null) {
         return _captureUnavailable('CAMERA_STATE_UNAVAILABLE');
       }
@@ -50,10 +49,9 @@ class HCVDisplayMicrotextureShadowProbe {
       final tenX = 10.0.clamp(minZoom, maxZoom).toDouble();
 
       await controller.setFlashMode(FlashMode.off);
-      await _invokeMap(
-        'setContinuousAutoExposure',
-        {'deviceUniqueId': uniqueId},
-      );
+      await _invokeMap('setContinuousAutoExposure', {
+        'deviceUniqueId': uniqueId,
+      });
       await controller.setZoomLevel(oneX);
       await Future.delayed(_zoomSettle);
 
@@ -63,10 +61,9 @@ class HCVDisplayMicrotextureShadowProbe {
       final phases = <Map<String, dynamic>>[];
 
       Future<void> phase(String id, double zoom, String exposure) async {
-        final state = await _invokeMap(
-          'snapshotCameraState',
-          {'deviceUniqueId': uniqueId},
-        );
+        final state = await _invokeMap('snapshotCameraState', {
+          'deviceUniqueId': uniqueId,
+        });
         final start = clock.elapsedMilliseconds;
         await Future.delayed(_phaseDuration);
         phases.add({
@@ -81,31 +78,24 @@ class HCVDisplayMicrotextureShadowProbe {
 
       await phase('NORMAL_1X', oneX, 'CONTINUOUS_AUTO');
 
-      await _invokeMap(
-        'applyShortExposure',
-        {
-          'deviceUniqueId': uniqueId,
-          'targetDurationSeconds': _requestedShortExposure,
-        },
-      );
+      await _invokeMap('applyShortExposure', {
+        'deviceUniqueId': uniqueId,
+        'targetDurationSeconds': _requestedShortExposure,
+      });
       await Future.delayed(_exposureSettle);
       await phase('SHORT_1X', oneX, 'CUSTOM_SHORT');
 
-      await _invokeMap(
-        'setContinuousAutoExposure',
-        {'deviceUniqueId': uniqueId},
-      );
+      await _invokeMap('setContinuousAutoExposure', {
+        'deviceUniqueId': uniqueId,
+      });
       await controller.setZoomLevel(tenX);
       await Future.delayed(_zoomSettle);
       await phase('NORMAL_10X', tenX, 'CONTINUOUS_AUTO');
 
-      await _invokeMap(
-        'applyShortExposure',
-        {
-          'deviceUniqueId': uniqueId,
-          'targetDurationSeconds': _requestedShortExposure,
-        },
-      );
+      await _invokeMap('applyShortExposure', {
+        'deviceUniqueId': uniqueId,
+        'targetDurationSeconds': _requestedShortExposure,
+      });
       await Future.delayed(_exposureSettle);
       await phase('SHORT_10X', tenX, 'CUSTOM_SHORT');
 
@@ -140,8 +130,7 @@ class HCVDisplayMicrotextureShadowProbe {
           'requiredDisplayCoverageCells': 9,
           'allowedRealityEscapeCells': 0,
           'decisionEnabled': false,
-          'note':
-              '9/9 coverage is the future policy; no numeric production threshold is applied in shadow mode.',
+          'note': '9/9 coverage is the future policy; no numeric production threshold is applied in shadow mode.',
         },
       };
     } catch (error) {
@@ -223,18 +212,25 @@ class HCVDisplayMicrotextureShadowProbe {
         'productionDecisionChanged': false,
         'phaseResults': results,
         'comparisons': {
-          'shortExposureGain1x':
-              _gain(structured('SHORT_1X'), structured('NORMAL_1X')),
-          'shortExposureGain10x':
-              _gain(structured('SHORT_10X'), structured('NORMAL_10X')),
-          'zoomGainNormal':
-              _gain(structured('NORMAL_10X'), structured('NORMAL_1X')),
-          'zoomGainShort':
-              _gain(structured('SHORT_10X'), structured('SHORT_1X')),
+          'shortExposureGain1x': _gain(
+            structured('SHORT_1X'),
+            structured('NORMAL_1X'),
+          ),
+          'shortExposureGain10x': _gain(
+            structured('SHORT_10X'),
+            structured('NORMAL_10X'),
+          ),
+          'zoomGainNormal': _gain(
+            structured('NORMAL_10X'),
+            structured('NORMAL_1X'),
+          ),
+          'zoomGainShort': _gain(
+            structured('SHORT_10X'),
+            structured('SHORT_1X'),
+          ),
         },
         'spatialPolicy': capture?['spatialPolicy'],
-        'note':
-            'Raw 1x/10x and normal/short-shutter metrics. This block is never supplied to production fusion.',
+        'note': 'Raw 1x/10x and normal/short-shutter metrics. This block is never supplied to production fusion.',
       };
     } catch (error) {
       return _analysisUnavailable('SHADOW_ANALYSIS_FAILED', error: error);
@@ -247,7 +243,8 @@ class HCVDisplayMicrotextureShadowProbe {
 
   Future<bool> discardCapture(Map<String, dynamic>? capture) async {
     final path = capture?['path']?.toString();
-    return path == null || path.isEmpty ? true : _delete(path);
+    if (path == null || path.isEmpty) return true;
+    return await _delete(path);
   }
 
   Future<List<img.Image>> _extractFrames(
@@ -259,18 +256,20 @@ class HCVDisplayMicrotextureShadowProbe {
     final start = startMs / 1000.0;
     final duration = max(0.10, (endMs - startMs) / 1000.0).toDouble();
     final pattern = p.join(dir.path, 'frame_%03d.png');
-    final command = "-y -ss ${start.toStringAsFixed(4)} -i '$videoPath' "
+    final command =
+        "-y -ss ${start.toStringAsFixed(4)} -i '$videoPath' "
         "-t ${duration.toStringAsFixed(4)} -vf \"fps=15\" -frames:v 6 '$pattern'";
     final session = await FFmpegKit.execute(command);
     final code = await session.getReturnCode();
     if (code == null || !ReturnCode.isSuccess(code)) return <img.Image>[];
 
-    final files = dir
-        .listSync()
-        .whereType<File>()
-        .where((file) => file.path.toLowerCase().endsWith('.png'))
-        .toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
+    final files =
+        dir
+            .listSync()
+            .whereType<File>()
+            .where((file) => file.path.toLowerCase().endsWith('.png'))
+            .toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
     final frames = <img.Image>[];
     for (final file in files) {
       final decoded = img.decodeImage(await file.readAsBytes());
@@ -298,12 +297,15 @@ class HCVDisplayMicrotextureShadowProbe {
       }
     }
 
-    final temporal = cells
-        .map((cell) =>
-            (cell['structuredTemporalAxisRatio'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList()
-      ..sort();
+    final temporal =
+        cells
+            .map(
+              (cell) =>
+                  (cell['structuredTemporalAxisRatio'] as num?)?.toDouble(),
+            )
+            .whereType<double>()
+            .toList()
+          ..sort();
     final chroma = cells
         .map((cell) => (cell['fineChromaLumaRatio'] as num?)?.toDouble())
         .whereType<double>()
@@ -321,11 +323,13 @@ class HCVDisplayMicrotextureShadowProbe {
       'allowedRealityEscapeCells': 0,
       'coverageDecisionEnabled': false,
       'structuredTemporalAxisRatio': _mean(temporal),
-      'minimumCellStructuredTemporalAxisRatio':
-          temporal.isEmpty ? null : temporal.first,
+      'minimumCellStructuredTemporalAxisRatio': temporal.isEmpty
+          ? null
+          : temporal.first,
       'medianCellStructuredTemporalAxisRatio': _median(temporal),
-      'maximumCellStructuredTemporalAxisRatio':
-          temporal.isEmpty ? null : temporal.last,
+      'maximumCellStructuredTemporalAxisRatio': temporal.isEmpty
+          ? null
+          : temporal.last,
       'fineChromaLumaRatio': _mean(chroma),
       'flatFieldLatticeScore': _mean(lattice),
       'cells': cells,
@@ -394,9 +398,8 @@ class HCVDisplayMicrotextureShadowProbe {
       var sum = 0.0;
       var n = 0;
       for (var x = x0; x < x1; x += step) {
-        final d = _luma(b.getPixel(x, y)) -
-            _luma(a.getPixel(x, y)) -
-            globalDelta;
+        final d =
+            _luma(b.getPixel(x, y)) - _luma(a.getPixel(x, y)) - globalDelta;
         sum += d;
         residualSq += d * d;
         residualCount++;
@@ -409,9 +412,7 @@ class HCVDisplayMicrotextureShadowProbe {
       var sum = 0.0;
       var n = 0;
       for (var y = y0; y < y1; y += step) {
-        sum += _luma(b.getPixel(x, y)) -
-            _luma(a.getPixel(x, y)) -
-            globalDelta;
+        sum += _luma(b.getPixel(x, y)) - _luma(a.getPixel(x, y)) - globalDelta;
         n++;
       }
       if (n > 0) columnProfile.add(sum / n);
@@ -554,10 +555,10 @@ class HCVDisplayMicrotextureShadowProbe {
     required double maxZoom,
   }) async {
     try {
-      await _channel.invokeMethod<void>(
-        'restoreCameraState',
-        {'deviceUniqueId': uniqueId, 'state': originalState},
-      );
+      await _channel.invokeMethod<void>('restoreCameraState', {
+        'deviceUniqueId': uniqueId,
+        'state': originalState,
+      });
     } catch (_) {}
     try {
       await controller.setZoomLevel(
@@ -579,19 +580,19 @@ class HCVDisplayMicrotextureShadowProbe {
   }
 
   Map<String, dynamic> _captureUnavailable(String reason, {Object? error}) => {
-        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
-        'analysisStatus': 'NOT_CAPTURED',
-        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'reason': reason,
-        if (error != null) 'error': error.toString(),
-      };
+    'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
+    'analysisStatus': 'NOT_CAPTURED',
+    'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+    'reason': reason,
+    if (error != null) 'error': error.toString(),
+  };
 
   Map<String, dynamic> _analysisUnavailable(String reason, {Object? error}) => {
-        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
-        'analysisStatus': 'NOT_ANALYZED',
-        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'productionDecisionChanged': false,
-        'reason': reason,
-        if (error != null) 'error': error.toString(),
-      };
+    'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
+    'analysisStatus': 'NOT_ANALYZED',
+    'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+    'productionDecisionChanged': false,
+    'reason': reason,
+    if (error != null) 'error': error.toString(),
+  };
 }
