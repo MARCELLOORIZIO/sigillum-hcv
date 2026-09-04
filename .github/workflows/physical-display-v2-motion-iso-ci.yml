@@ -1,0 +1,58 @@
+name: Physical display V2 validation
+
+on:
+  push:
+    branches:
+      - feature/physical-display-v2-motion-iso
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/physical-display-v2-motion-iso
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply deterministic V2 patch
+        run: python3 tool/apply_physical_display_v2_motion_iso.py
+
+      - name: Format changed Dart
+        run: dart format lib/hcv_display_microtexture_probe.dart lib/hcv_physical_display_discriminator.dart lib/hcv_display_risk_fusion.dart lib/camera_page.dart test/hcv_physical_display_discriminator_test.dart test/video_passive_motion_rejection_test.dart test/physical_probe_substitutes_legacy_live_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Physical V2 regression tests
+        run: |
+          flutter test test/hcv_physical_display_discriminator_test.dart --reporter expanded
+          flutter test test/video_passive_motion_rejection_test.dart --reporter expanded
+          flutter test test/physical_probe_substitutes_legacy_live_test.dart --reporter expanded
+          flutter test test/video_passive_physical_verification_contract_test.dart --reporter expanded
+
+      - name: Full Flutter tests
+        run: flutter test --reporter expanded
+
+      - name: Materialize validated V2 source on branch
+        run: |
+          rm -f .github/workflows/physical-display-v2-motion-iso-ci.yml
+          rm -f tool/apply_physical_display_v2_motion_iso.py
+          git config user.name "SIGILLUM CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Harden physical display gate with exposure quality and motion rejection"
+          git push origin HEAD:feature/physical-display-v2-motion-iso
