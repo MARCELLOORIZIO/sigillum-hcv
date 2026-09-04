@@ -28,6 +28,35 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
+      - name: Normalize deterministic patch matcher
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tool/apply_temporal_frequency_v1.py')
+          text = path.read_text()
+          old = '''def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              return text.replace(old, new, 1)
+          '''
+          new = '''def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count == 1:
+                  return text.replace(old, new, 1)
+              # BUILD 80 contains the same generic catch prefix in start() and
+              # stop(). The start() occurrence is first in the file; the later
+              # stop() block is matched separately with a more specific anchor.
+              if label == "video start failure cleanup" and count == 2:
+                  return text.replace(old, new, 1)
+              raise SystemExit(f"{label}: expected exactly one match, found {count}")
+          '''
+          if text.count(old) != 1:
+              raise SystemExit('replace_once helper contract changed')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
       - name: Apply deterministic temporal frequency V1 patch
         run: python3 tool/apply_temporal_frequency_v1.py
 
