@@ -30,6 +30,7 @@ jobs:
 
       - name: Apply isolated native V2 patch
         run: |
+          python3 tool/normalize_native_v2_patcher.py
           python3 tool/apply_native_temporal_frequency_v2.py
           python3 tool/update_frequency_v2_legacy_test.py
 
@@ -55,7 +56,7 @@ jobs:
           git config user.name "SIGILLUM CI"
           git config user.email "actions@users.noreply.github.com"
           git add ios/Runner/AppDelegate.swift lib/camera_page.dart lib/hcv_temporal_frequency_probe.dart test/native_temporal_frequency_v2_contract_test.dart test/frequency_probe_session_safety_contract_test.dart
-          git rm -f tool/apply_native_temporal_frequency_v2.py tool/update_frequency_v2_legacy_test.py .github/workflows/native-temporal-frequency-v2-ci.yml
+          git rm -f tool/apply_native_temporal_frequency_v2.py tool/normalize_native_v2_patcher.py tool/update_frequency_v2_legacy_test.py .github/workflows/native-temporal-frequency-v2-ci.yml
           if git diff --cached --quiet; then
             echo "No materialized changes to commit"
             exit 0
