@@ -1,0 +1,248 @@
+from pathlib import Path
+
+path = Path('lib/camera_page.dart')
+text = path.read_text()
+
+if "import 'hcv_display_physical_discriminator.dart';" in text:
+    print('Active physical display integration already applied.')
+    raise SystemExit(0)
+
+
+def rep(old: str, new: str, label: str) -> None:
+    global text
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f'{label}: expected 1 anchor, found {count}')
+    text = text.replace(old, new, 1)
+
+
+rep(
+    "import 'hcv_display_risk_fusion.dart';\nimport 'hcv_capture_timestamp.dart';",
+    "import 'hcv_display_risk_fusion.dart';\nimport 'hcv_display_physical_discriminator.dart';\nimport 'hcv_video_short_exposure_probe.dart';\nimport 'hcv_capture_timestamp.dart';",
+    'imports',
+)
+
+helper = r'''
+Map<String, dynamic>? _physicalDiscriminatorFromAnalyses(
+  List<Map<String, dynamic>?> analyses,
+) {
+  for (final analysis in analyses.whereType<Map<String, dynamic>>()) {
+    if (analysis['type'] == 'SIGILLUM_DISPLAY_PHYSICAL_DISCRIMINATOR_V1') {
+      return analysis;
+    }
+  }
+  return null;
+}
+
+HCVDisplayRiskResult _applyActivePhysicalDiscriminator(
+  HCVDisplayRiskResult current,
+  List<Map<String, dynamic>?> analyses,
+) {
+  final physical = _physicalDiscriminatorFromAnalyses(analyses);
+  if (physical == null || physical['analysisStatus'] != 'ANALYZED') {
+    return current;
+  }
+
+  final physicalDecision = physical['physicalDecision']?.toString() ?? '';
+  if (physicalDecision == 'PHYSICAL_DISPLAY_CONFIRMED') {
+    final evidence = <String>{
+      ...current.evidenceSources,
+      'SHORT_1X_PHYSICAL_9_CELL',
+    }.toList()
+      ..sort();
+    final strong = <String>{
+      ...current.strongSources,
+      'SHORT_1X_PHYSICAL_9_CELL',
+    }.toList()
+      ..sort();
+    final reasons = <String>{
+      ...current.reasons,
+      'ACTIVE_SHORT_1X_9_CELL_DISPLAY_CONFIRMED',
+    }.toList();
+    return HCVDisplayRiskResult(
+      risk: 'HIGH',
+      score: current.score > 95 ? current.score : 95,
+      decision: 'STRONG_DISPLAY_RISK',
+      analysisStatus: 'COMPLETE',
+      evidenceSources: evidence,
+      strongSources: strong,
+      reasons: reasons,
+    );
+  }
+
+  if (physicalDecision == 'PHYSICAL_REALITY_CONFIRMED' &&
+      current.decision == 'NON_CONCLUSIVE' &&
+      !_hasHardDisplayCorroboration(analyses)) {
+    final evidence = <String>{
+      ...current.evidenceSources,
+      'SHORT_1X_PHYSICAL_9_CELL',
+    }.toList()
+      ..sort();
+    final reasons = <String>{
+      ...current.reasons,
+      'ACTIVE_SHORT_1X_REALITY_RESOLVES_UNCORROBORATED_AMBIGUITY',
+    }.toList();
+    return HCVDisplayRiskResult(
+      risk: 'LOW',
+      score: current.score < 20 ? current.score : 20,
+      decision: 'NO_DISPLAY_EVIDENCE',
+      analysisStatus: 'COMPLETE',
+      evidenceSources: evidence,
+      strongSources: current.strongSources,
+      reasons: reasons,
+    );
+  }
+
+  return current;
+}
+
+'''
+rep(
+    'HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(\n',
+    helper + 'HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(\n',
+    'physical helpers',
+)
+
+rep(
+    "HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(\n  List<Map<String, dynamic>?> analyses,\n) {\n",
+    "HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(\n  List<Map<String, dynamic>?> analyses,\n) {\n  final current = _combinePhotoDisplayRiskWithoutPhysical(analyses);\n  return _applyActivePhysicalDiscriminator(current, analyses);\n}\n\nHCVDisplayRiskResult _combinePhotoDisplayRiskWithoutPhysical(\n  List<Map<String, dynamic>?> analyses,\n) {\n",
+    'photo wrapper',
+)
+
+rep(
+    "HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(\n  List<Map<String, dynamic>?> analyses,\n) {\n",
+    "HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(\n  List<Map<String, dynamic>?> analyses,\n) {\n  final current = _combineVideoDisplayRiskWithoutPhysical(analyses);\n  return _applyActivePhysicalDiscriminator(current, analyses);\n}\n\nHCVDisplayRiskResult _combineVideoDisplayRiskWithoutPhysical(\n  List<Map<String, dynamic>?> analyses,\n) {\n",
+    'video wrapper',
+)
+
+rep(
+    "  Map<String, dynamic>? pendingLiveScreenProbe;\n  HCVCaptureLocation? pendingVideoLocation;",
+    "  Map<String, dynamic>? pendingLiveScreenProbe;\n  Map<String, dynamic>? pendingVideoPhysicalCapture;\n  HCVCaptureLocation? pendingVideoLocation;",
+    'video physical state',
+)
+
+rep(
+    "    pendingLiveScreenProbe = null;\n    pendingVideoLocation = null;",
+    "    pendingLiveScreenProbe = null;\n    final stalePhysicalCapture = pendingVideoPhysicalCapture;\n    pendingVideoPhysicalCapture = null;\n    if (stalePhysicalCapture != null) {\n      await const HCVVideoShortExposureProbe()\n          .discardCapture(stalePhysicalCapture);\n    }\n    pendingVideoLocation = null;",
+    'switch cleanup',
+)
+
+rep(
+    "    pendingLiveScreenProbe = null;\n    pendingVideoLocation = captureLocation;\n    lastLiveSignals = null;",
+    "    pendingLiveScreenProbe = null;\n    pendingVideoPhysicalCapture = null;\n    pendingVideoLocation = captureLocation;\n    lastLiveSignals = null;",
+    'start reset',
+)
+
+rep(
+    "      // VIDEO starts on the user's first REC tap. There is no disposable\n      // pre-capture clip and no parallax/geometry gate; display evidence comes\n      // from the actual recorded video during post-capture analysis.\n      await _settleCameraAfterLiveProbe();\n      await controller!.startVideoRecording();",
+    "      // The REC tap first acquires a disposable SHORT_1X physical probe.\n      // It contains no 10x phase and is deleted after analysis. Only after the\n      // camera state is restored does the user's actual video container start.\n      pendingVideoPhysicalCapture =\n          await const HCVVideoShortExposureProbe().capture(controller!);\n\n      await _settleCameraAfterLiveProbe();\n      await controller!.startVideoRecording();",
+    'video pre-rec probe',
+)
+
+rep(
+    "      pendingVideoCapturedAt = null;\n      pendingVideoLocation = null;\n      pendingLiveScreenProbe = null;\n      setState(() {\n        recording = false;",
+    "      pendingVideoCapturedAt = null;\n      pendingVideoLocation = null;\n      pendingLiveScreenProbe = null;\n      final failedPhysicalCapture = pendingVideoPhysicalCapture;\n      pendingVideoPhysicalCapture = null;\n      if (failedPhysicalCapture != null) {\n        await const HCVVideoShortExposureProbe()\n            .discardCapture(failedPhysicalCapture);\n      }\n      setState(() {\n        recording = false;",
+    'start failure cleanup',
+)
+
+rep(
+    "      pendingVideoCapturedAt = null;\n      pendingVideoLocation = null;\n      pendingLiveScreenProbe = null;\n      try {\n        lastLiveSignals = await liveSignals.stopAndBuildSummary();",
+    "      pendingVideoCapturedAt = null;\n      pendingVideoLocation = null;\n      pendingLiveScreenProbe = null;\n      final failedPhysicalCapture = pendingVideoPhysicalCapture;\n      pendingVideoPhysicalCapture = null;\n      if (failedPhysicalCapture != null) {\n        await const HCVVideoShortExposureProbe()\n            .discardCapture(failedPhysicalCapture);\n      }\n      try {\n        lastLiveSignals = await liveSignals.stopAndBuildSummary();",
+    'stop failure cleanup',
+)
+
+rep(
+    "      final liveScreenProbe = _buildPhotoTemporalV2LiveProbe(temporalProbe);\n\n      final engine = HCVEngine();",
+    "      final liveScreenProbe = _buildPhotoTemporalV2LiveProbe(temporalProbe);\n      Map<String, dynamic>? photoPhysicalRawAnalysis;\n      final photoPhysicalBlock = temporalProbe['displayMicrotextureShadowProbe'];\n      if (photoPhysicalBlock is Map && photoPhysicalBlock['analysis'] is Map) {\n        photoPhysicalRawAnalysis = Map<String, dynamic>.from(\n          photoPhysicalBlock['analysis'] as Map,\n        );\n      }\n      final displayPhysicalDiscriminator =\n          HCVDisplayPhysicalDiscriminator.evaluate(\n        photoPhysicalRawAnalysis,\n        source: 'PHOTO_PRE_CAPTURE_SHORT_1X',\n      );\n\n      final engine = HCVEngine();",
+    'photo physical extraction',
+)
+
+rep(
+    "      final screenReplayAnalyses = [\n        liveScreenProbe,\n        screenReplayAnalysis,\n        mlScreenReplayAnalysis,\n      ];",
+    "      final screenReplayAnalyses = [\n        liveScreenProbe,\n        screenReplayAnalysis,\n        mlScreenReplayAnalysis,\n        displayPhysicalDiscriminator,\n      ];",
+    'photo physical fusion input',
+)
+
+rep(
+    '        "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",',
+    '        "aiProofLevel": "STILL_IMAGE_CAPTURE_ACTIVE_DISPLAY_V1",',
+    'photo proof level',
+)
+
+rep(
+    '        "liveScreenProbe": liveScreenProbe,\n        "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",',
+    '        "liveScreenProbe": liveScreenProbe,\n        "displayPhysicalDiscriminator": displayPhysicalDiscriminator,\n        "displayPhysicalRawAnalysis": photoPhysicalRawAnalysis,\n        "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",',
+    'photo claims physical',
+)
+
+rep(
+    "    final liveScreenProbe = pendingLiveScreenProbe;\n    pendingLiveScreenProbe = null;\n    final effectiveCapturedAt = capturedAt ?? DateTime.now();",
+    "    final liveScreenProbe = pendingLiveScreenProbe;\n    pendingLiveScreenProbe = null;\n    final videoPhysicalCapture = pendingVideoPhysicalCapture;\n    pendingVideoPhysicalCapture = null;\n    final effectiveCapturedAt = capturedAt ?? DateTime.now();",
+    'process video capture consume',
+)
+
+rep(
+    "    Map<String, dynamic>? socialFingerprint;\n    Map<String, dynamic>? screenReplayAnalysis;\n    Map<String, dynamic>? mlScreenReplayAnalysis;",
+    "    Map<String, dynamic>? socialFingerprint;\n    Map<String, dynamic>? screenReplayAnalysis;\n    Map<String, dynamic>? mlScreenReplayAnalysis;\n    Map<String, dynamic>? displayPhysicalRawAnalysis;\n    Map<String, dynamic>? displayPhysicalDiscriminator;",
+    'video physical vars',
+)
+
+video_physical = r'''
+
+    try {
+      displayPhysicalRawAnalysis =
+          await const HCVVideoShortExposureProbe().analyzeCapture(
+        videoPhysicalCapture,
+      );
+      displayPhysicalDiscriminator = HCVDisplayPhysicalDiscriminator.evaluate(
+        displayPhysicalRawAnalysis,
+        source: 'VIDEO_PRE_REC_SHORT_1X',
+      );
+    } catch (e) {
+      displayPhysicalDiscriminator = {
+        'type': 'SIGILLUM_DISPLAY_PHYSICAL_DISCRIMINATOR_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'physicalDecision': 'PHYSICAL_INDETERMINATE',
+        'decisionRole': 'ACTIVE_PHYSICAL_DISPLAY_DISCRIMINATOR',
+        'source': 'VIDEO_PRE_REC_SHORT_1X',
+        'reason': 'VIDEO_PHYSICAL_ANALYSIS_EXCEPTION',
+        'error': e.toString(),
+      };
+    } finally {
+      await const HCVVideoShortExposureProbe().discardCapture(
+        videoPhysicalCapture,
+      );
+    }
+'''
+rep(
+    "    final trustAnalysis = HCVTrustAnalyzer.analyze(\n",
+    video_physical + "\n    final trustAnalysis = HCVTrustAnalyzer.analyze(\n",
+    'video physical analysis',
+)
+
+rep(
+    "    final screenReplayAnalyses = [\n      liveScreenProbe,\n      screenReplayAnalysis,\n      mlScreenReplayAnalysis,\n    ];",
+    "    final screenReplayAnalyses = [\n      liveScreenProbe,\n      screenReplayAnalysis,\n      mlScreenReplayAnalysis,\n      displayPhysicalDiscriminator,\n    ];",
+    'video physical fusion input',
+)
+
+rep(
+    '      "captureMode": "STANDARD",\n      "liveCapture": true,\n      "liveCaptureMode": "PASSIVE",',
+    '      "captureMode": "ACTIVE_PHYSICAL_DISPLAY",\n      "liveCapture": true,\n      "liveCaptureMode": "ACTIVE_PHYSICAL_PLUS_PASSIVE",',
+    'video capture mode',
+)
+
+rep(
+    '      "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",',
+    '      "aiProofLevel": "ACTIVE_DISPLAY_PHYSICAL_V1",',
+    'video proof level',
+)
+
+rep(
+    '      "liveScreenProbe": liveScreenProbe,\n      "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",',
+    '      "liveScreenProbe": liveScreenProbe,\n      "displayPhysicalDiscriminator": displayPhysicalDiscriminator,\n      "displayPhysicalRawAnalysis": displayPhysicalRawAnalysis,\n      "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",',
+    'video claims physical',
+)
+
+path.write_text(text)
+print('Active physical display integration applied.')
