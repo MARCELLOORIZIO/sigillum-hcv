@@ -201,10 +201,15 @@ replace_once('lib/hcv_temporal_capture_probe.dart', marker, wrapper + marker)
 # decision gate because normal-exposure passive thresholds are not calibrated.
 replace_once(
     'lib/camera_page.dart',
-    "    Map<String, dynamic>? mlScreenReplayAnalysis;\n\n    setState(() {\n",
+    "    Map<String, dynamic>? mlScreenReplayAnalysis;\n\n"
+    "    setState(() {\n"
+    "      status = _c('analyzingScreen');\n"
+    "      videoPath = savedVideoPath;\n",
     "    Map<String, dynamic>? mlScreenReplayAnalysis;\n"
     "    Map<String, dynamic>? passivePhysicalVideoVerification;\n\n"
-    "    setState(() {\n",
+    "    setState(() {\n"
+    "      status = _c('analyzingScreen');\n"
+    "      videoPath = savedVideoPath;\n",
 )
 replace_once(
     'lib/camera_page.dart',
