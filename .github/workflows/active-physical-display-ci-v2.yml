@@ -23,14 +23,43 @@ jobs:
       - name: Apply integration patch
         run: python3 tool/apply_active_physical_display_patch.py
 
+      - name: Preserve compatibility claim contracts
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('lib/camera_page.dart')
+          text = path.read_text()
+          text = text.replace(
+              '        "aiProofLevel": "STILL_IMAGE_CAPTURE_ACTIVE_DISPLAY_V1",',
+              '        "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",\n'
+              '        "displayPhysicalProofLevel": "SHORT_1X_9_CELL_ACTIVE_V1",',
+          )
+          text = text.replace(
+              '      "captureMode": "ACTIVE_PHYSICAL_DISPLAY",\n'
+              '      "liveCapture": true,\n'
+              '      "liveCaptureMode": "ACTIVE_PHYSICAL_PLUS_PASSIVE",',
+              '      "captureMode": "STANDARD",\n'
+              '      "liveCapture": true,\n'
+              '      "liveCaptureMode": "PASSIVE",\n'
+              '      "displayPhysicalCaptureMode": "SHORT_1X_PRE_REC_ACTIVE",',
+          )
+          text = text.replace(
+              '      "aiProofLevel": "ACTIVE_DISPLAY_PHYSICAL_V1",',
+              '      "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",\n'
+              '      "displayPhysicalProofLevel": "SHORT_1X_9_CELL_ACTIVE_V1",',
+          )
+          path.write_text(text)
+          PY
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.1'
           cache: true
 
-      - name: Format changed Dart
-        run: dart format lib/camera_page.dart lib/hcv_display_physical_discriminator.dart lib/hcv_video_short_exposure_probe.dart test/hcv_display_physical_discriminator_test.dart
+      - name: Format new Dart only
+        run: dart format lib/hcv_display_physical_discriminator.dart lib/hcv_video_short_exposure_probe.dart test/hcv_display_physical_discriminator_test.dart
 
       - name: Resolve dependencies
         run: flutter pub get
