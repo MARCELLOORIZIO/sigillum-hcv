@@ -19,6 +19,7 @@ class HCVDisplayMicrotextureShadowProbe {
   static const Duration _zoomSettle = Duration(milliseconds: 180);
   static const double _requestedShortExposure = 1.0 / 240.0;
   static const double passiveMotionRejectionThreshold = 0.08;
+  static const double activeProbeMotionRejectionThreshold = 0.08;
 
   Future<Map<String, dynamic>> capture(
     CameraController controller, {
@@ -208,7 +209,17 @@ class HCVDisplayMicrotextureShadowProbe {
           startMs: startMs,
           endMs: endMs,
         );
-        results[id] = {...phase, ..._phaseMetrics(frames)};
+        final metrics = _phaseMetrics(frames);
+        final sceneMotionScore = _sceneMotionScore(frames);
+        final motionRejectedForActiveDecision =
+            sceneMotionScore > activeProbeMotionRejectionThreshold;
+        results[id] = {
+          ...phase,
+          'sceneMotionScore': sceneMotionScore,
+          'motionRejectedForActiveDecision': motionRejectedForActiveDecision,
+          'usableForActivePhysicalDecision': !motionRejectedForActiveDecision,
+          ...metrics,
+        };
       }
 
       double? structured(String id) =>
@@ -257,6 +268,11 @@ class HCVDisplayMicrotextureShadowProbe {
             structured('SHORT_10X'),
             structured('SHORT_1X'),
           ),
+        },
+        'activeMotionPolicy': const {
+          'method': 'GLOBAL_LUMA_DELTA_REMOVED_RESIDUAL_MOTION_SCORE_V1',
+          'rejectionThreshold': activeProbeMotionRejectionThreshold,
+          'rejectedShort1xCannotDriveDisplayDecision': true,
         },
         'spatialPolicy': capture?['spatialPolicy'],
         'note':
