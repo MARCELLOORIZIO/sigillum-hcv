@@ -14,6 +14,7 @@ void main() {
       result.reasons,
       contains('ACTIVE_PHYSICAL_PROBE_REPLACES_LEGACY_LIVE_PROBE'),
     );
-    expect(result.analysisStatus, 'COMPLETE');
+    expect(result.reasons, contains('ML_ANALYSIS_MISSING'));
+    expect(result.analysisStatus, 'PARTIAL');
   });
 }
