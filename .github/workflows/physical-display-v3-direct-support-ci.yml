@@ -1,0 +1,62 @@
+name: Physical display V3 direct-support validation
+
+on:
+  push:
+    branches:
+      - feature/physical-display-v3-direct-cell-support
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/physical-display-v3-direct-cell-support
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply deterministic V3 patch
+        run: python3 tool/apply_physical_display_v3_direct_support.py
+
+      - name: Format changed Dart
+        run: dart format lib/hcv_display_microtexture_probe.dart lib/hcv_physical_display_discriminator.dart test/hcv_physical_display_discriminator_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Physical V3 regression tests
+        run: |
+          flutter test test/hcv_physical_display_discriminator_test.dart --reporter expanded
+          flutter test test/video_passive_motion_rejection_test.dart --reporter expanded
+          flutter test test/physical_probe_substitutes_legacy_live_test.dart --reporter expanded
+          flutter test test/video_passive_physical_verification_contract_test.dart --reporter expanded
+
+      - name: Full Flutter tests
+        run: flutter test --reporter expanded
+
+      - name: Materialize validated V3 source on branch
+        run: |
+          rm -f tool/apply_physical_display_v3_direct_support.py
+          rm -f .github/workflows/physical-display-v3-direct-support-ci.yml
+          git config user.name "SIGILLUM CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No materialized changes to commit"
+            exit 0
+          fi
+          git commit -m "Require direct 9-of-9 display support and active motion quality"
+          git push origin HEAD:feature/physical-display-v3-direct-cell-support
