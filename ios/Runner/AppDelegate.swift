@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import Foundation
 import StoreKit
@@ -6,6 +7,7 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var storeKit2PriceChannel: FlutterMethodChannel?
+  private var cameraProbeChannel: FlutterMethodChannel?
   private var storefrontUpdatesTask: Task<Void, Never>?
   private var storefrontBaselineFingerprint = ""
   private var storefrontSessionFresh = false
@@ -15,6 +17,379 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+
+  private func cameraProbeDevice(uniqueID: String) -> AVCaptureDevice? {
+    let deviceTypes: [AVCaptureDevice.DeviceType] = [
+      .builtInWideAngleCamera,
+      .builtInTelephotoCamera,
+      .builtInUltraWideCamera,
+      .builtInDualCamera,
+      .builtInDualWideCamera,
+      .builtInTripleCamera,
+      .builtInTrueDepthCamera,
+    ]
+    let discovery = AVCaptureDevice.DiscoverySession(
+      deviceTypes: deviceTypes,
+      mediaType: .video,
+      position: .unspecified
+    )
+    return discovery.devices.first(where: { $0.uniqueID == uniqueID })
+  }
+
+  private func exposureModeName(_ mode: AVCaptureDevice.ExposureMode) -> String {
+    switch mode {
+    case .locked: return "LOCKED"
+    case .autoExpose: return "AUTO_EXPOSE"
+    case .continuousAutoExposure: return "CONTINUOUS_AUTO"
+    case .custom: return "CUSTOM"
+    @unknown default: return "UNKNOWN"
+    }
+  }
+
+  private func focusModeName(_ mode: AVCaptureDevice.FocusMode) -> String {
+    switch mode {
+    case .locked: return "LOCKED"
+    case .autoFocus: return "AUTO_FOCUS"
+    case .continuousAutoFocus: return "CONTINUOUS_AUTO"
+    @unknown default: return "UNKNOWN"
+    }
+  }
+
+  private func whiteBalanceModeName(_ mode: AVCaptureDevice.WhiteBalanceMode) -> String {
+    switch mode {
+    case .locked: return "LOCKED"
+    case .autoWhiteBalance: return "AUTO_WHITE_BALANCE"
+    case .continuousAutoWhiteBalance: return "CONTINUOUS_AUTO"
+    @unknown default: return "UNKNOWN"
+    }
+  }
+
+  private func cameraProbeState(_ device: AVCaptureDevice) -> [String: Any] {
+    let duration = CMTimeGetSeconds(device.exposureDuration)
+    let minDuration = CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+    let maxDuration = CMTimeGetSeconds(device.activeFormat.maxExposureDuration)
+    let activeMinFrame = CMTimeGetSeconds(device.activeVideoMinFrameDuration)
+    let activeMaxFrame = CMTimeGetSeconds(device.activeVideoMaxFrameDuration)
+    let dimensions = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
+    let formatIndex = device.formats.firstIndex(where: { $0 === device.activeFormat }) ?? -1
+    let formatMaxFps = device.activeFormat.videoSupportedFrameRateRanges
+      .map { $0.maxFrameRate }
+      .max() ?? 0.0
+    let gains = device.deviceWhiteBalanceGains
+    return [
+      "deviceUniqueId": device.uniqueID,
+      "zoomFactor": Double(device.videoZoomFactor),
+      "activeFormatIndex": formatIndex,
+      "activeFormatWidth": Int(dimensions.width),
+      "activeFormatHeight": Int(dimensions.height),
+      "activeFormatMaxSupportedFrameRate": formatMaxFps,
+      "activeVideoMinFrameDurationSeconds": activeMinFrame.isFinite ? activeMinFrame : 0.0,
+      "activeVideoMaxFrameDurationSeconds": activeMaxFrame.isFinite ? activeMaxFrame : 0.0,
+      "exposureMode": exposureModeName(device.exposureMode),
+      "exposureDurationSeconds": duration.isFinite ? duration : 0.0,
+      "iso": Double(device.iso),
+      "minISO": Double(device.activeFormat.minISO),
+      "maxISO": Double(device.activeFormat.maxISO),
+      "minExposureDurationSeconds": minDuration.isFinite ? minDuration : 0.0,
+      "maxExposureDurationSeconds": maxDuration.isFinite ? maxDuration : 0.0,
+      "focusMode": focusModeName(device.focusMode),
+      "lensPosition": Double(device.lensPosition),
+      "whiteBalanceMode": whiteBalanceModeName(device.whiteBalanceMode),
+      "whiteBalanceRedGain": Double(gains.redGain),
+      "whiteBalanceGreenGain": Double(gains.greenGain),
+      "whiteBalanceBlueGain": Double(gains.blueGain),
+    ]
+  }
+
+  private func cameraProbeDevice(
+    from call: FlutterMethodCall,
+    result: FlutterResult
+  ) -> AVCaptureDevice? {
+    guard
+      let args = call.arguments as? [String: Any],
+      let uniqueID = args["deviceUniqueId"] as? String,
+      !uniqueID.isEmpty
+    else {
+      result(FlutterError(
+        code: "CAMERA_PROBE_INVALID_ARGUMENTS",
+        message: "Missing iOS camera unique identifier",
+        details: nil
+      ))
+      return nil
+    }
+    guard let device = cameraProbeDevice(uniqueID: uniqueID) else {
+      result(FlutterError(
+        code: "CAMERA_PROBE_DEVICE_NOT_FOUND",
+        message: "The active iOS camera device could not be resolved",
+        details: uniqueID
+      ))
+      return nil
+    }
+    return device
+  }
+
+  private func clampedWhiteBalanceGains(
+    _ gains: AVCaptureDevice.WhiteBalanceGains,
+    for device: AVCaptureDevice
+  ) -> AVCaptureDevice.WhiteBalanceGains {
+    let maxGain = device.maxWhiteBalanceGain
+    return AVCaptureDevice.WhiteBalanceGains(
+      redGain: min(maxGain, max(1.0, gains.redGain)),
+      greenGain: min(maxGain, max(1.0, gains.greenGain)),
+      blueGain: min(maxGain, max(1.0, gains.blueGain))
+    )
+  }
+
+  private func handleCameraProbeCall(
+    _ call: FlutterMethodCall,
+    result: @escaping FlutterResult
+  ) {
+    guard let device = cameraProbeDevice(from: call, result: result) else {
+      return
+    }
+
+    switch call.method {
+    case "snapshotCameraState":
+      result(cameraProbeState(device))
+
+    case "configureTemporalFrequencyProbe":
+      let args = call.arguments as? [String: Any]
+      let requestedMaxFps = max(30.0, min(240.0, args?["targetMaxFps"] as? Double ?? 240.0))
+      var selectedFormat: AVCaptureDevice.Format?
+      var selectedFps = 0.0
+      var selectedArea: Int64 = 0
+
+      for format in device.formats {
+        let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+        if dimensions.width < 640 || dimensions.height < 480 { continue }
+        let maximum = format.videoSupportedFrameRateRanges.map { $0.maxFrameRate }.max() ?? 0.0
+        if maximum <= 0 { continue }
+        let candidateFps = min(requestedMaxFps, maximum)
+        let area = Int64(dimensions.width) * Int64(dimensions.height)
+        if candidateFps > selectedFps + 0.01 ||
+           (abs(candidateFps - selectedFps) <= 0.01 && area > selectedArea) {
+          selectedFormat = format
+          selectedFps = candidateFps
+          selectedArea = area
+        }
+      }
+
+      guard let format = selectedFormat, selectedFps > 0 else {
+        result(FlutterError(
+          code: "HIGH_FPS_FORMAT_UNAVAILABLE",
+          message: "No usable video format was found for the temporal frequency probe",
+          details: nil
+        ))
+        return
+      }
+
+      do {
+        try device.lockForConfiguration()
+        device.activeFormat = format
+        let frameDuration = CMTimeMakeWithSeconds(
+          1.0 / selectedFps,
+          preferredTimescale: 1_000_000_000
+        )
+        device.activeVideoMinFrameDuration = frameDuration
+        device.activeVideoMaxFrameDuration = frameDuration
+        if device.isExposureModeSupported(.continuousAutoExposure) {
+          device.exposureMode = .continuousAutoExposure
+        }
+        if device.isFocusModeSupported(.continuousAutoFocus) {
+          device.focusMode = .continuousAutoFocus
+        }
+        if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+          device.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
+        device.unlockForConfiguration()
+        var state = cameraProbeState(device)
+        state["configuredFrameRate"] = selectedFps
+        state["requestedTargetMaxFps"] = requestedMaxFps
+        result(state)
+      } catch {
+        result(FlutterError(
+          code: "HIGH_FPS_CONFIGURATION_FAILED",
+          message: error.localizedDescription,
+          details: nil
+        ))
+      }
+
+    case "lockTemporalProbeOptics":
+      do {
+        try device.lockForConfiguration()
+        if device.isFocusModeSupported(.locked) {
+          device.setFocusModeLocked(lensPosition: device.lensPosition, completionHandler: nil)
+        }
+        if device.isWhiteBalanceModeSupported(.locked) {
+          let gains = clampedWhiteBalanceGains(device.deviceWhiteBalanceGains, for: device)
+          device.setWhiteBalanceModeLocked(with: gains, completionHandler: nil)
+        }
+        device.unlockForConfiguration()
+        result(cameraProbeState(device))
+      } catch {
+        result(FlutterError(
+          code: "OPTICS_LOCK_FAILED",
+          message: error.localizedDescription,
+          details: nil
+        ))
+      }
+
+    case "applyShortExposure":
+      guard
+        let args = call.arguments as? [String: Any],
+        let requestedDuration = args["targetDurationSeconds"] as? Double,
+        requestedDuration > 0
+      else {
+        result(FlutterError(
+          code: "INVALID_EXPOSURE_DURATION",
+          message: "A positive target exposure duration is required",
+          details: nil
+        ))
+        return
+      }
+
+      let currentDuration = max(
+        CMTimeGetSeconds(device.exposureDuration),
+        CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+      )
+      let minimumDuration = CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+      let maximumDuration = CMTimeGetSeconds(device.activeFormat.maxExposureDuration)
+      let adaptiveShortDuration = currentDuration / 4.0
+      let targetDurationSeconds = min(
+        maximumDuration,
+        max(minimumDuration, min(requestedDuration, adaptiveShortDuration))
+      )
+      let currentISO = max(device.iso, device.activeFormat.minISO)
+      let exposureCompensation = currentDuration / max(targetDurationSeconds, 0.000001)
+      let compensatedISO = min(
+        device.activeFormat.maxISO,
+        max(device.activeFormat.minISO, currentISO * Float(exposureCompensation))
+      )
+      let targetDuration = CMTimeMakeWithSeconds(
+        targetDurationSeconds,
+        preferredTimescale: 1_000_000_000
+      )
+
+      do {
+        try device.lockForConfiguration()
+        guard device.isExposureModeSupported(.custom) else {
+          device.unlockForConfiguration()
+          result(FlutterError(
+            code: "CUSTOM_EXPOSURE_UNSUPPORTED",
+            message: "Custom shutter/ISO exposure is unavailable on this camera",
+            details: nil
+          ))
+          return
+        }
+        device.setExposureModeCustom(duration: targetDuration, iso: compensatedISO, completionHandler: nil)
+        device.unlockForConfiguration()
+        var state = cameraProbeState(device)
+        state["requestedExposureDurationSeconds"] = requestedDuration
+        state["baselineExposureDurationSeconds"] = currentDuration
+        state["baselineISO"] = Double(currentISO)
+        state["isoCompensationClamped"] = compensatedISO >= device.activeFormat.maxISO - 0.5
+        result(state)
+      } catch {
+        result(FlutterError(
+          code: "SHORT_EXPOSURE_CONFIGURATION_FAILED",
+          message: error.localizedDescription,
+          details: nil
+        ))
+      }
+
+    case "restoreCameraState":
+      guard
+        let args = call.arguments as? [String: Any],
+        let state = args["state"] as? [String: Any]
+      else {
+        result(FlutterError(
+          code: "CAMERA_STATE_MISSING",
+          message: "Original camera state is required for restore",
+          details: nil
+        ))
+        return
+      }
+
+      do {
+        try device.lockForConfiguration()
+
+        if let formatIndex = state["activeFormatIndex"] as? Int,
+           formatIndex >= 0,
+           formatIndex < device.formats.count {
+          device.activeFormat = device.formats[formatIndex]
+        }
+        if let minFrameSeconds = state["activeVideoMinFrameDurationSeconds"] as? Double,
+           minFrameSeconds > 0 {
+          device.activeVideoMinFrameDuration = CMTimeMakeWithSeconds(
+            minFrameSeconds,
+            preferredTimescale: 1_000_000_000
+          )
+        }
+        if let maxFrameSeconds = state["activeVideoMaxFrameDurationSeconds"] as? Double,
+           maxFrameSeconds > 0 {
+          device.activeVideoMaxFrameDuration = CMTimeMakeWithSeconds(
+            maxFrameSeconds,
+            preferredTimescale: 1_000_000_000
+          )
+        }
+
+        let originalExposure = state["exposureMode"] as? String ?? "CONTINUOUS_AUTO"
+        if originalExposure == "CUSTOM" && device.isExposureModeSupported(.custom) {
+          let durationSeconds = state["exposureDurationSeconds"] as? Double ?? 0.01
+          let requestedISO = Float(state["iso"] as? Double ?? Double(device.iso))
+          let restoredISO = min(device.activeFormat.maxISO, max(device.activeFormat.minISO, requestedISO))
+          let duration = CMTimeMakeWithSeconds(durationSeconds, preferredTimescale: 1_000_000_000)
+          device.setExposureModeCustom(duration: duration, iso: restoredISO, completionHandler: nil)
+        } else if originalExposure == "LOCKED" && device.isExposureModeSupported(.locked) {
+          device.exposureMode = .locked
+        } else if originalExposure == "AUTO_EXPOSE" && device.isExposureModeSupported(.autoExpose) {
+          device.exposureMode = .autoExpose
+        } else if device.isExposureModeSupported(.continuousAutoExposure) {
+          device.exposureMode = .continuousAutoExposure
+        }
+
+        let originalFocus = state["focusMode"] as? String ?? "CONTINUOUS_AUTO"
+        if originalFocus == "LOCKED" && device.isFocusModeSupported(.locked) {
+          let lens = Float(state["lensPosition"] as? Double ?? Double(device.lensPosition))
+          device.setFocusModeLocked(lensPosition: min(1.0, max(0.0, lens)), completionHandler: nil)
+        } else if originalFocus == "AUTO_FOCUS" && device.isFocusModeSupported(.autoFocus) {
+          device.focusMode = .autoFocus
+        } else if device.isFocusModeSupported(.continuousAutoFocus) {
+          device.focusMode = .continuousAutoFocus
+        }
+
+        let originalWhiteBalance = state["whiteBalanceMode"] as? String ?? "CONTINUOUS_AUTO"
+        if originalWhiteBalance == "LOCKED" && device.isWhiteBalanceModeSupported(.locked) {
+          let gains = AVCaptureDevice.WhiteBalanceGains(
+            redGain: Float(state["whiteBalanceRedGain"] as? Double ?? 1.0),
+            greenGain: Float(state["whiteBalanceGreenGain"] as? Double ?? 1.0),
+            blueGain: Float(state["whiteBalanceBlueGain"] as? Double ?? 1.0)
+          )
+          device.setWhiteBalanceModeLocked(
+            with: clampedWhiteBalanceGains(gains, for: device),
+            completionHandler: nil
+          )
+        } else if originalWhiteBalance == "AUTO_WHITE_BALANCE" && device.isWhiteBalanceModeSupported(.autoWhiteBalance) {
+          device.whiteBalanceMode = .autoWhiteBalance
+        } else if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+          device.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
+
+        device.unlockForConfiguration()
+        result(cameraProbeState(device))
+      } catch {
+        result(FlutterError(
+          code: "CAMERA_STATE_RESTORE_FAILED",
+          message: error.localizedDescription,
+          details: nil
+        ))
+      }
+
+    default:
+      result(FlutterMethodNotImplemented)
+    }
   }
 
   @available(iOS 15.0, *)
@@ -135,6 +510,23 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    let cameraChannel = FlutterMethodChannel(
+      name: "hcv.cameraProbe",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    cameraChannel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else {
+        result(FlutterError(
+          code: "CAMERA_PROBE_UNAVAILABLE",
+          message: "Camera probe bridge is unavailable",
+          details: nil
+        ))
+        return
+      }
+      self.handleCameraProbeCall(call, result: result)
+    }
+    cameraProbeChannel = cameraChannel
 
     let channel = FlutterMethodChannel(
       name: "hcv.storekit2",

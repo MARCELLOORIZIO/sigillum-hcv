@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_temporal_frequency_probe.dart';
 
 void main() {
-  test('periodic row phase sequence is detected as stable periodic structure', () {
+  test('periodic row phase sequence is detected as stable periodic structure',
+      () {
     const bins = 96;
     const frames = 24;
     const spatialBin = 8;
@@ -24,7 +25,8 @@ void main() {
     expect((result['dominantRowFrequencyBin'] as int), inInclusiveRange(7, 9));
     expect((result['dominantFrequencyStability'] as double), greaterThan(0.80));
     expect((result['phaseStepConsistency'] as double), greaterThan(0.80));
-    expect((result['medianTemporalDifferenceRms'] as double), greaterThan(0.005));
+    expect(
+        (result['medianTemporalDifferenceRms'] as double), greaterThan(0.005));
   });
 
   test('static row profile has negligible temporal difference energy', () {
@@ -40,15 +42,18 @@ void main() {
     expect((result['periodicityStrength'] as double), lessThan(1e-9));
   });
 
-  test('scalar luminance modulation exposes temporal spectral concentration', () {
+  test('scalar luminance modulation exposes temporal spectral concentration',
+      () {
     final values = List<double>.generate(
       32,
       (i) => 0.5 + 0.08 * sin(2 * pi * 4 * i / 32),
     );
     final result = HCVTemporalFrequencyMath.analyzeScalarSequence(values);
     expect(result['analysisStatus'], 'ANALYZED');
-    expect((result['robustFrameLumaModulationDepth'] as double), greaterThan(0.15));
-    expect((result['temporalSpectralConcentration'] as double), greaterThan(0.90));
+    expect((result['robustFrameLumaModulationDepth'] as double),
+        greaterThan(0.15));
+    expect(
+        (result['temporalSpectralConcentration'] as double), greaterThan(0.90));
   });
 
   test('probe contract is explicitly shadow-only and non-decisional', () {

@@ -257,17 +257,14 @@ class HCVTemporalFrequencyProbe {
         'ffmpegFrameResamplingApplied': false,
         'globalFrameLumaTemporalSpectrum': temporalLuma,
         'cellResults': cellResults,
-        'minimumCellPeriodicityStrength': periodicityStrengths.isEmpty
-            ? null
-            : periodicityStrengths.first,
+        'minimumCellPeriodicityStrength':
+            periodicityStrengths.isEmpty ? null : periodicityStrengths.first,
         'medianCellPeriodicityStrength': _median(periodicityStrengths),
-        'minimumCellFrequencyStability': frequencyStabilities.isEmpty
-            ? null
-            : frequencyStabilities.first,
+        'minimumCellFrequencyStability':
+            frequencyStabilities.isEmpty ? null : frequencyStabilities.first,
         'medianCellFrequencyStability': _median(frequencyStabilities),
-        'minimumCellPhaseStepConsistency': phaseConsistencies.isEmpty
-            ? null
-            : phaseConsistencies.first,
+        'minimumCellPhaseStepConsistency':
+            phaseConsistencies.isEmpty ? null : phaseConsistencies.first,
         'medianCellPhaseStepConsistency': _median(phaseConsistencies),
         'spatialPolicy': const {
           'gridRows': 3,
@@ -461,10 +458,8 @@ class HCVTemporalFrequencyMath {
         .map((index) => spectra[index]['phase'] ?? 0.0)
         .toList(growable: false);
     final phaseStepConsistency = _phaseStepConsistency(phases);
-    final concentrations = spectra
-        .map((s) => s['concentration'] ?? 0.0)
-        .toList()
-      ..sort();
+    final concentrations =
+        spectra.map((s) => s['concentration'] ?? 0.0).toList()..sort();
     differenceRms.sort();
     final medianConcentration = _median(concentrations) ?? 0.0;
     final medianDifferenceRms = _median(differenceRms) ?? 0.0;
@@ -475,9 +470,8 @@ class HCVTemporalFrequencyMath {
       'analysisStatus': 'ANALYZED',
       'framePairCount': spectra.length,
       'dominantRowFrequencyBin': modalBin,
-      'approximateDominantPeriodRows': modalBin <= 0
-          ? null
-          : frames.first.length / modalBin,
+      'approximateDominantPeriodRows':
+          modalBin <= 0 ? null : frames.first.length / modalBin,
       'dominantFrequencyStability': frequencyStability,
       'medianSpatialSpectralConcentration': medianConcentration,
       'phaseStepConsistency': phaseStepConsistency,
