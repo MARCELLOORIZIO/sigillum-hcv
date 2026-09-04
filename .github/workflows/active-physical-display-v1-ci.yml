@@ -28,17 +28,20 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Apply deterministic source patch
+      - name: Apply deterministic active physical source patch
         run: python3 tool/apply_active_physical_display_v1.py
 
+      - name: Apply whole-recording passive physical patch
+        run: python3 tool/apply_video_passive_physical_v1.py
+
       - name: Format changed Dart
-        run: dart format lib/hcv_display_microtexture_probe.dart lib/hcv_temporal_capture_probe.dart lib/hcv_physical_display_discriminator.dart lib/camera_page.dart test/hcv_physical_display_discriminator_test.dart
+        run: dart format lib/hcv_display_microtexture_probe.dart lib/hcv_temporal_capture_probe.dart lib/hcv_physical_display_discriminator.dart lib/camera_page.dart test/hcv_physical_display_discriminator_test.dart test/photo_pre_capture_only_contract_test.dart test/video_passive_physical_verification_contract_test.dart
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      - name: Active discriminator regression tests
-        run: flutter test test/hcv_physical_display_discriminator_test.dart --reporter expanded
+      - name: Active/passive display regression tests
+        run: flutter test test/hcv_physical_display_discriminator_test.dart test/photo_pre_capture_only_contract_test.dart test/video_passive_physical_verification_contract_test.dart --reporter expanded
 
       - name: Full Flutter tests
         run: flutter test --reporter expanded
@@ -47,8 +50,9 @@ jobs:
         run: |
           rm -f .github/workflows/active-physical-display-v1-ci.yml
           rm -f tool/apply_active_physical_display_v1.py
+          rm -f tool/apply_video_passive_physical_v1.py
           git config user.name "SIGILLUM CI"
           git config user.email "actions@users.noreply.github.com"
           git add -A
-          git commit -m "Activate short-shutter 1x physical display gate for photo and video"
+          git commit -m "Activate short-shutter display gate and whole-recording passive verification"
           git push origin HEAD:feature/active-physical-display-v1
