@@ -23,9 +23,9 @@ import 'hcv_location_image_watermark.dart';
 import 'hcv_capture_location.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_temporal_capture_probe.dart';
+import 'hcv_temporal_frequency_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
-import 'hcv_physical_display_discriminator.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
@@ -206,16 +206,12 @@ HCVDisplayRiskResult _combinePhotoDisplayRiskLegacy(
 }
 
 HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
-  List<Map<String, dynamic>?> analyses, {
-  bool physicalProbeAvailable = false,
-}) {
+  List<Map<String, dynamic>?> analyses,
+) {
   final mlFirst = HCVDisplayRiskFusion.mlFirstVideoDecision(
     _mlAnalysisFromAnalyses(analyses),
   );
-  final legacy = _combineVideoDisplayRiskLegacy(
-    analyses,
-    physicalProbeAvailable: physicalProbeAvailable,
-  );
+  final legacy = _combineVideoDisplayRiskLegacy(analyses);
   if (mlFirst != null &&
       (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
           !_hasHardDisplayCorroboration(analyses))) {
@@ -225,13 +221,9 @@ HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
 }
 
 HCVDisplayRiskResult _combineVideoDisplayRiskLegacy(
-  List<Map<String, dynamic>?> analyses, {
-  bool physicalProbeAvailable = false,
-}) {
-  final normalResult = HCVDisplayRiskFusion.combine(
-    analyses,
-    alternativePhysicalProbeAvailable: physicalProbeAvailable,
-  );
+  List<Map<String, dynamic>?> analyses,
+) {
+  final normalResult = HCVDisplayRiskFusion.combine(analyses);
   final resolvedFinalReality = normalResult.decision == 'NO_DISPLAY_EVIDENCE' &&
       (normalResult.reasons.contains(
             'GEOMETRIC_REALITY_AND_WEAK_MULTI_FRAME_SCREEN_EVIDENCE_AGREE',
@@ -293,7 +285,8 @@ class _CameraPageState extends State<CameraPage> {
       const HCVCaptureLocationService();
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
-  Map<String, dynamic>? pendingVideoPhysicalDisplayProbe;
+  HCVTemporalFrequencyClip? pendingTemporalFrequencyClip;
+  Map<String, dynamic>? pendingTemporalFrequencyProbe;
   HCVCaptureLocation? pendingVideoLocation;
   HCVCaptureLocation? _lastCaptureLocation;
   DateTime? pendingVideoCapturedAt;
@@ -510,7 +503,8 @@ class _CameraPageState extends State<CameraPage> {
     if (_printCoordinates && captureLocation == null) return;
 
     pendingLiveScreenProbe = null;
-    pendingVideoPhysicalDisplayProbe = null;
+    pendingTemporalFrequencyClip = null;
+    pendingTemporalFrequencyProbe = null;
     pendingVideoLocation = captureLocation;
     lastLiveSignals = null;
 
@@ -527,13 +521,20 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      // Active physical VIDEO gate: a disposable 1x-only normal/short-shutter
-      // probe runs before the real recording. It is deleted and never appears in
-      // the user's recorded video. No 10x zoom is used for VIDEO.
-      pendingVideoPhysicalDisplayProbe =
-          await const HCVTemporalCaptureProbe().captureActiveVideoPhysicalProbe(
-        controller!,
-      );
+      // BUILD 80 remains the decision baseline. A separate high-speed,
+      // short-shutter clip is captured only for shadow physical research and
+      // is never supplied to displayRisk fusion.
+      const frequencyProbeEngine = HCVTemporalFrequencyProbe();
+      try {
+        pendingTemporalFrequencyClip =
+            await frequencyProbeEngine.capture(controller!);
+      } catch (e) {
+        pendingTemporalFrequencyProbe = HCVTemporalFrequencyProbe.unavailable(
+          'VIDEO_TEMPORAL_FREQUENCY_CAPTURE_FAILED',
+          error: e,
+        );
+      }
+
       await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
@@ -549,7 +550,12 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoCapturedAt = null;
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
-      pendingVideoPhysicalDisplayProbe = null;
+      if (pendingTemporalFrequencyClip != null) {
+        await const HCVTemporalFrequencyProbe()
+            .discard(pendingTemporalFrequencyClip!.path);
+      }
+      pendingTemporalFrequencyClip = null;
+      pendingTemporalFrequencyProbe = null;
       setState(() {
         recording = false;
         status = '${_c('startError')}: $e';
@@ -600,6 +606,15 @@ class _CameraPageState extends State<CameraPage> {
 
       await _waitForFinalizedVideoContainer(file.path);
 
+      if (pendingTemporalFrequencyClip != null) {
+        pendingTemporalFrequencyProbe = await const HCVTemporalFrequencyProbe()
+            .analyzeCapturedClip(pendingTemporalFrequencyClip!);
+        pendingTemporalFrequencyClip = null;
+      }
+      pendingTemporalFrequencyProbe ??= HCVTemporalFrequencyProbe.unavailable(
+        'VIDEO_TEMPORAL_FREQUENCY_NOT_AVAILABLE',
+      );
+
       final capturedAt = pendingVideoCapturedAt ?? DateTime.now();
       final captureLocation = pendingVideoLocation;
       pendingVideoCapturedAt = null;
@@ -619,6 +634,12 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoCapturedAt = null;
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
+      if (pendingTemporalFrequencyClip != null) {
+        await const HCVTemporalFrequencyProbe()
+            .discard(pendingTemporalFrequencyClip!.path);
+      }
+      pendingTemporalFrequencyClip = null;
+      pendingTemporalFrequencyProbe = null;
       try {
         lastLiveSignals = await liveSignals.stopAndBuildSummary();
       } catch (_) {
@@ -712,8 +733,11 @@ class _CameraPageState extends State<CameraPage> {
     if (_printCoordinates && captureLocation == null) return;
 
     const temporalProbeEngine = HCVTemporalCaptureProbe();
+    const frequencyProbeEngine = HCVTemporalFrequencyProbe();
     HCVTemporalCaptureClip? temporalClip;
+    HCVTemporalFrequencyClip? frequencyClip;
     Map<String, dynamic>? temporalProbe;
+    Map<String, dynamic>? temporalFrequencyProbe;
 
     try {
       // One user tap starts the technical clip and automatically finishes with
@@ -722,6 +746,15 @@ class _CameraPageState extends State<CameraPage> {
         status = _c('takingPhoto');
         result = null;
       });
+
+      try {
+        frequencyClip = await frequencyProbeEngine.capture(controller!);
+      } catch (e) {
+        temporalFrequencyProbe = HCVTemporalFrequencyProbe.unavailable(
+          'PHOTO_TEMPORAL_FREQUENCY_CAPTURE_FAILED',
+          error: e,
+        );
+      }
 
       try {
         temporalClip = await temporalProbeEngine.capture(
@@ -759,6 +792,15 @@ class _CameraPageState extends State<CameraPage> {
       final capturedAt = DateTime.now();
 
       final savedPhotoPath = await savePhotoToDocuments(file.path);
+
+      if (frequencyClip != null) {
+        temporalFrequencyProbe =
+            await frequencyProbeEngine.analyzeCapturedClip(frequencyClip);
+        frequencyClip = null;
+      }
+      temporalFrequencyProbe ??= HCVTemporalFrequencyProbe.unavailable(
+        'PHOTO_TEMPORAL_FREQUENCY_NOT_AVAILABLE',
+      );
 
       if (temporalClip != null) {
         setState(() {
@@ -829,18 +871,8 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final baseDisplayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
+      final displayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
         screenReplayAnalyses,
-      );
-      final photoPhysicalAnalysis =
-          HCVPhysicalDisplayDiscriminator.analysisFromPhotoTemporalProbe(
-        temporalProbe,
-      );
-      final physicalDisplayDiscriminator =
-          HCVPhysicalDisplayDiscriminator.evaluate(photoPhysicalAnalysis);
-      final displayRisk = HCVPhysicalDisplayDiscriminator.apply(
-        base: baseDisplayRisk,
-        physicalAnalysis: photoPhysicalAnalysis,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -901,13 +933,13 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskDecision": displayRiskDecision,
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
-        "physicalDisplayDiscriminator": physicalDisplayDiscriminator,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
         "captureLocation": captureLocation?.toJson(),
         "locationPrinted": captureLocation != null,
         "liveScreenProbe": liveScreenProbe,
+        "temporalFrequencyProbe": temporalFrequencyProbe,
         "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",
         "geometryChallenge": liveScreenProbe["geometryChallenge"],
         "screenReplayAnalysis": screenReplayAnalysis,
@@ -962,6 +994,9 @@ class _CameraPageState extends State<CameraPage> {
         await uploadCertificateToRegistry();
       }
     } catch (e) {
+      if (frequencyClip != null) {
+        await frequencyProbeEngine.discard(frequencyClip.path);
+      }
       if (temporalClip != null) {
         await temporalProbeEngine.discard(temporalClip.path);
       }
@@ -1145,8 +1180,8 @@ class _CameraPageState extends State<CameraPage> {
   }) async {
     final liveScreenProbe = pendingLiveScreenProbe;
     pendingLiveScreenProbe = null;
-    final videoPhysicalDisplayProbe = pendingVideoPhysicalDisplayProbe;
-    pendingVideoPhysicalDisplayProbe = null;
+    final temporalFrequencyProbe = pendingTemporalFrequencyProbe;
+    pendingTemporalFrequencyProbe = null;
     final effectiveCapturedAt = capturedAt ?? DateTime.now();
 
     setState(() {
@@ -1165,7 +1200,6 @@ class _CameraPageState extends State<CameraPage> {
     Map<String, dynamic>? socialFingerprint;
     Map<String, dynamic>? screenReplayAnalysis;
     Map<String, dynamic>? mlScreenReplayAnalysis;
-    Map<String, dynamic>? passivePhysicalVideoVerification;
 
     setState(() {
       status = _c('analyzingScreen');
@@ -1196,21 +1230,6 @@ class _CameraPageState extends State<CameraPage> {
       };
     }
 
-    try {
-      passivePhysicalVideoVerification = await const HCVTemporalCaptureProbe()
-          .analyzePassiveRecordedVideoPhysical(savedVideoPath);
-    } catch (e) {
-      passivePhysicalVideoVerification = {
-        'type': 'SIGILLUM_VIDEO_PASSIVE_PHYSICAL_VERIFICATION_V1',
-        'analysisStatus': 'NOT_ANALYZED',
-        'reason': 'VIDEO_PASSIVE_PHYSICAL_EXCEPTION',
-        'error': e.toString(),
-        'recordedVideoAltered': false,
-        'shutterChangedDuringRecordedVideo': false,
-        'zoomChangedDuringRecordedVideo': false,
-      };
-    }
-
     final trustAnalysis = HCVTrustAnalyzer.analyze(
       liveSignals: lastLiveSignals,
       audioCaptured: true,
@@ -1220,21 +1239,8 @@ class _CameraPageState extends State<CameraPage> {
       screenReplayAnalysis,
       mlScreenReplayAnalysis,
     ];
-    final videoPhysicalAnalysisRaw = videoPhysicalDisplayProbe?['analysis'];
-    final videoPhysicalAnalysis = videoPhysicalAnalysisRaw is Map
-        ? Map<String, dynamic>.from(videoPhysicalAnalysisRaw)
-        : null;
-    final videoPhysicalProbeAvailable = videoPhysicalAnalysis != null &&
-        videoPhysicalAnalysis['analysisStatus'] == 'ANALYZED';
-    final baseDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
+    final displayRisk = combineVideoDisplayRiskFromCaptureEvidence(
       screenReplayAnalyses,
-      physicalProbeAvailable: videoPhysicalProbeAvailable,
-    );
-    final physicalDisplayDiscriminator =
-        HCVPhysicalDisplayDiscriminator.evaluate(videoPhysicalAnalysis);
-    final displayRisk = HCVPhysicalDisplayDiscriminator.apply(
-      base: baseDisplayRisk,
-      physicalAnalysis: videoPhysicalAnalysis,
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
@@ -1309,10 +1315,7 @@ class _CameraPageState extends State<CameraPage> {
       "displayRiskDecision": displayRiskDecision,
       "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
       "displayRiskEvidence": displayRisk.toJson(),
-      "physicalDisplayDiscriminator": physicalDisplayDiscriminator,
-      "physicalDisplayProbe": videoPhysicalDisplayProbe,
-      "passivePhysicalVideoVerification": passivePhysicalVideoVerification,
-      "aiProofLevel": "ACTIVE_PHYSICAL_PLUS_PASSIVE_LIVE_CAPTURE_V1",
+      "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
       "passiveLiveProofScore": trustAnalysis["score"],
@@ -1322,6 +1325,7 @@ class _CameraPageState extends State<CameraPage> {
       "captureLocation": captureLocation?.toJson(),
       "locationPrinted": captureLocation != null,
       "liveScreenProbe": liveScreenProbe,
+      "temporalFrequencyProbe": temporalFrequencyProbe,
       "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",
       "geometryChallenge": liveScreenProbe?["geometryChallenge"],
       "screenReplayAnalysis": screenReplayAnalysis,

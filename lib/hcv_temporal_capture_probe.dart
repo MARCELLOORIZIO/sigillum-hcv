@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 
-import 'hcv_display_microtexture_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_screen_replay_analyzer.dart';
 
@@ -10,12 +9,10 @@ class HCVTemporalCaptureClip {
   const HCVTemporalCaptureClip({
     required this.path,
     required this.captureDurationMs,
-    this.displayMicrotextureShadowCapture,
   });
 
   final String path;
   final int captureDurationMs;
-  final Map<String, dynamic>? displayMicrotextureShadowCapture;
 }
 
 class HCVTemporalCaptureProbe {
@@ -25,18 +22,11 @@ class HCVTemporalCaptureProbe {
   static const double photoMlFrameIntervalSeconds = 0.6;
   static const int photoMlFrameLimit = 4;
 
-  // Allows the existing camera-page failure path to delete both the BUILD 80
-  // temporal clip and the new disposable shadow clip without changing the
-  // camera-page API.
-  static final Map<String, Map<String, dynamic>> _shadowCaptureByPrimaryPath =
-      <String, Map<String, dynamic>>{};
-
-  /// Captures the experimental shadow probe first, restores camera state, then
-  /// captures the original BUILD 80 disposable pre-photo temporal clip.
+  /// Captures only the disposable pre-photo temporal clip.
   ///
-  /// The shadow probe is never used by the BUILD 80 fusion. The original 2.4 s
-  /// clip remains the only temporal clip used for the production verdict and
-  /// still ends immediately before the automatic still capture.
+  /// Analysis is intentionally deferred until after the still image is taken,
+  /// so no ML/optical processing delay can separate the end of this clip from
+  /// the actual photo capture.
   Future<HCVTemporalCaptureClip> capture(
     CameraController controller, {
     Duration duration = defaultDuration,
@@ -51,26 +41,10 @@ class HCVTemporalCaptureProbe {
       throw StateError('CAMERA_ALREADY_RECORDING');
     }
 
-    late Map<String, dynamic> displayMicrotextureShadowCapture;
-    try {
-      displayMicrotextureShadowCapture =
-          await const HCVDisplayMicrotextureShadowProbe().capture(controller);
-    } catch (error) {
-      displayMicrotextureShadowCapture = {
-        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
-        'analysisStatus': 'NOT_CAPTURED',
-        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'reason': 'ACTIVE_SHADOW_CAPTURE_EXCEPTION',
-        'error': error.toString(),
-      };
-    }
-
     String? temporaryVideoPath;
     var recordingStarted = false;
 
     try {
-      // BUILD 80 baseline begins here. Any zoom/exposure changes made by the
-      // shadow probe have already been restored before this point.
       await controller.setFlashMode(FlashMode.off);
       await Future.delayed(const Duration(milliseconds: 120));
 
@@ -82,17 +56,9 @@ class HCVTemporalCaptureProbe {
       recordingStarted = false;
       temporaryVideoPath = capture.path;
 
-      final shadowPath =
-          displayMicrotextureShadowCapture['path']?.toString() ?? '';
-      if (shadowPath.isNotEmpty) {
-        _shadowCaptureByPrimaryPath[temporaryVideoPath] =
-            displayMicrotextureShadowCapture;
-      }
-
       return HCVTemporalCaptureClip(
         path: temporaryVideoPath,
         captureDurationMs: duration.inMilliseconds,
-        displayMicrotextureShadowCapture: displayMicrotextureShadowCapture,
       );
     } catch (_) {
       if (recordingStarted && controller.value.isRecordingVideo) {
@@ -103,91 +69,27 @@ class HCVTemporalCaptureProbe {
       }
       if (temporaryVideoPath != null) {
         await discard(temporaryVideoPath);
-      } else {
-        await const HCVDisplayMicrotextureShadowProbe().discardCapture(
-          displayMicrotextureShadowCapture,
-        );
       }
       rethrow;
     }
   }
 
-  Future<Map<String, dynamic>> captureActiveVideoPhysicalProbe(
-    CameraController controller,
-  ) async {
-    final engine = const HCVDisplayMicrotextureShadowProbe();
-    Map<String, dynamic>? capture;
-    try {
-      capture = await engine.capture(controller, includeZoomProbe: false);
-      final analysis = await engine.analyzeCapture(capture);
-      final deleted = await engine.discardCapture(capture);
-      return {
-        'type': 'SIGILLUM_VIDEO_PHYSICAL_PRECAPTURE_PROBE_V1',
-        'analysisStatus': analysis['analysisStatus'] ?? 'NOT_ANALYZED',
-        'decisionRole': 'ACTIVE_PHYSICAL_DISCRIMINATOR',
-        'capture': _redactShadowPath(capture),
-        'analysis': analysis,
-        'temporaryVideoDeletedAfterAnalysis': deleted,
-        'recordedVideoContainsProbe': false,
-        'zoomVisibleInRecordedVideo': false,
-        'probeZoom': '1X_ONLY',
-      };
-    } catch (error) {
-      if (capture != null) {
-        await engine.discardCapture(capture);
-      }
-      return {
-        'type': 'SIGILLUM_VIDEO_PHYSICAL_PRECAPTURE_PROBE_V1',
-        'analysisStatus': 'NOT_ANALYZED',
-        'decisionRole': 'ACTIVE_PHYSICAL_DISCRIMINATOR',
-        'reason': 'VIDEO_PHYSICAL_PRECAPTURE_PROBE_FAILED',
-        'error': error.toString(),
-        'recordedVideoContainsProbe': false,
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> analyzePassiveRecordedVideoPhysical(
-    String videoPath,
-  ) async {
-    return const HCVDisplayMicrotextureShadowProbe()
-        .analyzeRecordedVideoPassive(videoPath);
-  }
-
-  /// Analyzes the unchanged BUILD 80 clip and, independently, the new shadow
-  /// capture. Shadow metrics are embedded in the HCV but never supplied to the
-  /// current DISPLAY/REALITY fusion.
+  /// Analyzes a clip already captured immediately before a still photo.
+  /// Four ML samples are requested at 0.6 s spacing inside the 2.4 s clip,
+  /// while optical analysis keeps its denser temporal sampling for
+  /// refresh/flicker evidence.
   Future<Map<String, dynamic>> analyzeCapturedClip(
     HCVTemporalCaptureClip clip,
   ) async {
     var temporaryVideoPath = clip.path;
-    final shadowCapture = clip.displayMicrotextureShadowCapture;
 
     try {
       late Map<String, dynamic> opticalAnalysis;
       late Map<String, dynamic> mlAnalysis;
-      Map<String, dynamic> displayMicrotextureShadowAnalysis;
 
       try {
-        displayMicrotextureShadowAnalysis =
-            await const HCVDisplayMicrotextureShadowProbe().analyzeCapture(
-          shadowCapture,
-        );
-      } catch (e) {
-        displayMicrotextureShadowAnalysis = {
-          'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
-          'analysisStatus': 'NOT_ANALYZED',
-          'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-          'productionDecisionChanged': false,
-          'reason': 'SHADOW_ANALYSIS_EXCEPTION',
-          'error': e.toString(),
-        };
-      }
-
-      try {
-        opticalAnalysis = await HCVScreenReplayAnalyzer().analyzeVideo(
-          temporaryVideoPath,
-        );
+        opticalAnalysis =
+            await HCVScreenReplayAnalyzer().analyzeVideo(temporaryVideoPath);
       } catch (e) {
         opticalAnalysis = _analysisUnknown(
           type: 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
@@ -197,7 +99,8 @@ class HCVTemporalCaptureProbe {
       }
 
       try {
-        mlAnalysis = await HCVMLScreenReplayClassifier.instance.analyzeVideo(
+        mlAnalysis =
+            await HCVMLScreenReplayClassifier.instance.analyzeVideo(
           temporaryVideoPath,
           frameSamplingIntervalSeconds: photoMlFrameIntervalSeconds,
           maxFrames: photoMlFrameLimit,
@@ -234,12 +137,6 @@ class HCVTemporalCaptureProbe {
           'decisionRole': 'PRE_CAPTURE_TEMPORAL_EVIDENCE',
           'captureSource': 'PHOTO_TECHNICAL_MINI_VIDEO_V2',
         },
-        'displayMicrotextureShadowProbe': {
-          'capture': _redactShadowPath(shadowCapture),
-          'analysis': displayMicrotextureShadowAnalysis,
-          'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-          'productionDecisionChanged': false,
-        },
       };
     } catch (e) {
       return _unknown(
@@ -251,9 +148,6 @@ class HCVTemporalCaptureProbe {
       if (temporaryVideoPath.isNotEmpty) {
         await discard(temporaryVideoPath);
       }
-      await const HCVDisplayMicrotextureShadowProbe().discardCapture(
-        shadowCapture,
-      );
     }
   }
 
@@ -276,31 +170,14 @@ class HCVTemporalCaptureProbe {
 
   Future<bool> discard(String? path) async {
     if (path == null || path.isEmpty) return true;
-    var primaryDeleted = true;
     try {
       final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
-        primaryDeleted = !await file.exists();
-      }
+      if (!await file.exists()) return true;
+      await file.delete();
+      return !await file.exists();
     } catch (_) {
-      primaryDeleted = false;
+      return false;
     }
-
-    final shadowCapture = _shadowCaptureByPrimaryPath.remove(path);
-    final shadowDeleted = await const HCVDisplayMicrotextureShadowProbe()
-        .discardCapture(shadowCapture);
-    return primaryDeleted && shadowDeleted;
-  }
-
-  Map<String, dynamic>? _redactShadowPath(Map<String, dynamic>? capture) {
-    if (capture == null) return null;
-    final copy = Map<String, dynamic>.from(capture);
-    if (copy.containsKey('path')) {
-      copy['temporaryVideoPathStoredInHcv'] = false;
-      copy.remove('path');
-    }
-    return copy;
   }
 
   Map<String, dynamic> _unknown(

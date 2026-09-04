@@ -36,7 +36,8 @@ class HCVDisplayRiskFusion {
   ) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
     final predictedClass = ml['predictedClass']?.toString() ?? '';
-    final screenProbability = (ml['screenProbability'] as num?)?.toDouble();
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble();
     if (screenProbability == null) return null;
     final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
         (screenProbability * 100).round();
@@ -74,7 +75,8 @@ class HCVDisplayRiskFusion {
     Map<String, dynamic>? ml,
   ) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
-    final screenProbability = (ml['screenProbability'] as num?)?.toDouble();
+    final screenProbability =
+        (ml['screenProbability'] as num?)?.toDouble();
     final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final rawFrames = ml['videoFrameAnalyses'];
     if (screenProbability == null ||
@@ -86,7 +88,8 @@ class HCVDisplayRiskFusion {
 
     final screenFrames = rawFrames.where((frame) {
       if (frame is! Map) return false;
-      return (frame['predictedClass']?.toString() ?? '').startsWith('SCREEN_');
+      return (frame['predictedClass']?.toString() ?? '')
+          .startsWith('SCREEN_');
     }).length;
     final screenMajority = screenFrames * 2 > framesAnalyzed;
     final noScreenMajority = screenFrames * 2 <= framesAnalyzed;
@@ -252,7 +255,8 @@ class HCVDisplayRiskFusion {
         .length;
     final atLeastEightyPercentScreen =
         screenFrameCount * 5 >= framesAnalyzed * 4;
-    final atLeastHalfMedium = mediumScreenFrameCount * 2 >= framesAnalyzed;
+    final atLeastHalfMedium =
+        mediumScreenFrameCount * 2 >= framesAnalyzed;
 
     final commonPersistenceGate = predictedClass.startsWith('SCREEN_') &&
         atLeastEightyPercentScreen &&
@@ -334,8 +338,7 @@ class HCVDisplayRiskFusion {
         .where(
           (frame) =>
               frame is Map &&
-              (frame['predictedClass']?.toString() ?? '')
-                  .startsWith('REALITY_'),
+              (frame['predictedClass']?.toString() ?? '').startsWith('REALITY_'),
         )
         .length;
     return predictedClass.startsWith('SCREEN_') &&
@@ -477,7 +480,8 @@ class HCVDisplayRiskFusion {
         (ml['screenProbability'] as num?)?.toDouble() ?? 0.0;
     final signals = _signals(ml);
     final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
-    final contentArea = (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+    final contentArea =
+        (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
     return predictedClass.startsWith('SCREEN_') &&
         frames == 1 &&
         score >= 95 &&
@@ -529,7 +533,6 @@ class HCVDisplayRiskFusion {
   static HCVDisplayRiskResult combine(
     List<Map<String, dynamic>?> analyses, {
     bool liveCaptureOnly = false,
-    bool alternativePhysicalProbeAvailable = false,
   }) {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
     final postCaptureMl =
@@ -644,12 +647,13 @@ class HCVDisplayRiskFusion {
         liveSignals['reflectedRealityEvidence'] == true;
     final activeChallengeIndeterminate =
         liveSignals['activeChallengeIndeterminate'] == true;
-    final hardLiveDisplayTrace = liveSignals['confirmedDisplayTrace'] == true ||
-        liveSignals['periodicLightTrace'] == true ||
-        liveSignals['strongRefreshTrace'] == true ||
-        liveSignals['displayBandTrace'] == true ||
-        liveSignals['opticalStripeTrace'] == true ||
-        liveSignals['opticalCorroboratedTrace'] == true;
+    final hardLiveDisplayTrace =
+        liveSignals['confirmedDisplayTrace'] == true ||
+            liveSignals['periodicLightTrace'] == true ||
+            liveSignals['strongRefreshTrace'] == true ||
+            liveSignals['displayBandTrace'] == true ||
+            liveSignals['opticalStripeTrace'] == true ||
+            liveSignals['opticalCorroboratedTrace'] == true;
     final activeProbeNonConclusive = activeProbeVersion != null &&
         activeProbeVersion >= 2 &&
         live?['displayRiskDecision'] == 'NON_CONCLUSIVE';
@@ -1008,32 +1012,34 @@ class HCVDisplayRiskFusion {
             !passiveStrong &&
             !passiveModerate &&
             !mlStrong;
-    final shortGeometricSemanticRealityAgreement = !liveCaptureOnly &&
-        geometrySceneClass == 'REALITY' &&
-        !reflectedRealityEvidence &&
-        mlShortGeometricSemanticReality &&
-        liveSignals['confirmedDisplayTrace'] != true &&
-        liveSignals['periodicLightTrace'] != true &&
-        !passiveStructuralEvidence &&
-        !passiveStrong &&
-        !passiveModerate &&
-        !mlStrong;
+    final shortGeometricSemanticRealityAgreement =
+        !liveCaptureOnly &&
+            geometrySceneClass == 'REALITY' &&
+            !reflectedRealityEvidence &&
+            mlShortGeometricSemanticReality &&
+            liveSignals['confirmedDisplayTrace'] != true &&
+            liveSignals['periodicLightTrace'] != true &&
+            !passiveStructuralEvidence &&
+            !passiveStrong &&
+            !passiveModerate &&
+            !mlStrong;
     final geometryRealityWithIndependentNonDisplay =
         geometrySceneClass == 'REALITY' &&
             weakScreenAcrossVideoFrames &&
             !passiveStructuralEvidence &&
             !passiveStrong &&
             !passiveModerate;
-    final planarSemanticRealityWithoutHardDisplayEvidence = !liveCaptureOnly &&
-        geometrySceneClass == 'PLANAR' &&
-        mlPlanarSemanticReality &&
-        !rawActiveDisplayEvidence &&
-        !activeDisplayEvidence &&
-        !hardLiveDisplayTrace &&
-        !passiveStructuralEvidence &&
-        !passiveStrong &&
-        !passiveModerate &&
-        !mlStrong;
+    final planarSemanticRealityWithoutHardDisplayEvidence =
+        !liveCaptureOnly &&
+            geometrySceneClass == 'PLANAR' &&
+            mlPlanarSemanticReality &&
+            !rawActiveDisplayEvidence &&
+            !activeDisplayEvidence &&
+            !hardLiveDisplayTrace &&
+            !passiveStructuralEvidence &&
+            !passiveStrong &&
+            !passiveModerate &&
+            !mlStrong;
 
     final strongDisplayFamilies = <String>{};
     if (liveTemporal) strongDisplayFamilies.add('LIVE_TEMPORAL');
@@ -1050,10 +1056,9 @@ class HCVDisplayRiskFusion {
 
     final hasIndependentCorroboration = strongDisplayFamilies.length >= 2;
     final hasAnyEvidence = evidenceSources.isNotEmpty;
-    final liveNotAnalyzed = !alternativePhysicalProbeAvailable &&
-        (live == null ||
-            liveScore == null ||
-            live?['analysisStatus'] == 'NOT_ANALYZED');
+    final liveNotAnalyzed = live == null ||
+        liveScore == null ||
+        live?['analysisStatus'] == 'NOT_ANALYZED';
 
     final liveReason = live?['reason']?.toString() ?? '';
     final signedGeometricReality = live != null &&
@@ -1085,8 +1090,7 @@ class HCVDisplayRiskFusion {
           (postCaptureMl?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final temporalScore =
           (photoTemporalMl?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
-      score =
-          max(max(rawScore, stillScore), temporalScore).clamp(85, 100).toInt();
+      score = max(max(rawScore, stillScore), temporalScore).clamp(85, 100).toInt();
     } else if (photoDualRealityAgreement &&
         !hardLiveDisplayTrace &&
         !passiveStructuralEvidence &&
@@ -1098,8 +1102,8 @@ class HCVDisplayRiskFusion {
       strongSources.remove('PHYSICAL_DISPLAY_COMBINATION');
       reasons.remove('PLANAR_GEOMETRY_AND_TEMPORAL_BANDS_CONFIRMED');
       reasons.remove('ACTIVE_ILLUMINATION_AND_TEMPORAL_BANDS_CONFIRMED');
-      reasons
-          .add('PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL');
+      reasons.add(
+          'PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL');
     } else if (signedGeometricReality && !confirmedDisplayEvidence) {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 20);
@@ -1235,15 +1239,11 @@ class HCVDisplayRiskFusion {
     }
 
     final missingReasons = <String>[];
-    if (alternativePhysicalProbeAvailable) {
-      reasons.add('ACTIVE_PHYSICAL_PROBE_REPLACES_LEGACY_LIVE_PROBE');
-    } else {
-      _appendMissingReason(
-        missingReasons,
-        live,
-        missingTypeReason: 'LIVE_PROBE_MISSING',
-      );
-    }
+    _appendMissingReason(
+      missingReasons,
+      live,
+      missingTypeReason: 'LIVE_PROBE_MISSING',
+    );
     if (!liveCaptureOnly) {
       _appendMissingReason(
         missingReasons,
