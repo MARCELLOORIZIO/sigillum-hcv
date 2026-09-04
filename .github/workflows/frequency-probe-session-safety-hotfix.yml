@@ -1,0 +1,59 @@
+name: Frequency probe session safety hotfix
+
+on:
+  push:
+    branches:
+      - fix/build87-frequency-probe-session-crash
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply session safety hotfix
+        run: python3 tool/apply_frequency_probe_session_safety_hotfix.py
+
+      - name: Format changed Dart
+        run: dart format lib/hcv_temporal_frequency_probe.dart test/frequency_probe_session_safety_contract_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Session safety regression tests
+        run: flutter test test/frequency_probe_session_safety_contract_test.dart test/temporal_frequency_probe_contract_test.dart
+
+      - name: Full Flutter tests
+        run: flutter test
+
+      - name: Materialize validated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "SIGILLUM CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/hcv_temporal_frequency_probe.dart test/frequency_probe_session_safety_contract_test.dart
+          git rm -f tool/apply_frequency_probe_session_safety_hotfix.py .github/workflows/frequency-probe-session-safety-hotfix.yml
+          if git diff --cached --quiet; then
+            echo "No materialized changes to commit"
+            exit 0
+          fi
+          git commit -m "Keep temporal frequency probe inside Flutter camera session contract"
+          git push origin HEAD:fix/build87-frequency-probe-session-crash
