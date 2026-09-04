@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -23,20 +23,19 @@ class HCVDisplayMicrotextureShadowProbe {
     if (!controller.value.isInitialized) {
       return _captureUnavailable('CAMERA_NOT_READY');
     }
-    if (controller.value.isStreamingImages ||
-        controller.value.isRecordingVideo) {
+    if (controller.value.isStreamingImages || controller.value.isRecordingVideo) {
       return _captureUnavailable('CAMERA_BUSY');
     }
 
     final uniqueId = controller.description.name;
     Map<String, dynamic>? originalState;
-    String? path;
+    String? videoPath;
     var recording = false;
 
     try {
       originalState = await _invokeMap(
         'snapshotCameraState',
-        {'deviceUniqueId': uniqueId},
+        <String, dynamic>{'deviceUniqueId': uniqueId},
       );
       if (originalState == null) {
         return _captureUnavailable('CAMERA_STATE_UNAVAILABLE');
@@ -45,14 +44,14 @@ class HCVDisplayMicrotextureShadowProbe {
       final minZoom = await controller.getMinZoomLevel();
       final maxZoom = await controller.getMaxZoomLevel();
       final originalZoom =
-          (originalState['zoomFactor'] as num?)?.toDouble() ?? minZoom;
+          _asDouble(originalState['zoomFactor']) ?? minZoom;
       final oneX = 1.0.clamp(minZoom, maxZoom).toDouble();
       final tenX = 10.0.clamp(minZoom, maxZoom).toDouble();
 
       await controller.setFlashMode(FlashMode.off);
       await _invokeMap(
         'setContinuousAutoExposure',
-        {'deviceUniqueId': uniqueId},
+        <String, dynamic>{'deviceUniqueId': uniqueId},
       );
       await controller.setZoomLevel(oneX);
       await Future.delayed(_zoomSettle);
@@ -62,57 +61,61 @@ class HCVDisplayMicrotextureShadowProbe {
       final clock = Stopwatch()..start();
       final phases = <Map<String, dynamic>>[];
 
-      Future<void> phase(String id, double zoom, String exposure) async {
+      Future<void> recordPhase(
+        String id,
+        double zoom,
+        String exposureMode,
+      ) async {
         final state = await _invokeMap(
           'snapshotCameraState',
-          {'deviceUniqueId': uniqueId},
+          <String, dynamic>{'deviceUniqueId': uniqueId},
         );
-        final start = clock.elapsedMilliseconds;
+        final startMs = clock.elapsedMilliseconds;
         await Future.delayed(_phaseDuration);
-        phases.add({
+        phases.add(<String, dynamic>{
           'id': id,
-          'startMs': start,
+          'startMs': startMs,
           'endMs': clock.elapsedMilliseconds,
           'requestedZoom': zoom,
-          'exposureMode': exposure,
+          'exposureMode': exposureMode,
           if (state != null) 'exposureState': state,
         });
       }
 
-      await phase('NORMAL_1X', oneX, 'CONTINUOUS_AUTO');
+      await recordPhase('NORMAL_1X', oneX, 'CONTINUOUS_AUTO');
 
       await _invokeMap(
         'applyShortExposure',
-        {
+        <String, dynamic>{
           'deviceUniqueId': uniqueId,
           'targetDurationSeconds': _requestedShortExposure,
         },
       );
       await Future.delayed(_exposureSettle);
-      await phase('SHORT_1X', oneX, 'CUSTOM_SHORT');
+      await recordPhase('SHORT_1X', oneX, 'CUSTOM_SHORT');
 
       await _invokeMap(
         'setContinuousAutoExposure',
-        {'deviceUniqueId': uniqueId},
+        <String, dynamic>{'deviceUniqueId': uniqueId},
       );
       await controller.setZoomLevel(tenX);
       await Future.delayed(_zoomSettle);
-      await phase('NORMAL_10X', tenX, 'CONTINUOUS_AUTO');
+      await recordPhase('NORMAL_10X', tenX, 'CONTINUOUS_AUTO');
 
       await _invokeMap(
         'applyShortExposure',
-        {
+        <String, dynamic>{
           'deviceUniqueId': uniqueId,
           'targetDurationSeconds': _requestedShortExposure,
         },
       );
       await Future.delayed(_exposureSettle);
-      await phase('SHORT_10X', tenX, 'CUSTOM_SHORT');
+      await recordPhase('SHORT_10X', tenX, 'CUSTOM_SHORT');
 
       final video = await controller.stopVideoRecording();
       recording = false;
       clock.stop();
-      path = video.path;
+      videoPath = video.path;
 
       await _restore(
         controller,
@@ -123,44 +126,46 @@ class HCVDisplayMicrotextureShadowProbe {
         maxZoom: maxZoom,
       );
 
-      return {
+      return <String, dynamic>{
         'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
         'analysisStatus': 'CAPTURED_NOT_ANALYZED',
         'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'path': path,
+        'path': videoPath,
         'deviceUniqueId': uniqueId,
         'originalCameraState': originalState,
         'targetZoom': tenX,
         'targetShortExposureSeconds': _requestedShortExposure,
         'captureDurationMs': clock.elapsedMilliseconds,
         'phases': phases,
-        'spatialPolicy': const {
+        'spatialPolicy': const <String, dynamic>{
           'gridRows': 3,
           'gridColumns': 3,
           'requiredDisplayCoverageCells': 9,
           'allowedRealityEscapeCells': 0,
           'decisionEnabled': false,
-          'note':
-              '9/9 coverage is the future policy; no numeric production threshold is applied in shadow mode.',
+          'note': '9/9 coverage is recorded only; no production threshold is enabled.',
         },
       };
     } catch (error) {
       if (recording && controller.value.isRecordingVideo) {
         try {
-          path = (await controller.stopVideoRecording()).path;
+          videoPath = (await controller.stopVideoRecording()).path;
         } catch (_) {}
       }
-      if (path != null) await _delete(path);
-      if (originalState != null) {
+      final pathToDelete = videoPath;
+      if (pathToDelete != null) {
+        await _delete(pathToDelete);
+      }
+      final stateToRestore = originalState;
+      if (stateToRestore != null) {
         try {
           final minZoom = await controller.getMinZoomLevel();
           final maxZoom = await controller.getMaxZoomLevel();
           await _restore(
             controller,
             uniqueId: uniqueId,
-            originalState: originalState,
-            originalZoom:
-                (originalState['zoomFactor'] as num?)?.toDouble() ?? minZoom,
+            originalState: stateToRestore,
+            originalZoom: _asDouble(stateToRestore['zoomFactor']) ?? minZoom,
             minZoom: minZoom,
             maxZoom: maxZoom,
           );
@@ -173,13 +178,14 @@ class HCVDisplayMicrotextureShadowProbe {
   Future<Map<String, dynamic>> analyzeCapture(
     Map<String, dynamic>? capture,
   ) async {
-    final videoPath = capture?['path']?.toString();
-    if (videoPath == null ||
-        videoPath.isEmpty ||
-        !await File(videoPath).exists()) {
+    if (capture == null) {
+      return _analysisUnavailable('SHADOW_CAPTURE_MISSING');
+    }
+    final videoPath = capture['path']?.toString();
+    if (videoPath == null || videoPath.isEmpty || !await File(videoPath).exists()) {
       return _analysisUnavailable('SHADOW_VIDEO_NOT_FOUND');
     }
-    final rawPhases = capture?['phases'];
+    final rawPhases = capture['phases'];
     if (rawPhases is! List || rawPhases.isEmpty) {
       return _analysisUnavailable('PHASE_METADATA_MISSING');
     }
@@ -194,14 +200,16 @@ class HCVDisplayMicrotextureShadowProbe {
     try {
       await root.create(recursive: true);
       final results = <String, Map<String, dynamic>>{};
-      for (var i = 0; i < rawPhases.length; i++) {
-        final raw = rawPhases[i];
+
+      for (var index = 0; index < rawPhases.length; index++) {
+        final raw = rawPhases[index];
         if (raw is! Map) continue;
         final phase = Map<String, dynamic>.from(raw);
-        final id = phase['id']?.toString() ?? 'PHASE_$i';
-        final startMs = (phase['startMs'] as num?)?.toInt();
-        final endMs = (phase['endMs'] as num?)?.toInt();
+        final id = phase['id']?.toString() ?? 'PHASE_$index';
+        final startMs = _asInt(phase['startMs']);
+        final endMs = _asInt(phase['endMs']);
         if (startMs == null || endMs == null || endMs <= startMs) continue;
+
         final dir = Directory(p.join(root.path, id.toLowerCase()));
         await dir.create(recursive: true);
         final frames = await _extractFrames(
@@ -210,44 +218,58 @@ class HCVDisplayMicrotextureShadowProbe {
           startMs: startMs,
           endMs: endMs,
         );
-        results[id] = {...phase, ..._phaseMetrics(frames)};
+        results[id] = <String, dynamic>{
+          ...phase,
+          ..._phaseMetrics(frames),
+        };
       }
 
-      double? structured(String id) =>
-          (results[id]?['structuredTemporalAxisRatio'] as num?)?.toDouble();
+      double? structured(String id) {
+        return _asDouble(results[id]?['structuredTemporalAxisRatio']);
+      }
 
-      return {
+      return <String, dynamic>{
         'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
         'analysisStatus': results.isEmpty ? 'NOT_ANALYZED' : 'ANALYZED',
         'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
         'productionDecisionChanged': false,
         'phaseResults': results,
-        'comparisons': {
-          'shortExposureGain1x':
-              _gain(structured('SHORT_1X'), structured('NORMAL_1X')),
-          'shortExposureGain10x':
-              _gain(structured('SHORT_10X'), structured('NORMAL_10X')),
-          'zoomGainNormal':
-              _gain(structured('NORMAL_10X'), structured('NORMAL_1X')),
-          'zoomGainShort':
-              _gain(structured('SHORT_10X'), structured('SHORT_1X')),
+        'comparisons': <String, dynamic>{
+          'shortExposureGain1x': _gain(
+            structured('SHORT_1X'),
+            structured('NORMAL_1X'),
+          ),
+          'shortExposureGain10x': _gain(
+            structured('SHORT_10X'),
+            structured('NORMAL_10X'),
+          ),
+          'zoomGainNormal': _gain(
+            structured('NORMAL_10X'),
+            structured('NORMAL_1X'),
+          ),
+          'zoomGainShort': _gain(
+            structured('SHORT_10X'),
+            structured('SHORT_1X'),
+          ),
         },
-        'spatialPolicy': capture?['spatialPolicy'],
-        'note':
-            'Raw 1x/10x and normal/short-shutter metrics. This block is never supplied to production fusion.',
+        'spatialPolicy': capture['spatialPolicy'],
       };
     } catch (error) {
       return _analysisUnavailable('SHADOW_ANALYSIS_FAILED', error: error);
     } finally {
       try {
-        if (await root.exists()) await root.delete(recursive: true);
+        if (await root.exists()) {
+          await root.delete(recursive: true);
+        }
       } catch (_) {}
     }
   }
 
   Future<bool> discardCapture(Map<String, dynamic>? capture) async {
-    final path = capture?['path']?.toString();
-    return path == null || path.isEmpty ? true : _delete(path);
+    if (capture == null) return true;
+    final path = capture['path']?.toString();
+    if (path == null || path.isEmpty) return true;
+    return _delete(path);
   }
 
   Future<List<img.Image>> _extractFrames(
@@ -256,11 +278,11 @@ class HCVDisplayMicrotextureShadowProbe {
     required int startMs,
     required int endMs,
   }) async {
-    final start = startMs / 1000.0;
-    final duration = max(0.10, (endMs - startMs) / 1000.0).toDouble();
+    final startSeconds = startMs / 1000.0;
+    final durationSeconds = math.max(0.10, (endMs - startMs) / 1000.0);
     final pattern = p.join(dir.path, 'frame_%03d.png');
-    final command = "-y -ss ${start.toStringAsFixed(4)} -i '$videoPath' "
-        "-t ${duration.toStringAsFixed(4)} -vf \"fps=15\" -frames:v 6 '$pattern'";
+    final command = "-y -ss ${startSeconds.toStringAsFixed(4)} -i '$videoPath' "
+        "-t ${durationSeconds.toStringAsFixed(4)} -vf \"fps=15\" -frames:v 6 '$pattern'";
     final session = await FFmpegKit.execute(command);
     final code = await session.getReturnCode();
     if (code == null || !ReturnCode.isSuccess(code)) return <img.Image>[];
@@ -271,6 +293,7 @@ class HCVDisplayMicrotextureShadowProbe {
         .where((file) => file.path.toLowerCase().endsWith('.png'))
         .toList()
       ..sort((a, b) => a.path.compareTo(b.path));
+
     final frames = <img.Image>[];
     for (final file in files) {
       final decoded = img.decodeImage(await file.readAsBytes());
@@ -281,7 +304,7 @@ class HCVDisplayMicrotextureShadowProbe {
 
   Map<String, dynamic> _phaseMetrics(List<img.Image> frames) {
     if (frames.length < 3) {
-      return const {
+      return const <String, dynamic>{
         'analysisStatus': 'NOT_ANALYZED',
         'reason': 'NOT_ENOUGH_NATIVE_FRAMES',
       };
@@ -290,7 +313,7 @@ class HCVDisplayMicrotextureShadowProbe {
     final cells = <Map<String, dynamic>>[];
     for (var row = 0; row < 3; row++) {
       for (var column = 0; column < 3; column++) {
-        cells.add({
+        cells.add(<String, dynamic>{
           'row': row,
           'column': column,
           ..._cellMetrics(frames, row: row, column: column),
@@ -298,22 +321,20 @@ class HCVDisplayMicrotextureShadowProbe {
       }
     }
 
-    final temporal = cells
-        .map((cell) =>
-            (cell['structuredTemporalAxisRatio'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList()
-      ..sort();
-    final chroma = cells
-        .map((cell) => (cell['fineChromaLumaRatio'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList();
-    final lattice = cells
-        .map((cell) => (cell['flatFieldLatticeScore'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList();
+    final temporal = <double>[];
+    final chroma = <double>[];
+    final lattice = <double>[];
+    for (final cell in cells) {
+      final temporalValue = _asDouble(cell['structuredTemporalAxisRatio']);
+      final chromaValue = _asDouble(cell['fineChromaLumaRatio']);
+      final latticeValue = _asDouble(cell['flatFieldLatticeScore']);
+      if (temporalValue != null) temporal.add(temporalValue);
+      if (chromaValue != null) chroma.add(chromaValue);
+      if (latticeValue != null) lattice.add(latticeValue);
+    }
+    temporal.sort();
 
-    return {
+    return <String, dynamic>{
       'analysisStatus': temporal.length == 9 ? 'ANALYZED' : 'PARTIAL',
       'framesAnalyzed': frames.length,
       'cellsAnalyzed': temporal.length,
@@ -338,36 +359,37 @@ class HCVDisplayMicrotextureShadowProbe {
     required int column,
   }) {
     final axis = <double>[];
-    final rows = <double>[];
-    final columns = <double>[];
-    for (var i = 1; i < frames.length; i++) {
-      final temporal = _temporalMetrics(
-        frames[i - 1],
-        frames[i],
+    final rowValues = <double>[];
+    final columnValues = <double>[];
+
+    for (var index = 1; index < frames.length; index++) {
+      final values = _temporalMetrics(
+        frames[index - 1],
+        frames[index],
         row: row,
         column: column,
       );
-      axis.add(temporal['axis']!);
-      rows.add(temporal['row']!);
-      columns.add(temporal['column']!);
+      axis.add(values['axis'] ?? 0.0);
+      rowValues.add(values['row'] ?? 0.0);
+      columnValues.add(values['column'] ?? 0.0);
     }
-    final spatial = _spatialMetrics(frames.last, row: row, column: column);
-    return {
+
+    return <String, dynamic>{
       'structuredTemporalAxisRatio': _mean(axis),
-      'rowTemporalCoherence': _mean(rows),
-      'columnTemporalCoherence': _mean(columns),
-      ...spatial,
+      'rowTemporalCoherence': _mean(rowValues),
+      'columnTemporalCoherence': _mean(columnValues),
+      ..._spatialMetrics(frames.last, row: row, column: column),
     };
   }
 
   Map<String, double> _temporalMetrics(
-    img.Image a,
-    img.Image b, {
+    img.Image previous,
+    img.Image current, {
     required int row,
     required int column,
   }) {
-    final width = min(a.width, b.width);
-    final height = min(a.height, b.height);
+    final width = math.min(previous.width, current.width);
+    final height = math.min(previous.height, current.height);
     final x0 = (width * column / 3).floor();
     final x1 = (width * (column + 1) / 3).floor();
     final y0 = (height * row / 3).floor();
@@ -378,13 +400,16 @@ class HCVDisplayMicrotextureShadowProbe {
     var count = 0;
     for (var y = y0; y < y1; y += step) {
       for (var x = x0; x < x1; x += step) {
-        global += _luma(b.getPixel(x, y)) - _luma(a.getPixel(x, y));
+        global += _luma(current.getPixel(x, y)) -
+            _luma(previous.getPixel(x, y));
         count++;
       }
     }
-    if (count == 0) return const {'axis': 0.0, 'row': 0.0, 'column': 0.0};
-    final globalDelta = global / count;
+    if (count == 0) {
+      return const <String, double>{'axis': 0.0, 'row': 0.0, 'column': 0.0};
+    }
 
+    final globalDelta = global / count;
     final rowProfile = <double>[];
     final columnProfile = <double>[];
     var residualSq = 0.0;
@@ -394,11 +419,11 @@ class HCVDisplayMicrotextureShadowProbe {
       var sum = 0.0;
       var n = 0;
       for (var x = x0; x < x1; x += step) {
-        final d = _luma(b.getPixel(x, y)) -
-            _luma(a.getPixel(x, y)) -
+        final delta = _luma(current.getPixel(x, y)) -
+            _luma(previous.getPixel(x, y)) -
             globalDelta;
-        sum += d;
-        residualSq += d * d;
+        sum += delta;
+        residualSq += delta * delta;
         residualCount++;
         n++;
       }
@@ -409,22 +434,24 @@ class HCVDisplayMicrotextureShadowProbe {
       var sum = 0.0;
       var n = 0;
       for (var y = y0; y < y1; y += step) {
-        sum += _luma(b.getPixel(x, y)) -
-            _luma(a.getPixel(x, y)) -
+        sum += _luma(current.getPixel(x, y)) -
+            _luma(previous.getPixel(x, y)) -
             globalDelta;
         n++;
       }
       if (n > 0) columnProfile.add(sum / n);
     }
 
-    final residual = sqrt(residualSq / max(1, residualCount));
+    final divisor = math.max(1, residualCount);
+    final residual = math.sqrt(residualSq / divisor);
     final rowRms = _rms(rowProfile);
     final columnRms = _rms(columnProfile);
-    final denom = max(1e-6, residual);
-    return {
-      'axis': sqrt(rowRms * rowRms + columnRms * columnRms) / denom,
-      'row': rowRms / denom,
-      'column': columnRms / denom,
+    final denominator = math.max(1e-6, residual);
+
+    return <String, double>{
+      'axis': math.sqrt(rowRms * rowRms + columnRms * columnRms) / denominator,
+      'row': rowRms / denominator,
+      'column': columnRms / denominator,
     };
   }
 
@@ -446,36 +473,53 @@ class HCVDisplayMicrotextureShadowProbe {
 
     for (var y = y0; y < y1 - step; y += step) {
       for (var x = x0; x < x1 - step; x += step) {
-        final c = image.getPixel(x, y);
+        final center = image.getPixel(x, y);
         final right = image.getPixel(x + step, y);
         final down = image.getPixel(x, y + step);
-        final lc = _luma(c);
-        lumaEnergy += (lc - _luma(right)).abs() + (lc - _luma(down)).abs();
-        final cc = _chroma(c);
-        chromaH += (cc - _chroma(right)).abs();
-        chromaV += (cc - _chroma(down)).abs();
-        chromaSeries.add(cc);
+        final centerLuma = _luma(center);
+        lumaEnergy +=
+            (centerLuma - _luma(right)).abs() + (centerLuma - _luma(down)).abs();
+        final centerChroma = _chroma(center);
+        chromaH += (centerChroma - _chroma(right)).abs();
+        chromaV += (centerChroma - _chroma(down)).abs();
+        chromaSeries.add(centerChroma);
         samples++;
       }
     }
 
     if (samples == 0) {
-      return const {
+      return const <String, double>{
         'highFrequencyLumaEnergy': 0.0,
         'fineChromaLumaRatio': 0.0,
         'chromaAnisotropy': 0.0,
         'flatFieldLatticeScore': 0.0,
       };
     }
-    final luma = lumaEnergy / (2 * samples);
-    final chroma = (chromaH + chromaV) / (2 * samples);
-    return {
+
+    final luma = lumaEnergy / (2.0 * samples);
+    final chroma = (chromaH + chromaV) / (2.0 * samples);
+    final anisotropyDenominator = math.max(1e-6, math.min(chromaH, chromaV));
+
+    return <String, double>{
       'highFrequencyLumaEnergy': luma,
-      'fineChromaLumaRatio': chroma / max(1e-6, luma),
-      'chromaAnisotropy':
-          max(chromaH, chromaV) / max(1e-6, min(chromaH, chromaV)),
+      'fineChromaLumaRatio': chroma / math.max(1e-6, luma),
+      'chromaAnisotropy': math.max(chromaH, chromaV) / anisotropyDenominator,
       'flatFieldLatticeScore': _autocorrelationPeak(chromaSeries),
     };
+  }
+
+  double _luma(dynamic pixel) {
+    final r = _asDouble(pixel.r) ?? 0.0;
+    final g = _asDouble(pixel.g) ?? 0.0;
+    final b = _asDouble(pixel.b) ?? 0.0;
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
+  }
+
+  double _chroma(dynamic pixel) {
+    final r = (_asDouble(pixel.r) ?? 0.0) / 255.0;
+    final g = (_asDouble(pixel.g) ?? 0.0) / 255.0;
+    final b = (_asDouble(pixel.b) ?? 0.0) / 255.0;
+    return (r - g).abs() + (b - g).abs();
   }
 
   double _autocorrelationPeak(List<double> values) {
@@ -483,51 +527,46 @@ class HCVDisplayMicrotextureShadowProbe {
     final mean = _mean(values) ?? 0.0;
     var variance = 0.0;
     for (final value in values) {
-      final d = value - mean;
-      variance += d * d;
+      final delta = value - mean;
+      variance += delta * delta;
     }
     if (variance <= 1e-9) return 0.0;
+
     var best = 0.0;
     for (var lag = 1; lag <= 8; lag++) {
       var covariance = 0.0;
-      for (var i = lag; i < values.length; i++) {
-        covariance += (values[i] - mean) * (values[i - lag] - mean);
+      for (var index = lag; index < values.length; index++) {
+        covariance +=
+            (values[index] - mean) * (values[index - lag] - mean);
       }
-      best = max(best, covariance / variance);
+      best = math.max(best, covariance / variance);
     }
     return best.clamp(0.0, 1.0).toDouble();
-  }
-
-  double _luma(img.Pixel pixel) {
-    final r = pixel.r.toDouble();
-    final g = pixel.g.toDouble();
-    final b = pixel.b.toDouble();
-    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
-  }
-
-  double _chroma(img.Pixel pixel) {
-    final r = pixel.r.toDouble() / 255.0;
-    final g = pixel.g.toDouble() / 255.0;
-    final b = pixel.b.toDouble() / 255.0;
-    return (r - g).abs() + (b - g).abs();
   }
 
   double _rms(List<double> values) {
     if (values.isEmpty) return 0.0;
     var total = 0.0;
-    for (final value in values) total += value * value;
-    return sqrt(total / values.length);
+    for (final value in values) {
+      total += value * value;
+    }
+    return math.sqrt(total / values.length);
   }
 
   double? _mean(List<double> values) {
     if (values.isEmpty) return null;
-    return values.reduce((a, b) => a + b) / values.length;
+    var total = 0.0;
+    for (final value in values) {
+      total += value;
+    }
+    return total / values.length;
   }
 
-  double? _median(List<double> sorted) {
-    if (sorted.isEmpty) return null;
-    final i = sorted.length ~/ 2;
-    return sorted.length.isOdd ? sorted[i] : (sorted[i - 1] + sorted[i]) / 2.0;
+  double? _median(List<double> sortedValues) {
+    if (sortedValues.isEmpty) return null;
+    final middle = sortedValues.length ~/ 2;
+    if (sortedValues.length.isOdd) return sortedValues[middle];
+    return (sortedValues[middle - 1] + sortedValues[middle]) / 2.0;
   }
 
   double? _gain(double? numerator, double? denominator) {
@@ -537,12 +576,24 @@ class HCVDisplayMicrotextureShadowProbe {
     return numerator / denominator;
   }
 
+  double? _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return null;
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is num) return value.toInt();
+    return null;
+  }
+
   Future<Map<String, dynamic>?> _invokeMap(
     String method,
-    Map<String, dynamic> args,
+    Map<String, dynamic> arguments,
   ) async {
-    final value = await _channel.invokeMapMethod<String, dynamic>(method, args);
-    return value == null ? null : Map<String, dynamic>.from(value);
+    final value =
+        await _channel.invokeMapMethod<String, dynamic>(method, arguments);
+    if (value == null) return null;
+    return Map<String, dynamic>.from(value);
   }
 
   Future<void> _restore(
@@ -556,7 +607,10 @@ class HCVDisplayMicrotextureShadowProbe {
     try {
       await _channel.invokeMethod<void>(
         'restoreCameraState',
-        {'deviceUniqueId': uniqueId, 'state': originalState},
+        <String, dynamic>{
+          'deviceUniqueId': uniqueId,
+          'state': originalState,
+        },
       );
     } catch (_) {}
     try {
@@ -578,20 +632,30 @@ class HCVDisplayMicrotextureShadowProbe {
     }
   }
 
-  Map<String, dynamic> _captureUnavailable(String reason, {Object? error}) => {
-        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
-        'analysisStatus': 'NOT_CAPTURED',
-        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'reason': reason,
-        if (error != null) 'error': error.toString(),
-      };
+  Map<String, dynamic> _captureUnavailable(
+    String reason, {
+    Object? error,
+  }) {
+    return <String, dynamic>{
+      'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
+      'analysisStatus': 'NOT_CAPTURED',
+      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+      'reason': reason,
+      if (error != null) 'error': error.toString(),
+    };
+  }
 
-  Map<String, dynamic> _analysisUnavailable(String reason, {Object? error}) => {
-        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
-        'analysisStatus': 'NOT_ANALYZED',
-        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-        'productionDecisionChanged': false,
-        'reason': reason,
-        if (error != null) 'error': error.toString(),
-      };
+  Map<String, dynamic> _analysisUnavailable(
+    String reason, {
+    Object? error,
+  }) {
+    return <String, dynamic>{
+      'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
+      'analysisStatus': 'NOT_ANALYZED',
+      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+      'productionDecisionChanged': false,
+      'reason': reason,
+      if (error != null) 'error': error.toString(),
+    };
+  }
 }
