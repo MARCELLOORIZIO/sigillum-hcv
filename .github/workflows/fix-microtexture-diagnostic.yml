@@ -1,0 +1,79 @@
+name: Fix microtexture diagnostic
+
+on:
+  push:
+    branches:
+      - diagnose/microtexture-analyze
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-validate-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Apply source corrections
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('lib/hcv_display_microtexture_probe.dart')
+          s = p.read_text()
+          old = """  Future<bool> discardCapture(Map<String, dynamic>? capture) async {\n    final path = capture?['path']?.toString();\n    return path == null || path.isEmpty ? true : _delete(path);\n  }\n"""
+          new = """  Future<bool> discardCapture(Map<String, dynamic>? capture) async {\n    final path = capture?['path']?.toString();\n    if (path == null || path.isEmpty) return true;\n    return await _delete(path);\n  }\n"""
+          if old not in s:
+              raise SystemExit('discardCapture pattern not found')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('lib/hcv_temporal_capture_probe.dart')
+          s = p.read_text()
+          s = s.replace(
+              "Map<String, dynamic>? displayMicrotextureShadowCapture;",
+              "late Map<String, dynamic> displayMicrotextureShadowCapture;",
+              1,
+          )
+          s = s.replace(
+              "displayMicrotextureShadowCapture?['path']?.toString() ?? '';",
+              "displayMicrotextureShadowCapture['path']?.toString() ?? '';",
+              1,
+          )
+          s = s.replace(
+              "displayMicrotextureShadowCapture!;",
+              "displayMicrotextureShadowCapture;",
+              1,
+          )
+          p.write_text(s)
+          PY
+          dart format lib/hcv_display_microtexture_probe.dart lib/hcv_temporal_capture_probe.dart
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Test
+        run: flutter test --reporter expanded
+      - name: Commit validated source fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib/hcv_display_microtexture_probe.dart lib/hcv_temporal_capture_probe.dart
+          if git diff --cached --quiet; then
+            echo 'No source changes to commit'
+            exit 0
+          fi
+          git commit -m 'Fix microtexture analyzer error and temporal warnings [skip ci]'
+          git push origin HEAD:diagnose/microtexture-analyze
