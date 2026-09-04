@@ -51,7 +51,7 @@ class HCVTemporalCaptureProbe {
       throw StateError('CAMERA_ALREADY_RECORDING');
     }
 
-    Map<String, dynamic>? displayMicrotextureShadowCapture;
+    late Map<String, dynamic> displayMicrotextureShadowCapture;
     try {
       displayMicrotextureShadowCapture =
           await const HCVDisplayMicrotextureShadowProbe().capture(controller);
@@ -83,10 +83,10 @@ class HCVTemporalCaptureProbe {
       temporaryVideoPath = capture.path;
 
       final shadowPath =
-          displayMicrotextureShadowCapture?['path']?.toString() ?? '';
+          displayMicrotextureShadowCapture['path']?.toString() ?? '';
       if (shadowPath.isNotEmpty) {
         _shadowCaptureByPrimaryPath[temporaryVideoPath] =
-            displayMicrotextureShadowCapture!;
+            displayMicrotextureShadowCapture;
       }
 
       return HCVTemporalCaptureClip(
@@ -104,8 +104,9 @@ class HCVTemporalCaptureProbe {
       if (temporaryVideoPath != null) {
         await discard(temporaryVideoPath);
       } else {
-        await const HCVDisplayMicrotextureShadowProbe()
-            .discardCapture(displayMicrotextureShadowCapture);
+        await const HCVDisplayMicrotextureShadowProbe().discardCapture(
+          displayMicrotextureShadowCapture,
+        );
       }
       rethrow;
     }
@@ -127,8 +128,9 @@ class HCVTemporalCaptureProbe {
 
       try {
         displayMicrotextureShadowAnalysis =
-            await const HCVDisplayMicrotextureShadowProbe()
-                .analyzeCapture(shadowCapture);
+            await const HCVDisplayMicrotextureShadowProbe().analyzeCapture(
+              shadowCapture,
+            );
       } catch (e) {
         displayMicrotextureShadowAnalysis = {
           'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
@@ -141,8 +143,9 @@ class HCVTemporalCaptureProbe {
       }
 
       try {
-        opticalAnalysis =
-            await HCVScreenReplayAnalyzer().analyzeVideo(temporaryVideoPath);
+        opticalAnalysis = await HCVScreenReplayAnalyzer().analyzeVideo(
+          temporaryVideoPath,
+        );
       } catch (e) {
         opticalAnalysis = _analysisUnknown(
           type: 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
@@ -152,8 +155,7 @@ class HCVTemporalCaptureProbe {
       }
 
       try {
-        mlAnalysis =
-            await HCVMLScreenReplayClassifier.instance.analyzeVideo(
+        mlAnalysis = await HCVMLScreenReplayClassifier.instance.analyzeVideo(
           temporaryVideoPath,
           frameSamplingIntervalSeconds: photoMlFrameIntervalSeconds,
           maxFrames: photoMlFrameLimit,
@@ -166,8 +168,8 @@ class HCVTemporalCaptureProbe {
         );
       }
 
-      final opticalScore =
-          (opticalAnalysis['screenReplayRiskScore'] as num?)?.toInt();
+      final opticalScore = (opticalAnalysis['screenReplayRiskScore'] as num?)
+          ?.toInt();
       final mlScore = (mlAnalysis['screenReplayRiskScore'] as num?)?.toInt();
       final analyzed = opticalScore != null || mlScore != null;
       final temporaryVideoDeleted = await discard(temporaryVideoPath);
@@ -207,8 +209,9 @@ class HCVTemporalCaptureProbe {
       if (temporaryVideoPath.isNotEmpty) {
         await discard(temporaryVideoPath);
       }
-      await const HCVDisplayMicrotextureShadowProbe()
-          .discardCapture(shadowCapture);
+      await const HCVDisplayMicrotextureShadowProbe().discardCapture(
+        shadowCapture,
+      );
     }
   }
 
