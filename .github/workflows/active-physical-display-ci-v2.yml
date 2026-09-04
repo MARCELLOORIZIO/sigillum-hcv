@@ -23,14 +23,14 @@ jobs:
       - name: Apply integration patch
         run: python3 tool/apply_active_physical_display_patch.py
 
-      - name: Format changed Dart
-        run: dart format lib/camera_page.dart lib/hcv_display_physical_discriminator.dart lib/hcv_video_short_exposure_probe.dart test/hcv_display_physical_discriminator_test.dart
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.1'
           cache: true
+
+      - name: Format changed Dart
+        run: dart format lib/camera_page.dart lib/hcv_display_physical_discriminator.dart lib/hcv_video_short_exposure_probe.dart test/hcv_display_physical_discriminator_test.dart
 
       - name: Resolve dependencies
         run: flutter pub get
