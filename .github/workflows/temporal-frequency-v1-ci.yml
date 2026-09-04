@@ -1,0 +1,59 @@
+name: Temporal frequency V1 validation
+
+on:
+  push:
+    branches:
+      - feature/build80-temporal-frequency-v1
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply deterministic temporal frequency V1 patch
+        run: python3 tool/apply_temporal_frequency_v1.py
+
+      - name: Format changed Dart
+        run: dart format lib/camera_page.dart lib/hcv_temporal_frequency_probe.dart test/temporal_frequency_probe_contract_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Temporal frequency V1 regression tests
+        run: flutter test test/temporal_frequency_probe_contract_test.dart
+
+      - name: Full Flutter tests
+        run: flutter test
+
+      - name: Materialize validated source on branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "SIGILLUM CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add ios/Runner/AppDelegate.swift lib/camera_page.dart lib/hcv_temporal_frequency_probe.dart test/temporal_frequency_probe_contract_test.dart
+          git rm -f tool/apply_temporal_frequency_v1.py .github/workflows/temporal-frequency-v1-ci.yml
+          if git diff --cached --quiet; then
+            echo "No materialized changes to commit"
+            exit 0
+          fi
+          git commit -m "Restore BUILD 80 and add shadow temporal frequency probe"
+          git push origin HEAD:feature/build80-temporal-frequency-v1
