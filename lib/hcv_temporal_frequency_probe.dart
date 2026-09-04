@@ -70,20 +70,21 @@ class HCVTemporalFrequencyProbe {
       if (originalState == null) throw StateError('CAMERA_STATE_UNAVAILABLE');
 
       await controller.setFlashMode(FlashMode.off);
-      configuredState = await _invokeMap('configureTemporalFrequencyProbe', {
-        'deviceUniqueId': uniqueId,
-        'targetMaxFps': targetMaxFps,
-      });
-      if (configuredState == null) {
-        throw StateError('HIGH_FPS_CONFIGURATION_UNAVAILABLE');
-      }
+      // Session-safety hotfix: never mutate AVCaptureDevice.activeFormat or
+      // active frame durations behind Flutter camera's active AVCaptureSession.
+      // BUILD 87 crashed on both PHOTO and VIDEO because the plugin controller
+      // retained outputs configured for its original format while the native
+      // bridge changed the device format underneath it.
+      configuredState = Map<String, dynamic>.from(originalState);
+      configuredState['configurationMode'] =
+          'PLUGIN_ACTIVE_FORMAT_PRESERVED_SESSION_SAFE';
+      configuredState['requestedTargetMaxFps'] = targetMaxFps;
+      configuredState['configuredFrameRate'] = null;
+      configuredState['highFpsFormatMutationSkipped'] = true;
 
-      // Let auto exposure/focus settle on the newly selected high-speed format,
-      // then lock focus/WB and apply a short exposure before recording.
-      await Future.delayed(const Duration(milliseconds: 140));
-      await _invokeMap('lockTemporalProbeOptics', {
-        'deviceUniqueId': uniqueId,
-      });
+      // Keep only the previously validated physical intervention: short shutter.
+      // The actual encoded cadence is measured from the disposable clip rather
+      // than forcing a new device format/frame duration while Flutter owns it.
       shortExposureState = await _invokeMap('applyShortExposure', {
         'deviceUniqueId': uniqueId,
         'targetDurationSeconds': requestedShortExposureSeconds,
@@ -121,9 +122,16 @@ class HCVTemporalFrequencyProbe {
     } finally {
       if (originalState != null) {
         try {
+          // Do not allow restoreCameraState to reassign activeFormat or frame
+          // durations either. Only exposure/focus/WB/zoom state is restored.
+          final sessionSafeRestoreState =
+              Map<String, dynamic>.from(originalState)
+                ..remove('activeFormatIndex')
+                ..remove('activeVideoMinFrameDurationSeconds')
+                ..remove('activeVideoMaxFrameDurationSeconds');
           await _channel.invokeMethod<void>('restoreCameraState', {
             'deviceUniqueId': uniqueId,
-            'state': originalState,
+            'state': sessionSafeRestoreState,
           });
         } catch (_) {}
       }
