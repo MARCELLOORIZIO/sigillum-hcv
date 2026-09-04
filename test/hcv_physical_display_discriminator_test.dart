@@ -9,7 +9,8 @@ HCVDisplayRiskResult _base(String decision, {int score = 45}) {
     decision: decision,
     analysisStatus: 'COMPLETE',
     evidenceSources: const ['BASE'],
-    strongSources: decision == 'STRONG_DISPLAY_RISK' ? const ['BASE'] : const [],
+    strongSources:
+        decision == 'STRONG_DISPLAY_RISK' ? const ['BASE'] : const [],
     reasons: const ['BASE_REASON'],
   );
 }
@@ -66,8 +67,8 @@ void main() {
 
   test('requires all nine cells', () {
     final physical = _analysis(0.500, 0.300);
-    (physical['phaseResults']['SHORT_1X'] as Map<String, dynamic>)[
-        'cellsAnalyzed'] = 8;
+    (physical['phaseResults']['SHORT_1X']
+        as Map<String, dynamic>)['cellsAnalyzed'] = 8;
     final result = HCVPhysicalDisplayDiscriminator.evaluate(physical);
     expect(result['decision'], 'INDETERMINATE');
     expect(result['analysisStatus'], 'NOT_ANALYZED');

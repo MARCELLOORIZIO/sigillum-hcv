@@ -3,9 +3,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('video active probe precedes REC and passive verification covers final video', () {
+  test(
+      'video active probe precedes REC and passive verification covers final video',
+      () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    final temporal = File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();
+    final temporal =
+        File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();
     final microtexture =
         File('lib/hcv_display_microtexture_probe.dart').readAsStringSync();
 

@@ -25,6 +25,7 @@ import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_temporal_capture_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
+import 'hcv_physical_display_discriminator.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
@@ -156,8 +157,8 @@ HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
   );
   final legacy = _combinePhotoDisplayRiskLegacy(analyses);
   final liveProbe = _liveProbeFromAnalyses(analyses);
-  final isTemporalV2 =
-      liveProbe?['photoDecisionMethod'] == 'PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT';
+  final isTemporalV2 = liveProbe?['photoDecisionMethod'] ==
+      'PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT';
 
   // A strong multi-frame/temporal DISPLAY result from the clip captured
   // immediately before the automatic still must not be erased by one semantic
@@ -284,6 +285,7 @@ class _CameraPageState extends State<CameraPage> {
       const HCVCaptureLocationService();
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
+  Map<String, dynamic>? pendingVideoPhysicalDisplayProbe;
   HCVCaptureLocation? pendingVideoLocation;
   HCVCaptureLocation? _lastCaptureLocation;
   DateTime? pendingVideoCapturedAt;
@@ -500,6 +502,7 @@ class _CameraPageState extends State<CameraPage> {
     if (_printCoordinates && captureLocation == null) return;
 
     pendingLiveScreenProbe = null;
+    pendingVideoPhysicalDisplayProbe = null;
     pendingVideoLocation = captureLocation;
     lastLiveSignals = null;
 
@@ -516,9 +519,13 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      // VIDEO starts on the user's first REC tap. There is no disposable
-      // pre-capture clip and no parallax/geometry gate; display evidence comes
-      // from the actual recorded video during post-capture analysis.
+      // Active physical VIDEO gate: a disposable 1x-only normal/short-shutter
+      // probe runs before the real recording. It is deleted and never appears in
+      // the user's recorded video. No 10x zoom is used for VIDEO.
+      pendingVideoPhysicalDisplayProbe =
+          await const HCVTemporalCaptureProbe().captureActiveVideoPhysicalProbe(
+        controller!,
+      );
       await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
@@ -534,6 +541,7 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoCapturedAt = null;
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
+      pendingVideoPhysicalDisplayProbe = null;
       setState(() {
         recording = false;
         status = '${_c('startError')}: $e';
@@ -639,9 +647,8 @@ class _CameraPageState extends State<CameraPage> {
   ) {
     final opticalRaw = temporalProbe['screenReplayAnalysis'];
     final mlRaw = temporalProbe['mlScreenReplayAnalysis'];
-    final optical = opticalRaw is Map
-        ? Map<String, dynamic>.from(opticalRaw)
-        : null;
+    final optical =
+        opticalRaw is Map ? Map<String, dynamic>.from(opticalRaw) : null;
     final ml = mlRaw is Map ? Map<String, dynamic>.from(mlRaw) : null;
     final analyzed = temporalProbe['analysisStatus'] == 'ANALYZED' &&
         (optical != null || ml != null);
@@ -814,8 +821,18 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final displayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
+      final baseDisplayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
         screenReplayAnalyses,
+      );
+      final photoPhysicalAnalysis =
+          HCVPhysicalDisplayDiscriminator.analysisFromPhotoTemporalProbe(
+        temporalProbe,
+      );
+      final physicalDisplayDiscriminator =
+          HCVPhysicalDisplayDiscriminator.evaluate(photoPhysicalAnalysis);
+      final displayRisk = HCVPhysicalDisplayDiscriminator.apply(
+        base: baseDisplayRisk,
+        physicalAnalysis: photoPhysicalAnalysis,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -876,6 +893,7 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskDecision": displayRiskDecision,
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
+        "physicalDisplayDiscriminator": physicalDisplayDiscriminator,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
@@ -1119,6 +1137,8 @@ class _CameraPageState extends State<CameraPage> {
   }) async {
     final liveScreenProbe = pendingLiveScreenProbe;
     pendingLiveScreenProbe = null;
+    final videoPhysicalDisplayProbe = pendingVideoPhysicalDisplayProbe;
+    pendingVideoPhysicalDisplayProbe = null;
     final effectiveCapturedAt = capturedAt ?? DateTime.now();
 
     setState(() {
@@ -1137,6 +1157,7 @@ class _CameraPageState extends State<CameraPage> {
     Map<String, dynamic>? socialFingerprint;
     Map<String, dynamic>? screenReplayAnalysis;
     Map<String, dynamic>? mlScreenReplayAnalysis;
+    Map<String, dynamic>? passivePhysicalVideoVerification;
 
     setState(() {
       status = _c('analyzingScreen');
@@ -1167,6 +1188,21 @@ class _CameraPageState extends State<CameraPage> {
       };
     }
 
+    try {
+      passivePhysicalVideoVerification = await const HCVTemporalCaptureProbe()
+          .analyzePassiveRecordedVideoPhysical(savedVideoPath);
+    } catch (e) {
+      passivePhysicalVideoVerification = {
+        'type': 'SIGILLUM_VIDEO_PASSIVE_PHYSICAL_VERIFICATION_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'reason': 'VIDEO_PASSIVE_PHYSICAL_EXCEPTION',
+        'error': e.toString(),
+        'recordedVideoAltered': false,
+        'shutterChangedDuringRecordedVideo': false,
+        'zoomChangedDuringRecordedVideo': false,
+      };
+    }
+
     final trustAnalysis = HCVTrustAnalyzer.analyze(
       liveSignals: lastLiveSignals,
       audioCaptured: true,
@@ -1176,8 +1212,18 @@ class _CameraPageState extends State<CameraPage> {
       screenReplayAnalysis,
       mlScreenReplayAnalysis,
     ];
-    final displayRisk = combineVideoDisplayRiskFromCaptureEvidence(
+    final baseDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
       screenReplayAnalyses,
+    );
+    final videoPhysicalAnalysisRaw = videoPhysicalDisplayProbe?['analysis'];
+    final videoPhysicalAnalysis = videoPhysicalAnalysisRaw is Map
+        ? Map<String, dynamic>.from(videoPhysicalAnalysisRaw)
+        : null;
+    final physicalDisplayDiscriminator =
+        HCVPhysicalDisplayDiscriminator.evaluate(videoPhysicalAnalysis);
+    final displayRisk = HCVPhysicalDisplayDiscriminator.apply(
+      base: baseDisplayRisk,
+      physicalAnalysis: videoPhysicalAnalysis,
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
@@ -1252,7 +1298,10 @@ class _CameraPageState extends State<CameraPage> {
       "displayRiskDecision": displayRiskDecision,
       "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
       "displayRiskEvidence": displayRisk.toJson(),
-      "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
+      "physicalDisplayDiscriminator": physicalDisplayDiscriminator,
+      "physicalDisplayProbe": videoPhysicalDisplayProbe,
+      "passivePhysicalVideoVerification": passivePhysicalVideoVerification,
+      "aiProofLevel": "ACTIVE_PHYSICAL_PLUS_PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
       "passiveLiveProofScore": trustAnalysis["score"],

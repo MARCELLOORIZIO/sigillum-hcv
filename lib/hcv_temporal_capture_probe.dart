@@ -112,6 +112,48 @@ class HCVTemporalCaptureProbe {
     }
   }
 
+  Future<Map<String, dynamic>> captureActiveVideoPhysicalProbe(
+    CameraController controller,
+  ) async {
+    final engine = const HCVDisplayMicrotextureShadowProbe();
+    Map<String, dynamic>? capture;
+    try {
+      capture = await engine.capture(controller, includeZoomProbe: false);
+      final analysis = await engine.analyzeCapture(capture);
+      final deleted = await engine.discardCapture(capture);
+      return {
+        'type': 'SIGILLUM_VIDEO_PHYSICAL_PRECAPTURE_PROBE_V1',
+        'analysisStatus': analysis['analysisStatus'] ?? 'NOT_ANALYZED',
+        'decisionRole': 'ACTIVE_PHYSICAL_DISCRIMINATOR',
+        'capture': _redactShadowPath(capture),
+        'analysis': analysis,
+        'temporaryVideoDeletedAfterAnalysis': deleted,
+        'recordedVideoContainsProbe': false,
+        'zoomVisibleInRecordedVideo': false,
+        'probeZoom': '1X_ONLY',
+      };
+    } catch (error) {
+      if (capture != null) {
+        await engine.discardCapture(capture);
+      }
+      return {
+        'type': 'SIGILLUM_VIDEO_PHYSICAL_PRECAPTURE_PROBE_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'decisionRole': 'ACTIVE_PHYSICAL_DISCRIMINATOR',
+        'reason': 'VIDEO_PHYSICAL_PRECAPTURE_PROBE_FAILED',
+        'error': error.toString(),
+        'recordedVideoContainsProbe': false,
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> analyzePassiveRecordedVideoPhysical(
+    String videoPath,
+  ) async {
+    return const HCVDisplayMicrotextureShadowProbe()
+        .analyzeRecordedVideoPassive(videoPath);
+  }
+
   /// Analyzes the unchanged BUILD 80 clip and, independently, the new shadow
   /// capture. Shadow metrics are embedded in the HCV but never supplied to the
   /// current DISPLAY/REALITY fusion.
@@ -129,8 +171,8 @@ class HCVTemporalCaptureProbe {
       try {
         displayMicrotextureShadowAnalysis =
             await const HCVDisplayMicrotextureShadowProbe().analyzeCapture(
-              shadowCapture,
-            );
+          shadowCapture,
+        );
       } catch (e) {
         displayMicrotextureShadowAnalysis = {
           'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
@@ -168,8 +210,8 @@ class HCVTemporalCaptureProbe {
         );
       }
 
-      final opticalScore = (opticalAnalysis['screenReplayRiskScore'] as num?)
-          ?.toInt();
+      final opticalScore =
+          (opticalAnalysis['screenReplayRiskScore'] as num?)?.toInt();
       final mlScore = (mlAnalysis['screenReplayRiskScore'] as num?)?.toInt();
       final analyzed = opticalScore != null || mlScore != null;
       final temporaryVideoDeleted = await discard(temporaryVideoPath);

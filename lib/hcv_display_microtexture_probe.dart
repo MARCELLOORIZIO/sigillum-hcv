@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:camera/camera.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
@@ -18,7 +19,10 @@ class HCVDisplayMicrotextureShadowProbe {
   static const Duration _zoomSettle = Duration(milliseconds: 180);
   static const double _requestedShortExposure = 1.0 / 240.0;
 
-  Future<Map<String, dynamic>> capture(CameraController controller) async {
+  Future<Map<String, dynamic>> capture(
+    CameraController controller, {
+    bool includeZoomProbe = true,
+  }) async {
     if (!Platform.isIOS) return _captureUnavailable('IOS_ONLY');
     if (!controller.value.isInitialized) {
       return _captureUnavailable('CAMERA_NOT_READY');
@@ -85,19 +89,21 @@ class HCVDisplayMicrotextureShadowProbe {
       await Future.delayed(_exposureSettle);
       await phase('SHORT_1X', oneX, 'CUSTOM_SHORT');
 
-      await _invokeMap('setContinuousAutoExposure', {
-        'deviceUniqueId': uniqueId,
-      });
-      await controller.setZoomLevel(tenX);
-      await Future.delayed(_zoomSettle);
-      await phase('NORMAL_10X', tenX, 'CONTINUOUS_AUTO');
+      if (includeZoomProbe) {
+        await _invokeMap('setContinuousAutoExposure', {
+          'deviceUniqueId': uniqueId,
+        });
+        await controller.setZoomLevel(tenX);
+        await Future.delayed(_zoomSettle);
+        await phase('NORMAL_10X', tenX, 'CONTINUOUS_AUTO');
 
-      await _invokeMap('applyShortExposure', {
-        'deviceUniqueId': uniqueId,
-        'targetDurationSeconds': _requestedShortExposure,
-      });
-      await Future.delayed(_exposureSettle);
-      await phase('SHORT_10X', tenX, 'CUSTOM_SHORT');
+        await _invokeMap('applyShortExposure', {
+          'deviceUniqueId': uniqueId,
+          'targetDurationSeconds': _requestedShortExposure,
+        });
+        await Future.delayed(_exposureSettle);
+        await phase('SHORT_10X', tenX, 'CUSTOM_SHORT');
+      }
 
       final video = await controller.stopVideoRecording();
       recording = false;
@@ -120,7 +126,8 @@ class HCVDisplayMicrotextureShadowProbe {
         'path': path,
         'deviceUniqueId': uniqueId,
         'originalCameraState': originalState,
-        'targetZoom': tenX,
+        'targetZoom': includeZoomProbe ? tenX : oneX,
+        'probeMode': includeZoomProbe ? 'PHOTO_1X_10X' : 'VIDEO_1X_ONLY',
         'targetShortExposureSeconds': _requestedShortExposure,
         'captureDurationMs': clock.elapsedMilliseconds,
         'phases': phases,
@@ -130,7 +137,8 @@ class HCVDisplayMicrotextureShadowProbe {
           'requiredDisplayCoverageCells': 9,
           'allowedRealityEscapeCells': 0,
           'decisionEnabled': false,
-          'note': '9/9 coverage is the future policy; no numeric production threshold is applied in shadow mode.',
+          'note':
+              '9/9 coverage is the future policy; no numeric production threshold is applied in shadow mode.',
         },
       };
     } catch (error) {
@@ -230,10 +238,166 @@ class HCVDisplayMicrotextureShadowProbe {
           ),
         },
         'spatialPolicy': capture?['spatialPolicy'],
-        'note': 'Raw 1x/10x and normal/short-shutter metrics. This block is never supplied to production fusion.',
+        'note':
+            'Raw 1x/10x and normal/short-shutter metrics. This block is never supplied to production fusion.',
       };
     } catch (error) {
       return _analysisUnavailable('SHADOW_ANALYSIS_FAILED', error: error);
+    } finally {
+      try {
+        if (await root.exists()) await root.delete(recursive: true);
+      } catch (_) {}
+    }
+  }
+
+  /// Passive physical verification of the actual user video.
+  ///
+  /// This never changes camera zoom, exposure, shutter or the recorded file.
+  /// Native-resolution 3x3 temporal windows are sampled across the whole
+  /// recording after REC stops, so the pre-REC active probe is complemented
+  /// by evidence from the content that was actually certified.
+  Future<Map<String, dynamic>> analyzeRecordedVideoPassive(
+    String videoPath, {
+    int maxWindows = 8,
+  }) async {
+    final file = File(videoPath);
+    if (!await file.exists()) {
+      return {
+        'type': 'SIGILLUM_VIDEO_PASSIVE_PHYSICAL_VERIFICATION_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'reason': 'VIDEO_NOT_FOUND',
+      };
+    }
+
+    double? durationSeconds;
+    try {
+      final session = await FFprobeKit.getMediaInformation(videoPath);
+      final information = await session.getMediaInformation();
+      durationSeconds = double.tryParse(information?.getDuration() ?? '');
+    } catch (_) {
+      durationSeconds = null;
+    }
+
+    if (durationSeconds == null || durationSeconds <= 0) {
+      return {
+        'type': 'SIGILLUM_VIDEO_PASSIVE_PHYSICAL_VERIFICATION_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'reason': 'VIDEO_DURATION_UNAVAILABLE',
+        'recordedVideoAltered': false,
+        'shutterChangedDuringRecordedVideo': false,
+        'zoomChangedDuringRecordedVideo': false,
+      };
+    }
+
+    final safeMaxWindows = max(1, maxWindows);
+    final windowMs = _phaseDuration.inMilliseconds;
+    final durationMs = max(1, (durationSeconds * 1000.0).round());
+    final maxStartMs = max(0, durationMs - windowMs);
+    final desiredWindows = durationSeconds <= 1.0
+        ? 1
+        : min(
+            safeMaxWindows,
+            max(2, (durationSeconds / 5.0).ceil() + 1),
+          );
+    final starts = <int>[];
+    for (var i = 0; i < desiredWindows; i++) {
+      final startMs = desiredWindows == 1
+          ? 0
+          : ((maxStartMs * i) / (desiredWindows - 1)).round();
+      if (starts.isEmpty || starts.last != startMs) starts.add(startMs);
+    }
+
+    final root = Directory(
+      p.join(
+        (await getTemporaryDirectory()).path,
+        'hcv_video_passive_physical_${DateTime.now().millisecondsSinceEpoch}',
+      ),
+    );
+
+    try {
+      await root.create(recursive: true);
+      final windows = <Map<String, dynamic>>[];
+      for (var i = 0; i < starts.length; i++) {
+        final startMs = starts[i];
+        final endMs = min(durationMs, startMs + windowMs);
+        if (endMs <= startMs) continue;
+        final dir = Directory(p.join(root.path, 'window_$i'));
+        await dir.create(recursive: true);
+        final frames = await _extractFrames(
+          videoPath,
+          dir,
+          startMs: startMs,
+          endMs: endMs,
+        );
+        final metrics = _phaseMetrics(frames);
+        if (metrics['analysisStatus'] == 'NOT_ANALYZED') continue;
+        windows.add({
+          'windowIndex': i,
+          'startMs': startMs,
+          'endMs': endMs,
+          ...metrics,
+        });
+      }
+
+      final meanAxis = windows
+          .map(
+            (window) =>
+                (window['structuredTemporalAxisRatio'] as num?)?.toDouble(),
+          )
+          .whereType<double>()
+          .toList();
+      final minimumCells = windows
+          .map(
+            (window) =>
+                (window['minimumCellStructuredTemporalAxisRatio'] as num?)
+                    ?.toDouble(),
+          )
+          .whereType<double>()
+          .toList();
+
+      return {
+        'type': 'SIGILLUM_VIDEO_PASSIVE_PHYSICAL_VERIFICATION_V1',
+        'analysisStatus': windows.isEmpty ? 'NOT_ANALYZED' : 'ANALYZED',
+        'decisionRole': 'PASSIVE_WHOLE_RECORDING_PHYSICAL_CORROBORATION',
+        'scanMode': 'WHOLE_RECORDING_DISTRIBUTED_NATIVE_3X3',
+        'durationSeconds': durationSeconds,
+        'windowsRequested': starts.length,
+        'windowsAnalyzed': windows.length,
+        'firstWindowStartMs': starts.isEmpty ? null : starts.first,
+        'lastWindowStartMs': starts.isEmpty ? null : starts.last,
+        'timelineCoverageSpansRecording':
+            starts.isNotEmpty && starts.first == 0 && starts.last == maxStartMs,
+        'meanWindowStructuredTemporalAxisRatio': _mean(meanAxis),
+        'minimumObservedCellStructuredTemporalAxisRatio':
+            minimumCells.isEmpty ? null : minimumCells.reduce(min),
+        'maximumObservedMinimumCellStructuredTemporalAxisRatio':
+            minimumCells.isEmpty ? null : minimumCells.reduce(max),
+        'windowResults': windows,
+        'recordedVideoAltered': false,
+        'shutterChangedDuringRecordedVideo': false,
+        'zoomChangedDuringRecordedVideo': false,
+        'spatialPolicy': const {
+          'gridRows': 3,
+          'gridColumns': 3,
+          'requiredDisplayCoverageCells': 9,
+          'allowedRealityEscapeCells': 0,
+          'standaloneDecisionEnabled': false,
+          'reason':
+              'NORMAL_EXPOSURE_PASSIVE_METRICS_ARE_CORROBORATIVE_UNTIL_CALIBRATED',
+        },
+        'note':
+            'Passive native-resolution 3x3 windows are distributed over the complete recorded timeline. No camera state is changed during REC.',
+      };
+    } catch (error) {
+      return {
+        'type': 'SIGILLUM_VIDEO_PASSIVE_PHYSICAL_VERIFICATION_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'reason': 'PASSIVE_PHYSICAL_ANALYSIS_FAILED',
+        'error': error.toString(),
+        'recordedVideoAltered': false,
+        'shutterChangedDuringRecordedVideo': false,
+        'zoomChangedDuringRecordedVideo': false,
+      };
     } finally {
       try {
         if (await root.exists()) await root.delete(recursive: true);
@@ -256,20 +420,18 @@ class HCVDisplayMicrotextureShadowProbe {
     final start = startMs / 1000.0;
     final duration = max(0.10, (endMs - startMs) / 1000.0).toDouble();
     final pattern = p.join(dir.path, 'frame_%03d.png');
-    final command =
-        "-y -ss ${start.toStringAsFixed(4)} -i '$videoPath' "
+    final command = "-y -ss ${start.toStringAsFixed(4)} -i '$videoPath' "
         "-t ${duration.toStringAsFixed(4)} -vf \"fps=15\" -frames:v 6 '$pattern'";
     final session = await FFmpegKit.execute(command);
     final code = await session.getReturnCode();
     if (code == null || !ReturnCode.isSuccess(code)) return <img.Image>[];
 
-    final files =
-        dir
-            .listSync()
-            .whereType<File>()
-            .where((file) => file.path.toLowerCase().endsWith('.png'))
-            .toList()
-          ..sort((a, b) => a.path.compareTo(b.path));
+    final files = dir
+        .listSync()
+        .whereType<File>()
+        .where((file) => file.path.toLowerCase().endsWith('.png'))
+        .toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
     final frames = <img.Image>[];
     for (final file in files) {
       final decoded = img.decodeImage(await file.readAsBytes());
@@ -297,15 +459,13 @@ class HCVDisplayMicrotextureShadowProbe {
       }
     }
 
-    final temporal =
-        cells
-            .map(
-              (cell) =>
-                  (cell['structuredTemporalAxisRatio'] as num?)?.toDouble(),
-            )
-            .whereType<double>()
-            .toList()
-          ..sort();
+    final temporal = cells
+        .map(
+          (cell) => (cell['structuredTemporalAxisRatio'] as num?)?.toDouble(),
+        )
+        .whereType<double>()
+        .toList()
+      ..sort();
     final chroma = cells
         .map((cell) => (cell['fineChromaLumaRatio'] as num?)?.toDouble())
         .whereType<double>()
@@ -323,13 +483,11 @@ class HCVDisplayMicrotextureShadowProbe {
       'allowedRealityEscapeCells': 0,
       'coverageDecisionEnabled': false,
       'structuredTemporalAxisRatio': _mean(temporal),
-      'minimumCellStructuredTemporalAxisRatio': temporal.isEmpty
-          ? null
-          : temporal.first,
+      'minimumCellStructuredTemporalAxisRatio':
+          temporal.isEmpty ? null : temporal.first,
       'medianCellStructuredTemporalAxisRatio': _median(temporal),
-      'maximumCellStructuredTemporalAxisRatio': temporal.isEmpty
-          ? null
-          : temporal.last,
+      'maximumCellStructuredTemporalAxisRatio':
+          temporal.isEmpty ? null : temporal.last,
       'fineChromaLumaRatio': _mean(chroma),
       'flatFieldLatticeScore': _mean(lattice),
       'cells': cells,
@@ -580,19 +738,19 @@ class HCVDisplayMicrotextureShadowProbe {
   }
 
   Map<String, dynamic> _captureUnavailable(String reason, {Object? error}) => {
-    'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
-    'analysisStatus': 'NOT_CAPTURED',
-    'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-    'reason': reason,
-    if (error != null) 'error': error.toString(),
-  };
+        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_CAPTURE_V1',
+        'analysisStatus': 'NOT_CAPTURED',
+        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+        'reason': reason,
+        if (error != null) 'error': error.toString(),
+      };
 
   Map<String, dynamic> _analysisUnavailable(String reason, {Object? error}) => {
-    'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
-    'analysisStatus': 'NOT_ANALYZED',
-    'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-    'productionDecisionChanged': false,
-    'reason': reason,
-    if (error != null) 'error': error.toString(),
-  };
+        'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+        'productionDecisionChanged': false,
+        'reason': reason,
+        if (error != null) 'error': error.toString(),
+      };
 }

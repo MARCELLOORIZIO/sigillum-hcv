@@ -102,8 +102,7 @@ class HCVPhysicalDisplayDiscriminator {
       );
     }
 
-    if (decision == 'REALITY_SUPPORTED' &&
-        base.decision == 'NON_CONCLUSIVE') {
+    if (decision == 'REALITY_SUPPORTED' && base.decision == 'NON_CONCLUSIVE') {
       final evidenceSources = <String>{
         ...base.evidenceSources,
         'PHYSICAL_SHORT_1X_3X3',
