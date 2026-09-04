@@ -15,7 +15,13 @@ HCVDisplayRiskResult _base(String decision, {int score = 45}) {
   );
 }
 
-Map<String, dynamic> _analysis(double mean, double minCell) => {
+Map<String, dynamic> _analysis(
+  double mean,
+  double minCell, {
+  double lumaCompensationRatio = 1.0,
+  bool isoCompensationClamped = false,
+}) =>
+    {
       'analysisStatus': 'ANALYZED',
       'phaseResults': {
         'SHORT_1X': {
@@ -23,6 +29,10 @@ Map<String, dynamic> _analysis(double mean, double minCell) => {
           'minimumCellStructuredTemporalAxisRatio': minCell,
           'cellsAnalyzed': 9,
         },
+      },
+      'comparisons': {
+        'shortExposureLumaCompensationRatio1x': lumaCompensationRatio,
+        'isoCompensationClamped1x': isoCompensationClamped,
       },
     };
 
@@ -35,6 +45,26 @@ void main() {
     expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(result.score, greaterThanOrEqualTo(90));
     expect(result.strongSources, contains('PHYSICAL_SHORT_1X_3X3'));
+  });
+
+  test('severe short-exposure undercompensation blocks display promotion', () {
+    final physical = _analysis(
+      0.500,
+      0.300,
+      lumaCompensationRatio: 0.40,
+      isoCompensationClamped: true,
+    );
+    final evaluated = HCVPhysicalDisplayDiscriminator.evaluate(physical);
+    expect(evaluated['decision'], 'INDETERMINATE');
+    expect(evaluated['displayThresholdsPassed'], true);
+    expect(evaluated['displayBlockedByExposureQuality'], true);
+
+    final result = HCVPhysicalDisplayDiscriminator.apply(
+      base: _base('NO_DISPLAY_EVIDENCE', score: 20),
+      physicalAnalysis: physical,
+    );
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(result.score, 20);
   });
 
   test('reality corpus-side values resolve non-conclusive', () {
