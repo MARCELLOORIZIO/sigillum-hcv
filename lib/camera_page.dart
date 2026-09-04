@@ -206,12 +206,16 @@ HCVDisplayRiskResult _combinePhotoDisplayRiskLegacy(
 }
 
 HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
-  List<Map<String, dynamic>?> analyses,
-) {
+  List<Map<String, dynamic>?> analyses, {
+  bool physicalProbeAvailable = false,
+}) {
   final mlFirst = HCVDisplayRiskFusion.mlFirstVideoDecision(
     _mlAnalysisFromAnalyses(analyses),
   );
-  final legacy = _combineVideoDisplayRiskLegacy(analyses);
+  final legacy = _combineVideoDisplayRiskLegacy(
+    analyses,
+    physicalProbeAvailable: physicalProbeAvailable,
+  );
   if (mlFirst != null &&
       (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
           !_hasHardDisplayCorroboration(analyses))) {
@@ -221,9 +225,13 @@ HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
 }
 
 HCVDisplayRiskResult _combineVideoDisplayRiskLegacy(
-  List<Map<String, dynamic>?> analyses,
-) {
-  final normalResult = HCVDisplayRiskFusion.combine(analyses);
+  List<Map<String, dynamic>?> analyses, {
+  bool physicalProbeAvailable = false,
+}) {
+  final normalResult = HCVDisplayRiskFusion.combine(
+    analyses,
+    alternativePhysicalProbeAvailable: physicalProbeAvailable,
+  );
   final resolvedFinalReality = normalResult.decision == 'NO_DISPLAY_EVIDENCE' &&
       (normalResult.reasons.contains(
             'GEOMETRIC_REALITY_AND_WEAK_MULTI_FRAME_SCREEN_EVIDENCE_AGREE',
@@ -1212,13 +1220,16 @@ class _CameraPageState extends State<CameraPage> {
       screenReplayAnalysis,
       mlScreenReplayAnalysis,
     ];
-    final baseDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
-      screenReplayAnalyses,
-    );
     final videoPhysicalAnalysisRaw = videoPhysicalDisplayProbe?['analysis'];
     final videoPhysicalAnalysis = videoPhysicalAnalysisRaw is Map
         ? Map<String, dynamic>.from(videoPhysicalAnalysisRaw)
         : null;
+    final videoPhysicalProbeAvailable = videoPhysicalAnalysis != null &&
+        videoPhysicalAnalysis['analysisStatus'] == 'ANALYZED';
+    final baseDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
+      screenReplayAnalyses,
+      physicalProbeAvailable: videoPhysicalProbeAvailable,
+    );
     final physicalDisplayDiscriminator =
         HCVPhysicalDisplayDiscriminator.evaluate(videoPhysicalAnalysis);
     final displayRisk = HCVPhysicalDisplayDiscriminator.apply(

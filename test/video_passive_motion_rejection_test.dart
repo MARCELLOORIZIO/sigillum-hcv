@@ -20,7 +20,10 @@ void main() {
   test('stable frames stay below passive motion rejection threshold', () {
     final frame = _pattern();
     final score = probe.sceneMotionScoreForFrames([frame, frame, frame]);
-    expect(score, lessThan(HCVDisplayMicrotextureShadowProbe.passiveMotionRejectionThreshold));
+    expect(
+        score,
+        lessThan(
+            HCVDisplayMicrotextureShadowProbe.passiveMotionRejectionThreshold));
   });
 
   test('translated scene exceeds passive motion rejection threshold', () {
@@ -29,6 +32,9 @@ void main() {
       _pattern(shiftX: 9),
       _pattern(shiftX: 18),
     ]);
-    expect(score, greaterThan(HCVDisplayMicrotextureShadowProbe.passiveMotionRejectionThreshold));
+    expect(
+        score,
+        greaterThan(
+            HCVDisplayMicrotextureShadowProbe.passiveMotionRejectionThreshold));
   });
 }

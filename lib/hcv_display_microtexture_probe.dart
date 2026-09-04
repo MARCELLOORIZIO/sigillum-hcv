@@ -18,6 +18,7 @@ class HCVDisplayMicrotextureShadowProbe {
   static const Duration _exposureSettle = Duration(milliseconds: 90);
   static const Duration _zoomSettle = Duration(milliseconds: 180);
   static const double _requestedShortExposure = 1.0 / 240.0;
+  static const double passiveMotionRejectionThreshold = 0.08;
 
   Future<Map<String, dynamic>> capture(
     CameraController controller, {
@@ -212,6 +213,21 @@ class HCVDisplayMicrotextureShadowProbe {
 
       double? structured(String id) =>
           (results[id]?['structuredTemporalAxisRatio'] as num?)?.toDouble();
+      double? phaseMeanLuma(String id) =>
+          (results[id]?['meanFrameLuma'] as num?)?.toDouble();
+
+      final normal1xLuma = phaseMeanLuma('NORMAL_1X');
+      final short1xLuma = phaseMeanLuma('SHORT_1X');
+      final shortExposureLumaCompensationRatio1x =
+          _gain(short1xLuma, normal1xLuma);
+      final shortStateRaw = results['SHORT_1X']?['exposureState'];
+      final shortState = shortStateRaw is Map
+          ? Map<String, dynamic>.from(shortStateRaw)
+          : const <String, dynamic>{};
+      final shortIso = (shortState['iso'] as num?)?.toDouble();
+      final maxIso = (shortState['maxISO'] as num?)?.toDouble();
+      final isoCompensationClamped1x =
+          shortIso != null && maxIso != null && shortIso >= maxIso - 0.5;
 
       return {
         'type': 'SIGILLUM_DISPLAY_MICROTEXTURE_SHADOW_ANALYSIS_V1',
@@ -220,6 +236,11 @@ class HCVDisplayMicrotextureShadowProbe {
         'productionDecisionChanged': false,
         'phaseResults': results,
         'comparisons': {
+          'shortExposureLumaCompensationRatio1x':
+              shortExposureLumaCompensationRatio1x,
+          'isoCompensationClamped1x': isoCompensationClamped1x,
+          'normal1xMeanFrameLuma': normal1xLuma,
+          'short1xMeanFrameLuma': short1xLuma,
           'shortExposureGain1x': _gain(
             structured('SHORT_1X'),
             structured('NORMAL_1X'),
@@ -331,22 +352,33 @@ class HCVDisplayMicrotextureShadowProbe {
         );
         final metrics = _phaseMetrics(frames);
         if (metrics['analysisStatus'] == 'NOT_ANALYZED') continue;
+        final sceneMotionScore = _sceneMotionScore(frames);
+        final motionRejected =
+            sceneMotionScore > passiveMotionRejectionThreshold;
         windows.add({
           'windowIndex': i,
           'startMs': startMs,
           'endMs': endMs,
+          'sceneMotionScore': sceneMotionScore,
+          'motionRejected': motionRejected,
+          'usableForPassivePhysicalCorroboration': !motionRejected,
           ...metrics,
         });
       }
 
-      final meanAxis = windows
+      final usableWindows = windows
+          .where(
+            (window) => window['usableForPassivePhysicalCorroboration'] == true,
+          )
+          .toList();
+      final meanAxis = usableWindows
           .map(
             (window) =>
                 (window['structuredTemporalAxisRatio'] as num?)?.toDouble(),
           )
           .whereType<double>()
           .toList();
-      final minimumCells = windows
+      final minimumCells = usableWindows
           .map(
             (window) =>
                 (window['minimumCellStructuredTemporalAxisRatio'] as num?)
@@ -357,12 +389,18 @@ class HCVDisplayMicrotextureShadowProbe {
 
       return {
         'type': 'SIGILLUM_VIDEO_PASSIVE_PHYSICAL_VERIFICATION_V1',
-        'analysisStatus': windows.isEmpty ? 'NOT_ANALYZED' : 'ANALYZED',
+        'analysisStatus': windows.isEmpty
+            ? 'NOT_ANALYZED'
+            : usableWindows.isEmpty
+                ? 'PARTIAL'
+                : 'ANALYZED',
         'decisionRole': 'PASSIVE_WHOLE_RECORDING_PHYSICAL_CORROBORATION',
         'scanMode': 'WHOLE_RECORDING_DISTRIBUTED_NATIVE_3X3',
         'durationSeconds': durationSeconds,
         'windowsRequested': starts.length,
         'windowsAnalyzed': windows.length,
+        'windowsUsedForPhysicalCorroboration': usableWindows.length,
+        'windowsRejectedForMotion': windows.length - usableWindows.length,
         'firstWindowStartMs': starts.isEmpty ? null : starts.first,
         'lastWindowStartMs': starts.isEmpty ? null : starts.last,
         'timelineCoverageSpansRecording':
@@ -376,6 +414,11 @@ class HCVDisplayMicrotextureShadowProbe {
         'recordedVideoAltered': false,
         'shutterChangedDuringRecordedVideo': false,
         'zoomChangedDuringRecordedVideo': false,
+        'motionPolicy': const {
+          'method': 'GLOBAL_LUMA_DELTA_REMOVED_RESIDUAL_MOTION_SCORE_V1',
+          'rejectionThreshold': passiveMotionRejectionThreshold,
+          'rejectedWindowsExcludedFromAggregateMetrics': true,
+        },
         'spatialPolicy': const {
           'gridRows': 3,
           'gridColumns': 3,
@@ -490,6 +533,7 @@ class HCVDisplayMicrotextureShadowProbe {
           temporal.isEmpty ? null : temporal.last,
       'fineChromaLumaRatio': _mean(chroma),
       'flatFieldLatticeScore': _mean(lattice),
+      'meanFrameLuma': _meanFrameLuma(frames),
       'cells': cells,
     };
   }
@@ -635,6 +679,62 @@ class HCVDisplayMicrotextureShadowProbe {
           max(chromaH, chromaV) / max(1e-6, min(chromaH, chromaV)),
       'flatFieldLatticeScore': _autocorrelationPeak(chromaSeries),
     };
+  }
+
+  double sceneMotionScoreForFrames(List<img.Image> frames) =>
+      _sceneMotionScore(frames);
+
+  double _sceneMotionScore(List<img.Image> frames) {
+    if (frames.length < 2) return 0.0;
+    final pairScores = <double>[];
+    for (var i = 1; i < frames.length; i++) {
+      final a = frames[i - 1];
+      final b = frames[i];
+      final width = min(a.width, b.width);
+      final height = min(a.height, b.height);
+      final step = max(4, min(width, height) ~/ 96);
+      var globalDelta = 0.0;
+      var samples = 0;
+      for (var y = 0; y < height; y += step) {
+        for (var x = 0; x < width; x += step) {
+          globalDelta += _luma(b.getPixel(x, y)) - _luma(a.getPixel(x, y));
+          samples++;
+        }
+      }
+      if (samples == 0) continue;
+      globalDelta /= samples;
+      var residual = 0.0;
+      var residualSamples = 0;
+      for (var y = 0; y < height; y += step) {
+        for (var x = 0; x < width; x += step) {
+          final delta =
+              _luma(b.getPixel(x, y)) - _luma(a.getPixel(x, y)) - globalDelta;
+          residual += delta.abs();
+          residualSamples++;
+        }
+      }
+      if (residualSamples > 0) {
+        pairScores.add(residual / residualSamples);
+      }
+    }
+    pairScores.sort();
+    return _median(pairScores) ?? 0.0;
+  }
+
+  double _meanFrameLuma(List<img.Image> frames) {
+    if (frames.isEmpty) return 0.0;
+    var total = 0.0;
+    var samples = 0;
+    for (final frame in frames) {
+      final step = max(4, min(frame.width, frame.height) ~/ 160);
+      for (var y = 0; y < frame.height; y += step) {
+        for (var x = 0; x < frame.width; x += step) {
+          total += _luma(frame.getPixel(x, y));
+          samples++;
+        }
+      }
+    }
+    return samples == 0 ? 0.0 : total / samples;
   }
 
   double _autocorrelationPeak(List<double> values) {

@@ -7,6 +7,7 @@ class HCVPhysicalDisplayDiscriminator {
   static const double displayMinCellThreshold = 0.235;
   static const double realityMeanThreshold = 0.31;
   static const double realityMinCellThreshold = 0.22;
+  static const double minimumDisplayLumaCompensationRatio = 0.60;
 
   static Map<String, dynamic> evaluate(Map<String, dynamic>? analysis) {
     final phaseResultsRaw = analysis?['phaseResults'];
@@ -22,6 +23,15 @@ class HCVPhysicalDisplayDiscriminator {
     final minCell =
         (short['minimumCellStructuredTemporalAxisRatio'] as num?)?.toDouble();
     final cells = (short['cellsAnalyzed'] as num?)?.toInt() ?? 0;
+    final comparisonsRaw = analysis?['comparisons'];
+    final comparisons = comparisonsRaw is Map
+        ? Map<String, dynamic>.from(comparisonsRaw)
+        : const <String, dynamic>{};
+    final lumaCompensationRatio =
+        (comparisons['shortExposureLumaCompensationRatio1x'] as num?)
+            ?.toDouble();
+    final isoCompensationClamped =
+        comparisons['isoCompensationClamped1x'] == true;
 
     if (mean == null || minCell == null || cells < 9) {
       return {
@@ -33,8 +43,12 @@ class HCVPhysicalDisplayDiscriminator {
       };
     }
 
-    final display =
+    final displayThresholdsPassed =
         mean >= displayMeanThreshold && minCell >= displayMinCellThreshold;
+    final displayMeasurementQualitySufficient = lumaCompensationRatio != null &&
+        lumaCompensationRatio >= minimumDisplayLumaCompensationRatio;
+    final display =
+        displayThresholdsPassed && displayMeasurementQualitySufficient;
     final reality =
         mean <= realityMeanThreshold && minCell <= realityMinCellThreshold;
 
@@ -49,11 +63,19 @@ class HCVPhysicalDisplayDiscriminator {
       'short1xMeanStructuredTemporalAxisRatio': mean,
       'short1xMinimumCellStructuredTemporalAxisRatio': minCell,
       'cellsAnalyzed': cells,
+      'shortExposureLumaCompensationRatio1x': lumaCompensationRatio,
+      'isoCompensationClamped1x': isoCompensationClamped,
+      'displayThresholdsPassed': displayThresholdsPassed,
+      'displayMeasurementQualitySufficient':
+          displayMeasurementQualitySufficient,
+      'displayBlockedByExposureQuality':
+          displayThresholdsPassed && !displayMeasurementQualitySufficient,
       'thresholds': thresholds,
       'policy': const {
         'requiredDisplayCoverageCells': 9,
         'allowedRealityEscapeCells': 0,
         'displayRequiresBothThresholds': true,
+        'displayRequiresExposureQuality': true,
         'realityRequiresBothThresholds': true,
       },
     };
@@ -131,7 +153,8 @@ class HCVPhysicalDisplayDiscriminator {
     'displayMinCellThreshold': displayMinCellThreshold,
     'realityMeanThreshold': realityMeanThreshold,
     'realityMinCellThreshold': realityMinCellThreshold,
-    'source': 'BUILD_82_7_PAIR_EXPERIMENTAL_CORPUS',
-    'status': 'ACTIVE_V1_CONSERVATIVE_TWO_CONDITION_GATE',
+    'minimumDisplayLumaCompensationRatio': minimumDisplayLumaCompensationRatio,
+    'source': 'ACTIVE_V1_PLUS_6_PACK_VALIDATION_2026_09_04',
+    'status': 'ACTIVE_V2_EXPOSURE_QUALITY_GATED',
   };
 }
