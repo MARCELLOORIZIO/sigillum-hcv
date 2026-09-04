@@ -38,8 +38,28 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      - name: Test
-        run: flutter test --reporter expanded
+      - name: Test new discriminator
+        run: flutter test test/hcv_display_physical_discriminator_test.dart --reporter expanded
+
+      - name: Test full suite with diagnostics
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded 2>&1 | tee /tmp/flutter-test-full.log
+          status=${PIPESTATUS[0]}
+          echo "===== CONCISE FAILURE DIAGNOSTICS ====="
+          grep -nE "Expected:|Actual:|Which:|Failure|FAILED|Some tests failed|Test failed|test/.*\.dart" /tmp/flutter-test-full.log | tail -250 || true
+          echo "===== FINAL TEST LOG TAIL ====="
+          tail -250 /tmp/flutter-test-full.log
+          exit "$status"
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: active-physical-display-flutter-test-log
+          path: /tmp/flutter-test-full.log
+          if-no-files-found: ignore
 
       - name: Commit validated integration
         run: |
