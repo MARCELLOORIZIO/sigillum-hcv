@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - release/testflight-rc2-20260825
-      - fix/capture-lifecycle-lock-build92
   pull_request:
     branches:
       - release/testflight-rc2-20260825
@@ -175,6 +174,5 @@ jobs:
             /tmp/source-before-ios-build.sha256
             /tmp/source-after-ios-build.sha256
             ios/Podfile.lock
-            build/ios/iphoneos/Runner.app
           if-no-files-found: warn
           retention-days: 14
