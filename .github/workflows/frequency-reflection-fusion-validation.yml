@@ -27,6 +27,16 @@ jobs:
       - name: Apply frequency and reflection fusion patch
         run: python3 tool/apply_frequency_reflection_fusion.py
 
+      - name: Correct generated test package imports
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('test/physical_frequency_reflection_fusion_test.dart')
+          s = p.read_text().replace('package:sigillum_hcv/', 'package:sigillum_iphone/')
+          p.write_text(s)
+          PY
+
       - name: Format changed Dart files
         run: >-
           dart format
