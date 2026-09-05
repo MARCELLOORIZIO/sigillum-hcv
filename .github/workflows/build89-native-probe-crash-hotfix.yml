@@ -1,0 +1,62 @@
+name: BUILD89 native probe crash hotfix validation
+
+on:
+  push:
+    branches:
+      - fix/build89-native-probe-crash-v2
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply crash hotfix
+        run: python3 tool/apply_build89_native_probe_crash_fix.py
+
+      - name: Format changed Dart
+        run: dart format lib/camera_page.dart test/native_temporal_frequency_v2_crash_hotfix_contract_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Crash hotfix regression tests
+        run: flutter test test/native_temporal_frequency_v2_crash_hotfix_contract_test.dart test/native_temporal_frequency_v2_contract_test.dart test/frequency_probe_session_safety_contract_test.dart test/temporal_frequency_probe_contract_test.dart
+
+      - name: Full Flutter tests
+        run: flutter test
+
+      - name: Compile iOS device without signing
+        run: flutter build ios --release --no-codesign
+
+      - name: Materialize validated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "SIGILLUM CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add ios/Runner/AppDelegate.swift lib/camera_page.dart test/native_temporal_frequency_v2_crash_hotfix_contract_test.dart
+          git rm -f tool/apply_build89_native_probe_crash_fix.py .github/workflows/build89-native-probe-crash-hotfix.yml
+          if git diff --cached --quiet; then
+            echo "No materialized changes to commit"
+            exit 0
+          fi
+          git commit -m "Harden isolated native temporal probe camera handoff"
+          git push origin HEAD:fix/build89-native-probe-crash-v2
