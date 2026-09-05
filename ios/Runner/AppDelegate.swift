@@ -344,9 +344,60 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     return nil
   }
 
+  private func resetTemporalFrequencyOpticsForFlutterHandoff(
+    _ device: AVCaptureDevice
+  ) -> [String: Any] {
+    var metadata: [String: Any] = [
+      "requestedFocusMode": "CONTINUOUS_AUTO",
+      "requestedExposureMode": "CONTINUOUS_AUTO",
+      "requestedWhiteBalanceMode": "CONTINUOUS_AUTO",
+      "centerFocusPointRequested": true,
+      "autoFocusRangeRestrictionRequested": "NONE",
+      "resetApplied": false,
+    ]
+
+    do {
+      try device.lockForConfiguration()
+
+      if device.isFocusPointOfInterestSupported {
+        device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+      }
+      if device.isAutoFocusRangeRestrictionSupported {
+        device.autoFocusRangeRestriction = .none
+      }
+      if device.isFocusModeSupported(.continuousAutoFocus) {
+        device.focusMode = .continuousAutoFocus
+      }
+
+      if device.isExposurePointOfInterestSupported {
+        device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+      }
+      if device.isExposureModeSupported(.continuousAutoExposure) {
+        device.exposureMode = .continuousAutoExposure
+      }
+      if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+        device.whiteBalanceMode = .continuousAutoWhiteBalance
+      }
+      device.isSubjectAreaChangeMonitoringEnabled = true
+
+      device.unlockForConfiguration()
+
+      metadata["resetApplied"] = true
+      metadata["focusModeAfterReset"] = focusModeName(device.focusMode)
+      metadata["lensPositionAfterReset"] = Double(device.lensPosition)
+      metadata["exposureModeAfterReset"] = exposureModeName(device.exposureMode)
+      metadata["whiteBalanceModeAfterReset"] = whiteBalanceModeName(device.whiteBalanceMode)
+      metadata["subjectAreaChangeMonitoringEnabled"] = device.isSubjectAreaChangeMonitoringEnabled
+    } catch {
+      metadata["resetError"] = error.localizedDescription
+    }
+    return metadata
+  }
+
   private func finishTemporalFrequencyNativeCapture(
     session: AVCaptureSession,
     output: AVCaptureVideoDataOutput,
+    device: AVCaptureDevice,
     payload: [String: Any],
     result: @escaping FlutterResult
   ) {
@@ -363,11 +414,19 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       if session.isRunning {
         session.stopRunning()
       }
-      self?.temporalFrequencyNativeCollector = nil
-      self?.temporalFrequencyNativeSession = nil
-      self?.temporalFrequencyNativeBusy = false
+
+      var finalPayload = payload
+      if let self {
+        // The HFR probe intentionally locks focus while collecting the short
+        // sample. Never hand that locked optical state back to Flutter.
+        finalPayload["cameraHandoffAfterNativeProbe"] =
+          self.resetTemporalFrequencyOpticsForFlutterHandoff(device)
+        self.temporalFrequencyNativeCollector = nil
+        self.temporalFrequencyNativeSession = nil
+        self.temporalFrequencyNativeBusy = false
+      }
       DispatchQueue.main.async {
-        result(payload)
+        result(finalPayload)
       }
     }
   }
@@ -520,7 +579,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         if captureDevice.isWhiteBalanceModeSupported(.locked) {
           let gains = self.clampedWhiteBalanceGains(
             captureDevice.deviceWhiteBalanceGains,
-            for: device
+            for: captureDevice
           )
           captureDevice.setWhiteBalanceModeLocked(with: gains, completionHandler: nil)
         }
@@ -603,6 +662,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           self.finishTemporalFrequencyNativeCapture(
             session: session,
             output: output,
+            device: captureDevice,
             payload: payload,
             result: result
           )
@@ -640,6 +700,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           self.finishTemporalFrequencyNativeCapture(
             session: session,
             output: output,
+            device: captureDevice,
             payload: payload,
             result: result
           )
@@ -649,6 +710,9 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
            runningSession.isRunning {
           runningSession.stopRunning()
         }
+        // Error paths must also release the focus lock; otherwise the next
+        // Flutter session can inherit a stale lens position.
+        _ = self.resetTemporalFrequencyOpticsForFlutterHandoff(captureDevice)
         self.temporalFrequencyNativeCollector = nil
         self.temporalFrequencyNativeSession = nil
         self.temporalFrequencyNativeBusy = false
