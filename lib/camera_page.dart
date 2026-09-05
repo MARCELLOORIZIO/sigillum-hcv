@@ -530,6 +530,24 @@ class _CameraPageState extends State<CameraPage> {
         await replacement.setFlashMode(savedFlash);
       } catch (_) {}
 
+      // The native HFR probe locks the physical lens for temporal stability.
+      // A newly initialized Flutter controller is not enough to guarantee an
+      // immediate AF scan on the same AVCaptureDevice, so explicitly re-arm
+      // continuous autofocus and re-center AF/AE before returning to capture.
+      try {
+        await replacement.setFocusMode(FocusMode.auto);
+        await replacement.setFocusPoint(null);
+      } catch (_) {}
+      try {
+        await replacement.setExposureMode(ExposureMode.auto);
+        await replacement.setExposurePoint(null);
+      } catch (_) {}
+
+      // Real BUILD 91 samples needed roughly 1-3 seconds to recover focus when
+      // this reset was absent. Give the explicit AF kick a bounded head start;
+      // photo mode then gets the existing 2.4 s temporal clip as extra settle.
+      await Future.delayed(const Duration(milliseconds: 650));
+
       controller = replacement;
       minZoom = newMinZoom;
       maxZoom = newMaxZoom;
