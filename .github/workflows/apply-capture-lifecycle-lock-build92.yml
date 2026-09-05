@@ -28,7 +28,7 @@ jobs:
           git merge-base --is-ancestor 9d4b82082ec750203c13bb45fac5a8692a5351ca HEAD
           echo "HEAD before patch: $(git rev-parse HEAD)"
 
-      - name: Correct exact BUILD92 assertion
+      - name: Correct exact BUILD92 result-state matcher
         shell: bash
         run: |
           set -euo pipefail
@@ -36,16 +36,11 @@ jobs:
           from pathlib import Path
           path = Path('tool/apply_capture_lifecycle_lock_build92.py')
           source = path.read_text(encoding='utf-8')
-          old_guard = 'if removed_recording_false != 2:'
-          old_message = "'result-screen recording assignments: expected 2, '"
-          if source.count(old_guard) != 1 or source.count(old_message) != 1:
-              raise SystemExit('BUILD92 assertion correction target mismatch')
-          source = source.replace(old_guard, 'if removed_recording_false != 1:', 1)
-          source = source.replace(
-              old_message,
-              "'result-screen recording assignments: expected 1, '",
-              1,
-          )
+          old = "r'^\\s{32}recording = false;\\n',"
+          new = "r'^\\s{28,36}recording = false;\\n',"
+          if source.count(old) != 1:
+              raise SystemExit('BUILD92 result-state matcher target mismatch')
+          source = source.replace(old, new, 1)
           path.write_text(source, encoding='utf-8')
           PY
 
