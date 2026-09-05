@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/services.dart';
 
-/// Shadow-only native physical probe for display refresh / PWM periodicity.
+/// Native physical probe for display refresh / PWM periodicity.
 ///
 /// V2 deliberately does NOT use Flutter camera recording or FFmpeg. The
 /// Flutter CameraController is released before this call, then iOS owns the
@@ -164,8 +164,8 @@ class HCVTemporalFrequencyProbe {
     return {
       'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
       'analysisStatus': 'ANALYZED',
-      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-      'productionDecisionChanged': false,
+      'decisionRole': 'POSITIVE_DISPLAY_RESCUE_AND_CONFLICT_DIAGNOSTIC',
+      'productionFusionEnabled': true,
       'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
       'flutterCameraDisposedDuringProbe': true,
       'requestedTargetFps': raw['requestedTargetFps'],
@@ -218,7 +218,7 @@ class HCVTemporalFrequencyProbe {
       },
       'nativeCaptureMetadata': _withoutRawFrames(raw),
       'note':
-          'V2 measures row-profile phase evolution directly from native consecutive CMSampleBuffers at the highest isolated hardware tier available (240, 120, then 60 fps). It never participates in BUILD 80 display fusion.',
+          'V2 measures row-profile phase evolution directly from native consecutive CMSampleBuffers at the highest isolated hardware tier available (240, 120, then 60 fps). Only a stringent positive periodic signature can rescue DISPLAY; weak HFR never proves REALITY.',
     };
   }
 
@@ -229,8 +229,8 @@ class HCVTemporalFrequencyProbe {
     return {
       'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
       'analysisStatus': 'NOT_ANALYZED',
-      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-      'productionDecisionChanged': false,
+      'decisionRole': 'POSITIVE_DISPLAY_RESCUE_AND_CONFLICT_DIAGNOSTIC',
+      'productionFusionEnabled': true,
       'reason': reason,
       if (error != null) 'error': error.toString(),
     };
