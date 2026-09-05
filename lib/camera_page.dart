@@ -285,7 +285,6 @@ class _CameraPageState extends State<CameraPage> {
       const HCVCaptureLocationService();
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
-  HCVTemporalFrequencyClip? pendingTemporalFrequencyClip;
   Map<String, dynamic>? pendingTemporalFrequencyProbe;
   HCVCaptureLocation? pendingVideoLocation;
   HCVCaptureLocation? _lastCaptureLocation;
@@ -464,6 +463,92 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
+  Future<Map<String, dynamic>> _captureTemporalFrequencyNativeIsolated() async {
+    final active = controller;
+    final available = cameras;
+    if (active == null ||
+        !active.value.isInitialized ||
+        available == null ||
+        selectedCameraIndex < 0 ||
+        selectedCameraIndex >= available.length) {
+      return HCVTemporalFrequencyProbe.unavailable(
+        'FLUTTER_CAMERA_NOT_READY_FOR_NATIVE_PROBE',
+      );
+    }
+
+    final description = available[selectedCameraIndex];
+    final savedZoom = currentZoom;
+    final savedFlash = currentFlashMode;
+    Map<String, dynamic> probe;
+
+    // The native high-speed session must own the camera exclusively. BUILD 87
+    // proved that changing activeFormat underneath an initialized Flutter
+    // CameraController is unsafe. Release the Flutter AVCaptureSession first.
+    try {
+      await active.dispose();
+    } catch (_) {}
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    try {
+      probe = await const HCVTemporalFrequencyProbe().captureNative(
+        description.name,
+      );
+    } catch (error) {
+      probe = HCVTemporalFrequencyProbe.unavailable(
+        'ISOLATED_NATIVE_TEMPORAL_FREQUENCY_FAILED',
+        error: error,
+      );
+    }
+
+    // The native method returns only after its AVCaptureSession has stopped.
+    // Give AVFoundation a short release interval, then reconstruct the Flutter
+    // camera before BUILD 80's original capture path resumes.
+    await Future.delayed(const Duration(milliseconds: 220));
+    final replacement = CameraController(
+      description,
+      ResolutionPreset.medium,
+      enableAudio: true,
+    );
+    try {
+      await replacement.initialize();
+      final newMinZoom = await replacement.getMinZoomLevel();
+      final deviceMaxZoom = await replacement.getMaxZoomLevel();
+      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 10.0).toDouble();
+      final restoredZoom = savedZoom.clamp(newMinZoom, newMaxZoom).toDouble();
+      await replacement.setZoomLevel(restoredZoom);
+      try {
+        await replacement.setFlashMode(savedFlash);
+      } catch (_) {}
+
+      controller = replacement;
+      minZoom = newMinZoom;
+      maxZoom = newMaxZoom;
+      currentZoom = restoredZoom;
+      if (mounted) {
+        setState(() {
+          ready = true;
+        });
+      }
+    } catch (error) {
+      try {
+        await replacement.dispose();
+      } catch (_) {}
+      controller = null;
+      if (mounted) {
+        setState(() {
+          ready = false;
+          status =
+              '${_c('error')}: CAMERA_REINITIALIZATION_AFTER_NATIVE_PROBE_FAILED';
+        });
+      }
+      throw StateError(
+        'CAMERA_REINITIALIZATION_AFTER_NATIVE_PROBE_FAILED: $error',
+      );
+    }
+
+    return probe;
+  }
+
   Future<void> _settleCameraAfterLiveProbe() async {
     final camera = controller;
     if (camera == null || !camera.value.isInitialized) return;
@@ -503,7 +588,6 @@ class _CameraPageState extends State<CameraPage> {
     if (_printCoordinates && captureLocation == null) return;
 
     pendingLiveScreenProbe = null;
-    pendingTemporalFrequencyClip = null;
     pendingTemporalFrequencyProbe = null;
     pendingVideoLocation = captureLocation;
     lastLiveSignals = null;
@@ -521,19 +605,10 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      // BUILD 80 remains the decision baseline. A separate high-speed,
-      // short-shutter clip is captured only for shadow physical research and
-      // is never supplied to displayRisk fusion.
-      const frequencyProbeEngine = HCVTemporalFrequencyProbe();
-      try {
-        pendingTemporalFrequencyClip =
-            await frequencyProbeEngine.capture(controller!);
-      } catch (e) {
-        pendingTemporalFrequencyProbe = HCVTemporalFrequencyProbe.unavailable(
-          'VIDEO_TEMPORAL_FREQUENCY_CAPTURE_FAILED',
-          error: e,
-        );
-      }
+      // BUILD 80 remains the decision baseline. The V2 physical probe runs in
+      // its own native AVCaptureSession while Flutter camera is released.
+      pendingTemporalFrequencyProbe =
+          await _captureTemporalFrequencyNativeIsolated();
 
       await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
@@ -550,11 +625,6 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoCapturedAt = null;
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
-      if (pendingTemporalFrequencyClip != null) {
-        await const HCVTemporalFrequencyProbe()
-            .discard(pendingTemporalFrequencyClip!.path);
-      }
-      pendingTemporalFrequencyClip = null;
       pendingTemporalFrequencyProbe = null;
       setState(() {
         recording = false;
@@ -606,11 +676,6 @@ class _CameraPageState extends State<CameraPage> {
 
       await _waitForFinalizedVideoContainer(file.path);
 
-      if (pendingTemporalFrequencyClip != null) {
-        pendingTemporalFrequencyProbe = await const HCVTemporalFrequencyProbe()
-            .analyzeCapturedClip(pendingTemporalFrequencyClip!);
-        pendingTemporalFrequencyClip = null;
-      }
       pendingTemporalFrequencyProbe ??= HCVTemporalFrequencyProbe.unavailable(
         'VIDEO_TEMPORAL_FREQUENCY_NOT_AVAILABLE',
       );
@@ -634,11 +699,6 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoCapturedAt = null;
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
-      if (pendingTemporalFrequencyClip != null) {
-        await const HCVTemporalFrequencyProbe()
-            .discard(pendingTemporalFrequencyClip!.path);
-      }
-      pendingTemporalFrequencyClip = null;
       pendingTemporalFrequencyProbe = null;
       try {
         lastLiveSignals = await liveSignals.stopAndBuildSummary();
@@ -733,9 +793,7 @@ class _CameraPageState extends State<CameraPage> {
     if (_printCoordinates && captureLocation == null) return;
 
     const temporalProbeEngine = HCVTemporalCaptureProbe();
-    const frequencyProbeEngine = HCVTemporalFrequencyProbe();
     HCVTemporalCaptureClip? temporalClip;
-    HCVTemporalFrequencyClip? frequencyClip;
     Map<String, dynamic>? temporalProbe;
     Map<String, dynamic>? temporalFrequencyProbe;
 
@@ -747,14 +805,7 @@ class _CameraPageState extends State<CameraPage> {
         result = null;
       });
 
-      try {
-        frequencyClip = await frequencyProbeEngine.capture(controller!);
-      } catch (e) {
-        temporalFrequencyProbe = HCVTemporalFrequencyProbe.unavailable(
-          'PHOTO_TEMPORAL_FREQUENCY_CAPTURE_FAILED',
-          error: e,
-        );
-      }
+      temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
 
       try {
         temporalClip = await temporalProbeEngine.capture(
@@ -793,11 +844,6 @@ class _CameraPageState extends State<CameraPage> {
 
       final savedPhotoPath = await savePhotoToDocuments(file.path);
 
-      if (frequencyClip != null) {
-        temporalFrequencyProbe =
-            await frequencyProbeEngine.analyzeCapturedClip(frequencyClip);
-        frequencyClip = null;
-      }
       temporalFrequencyProbe ??= HCVTemporalFrequencyProbe.unavailable(
         'PHOTO_TEMPORAL_FREQUENCY_NOT_AVAILABLE',
       );
@@ -994,9 +1040,6 @@ class _CameraPageState extends State<CameraPage> {
         await uploadCertificateToRegistry();
       }
     } catch (e) {
-      if (frequencyClip != null) {
-        await frequencyProbeEngine.discard(frequencyClip.path);
-      }
       if (temporalClip != null) {
         await temporalProbeEngine.discard(temporalClip.path);
       }
