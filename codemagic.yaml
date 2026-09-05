@@ -51,6 +51,9 @@ workflows:
           SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share Development
           XCCONFIG
 
+      - name: Apply development signing profiles
+        script: xcode-project use-profiles --project ios/Runner.xcodeproj
+
       - name: Set up iOS export options
         script: |
           cat > /Users/builder/export_options.plist <<'PLIST'
