@@ -67,10 +67,28 @@ workflows:
         script: |
           set -euo pipefail
           BUILD_COMMIT="$(git rev-parse HEAD)"
+          ENTITLEMENTS="ios/Runner/Runner.entitlements"
+          ENTITLEMENTS_BACKUP="/tmp/Runner.entitlements.original"
+          cp "$ENTITLEMENTS" "$ENTITLEMENTS_BACKUP"
+          restore_entitlements() {
+            cp "$ENTITLEMENTS_BACKUP" "$ENTITLEMENTS"
+          }
+          trap restore_entitlements EXIT
+
+          # The current development provisioning profile does not include
+          # Associated Domains. The production/TestFlight entitlement remains
+          # committed and untouched; omit it only while producing this dev IPA.
+          /usr/libexec/PlistBuddy \
+            -c 'Delete :com.apple.developer.associated-domains' \
+            "$ENTITLEMENTS"
+
           flutter build ipa --release --no-pub \
             --dart-define=SIGILLUM_EDITION=user \
             --dart-define=GIT_COMMIT="$BUILD_COMMIT" \
             --export-options-plist=/Users/builder/export_options.plist
+
+          restore_entitlements
+          trap - EXIT
           git diff --exit-code -- lib test ios/Runner ios/Podfile
           python3 tool/verify_postpatch_release_20260825.py
 
