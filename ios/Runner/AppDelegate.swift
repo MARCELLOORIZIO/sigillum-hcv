@@ -311,29 +311,34 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
   private func temporalFrequencyFormat(
     for device: AVCaptureDevice,
     requestedMaxFps: Double
-  ) -> (format: AVCaptureDevice.Format, fps: Double)? {
+  ) -> (format: AVCaptureDevice.Format, range: AVFrameRateRange, fps: Double)? {
     let tiers = [240.0, 120.0, 60.0].filter { $0 <= requestedMaxFps + 0.01 }
     for tier in tiers {
       var bestFormat: AVCaptureDevice.Format?
+      var bestRange: AVFrameRateRange?
       var bestArea: Int64 = Int64.max
+      let tolerance = max(0.5, tier * 0.01)
+
       for format in device.formats {
         let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
         if dimensions.width < 640 || dimensions.height < 480 { continue }
-        let supportsTier = format.videoSupportedFrameRateRanges.contains { range in
-          range.minFrameRate <= tier + 0.01 && range.maxFrameRate >= tier - 0.01
-        }
-        if !supportsTier { continue }
-        let area = Int64(dimensions.width) * Int64(dimensions.height)
-        // The probe needs temporal fidelity, not maximum video resolution.
-        // Prefer the smallest adequate native format to reduce pixel-buffer
-        // pressure and sample-processing latency at 120/240 fps.
-        if bestFormat == nil || area < bestArea {
-          bestFormat = format
-          bestArea = area
+
+        for range in format.videoSupportedFrameRateRanges {
+          // Use an endpoint duration supplied by AVFoundation itself. BUILD 90
+          // constructed 1/fps as a new CMTime; iOS may reject that value with
+          // NSInvalidArgumentException even when the numeric fps looks valid.
+          if abs(range.maxFrameRate - tier) > tolerance { continue }
+          let area = Int64(dimensions.width) * Int64(dimensions.height)
+          if bestFormat == nil || area < bestArea {
+            bestFormat = format
+            bestRange = range
+            bestArea = area
+          }
         }
       }
-      if let bestFormat {
-        return (bestFormat, tier)
+
+      if let bestFormat, let bestRange {
+        return (bestFormat, bestRange, bestRange.maxFrameRate)
       }
     }
     return nil
@@ -403,9 +408,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
     temporalFrequencyNativeQueue.async { [weak self] in
       guard let self else { return }
+      let captureDevice = self.temporalFrequencyPhysicalDevice(for: device)
       do {
         guard let selection = self.temporalFrequencyFormat(
-          for: device,
+          for: captureDevice,
           requestedMaxFps: requestedMaxFps
         ) else {
           throw NSError(
@@ -417,8 +423,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
         let session = AVCaptureSession()
         session.beginConfiguration()
-        session.sessionPreset = .inputPriority
-        let input = try AVCaptureDeviceInput(device: device)
+        let input = try AVCaptureDeviceInput(device: captureDevice)
         guard session.canAddInput(input) else {
           session.commitConfiguration()
           throw NSError(
@@ -448,24 +453,23 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         }
         session.addOutput(output)
 
-        try device.lockForConfiguration()
-        device.activeFormat = selection.format
-        let frameDuration = CMTimeMakeWithSeconds(
-          1.0 / selection.fps,
-          preferredTimescale: 1_000_000_000
-        )
-        device.activeVideoMinFrameDuration = frameDuration
-        device.activeVideoMaxFrameDuration = frameDuration
-        if device.isExposureModeSupported(.continuousAutoExposure) {
-          device.exposureMode = .continuousAutoExposure
+        try captureDevice.lockForConfiguration()
+        captureDevice.activeFormat = selection.format
+        // Use the exact hardware-supported CMTime from AVFrameRateRange.
+        // Assigning a reconstructed reciprocal can raise NSInvalidArgumentException.
+        let frameDuration = selection.range.minFrameDuration
+        captureDevice.activeVideoMinFrameDuration = frameDuration
+        captureDevice.activeVideoMaxFrameDuration = frameDuration
+        if captureDevice.isExposureModeSupported(.continuousAutoExposure) {
+          captureDevice.exposureMode = .continuousAutoExposure
         }
-        if device.isFocusModeSupported(.continuousAutoFocus) {
-          device.focusMode = .continuousAutoFocus
+        if captureDevice.isFocusModeSupported(.continuousAutoFocus) {
+          captureDevice.focusMode = .continuousAutoFocus
         }
-        if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
-          device.whiteBalanceMode = .continuousAutoWhiteBalance
+        if captureDevice.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+          captureDevice.whiteBalanceMode = .continuousAutoWhiteBalance
         }
-        device.unlockForConfiguration()
+        captureDevice.unlockForConfiguration()
         session.commitConfiguration()
 
         self.temporalFrequencyNativeSession = session
@@ -482,13 +486,13 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         // optics and applying the requested short shutter.
         Thread.sleep(forTimeInterval: 0.18)
         let baselineDuration = max(
-          CMTimeGetSeconds(device.exposureDuration),
-          CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+          CMTimeGetSeconds(captureDevice.exposureDuration),
+          CMTimeGetSeconds(captureDevice.activeFormat.minExposureDuration)
         )
-        let baselineISO = max(device.iso, device.activeFormat.minISO)
-        let minExposure = CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+        let baselineISO = max(captureDevice.iso, captureDevice.activeFormat.minISO)
+        let minExposure = CMTimeGetSeconds(captureDevice.activeFormat.minExposureDuration)
         let maxExposure = min(
-          CMTimeGetSeconds(device.activeFormat.maxExposureDuration),
+          CMTimeGetSeconds(captureDevice.activeFormat.maxExposureDuration),
           0.9 / selection.fps
         )
         let targetExposure = min(
@@ -497,8 +501,8 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         )
         let compensation = baselineDuration / max(targetExposure, 0.000001)
         let compensatedISO = min(
-          device.activeFormat.maxISO,
-          max(device.activeFormat.minISO, baselineISO * Float(compensation))
+          captureDevice.activeFormat.maxISO,
+          max(captureDevice.activeFormat.minISO, baselineISO * Float(compensation))
         )
         let targetDuration = CMTimeMakeWithSeconds(
           targetExposure,
@@ -506,40 +510,40 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         )
 
         let exposureSemaphore = DispatchSemaphore(value: 0)
-        try device.lockForConfiguration()
-        if device.isFocusModeSupported(.locked) {
-          device.setFocusModeLocked(
-            lensPosition: device.lensPosition,
+        try captureDevice.lockForConfiguration()
+        if captureDevice.isFocusModeSupported(.locked) {
+          captureDevice.setFocusModeLocked(
+            lensPosition: captureDevice.lensPosition,
             completionHandler: nil
           )
         }
-        if device.isWhiteBalanceModeSupported(.locked) {
+        if captureDevice.isWhiteBalanceModeSupported(.locked) {
           let gains = self.clampedWhiteBalanceGains(
-            device.deviceWhiteBalanceGains,
+            captureDevice.deviceWhiteBalanceGains,
             for: device
           )
-          device.setWhiteBalanceModeLocked(with: gains, completionHandler: nil)
+          captureDevice.setWhiteBalanceModeLocked(with: gains, completionHandler: nil)
         }
-        guard device.isExposureModeSupported(.custom) else {
-          device.unlockForConfiguration()
+        guard captureDevice.isExposureModeSupported(.custom) else {
+          captureDevice.unlockForConfiguration()
           throw NSError(
             domain: "SIGILLUMTemporalFrequency",
             code: 5,
             userInfo: [NSLocalizedDescriptionKey: "Custom exposure unavailable"]
           )
         }
-        device.setExposureModeCustom(
+        captureDevice.setExposureModeCustom(
           duration: targetDuration,
           iso: compensatedISO
         ) { _ in
           exposureSemaphore.signal()
         }
-        device.unlockForConfiguration()
+        captureDevice.unlockForConfiguration()
         _ = exposureSemaphore.wait(timeout: .now() + 0.8)
         Thread.sleep(forTimeInterval: 0.03)
 
-        let actualExposure = CMTimeGetSeconds(device.exposureDuration)
-        let actualISO = Double(device.iso)
+        let actualExposure = CMTimeGetSeconds(captureDevice.exposureDuration)
+        let actualISO = Double(captureDevice.iso)
         let exposureTolerance = max(0.00015, targetExposure * 0.20)
         let exposureVerified = actualExposure.isFinite &&
           abs(actualExposure - targetExposure) <= exposureTolerance
@@ -557,6 +561,9 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         let metadata: [String: Any] = [
           "analysisStatus": "CAPTURED",
           "captureMode": "ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER",
+          "requestedDeviceUniqueId": device.uniqueID,
+          "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
+          "physicalDeviceSubstitutionUsed": captureDevice.uniqueID != device.uniqueID,
           "requestedTargetFps": requestedMaxFps,
           "configuredFrameRate": selection.fps,
           "frameRateTier": Int(selection.fps.rounded()),
@@ -568,7 +575,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           "actualShortExposureSeconds": actualExposure,
           "shortExposureVerified": exposureVerified,
           "shortExposureISO": actualISO,
-          "shortExposureISOClamped": compensatedISO >= device.activeFormat.maxISO - 0.5,
+          "shortExposureISOClamped": compensatedISO >= captureDevice.activeFormat.maxISO - 0.5,
           "exposureLockedForEntireNativeCapture": true,
           "targetFrameCount": targetFrameCount,
           "rowProfileBins": rowBins,
