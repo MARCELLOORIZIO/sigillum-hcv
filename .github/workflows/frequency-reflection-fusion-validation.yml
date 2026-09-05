@@ -24,6 +24,20 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
+      - name: Disambiguate video claim materialization
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('tool/apply_frequency_reflection_fusion.py')
+          s = p.read_text()
+          old = '''camera = replace_once(\n    camera,\n    '      \\\"temporalFrequencyProbe\\\": temporalFrequencyProbe,\\n',\n    '      \\\"temporalFrequencyProbe\\\": temporalFrequencyProbe,\\n      \\\"illuminationResponseProbe\\\": illuminationResponseProbe,\\n',\n    'video claims illumination',\n)'''
+          new = '''camera = replace_once(\n    camera,\n    ''' + "'''" + '''      \\\"liveScreenProbe\\\": liveScreenProbe,\n      \\\"temporalFrequencyProbe\\\": temporalFrequencyProbe,\n      \\\"physicalSceneClass\\\": liveScreenProbe?[\\\"sceneClass\\\"] ?? \\\"UNKNOWN\\\",\n''' + "'''" + ''',\n    ''' + "'''" + '''      \\\"liveScreenProbe\\\": liveScreenProbe,\n      \\\"temporalFrequencyProbe\\\": temporalFrequencyProbe,\n      \\\"illuminationResponseProbe\\\": illuminationResponseProbe,\n      \\\"physicalSceneClass\\\": liveScreenProbe?[\\\"sceneClass\\\"] ?? \\\"UNKNOWN\\\",\n''' + "'''" + ''',\n    'video claims illumination',\n)'''
+          if old not in s:
+              raise SystemExit('ambiguous video claims block not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
       - name: Apply frequency and reflection fusion patch
         run: python3 tool/apply_frequency_reflection_fusion.py
 
