@@ -291,6 +291,23 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     )
   }
 
+  private func temporalFrequencyPhysicalDevice(
+    for device: AVCaptureDevice
+  ) -> AVCaptureDevice {
+    // High-frame-rate activeFormat changes are safer on a physical camera than
+    // on Apple's virtual dual/triple camera devices. Preserve front/back
+    // position but resolve the physical wide-angle constituent when available.
+    if device.isVirtualDevice,
+       let wide = AVCaptureDevice.default(
+         .builtInWideAngleCamera,
+         for: .video,
+         position: device.position
+       ) {
+      return wide
+    }
+    return device
+  }
+
   private func temporalFrequencyFormat(
     for device: AVCaptureDevice,
     requestedMaxFps: Double
@@ -298,7 +315,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     let tiers = [240.0, 120.0, 60.0].filter { $0 <= requestedMaxFps + 0.01 }
     for tier in tiers {
       var bestFormat: AVCaptureDevice.Format?
-      var bestArea: Int64 = 0
+      var bestArea: Int64 = Int64.max
       for format in device.formats {
         let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
         if dimensions.width < 640 || dimensions.height < 480 { continue }
@@ -307,9 +324,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         }
         if !supportsTier { continue }
         let area = Int64(dimensions.width) * Int64(dimensions.height)
-        // High-speed formats are typically 720p/1080p. Prefer the largest
-        // native frame that still supports the exact requested tier.
-        if bestFormat == nil || area > bestArea {
+        // The probe needs temporal fidelity, not maximum video resolution.
+        // Prefer the smallest adequate native format to reduce pixel-buffer
+        // pressure and sample-processing latency at 120/240 fps.
+        if bestFormat == nil || area < bestArea {
           bestFormat = format
           bestArea = area
         }
@@ -412,7 +430,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         session.addInput(input)
 
         let output = AVCaptureVideoDataOutput()
-        output.alwaysDiscardsLateVideoFrames = false
+        // Never allow an expensive high-speed analysis callback to build an
+        // unbounded CVPixelBuffer backlog. Timestamp analysis will reveal any
+        // dropped sample instead of risking process termination.
+        output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [
           kCVPixelBufferPixelFormatTypeKey as String:
             Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)
@@ -645,7 +666,12 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
     switch call.method {
     case "captureTemporalFrequencyNative":
-      captureTemporalFrequencyNative(device: device, call: call, result: result)
+      let physicalDevice = temporalFrequencyPhysicalDevice(for: device)
+      captureTemporalFrequencyNative(
+        device: physicalDevice,
+        call: call,
+        result: result
+      )
 
     case "snapshotCameraState":
       result(cameraProbeState(device))
