@@ -56,9 +56,20 @@ void main() {
         (result['temporalSpectralConcentration'] as double), greaterThan(0.90));
   });
 
-  test('probe contract is explicitly shadow-only and non-decisional', () {
+  test('probe contract permits only gated positive rescue and diagnostics', () {
     final unavailable = HCVTemporalFrequencyProbe.unavailable('TEST');
-    expect(unavailable['decisionRole'], 'SHADOW_ONLY_NEVER_DECISIONAL');
-    expect(unavailable['productionDecisionChanged'], false);
+    expect(unavailable['analysisStatus'], 'NOT_ANALYZED');
+    expect(
+      unavailable['decisionRole'],
+      'POSITIVE_DISPLAY_RESCUE_AND_CONFLICT_DIAGNOSTIC',
+    );
+    expect(unavailable['productionFusionEnabled'], true);
+
+    final source =
+        File('lib/hcv_physical_display_evidence.dart').readAsStringSync();
+    expect(source, contains('hasStrongHfrDisplaySignature'));
+    expect(source, contains('hasElectronicallyQuietHfr'));
+    expect(source, contains("probe['analysisStatus'] != 'ANALYZED'"));
+    expect(source, isNot(contains("decision: 'NO_DISPLAY_EVIDENCE'")));
   });
 }
