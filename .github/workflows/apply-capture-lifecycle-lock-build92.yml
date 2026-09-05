@@ -78,7 +78,21 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Full Flutter suite
-        run: flutter test --reporter expanded
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded > /tmp/full-flutter-suite.log 2>&1
+          code=$?
+          cat /tmp/full-flutter-suite.log
+          if [ "$code" -ne 0 ]; then
+            cp /tmp/full-flutter-suite.log FULL_FLUTTER_SUITE_FAILURE.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add FULL_FLUTTER_SUITE_FAILURE.log
+            git commit -m "debug: capture lifecycle full-suite failure log"
+            git push origin HEAD:fix/capture-lifecycle-lock-build92
+            exit "$code"
+          fi
 
       - name: Release verifier
         run: python3 tool/verify_postpatch_release_20260825.py
@@ -89,9 +103,10 @@ jobs:
           set -euo pipefail
           rm -f tool/apply_capture_lifecycle_lock_build92.py
           rm -f .github/workflows/apply-capture-lifecycle-lock-build92.yml
+          rm -f FULL_FLUTTER_SUITE_FAILURE.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/camera_page.dart lib/hcv_capture_lifecycle.dart test/camera_capture_lifecycle_contract_test.dart tool/apply_capture_lifecycle_lock_build92.py .github/workflows/apply-capture-lifecycle-lock-build92.yml
+          git add lib/camera_page.dart lib/hcv_capture_lifecycle.dart test/camera_capture_lifecycle_contract_test.dart tool/apply_capture_lifecycle_lock_build92.py .github/workflows/apply-capture-lifecycle-lock-build92.yml FULL_FLUTTER_SUITE_FAILURE.log
           git diff --cached --check
           git commit -m "fix: lock camera capture lifecycle from BUILD92"
           git push origin HEAD:fix/capture-lifecycle-lock-build92
