@@ -35,6 +35,28 @@ jobs:
           test/hfr_full_frame_rescue_v1_test.dart
           test/camera_capture_finalization_lock_contract_test.dart
 
+      - name: Make capture-lock contract semantic
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('test/camera_capture_finalization_lock_contract_test.dart')
+          s = p.read_text()
+          old = """    expect(source, contains('_capturePipelineBusy ||\\n                                _videoFinalizeInProgress'));\n"""
+          new = """    final captureButtonStart = source.indexOf('onTap: !ready ||');
+              expect(captureButtonStart, greaterThanOrEqualTo(0));
+              final captureButtonEnd = source.indexOf('child: AnimatedContainer(', captureButtonStart);
+              expect(captureButtonEnd, greaterThan(captureButtonStart));
+              final captureButton = source.substring(captureButtonStart, captureButtonEnd);
+              expect(captureButton, contains('_videoFinalizeInProgress'));
+              expect(captureButton, contains('_capturePipelineBusy'));
+          """
+          if old not in s:
+              raise SystemExit('brittle capture-button expectation not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          dart format test/camera_capture_finalization_lock_contract_test.dart
+
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
