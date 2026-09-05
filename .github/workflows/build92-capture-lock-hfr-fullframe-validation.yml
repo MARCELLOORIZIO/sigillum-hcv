@@ -27,7 +27,7 @@ jobs:
       - name: Apply capture lock and HFR rescue patch
         run: python3 tool/apply_build92_capture_lock_hfr_fullframe.py
 
-      - name: Format
+      - name: Format production and generated tests
         run: >-
           dart format
           lib/camera_page.dart
@@ -35,26 +35,84 @@ jobs:
           test/hfr_full_frame_rescue_v1_test.dart
           test/camera_capture_finalization_lock_contract_test.dart
 
-      - name: Make capture-lock contract semantic
+      - name: Replace capture-lock test with semantic contract
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('test/camera_capture_finalization_lock_contract_test.dart')
-          s = p.read_text()
-          old = """    expect(source, contains('_capturePipelineBusy ||\\n                                _videoFinalizeInProgress'));\n"""
-          new = """    final captureButtonStart = source.indexOf('onTap: !ready ||');
+          cat > test/camera_capture_finalization_lock_contract_test.dart <<'DART'
+          import 'dart:io';
+
+          import 'package:flutter_test/flutter_test.dart';
+
+          void main() {
+            test('capture finalization lock protects every conflicting camera command', () {
+              final source = File('lib/camera_page.dart').readAsStringSync();
+              expect(source, contains('bool _capturePipelineBusy = false;'));
+              expect(source, contains('bool get _cameraControlsLocked =>'));
+              expect(source, contains('canPop: !_cameraControlsLocked'));
+              expect(source, contains('onPressed: _cameraControlsLocked ? null : toggleFlash'));
+              expect(source, contains('onPressed: _cameraControlsLocked ? null : switchCamera'));
+              expect(source, contains('_cameraControlsLocked || _locationBusy'));
+              expect(source, contains('onChanged: _cameraControlsLocked'));
+              expect(source, contains('onSelected: _cameraControlsLocked'));
+              expect(source, contains('ModalBarrier('));
+
+              final captureButtonStart = source.indexOf('onTap: !ready ||');
               expect(captureButtonStart, greaterThanOrEqualTo(0));
-              final captureButtonEnd = source.indexOf('child: AnimatedContainer(', captureButtonStart);
+              final captureButtonEnd = source.indexOf(
+                'child: AnimatedContainer(',
+                captureButtonStart,
+              );
               expect(captureButtonEnd, greaterThan(captureButtonStart));
               final captureButton = source.substring(captureButtonStart, captureButtonEnd);
               expect(captureButton, contains('_videoFinalizeInProgress'));
               expect(captureButton, contains('_capturePipelineBusy'));
-          """
-          if old not in s:
-              raise SystemExit('brittle capture-button expectation not found')
-          p.write_text(s.replace(old, new, 1))
-          PY
+            });
+
+            test('video stop locks before stopVideoRecording and unlocks only in finally', () {
+              final source = File('lib/camera_page.dart').readAsStringSync();
+              final start = source.indexOf('  Future<void> stop() async {');
+              final end = source.indexOf(
+                '  Map<String, dynamic> _photoTemporalV2Unavailable(',
+                start,
+              );
+              expect(start, greaterThanOrEqualTo(0));
+              expect(end, greaterThan(start));
+              final block = source.substring(start, end);
+              final lock = block.indexOf('_capturePipelineBusy = true;');
+              final stop = block.indexOf('stopVideoRecording()');
+              final process = block.indexOf('await processVideo(');
+              final unlock = block.lastIndexOf('_capturePipelineBusy = false;');
+              expect(lock, greaterThanOrEqualTo(0));
+              expect(stop, greaterThan(lock));
+              expect(process, greaterThan(stop));
+              expect(unlock, greaterThan(process));
+            });
+
+            test('photo remains locked through the entire save/certificate pipeline', () {
+              final source = File('lib/camera_page.dart').readAsStringSync();
+              final start = source.indexOf('  Future<void> takePhoto() async {');
+              final end = source.indexOf('  Future<Directory> _downloadsDirectory()', start);
+              expect(start, greaterThanOrEqualTo(0));
+              expect(end, greaterThan(start));
+              final block = source.substring(start, end);
+              expect(block.indexOf('_capturePipelineBusy = true;'), greaterThanOrEqualTo(0));
+              expect(block.indexOf('takePicture()'), greaterThanOrEqualTo(0));
+              expect(block.indexOf('createPhotoPackage('), greaterThanOrEqualTo(0));
+              expect(block.indexOf('saveContentToGallery('), greaterThanOrEqualTo(0));
+              expect(block, contains('finally {'));
+              expect(
+                block.lastIndexOf('_capturePipelineBusy = false;'),
+                greaterThan(block.indexOf('saveContentToGallery(')),
+              );
+            });
+
+            test('no illumination or torch probe is introduced', () {
+              final source = File('lib/camera_page.dart').readAsStringSync();
+              expect(source, isNot(contains('HCVIlluminationResponseProbe')));
+              expect(source, isNot(contains('captureIlluminationResponseNative')));
+            });
+          }
+          DART
           dart format test/camera_capture_finalization_lock_contract_test.dart
 
       - name: Analyze
