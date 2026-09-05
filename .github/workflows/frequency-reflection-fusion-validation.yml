@@ -1,0 +1,79 @@
+name: Frequency reflection fusion validation
+
+on:
+  push:
+    branches:
+      - feature/illumination-response-fusion
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply frequency and reflection fusion patch
+        run: python3 tool/apply_frequency_reflection_fusion.py
+
+      - name: Format changed Dart files
+        run: >-
+          dart format
+          lib/camera_page.dart
+          lib/hcv_temporal_frequency_probe.dart
+          lib/hcv_illumination_response_probe.dart
+          lib/hcv_physical_display_evidence.dart
+          test/physical_frequency_reflection_fusion_test.dart
+          test/illumination_response_integration_contract_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Focused physical fusion tests
+        run: >-
+          flutter test
+          test/physical_frequency_reflection_fusion_test.dart
+          test/illumination_response_integration_contract_test.dart
+          test/native_temporal_frequency_focus_handoff_contract_test.dart
+          test/camera_focus_recovery_after_native_probe_test.dart
+          test/native_temporal_frequency_v2_hfr_range_contract_test.dart
+          test/native_temporal_frequency_v2_crash_hotfix_contract_test.dart
+
+      - name: Full Flutter tests
+        run: flutter test
+
+      - name: Compile iOS device without signing
+        run: flutter build ios --release --no-codesign
+
+      - name: Materialize validated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tool/apply_frequency_reflection_fusion.py
+          rm -f .github/workflows/frequency-reflection-fusion-validation.yml
+          git config user.name 'SIGILLUM CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/camera_page.dart
+          git add lib/hcv_temporal_frequency_probe.dart
+          git add lib/hcv_illumination_response_probe.dart
+          git add lib/hcv_physical_display_evidence.dart
+          git add test/physical_frequency_reflection_fusion_test.dart
+          git add test/illumination_response_integration_contract_test.dart
+          git add -u tool/apply_frequency_reflection_fusion.py .github/workflows/frequency-reflection-fusion-validation.yml
+          if git diff --cached --quiet; then
+            echo 'No materialized changes'
+            exit 1
+          fi
+          git commit -m 'Fuse native frequency evidence with reflective response'
+          git push origin HEAD:feature/illumination-response-fusion
