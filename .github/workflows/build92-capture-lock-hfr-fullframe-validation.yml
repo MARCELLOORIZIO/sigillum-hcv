@@ -1,0 +1,72 @@
+name: BUILD92 capture lock and HFR full-frame validation
+
+on:
+  push:
+    branches:
+      - fix/build92-capture-lock-hfr-fullframe
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply capture lock and HFR rescue patch
+        run: python3 tool/apply_build92_capture_lock_hfr_fullframe.py
+
+      - name: Format
+        run: >-
+          dart format
+          lib/camera_page.dart
+          lib/hcv_hfr_display_rescue.dart
+          test/hfr_full_frame_rescue_v1_test.dart
+          test/camera_capture_finalization_lock_contract_test.dart
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Focused regression tests
+        run: >-
+          flutter test
+          test/hfr_full_frame_rescue_v1_test.dart
+          test/camera_capture_finalization_lock_contract_test.dart
+          test/native_temporal_frequency_v2_hfr_range_contract_test.dart
+          test/native_temporal_frequency_focus_handoff_contract_test.dart
+          test/camera_focus_recovery_after_native_probe_test.dart
+
+      - name: Full Flutter tests
+        run: flutter test
+
+      - name: Compile iOS device without signing
+        run: flutter build ios --release --no-codesign
+
+      - name: Materialize validated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tool/apply_build92_capture_lock_hfr_fullframe.py
+          rm -f .github/workflows/build92-capture-lock-hfr-fullframe-validation.yml
+          git config user.name 'SIGILLUM CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/camera_page.dart lib/hcv_hfr_display_rescue.dart
+          git add test/hfr_full_frame_rescue_v1_test.dart test/camera_capture_finalization_lock_contract_test.dart
+          git add -u tool/apply_build92_capture_lock_hfr_fullframe.py .github/workflows/build92-capture-lock-hfr-fullframe-validation.yml
+          if git diff --cached --quiet; then
+            echo 'No materialized changes'
+            exit 1
+          fi
+          git commit -m 'Lock camera controls through finalization and add full-frame HFR rescue'
+          git push origin HEAD:fix/build92-capture-lock-hfr-fullframe
