@@ -28,7 +28,7 @@ jobs:
           git merge-base --is-ancestor 9d4b82082ec750203c13bb45fac5a8692a5351ca HEAD
           echo "HEAD before patch: $(git rev-parse HEAD)"
 
-      - name: Correct exact BUILD92 result-state matcher
+      - name: Correct exact BUILD92 generator details
         shell: bash
         run: |
           set -euo pipefail
@@ -36,11 +36,23 @@ jobs:
           from pathlib import Path
           path = Path('tool/apply_capture_lifecycle_lock_build92.py')
           source = path.read_text(encoding='utf-8')
-          old = "r'^\\s{32}recording = false;\\n',"
-          new = "r'^\\s{28,36}recording = false;\\n',"
-          if source.count(old) != 1:
+
+          old_matcher = "r'^\\s{32}recording = false;\\n',"
+          new_matcher = "r'^\\s{28,36}recording = false;\\n',"
+          if source.count(old_matcher) != 1:
               raise SystemExit('BUILD92 result-state matcher target mismatch')
-          source = source.replace(old, new, 1)
+          source = source.replace(old_matcher, new_matcher, 1)
+
+          replacements = [
+              (r"switchCamera() async {\n    if", r"switchCamera() async {\\n    if"),
+              (r"toggleFlash() async {\n    if", r"toggleFlash() async {\\n    if"),
+              (r"setZoom(double zoom) async {\n    if", r"setZoom(double zoom) async {\\n    if"),
+          ]
+          for old, new in replacements:
+              if source.count(old) != 1:
+                  raise SystemExit(f'contract newline target mismatch: {old}')
+              source = source.replace(old, new, 1)
+
           path.write_text(source, encoding='utf-8')
           PY
 
