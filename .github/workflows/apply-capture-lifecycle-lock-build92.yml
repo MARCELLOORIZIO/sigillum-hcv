@@ -75,7 +75,9 @@ jobs:
         run: dart format lib/camera_page.dart lib/hcv_capture_lifecycle.dart test/camera_capture_lifecycle_contract_test.dart test/build72_video_reality_and_container_regression_test.dart
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
 
       - name: Focused capture lifecycle tests
         run: flutter test test/camera_capture_lifecycle_contract_test.dart test/build72_video_reality_and_container_regression_test.dart --reporter expanded
