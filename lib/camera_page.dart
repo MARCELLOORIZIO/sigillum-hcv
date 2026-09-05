@@ -481,13 +481,23 @@ class _CameraPageState extends State<CameraPage> {
     final savedFlash = currentFlashMode;
     Map<String, dynamic> probe;
 
-    // The native high-speed session must own the camera exclusively. BUILD 87
-    // proved that changing activeFormat underneath an initialized Flutter
-    // CameraController is unsafe. Release the Flutter AVCaptureSession first.
+    // The native high-speed session must own the camera exclusively. Detach
+    // CameraPreview from the controller BEFORE disposing its native texture.
+    // Keeping a disposed controller mounted during the AVFoundation handoff can
+    // crash the iOS camera pipeline before Dart can receive an exception.
+    controller = null;
+    if (mounted) {
+      setState(() {
+        ready = false;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+    }
     try {
       await active.dispose();
     } catch (_) {}
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Give the Flutter camera plugin time to release AVCaptureSession/device
+    // ownership before the isolated native session changes high-speed format.
+    await Future.delayed(const Duration(milliseconds: 650));
 
     try {
       probe = await const HCVTemporalFrequencyProbe().captureNative(
