@@ -4,15 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/camera_page.dart';
 
 Map<String, dynamic> _passive({int score = 75, bool structural = false}) => {
-      'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
-      'analysisStatus': 'ANALYZED',
-      'screenReplayRiskScore': score,
-      'signals': {
-        'structuralDisplayTrace': structural,
-        'confirmedDisplayTrace': structural,
-        'strongDisplayTrace': score >= 70,
-      },
-    };
+  'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
+  'analysisStatus': 'ANALYZED',
+  'screenReplayRiskScore': score,
+  'signals': {
+    'structuralDisplayTrace': structural,
+    'confirmedDisplayTrace': structural,
+    'strongDisplayTrace': score >= 70,
+  },
+};
 
 Map<String, dynamic> _live({
   required String sceneClass,
@@ -30,48 +30,48 @@ Map<String, dynamic> _live({
   bool displayBand = false,
   bool horizontalBands = false,
 }) => {
-      'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-      'activeProbeVersion': 5,
-      'analysisStatus': 'ANALYZED',
-      'framesAnalyzed': 45,
-      'screenReplayRiskScore': score,
-      'displayRiskDecision': decision,
-      'sceneClass': sceneClass,
-      'reason': geometryClass == 'REALITY'
-          ? 'ACTIVE_V5|MULTI_DEPTH_PARALLAX_DETECTED|NON_PLANAR_CAMERA_MOTION_RESPONSE'
-          : 'ACTIVE_V5|GEOMETRY_RESPONSE_AMBIGUOUS',
-      'videoEquivalentAvailable': false,
-      'localTemporalFlickerScore': localFlicker,
-      'refreshBandScore': refreshBand,
-      'fineStripeScore': 0.08,
-      'fineGridScore': 0.30,
-      'moireFrequencyScore': 0.20,
-      'persistentPatternScore': 0.20,
-      'dynamicChallengeScore': 0.30,
-      'globalFlickerScore': globalFlicker,
-      'geometryChallenge': {
-        'sceneClass': geometryClass,
-        'realityEvidence': geometryClass == 'REALITY',
-        'planarEvidence': planar,
-      },
-      'signals': {
-        'rawActiveDisplayEvidence': rawActive,
-        'activeIlluminationDisplayEvidence': activeDisplay,
-        'reflectedRealityEvidence': false,
-        'planarSceneEvidence': planar,
-        'activeChallengeIndeterminate': false,
-        'confirmedDisplayTrace': confirmedDisplay,
-        'periodicLightTrace': periodicLight,
-        'strongRefreshTrace': displayBand,
-        'displayBandTrace': displayBand,
-        'opticalStripeTrace': false,
-        'opticalCorroboratedTrace': false,
-        'moireFrequencyTrace': displayBand,
-        'pairedFlickerTrace': displayBand,
-        'horizontalRefreshBands': horizontalBands,
-        'uncorroboratedDisplayPattern': !confirmedDisplay,
-      },
-    };
+  'type': 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+  'activeProbeVersion': 5,
+  'analysisStatus': 'ANALYZED',
+  'framesAnalyzed': 45,
+  'screenReplayRiskScore': score,
+  'displayRiskDecision': decision,
+  'sceneClass': sceneClass,
+  'reason': geometryClass == 'REALITY'
+      ? 'ACTIVE_V5|MULTI_DEPTH_PARALLAX_DETECTED|NON_PLANAR_CAMERA_MOTION_RESPONSE'
+      : 'ACTIVE_V5|GEOMETRY_RESPONSE_AMBIGUOUS',
+  'videoEquivalentAvailable': false,
+  'localTemporalFlickerScore': localFlicker,
+  'refreshBandScore': refreshBand,
+  'fineStripeScore': 0.08,
+  'fineGridScore': 0.30,
+  'moireFrequencyScore': 0.20,
+  'persistentPatternScore': 0.20,
+  'dynamicChallengeScore': 0.30,
+  'globalFlickerScore': globalFlicker,
+  'geometryChallenge': {
+    'sceneClass': geometryClass,
+    'realityEvidence': geometryClass == 'REALITY',
+    'planarEvidence': planar,
+  },
+  'signals': {
+    'rawActiveDisplayEvidence': rawActive,
+    'activeIlluminationDisplayEvidence': activeDisplay,
+    'reflectedRealityEvidence': false,
+    'planarSceneEvidence': planar,
+    'activeChallengeIndeterminate': false,
+    'confirmedDisplayTrace': confirmedDisplay,
+    'periodicLightTrace': periodicLight,
+    'strongRefreshTrace': displayBand,
+    'displayBandTrace': displayBand,
+    'opticalStripeTrace': false,
+    'opticalCorroboratedTrace': false,
+    'moireFrequencyTrace': displayBand,
+    'pairedFlickerTrace': displayBand,
+    'horizontalRefreshBands': horizontalBands,
+    'uncorroboratedDisplayPattern': !confirmedDisplay,
+  },
+};
 
 Map<String, dynamic> _ml({
   required String predictedClass,
@@ -87,31 +87,30 @@ Map<String, dynamic> _ml({
   int fullFrameRisk = 0,
   int contentAreaRisk = 0,
 }) => {
-      'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
-      'analysisStatus': 'ANALYZED',
-      'screenReplayRiskScore': score,
-      'displayRiskDecision': score >= 88
-          ? 'STRONG_DISPLAY_RISK'
-          : score >= 45
-              ? 'NON_CONCLUSIVE'
-              : 'NO_DISPLAY_EVIDENCE',
-      'predictedClass': predictedClass,
-      'predictedClassConfidence': confidence,
-      'screenProbability': screenProbability,
-      'framesAnalyzed': frames,
-      'strongScreenFrameCount': strongFrames,
-      'mediumScreenFrameCount': mediumFrames,
-      'averageScreenReplayRiskScore': average,
-      'maxFrameScreenReplayRiskScore': maxFrame,
-      'signals': {
-        'fullFrameRiskScore': fullFrameRisk,
-        'contentAreaRiskScore': contentAreaRisk,
-      },
-      'videoFrameAnalyses': [
-        for (final frameClass in frameClasses)
-          {'predictedClass': frameClass},
-      ],
-    };
+  'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+  'analysisStatus': 'ANALYZED',
+  'screenReplayRiskScore': score,
+  'displayRiskDecision': score >= 88
+      ? 'STRONG_DISPLAY_RISK'
+      : score >= 45
+      ? 'NON_CONCLUSIVE'
+      : 'NO_DISPLAY_EVIDENCE',
+  'predictedClass': predictedClass,
+  'predictedClassConfidence': confidence,
+  'screenProbability': screenProbability,
+  'framesAnalyzed': frames,
+  'strongScreenFrameCount': strongFrames,
+  'mediumScreenFrameCount': mediumFrames,
+  'averageScreenReplayRiskScore': average,
+  'maxFrameScreenReplayRiskScore': maxFrame,
+  'signals': {
+    'fullFrameRiskScore': fullFrameRisk,
+    'contentAreaRiskScore': contentAreaRisk,
+  },
+  'videoFrameAnalyses': [
+    for (final frameClass in frameClasses) {'predictedClass': frameClass},
+  ],
+};
 
 void main() {
   test('build72 E86 short REALITY resolves isolated active false positive', () {
@@ -294,15 +293,31 @@ void main() {
   test('camera stop path serializes finalization before video processing', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
 
-    expect(source, contains('bool _videoFinalizeInProgress = false;'));
     expect(
       source,
-      contains('if (controller == null || _videoFinalizeInProgress) return;'),
+      contains(
+        'if (_captureLifecycle != HCVCaptureLifecycle.recording) return;',
+      ),
+    );
+    expect(
+      source,
+      contains('_setCaptureLifecycle(HCVCaptureLifecycle.finalizingVideo);'),
+    );
+    expect(
+      source.indexOf(
+        '_setCaptureLifecycle(HCVCaptureLifecycle.finalizingVideo);',
+      ),
+      lessThan(source.indexOf('await controller!.stopVideoRecording();')),
+    );
+    expect(
+      source,
+      contains('_setCaptureLifecycle(HCVCaptureLifecycle.processingVideo);'),
     );
     expect(source, contains('_waitForFinalizedVideoContainer(file.path)'));
     expect(source, contains('stableReads >= 3'));
     expect(source, contains('Duration(seconds: 6)'));
     expect(source, contains('copiedSize != sourceSize'));
-    expect(source, contains('!ready || _videoFinalizeInProgress'));
+    expect(source, contains('PopScope('));
+    expect(source, contains('canPop: !_captureInteractionLocked'));
   });
 }

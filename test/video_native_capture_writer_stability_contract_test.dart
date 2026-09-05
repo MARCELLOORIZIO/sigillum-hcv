@@ -10,7 +10,7 @@ void main() {
     expect(camera, isNot(contains('_analyzeLiveScreenProbeWithoutFlash')));
     expect(camera, isNot(contains('_showCaptureReadyMessage')));
     expect(camera, contains('await _settleCameraAfterLiveProbe();'));
-    expect(camera, contains('await controller!.startVideoRecording();'));
+    expect(camera, contains('await activeController.startVideoRecording();'));
   });
 
   test('photo path captures temporal clip before still and analyzes it after', () {
@@ -20,7 +20,7 @@ void main() {
     final miniVideo = camera.indexOf('await temporalProbeEngine.capture(');
     final still = camera.indexOf('await controller!.takePicture();', miniVideo);
     final analysis = camera.indexOf(
-      'await temporalProbeEngine.analyzeCapturedClip(temporalClip)',
+      'temporalProbeEngine.analyzeCapturedClip(',
       still,
     );
 
@@ -42,7 +42,18 @@ void main() {
 
   test('video stop failure clears recording UI state', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
-    expect(camera, contains('pendingVideoCapturedAt = null;'));
-    expect(camera, contains('recording = false;'));
+    final stop = camera.indexOf('Future<void> stop() async');
+    final nextMethod = camera.indexOf(
+      'Map<String, dynamic> _photoTemporalV2Unavailable',
+      stop,
+    );
+    final stopSource = camera.substring(stop, nextMethod);
+
+    expect(stopSource, contains('pendingVideoCapturedAt = null;'));
+    expect(
+      stopSource,
+      contains('_setCaptureLifecycle(HCVCaptureLifecycle.idle);'),
+    );
+    expect(camera, isNot(contains('_videoFinalizeInProgress')));
   });
 }

@@ -69,7 +69,7 @@ void main() {
     final settle = camera.indexOf('await _settleCameraAfterLiveProbe();', temporal);
     final photo = camera.indexOf('file = await controller!.takePicture();', temporal);
     final analysis = camera.indexOf(
-      'await temporalProbeEngine.analyzeCapturedClip(temporalClip)',
+      'temporalProbeEngine.analyzeCapturedClip(',
       photo,
     );
 

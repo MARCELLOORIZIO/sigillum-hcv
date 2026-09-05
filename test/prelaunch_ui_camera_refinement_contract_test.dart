@@ -18,7 +18,7 @@ void main() {
     expect(source, isNot(contains('bool _videoArmed = false;')));
     expect(source, isNot(contains('_analyzeLiveScreenProbeWithoutFlash')));
 
-    final record = source.indexOf('await controller!.startVideoRecording();');
+    final record = source.indexOf('await activeController.startVideoRecording();');
     final capturedAt = source.indexOf('pendingVideoCapturedAt = DateTime.now();', record);
     final liveSignals = source.indexOf('await liveSignals.start();', record);
     expect(record, greaterThanOrEqualTo(0));

@@ -11,7 +11,7 @@ void main() {
     expect(camera, isNot(contains('_hasRequiredParallax')));
     expect(camera, contains('await temporalProbeEngine.capture('));
     expect(camera, contains('await controller!.takePicture();'));
-    expect(camera, contains('await controller!.startVideoRecording();'));
+    expect(camera, contains('await activeController.startVideoRecording();'));
     expect(camera, contains('PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT'));
   });
 }

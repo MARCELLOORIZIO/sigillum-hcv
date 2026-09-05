@@ -38,7 +38,7 @@ void main() {
     expect(watermark, contains("'-c:v libx264 '"));
     expect(watermark, contains("'-preset veryfast '"));
     expect(watermark, contains("'-crf 23 '"));
-    expect(camera, contains('await controller!.startVideoRecording();'));
+    expect(camera, contains('await activeController.startVideoRecording();'));
     expect(camera, contains('combineVideoDisplayRiskFromCaptureEvidence'));
     expect(camera, isNot(contains('includeTemporalVideoProbe: false')));
     expect(
