@@ -1,0 +1,64 @@
+name: BUILD91 autofocus recovery validation
+
+on:
+  push:
+    branches:
+      - fix/build91-focus-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-materialize:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply autofocus recovery patch
+        run: python3 tool/apply_build91_focus_recovery.py
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Focus and HFR regression tests
+        run: >-
+          flutter test
+          test/native_temporal_frequency_focus_handoff_contract_test.dart
+          test/camera_focus_recovery_after_native_probe_test.dart
+          test/native_temporal_frequency_v2_hfr_range_contract_test.dart
+          test/native_temporal_frequency_v2_crash_hotfix_contract_test.dart
+
+      - name: Full Flutter tests
+        run: flutter test
+
+      - name: Compile iOS device without signing
+        run: flutter build ios --release --no-codesign
+
+      - name: Materialize validated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tool/apply_build91_focus_recovery.py
+          rm -f .github/workflows/build91-focus-recovery-validation.yml
+          git config user.name 'SIGILLUM CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add ios/Runner/AppDelegate.swift lib/camera_page.dart
+          git add test/native_temporal_frequency_focus_handoff_contract_test.dart
+          git add test/camera_focus_recovery_after_native_probe_test.dart
+          git add -u tool/apply_build91_focus_recovery.py .github/workflows/build91-focus-recovery-validation.yml
+          if git diff --cached --quiet; then
+            echo 'No materialized changes'
+            exit 1
+          fi
+          git commit -m 'Restore continuous autofocus after native HFR probe'
+          git push origin HEAD:fix/build91-focus-recovery
