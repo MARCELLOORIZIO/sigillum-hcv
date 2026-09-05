@@ -1,20 +1,33 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sigillum_iphone/hcv_display_risk_fusion.dart';
+import 'package:sigillum_iphone/hcv_physical_display_evidence.dart';
 import 'package:sigillum_iphone/hcv_temporal_frequency_probe.dart';
 
 void main() {
-  test('V2 probe is native, consecutive and permanently shadow-only', () {
+  test('V2 probe is native, consecutive and constrained by physical fusion', () {
     final source =
         File('lib/hcv_temporal_frequency_probe.dart').readAsStringSync();
     expect(source, contains('captureTemporalFrequencyNative'));
     expect(source, contains('SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2'));
     expect(source, contains('ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER'));
-    expect(source, contains('SHADOW_ONLY_NEVER_DECISIONAL'));
+    expect(
+      source,
+      contains('POSITIVE_DISPLAY_RESCUE_AND_CONFLICT_DIAGNOSTIC'),
+    );
+    expect(source, contains("'productionFusionEnabled': true"));
     expect(source, contains("'encodedVideoUsed': false"));
     expect(source, contains("'ffmpegUsed': false"));
     expect(source, isNot(contains('startVideoRecording()')));
     expect(source, isNot(contains('FFmpegKit')));
+
+    final physical =
+        File('lib/hcv_physical_display_evidence.dart').readAsStringSync();
+    expect(physical, contains('hasStrongHfrDisplaySignature'));
+    expect(physical, contains('hasElectronicallyQuietHfr'));
+    expect(physical, contains('_hfrQualityReady'));
+    expect(physical, isNot(contains("decision: 'NO_DISPLAY_EVIDENCE'")));
   });
 
   test('camera releases Flutter controller before isolated native capture', () {
@@ -23,33 +36,57 @@ void main() {
         source.indexOf('_captureTemporalFrequencyNativeIsolated');
     expect(helperStart, greaterThanOrEqualTo(0));
     final helper = source.substring(
-        helperStart,
-        source.indexOf(
-            'Future<void> _settleCameraAfterLiveProbe', helperStart));
+      helperStart,
+      source.indexOf('Future<void> _settleCameraAfterLiveProbe', helperStart),
+    );
     expect(helper.indexOf('await active.dispose()'), greaterThanOrEqualTo(0));
-    expect(helper.indexOf('captureNative('),
-        greaterThan(helper.indexOf('await active.dispose()')));
+    expect(
+      helper.indexOf('captureNative('),
+      greaterThan(helper.indexOf('await active.dispose()')),
+    );
     expect(helper, contains('CameraController('));
     expect(helper, contains('await replacement.initialize()'));
   });
 
-  test('iOS native path requests real 240 120 60 tiers and CMSampleBuffers',
-      () {
+  test('iOS native path requests real 240 120 60 tiers and CMSampleBuffers', () {
     final swift = File('ios/Runner/AppDelegate.swift').readAsStringSync();
     expect(swift, contains('[240.0, 120.0, 60.0]'));
     expect(swift, contains('AVCaptureVideoDataOutputSampleBufferDelegate'));
     expect(swift, contains('CMSampleBufferGetPresentationTimeStamp'));
     expect(
-        swift, contains('device.activeVideoMinFrameDuration = frameDuration'));
+      swift,
+      contains('device.activeVideoMinFrameDuration = frameDuration'),
+    );
     expect(
-        swift, contains('device.activeVideoMaxFrameDuration = frameDuration'));
+      swift,
+      contains('device.activeVideoMaxFrameDuration = frameDuration'),
+    );
     expect(swift, contains('setExposureModeCustom'));
     expect(swift, contains('shortExposureVerified'));
   });
 
   test('unavailable V2 evidence cannot change production decision', () {
     final unavailable = HCVTemporalFrequencyProbe.unavailable('TEST');
-    expect(unavailable['decisionRole'], 'SHADOW_ONLY_NEVER_DECISIONAL');
-    expect(unavailable['productionDecisionChanged'], false);
+    expect(unavailable['analysisStatus'], 'NOT_ANALYZED');
+
+    const baseline = HCVDisplayRiskResult(
+      risk: 'LOW',
+      score: 20,
+      decision: 'NO_DISPLAY_EVIDENCE',
+      analysisStatus: 'COMPLETE',
+      evidenceSources: [],
+      strongSources: [],
+      reasons: ['BASELINE'],
+    );
+    final result = HCVPhysicalDisplayEvidence.apply(
+      baseline: baseline,
+      mlAnalysis: null,
+      temporalFrequencyProbe: unavailable,
+      illuminationResponseProbe: null,
+      hardDisplayCorroboration: false,
+    );
+    expect(result.decision, baseline.decision);
+    expect(result.score, baseline.score);
+    expect(result.risk, baseline.risk);
   });
 }
