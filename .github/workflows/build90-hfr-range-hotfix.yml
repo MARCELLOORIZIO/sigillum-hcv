@@ -31,7 +31,13 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: HFR crash regression tests
-        run: flutter test test/native_temporal_frequency_v2_hfr_range_contract_test.dart test/native_temporal_frequency_v2_crash_hotfix_contract_test.dart test/temporal_frequency_probe_v2_test.dart
+        run: |
+          flutter test \
+            test/native_temporal_frequency_v2_hfr_range_contract_test.dart \
+            test/native_temporal_frequency_v2_crash_hotfix_contract_test.dart \
+            test/native_temporal_frequency_v2_contract_test.dart \
+            test/frequency_probe_session_safety_contract_test.dart \
+            test/temporal_frequency_probe_contract_test.dart
 
       - name: Full Flutter tests
         run: flutter test
