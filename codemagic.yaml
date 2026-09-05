@@ -54,30 +54,6 @@ workflows:
       - name: Apply development signing profiles
         script: xcode-project use-profiles --project ios/Runner.xcodeproj
 
-      - name: Set up iOS export options
-        script: |
-          cat > /Users/builder/export_options.plist <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>development</string>
-            <key>teamID</key>
-            <string>DN9W7Z3HCZ</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.sigillum.hcv</key>
-              <string>SIGILLUM HCV Development</string>
-              <key>com.sigillum.hcv.share</key>
-              <string>SIGILLUM HCV Share Development</string>
-            </dict>
-          </dict>
-          </plist>
-          PLIST
-
       - name: Install validated iOS pods
         script: |
           set -euo pipefail
