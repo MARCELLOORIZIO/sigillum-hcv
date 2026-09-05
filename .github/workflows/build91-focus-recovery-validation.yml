@@ -27,6 +27,36 @@ jobs:
       - name: Apply autofocus recovery patch
         run: python3 tool/apply_build91_focus_recovery.py
 
+      - name: Correct autofocus contract locator
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('test/camera_focus_recovery_after_native_probe_test.dart')
+          s = p.read_text()
+          s = s.replace(
+              "final focusMode = handoff.indexOf('await replacement.setFocusMode(FocusMode.auto);');",
+              "final focusMode = handoff.indexOf('await replacement.setFocusMode(FocusMode.auto);', zoom + 1);",
+          )
+          s = s.replace(
+              "final focusPoint = handoff.indexOf('await replacement.setFocusPoint(null);');",
+              "final focusPoint = handoff.indexOf('await replacement.setFocusPoint(null);', focusMode + 1);",
+          )
+          s = s.replace(
+              "final exposureMode =\n        handoff.indexOf('await replacement.setExposureMode(ExposureMode.auto);');",
+              "final exposureMode = handoff.indexOf(\n      'await replacement.setExposureMode(ExposureMode.auto);',\n      focusPoint + 1,\n    );",
+          )
+          s = s.replace(
+              "final exposurePoint = handoff.indexOf('await replacement.setExposurePoint(null);');",
+              "final exposurePoint = handoff.indexOf('await replacement.setExposurePoint(null);', exposureMode + 1);",
+          )
+          s = s.replace(
+              "final settle = handoff.indexOf(\n      'await Future.delayed(const Duration(milliseconds: 650));',\n    );",
+              "final settle = handoff.indexOf(\n      'await Future.delayed(const Duration(milliseconds: 650));',\n      exposurePoint + 1,\n    );",
+          )
+          p.write_text(s)
+          PY
+
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
