@@ -30,6 +30,9 @@ jobs:
       - name: Harden torch error handling
         run: python3 tool/harden_illumination_torch_unlock.py
 
+      - name: Fix V1 test imports
+        run: python3 tool/fix_v1_test_imports.py
+
       - name: Format
         run: dart format lib/hcv_illumination_response_probe.dart lib/hcv_physical_display_fusion.dart lib/camera_page.dart test/illumination_response_probe_math_test.dart test/physical_display_fusion_v1_test.dart test/native_illumination_response_contract_test.dart
 
@@ -58,12 +61,13 @@ jobs:
           set -euo pipefail
           rm -f tool/apply_illumination_response_fusion_v1.py
           rm -f tool/harden_illumination_torch_unlock.py
+          rm -f tool/fix_v1_test_imports.py
           rm -f .github/workflows/illumination-response-fusion-v1-validation.yml
           git config user.name 'SIGILLUM CI'
           git config user.email 'actions@users.noreply.github.com'
           git add ios/Runner/AppDelegate.swift lib/camera_page.dart lib/hcv_illumination_response_probe.dart lib/hcv_physical_display_fusion.dart
           git add test/illumination_response_probe_math_test.dart test/physical_display_fusion_v1_test.dart test/native_illumination_response_contract_test.dart
-          git add -u tool/apply_illumination_response_fusion_v1.py tool/harden_illumination_torch_unlock.py .github/workflows/illumination-response-fusion-v1-validation.yml
+          git add -u tool/apply_illumination_response_fusion_v1.py tool/harden_illumination_torch_unlock.py tool/fix_v1_test_imports.py .github/workflows/illumination-response-fusion-v1-validation.yml
           if git diff --cached --quiet; then
             echo 'No materialized changes'
             exit 1
