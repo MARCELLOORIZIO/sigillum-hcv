@@ -140,6 +140,85 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
   }
 }
 
+
+private final class HCVIlluminationResponseNativeCollector: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+  private let maxFramesPerPhase: Int
+  private let lock = NSLock()
+  private var phase = -1
+  private var phaseFrames: [[[Double]]] = [[], [], []]
+
+  init(maxFramesPerPhase: Int = 12) {
+    self.maxFramesPerPhase = maxFramesPerPhase
+  }
+
+  func setPhase(_ value: Int) {
+    lock.lock()
+    phase = value
+    lock.unlock()
+  }
+
+  func captureOutput(
+    _ output: AVCaptureOutput,
+    didOutput sampleBuffer: CMSampleBuffer,
+    from connection: AVCaptureConnection
+  ) {
+    guard CMSampleBufferDataIsReady(sampleBuffer),
+          let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
+          let cells = cellMeans(from: pixelBuffer) else { return }
+    lock.lock()
+    let current = phase
+    if current >= 0 && current < 3 && phaseFrames[current].count < maxFramesPerPhase {
+      phaseFrames[current].append(cells)
+    }
+    lock.unlock()
+  }
+
+  func snapshot() -> [[[Double]]] {
+    lock.lock()
+    let copy = phaseFrames
+    lock.unlock()
+    return copy
+  }
+
+  private func cellMeans(from pixelBuffer: CVPixelBuffer) -> [Double]? {
+    CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+    guard CVPixelBufferGetPlaneCount(pixelBuffer) > 0,
+          let baseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else { return nil }
+    let width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
+    let height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
+    let bytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+    guard width >= 6, height >= 6, bytesPerRow >= width else { return nil }
+    let bytes = baseAddress.assumingMemoryBound(to: UInt8.self)
+    var result: [Double] = []
+    result.reserveCapacity(9)
+    for gridRow in 0..<3 {
+      for gridColumn in 0..<3 {
+        let x0 = width * gridColumn / 3
+        let x1 = width * (gridColumn + 1) / 3
+        let y0 = height * gridRow / 3
+        let y1 = height * (gridRow + 1) / 3
+        let xStep = max(1, (x1 - x0) / 24)
+        let yStep = max(1, (y1 - y0) / 24)
+        var sum = 0.0
+        var count = 0
+        var y = y0
+        while y < y1 {
+          var x = x0
+          while x < x1 {
+            sum += Double(bytes[y * bytesPerRow + x]) / 255.0
+            count += 1
+            x += xStep
+          }
+          y += yStep
+        }
+        result.append(count > 0 ? sum / Double(count) : 0.0)
+      }
+    }
+    return result
+  }
+}
+
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var storeKit2PriceChannel: FlutterMethodChannel?
@@ -157,6 +236,9 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
   private var temporalFrequencyResultDelivered = false
   private var temporalFrequencyNativeSession: AVCaptureSession?
   private var temporalFrequencyNativeCollector: HCVTemporalFrequencyNativeCollector?
+  private var illuminationResponseNativeBusy = false
+  private var illuminationResponseNativeSession: AVCaptureSession?
+  private var illuminationResponseNativeCollector: HCVIlluminationResponseNativeCollector?
   private var storefrontUpdatesTask: Task<Void, Never>?
   private var storefrontBaselineFingerprint = ""
   private var storefrontSessionFresh = false
@@ -727,6 +809,163 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     }
   }
 
+
+  private func captureIlluminationResponseNative(
+    device: AVCaptureDevice,
+    call: FlutterMethodCall,
+    result: @escaping FlutterResult
+  ) {
+    if illuminationResponseNativeBusy {
+      result(FlutterError(code: "ILLUMINATION_RESPONSE_BUSY", message: "Illumination response capture already running", details: nil))
+      return
+    }
+    let captureDevice = temporalFrequencyPhysicalDevice(for: device)
+    guard captureDevice.hasTorch, captureDevice.isTorchModeSupported(.on) else {
+      result([
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "TORCH_UNAVAILABLE_ON_ACTIVE_PHYSICAL_CAMERA",
+        "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
+      ])
+      return
+    }
+    let args = call.arguments as? [String: Any]
+    let torchLevel = Float(max(0.1, min(0.6, args?["torchLevel"] as? Double ?? 0.30)))
+    illuminationResponseNativeBusy = true
+
+    temporalFrequencyNativeQueue.async { [weak self] in
+      guard let self else { return }
+      var session: AVCaptureSession?
+      var output: AVCaptureVideoDataOutput?
+      do {
+        guard let selection = self.temporalFrequencyFormat(for: captureDevice, requestedMaxFps: 60.0) else {
+          throw NSError(domain: "SIGILLUMIlluminationResponse", code: 1, userInfo: [NSLocalizedDescriptionKey: "No native 60 fps format available"])
+        }
+        let nativeSession = AVCaptureSession()
+        nativeSession.beginConfiguration()
+        let input = try AVCaptureDeviceInput(device: captureDevice)
+        guard nativeSession.canAddInput(input) else { throw NSError(domain: "SIGILLUMIlluminationResponse", code: 2, userInfo: [NSLocalizedDescriptionKey: "Camera input unavailable"]) }
+        nativeSession.addInput(input)
+        let nativeOutput = AVCaptureVideoDataOutput()
+        nativeOutput.alwaysDiscardsLateVideoFrames = true
+        nativeOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)]
+        guard nativeSession.canAddOutput(nativeOutput) else { throw NSError(domain: "SIGILLUMIlluminationResponse", code: 3, userInfo: [NSLocalizedDescriptionKey: "Video data output unavailable"]) }
+        nativeSession.addOutput(nativeOutput)
+
+        try captureDevice.lockForConfiguration()
+        captureDevice.activeFormat = selection.format
+        captureDevice.activeVideoMinFrameDuration = selection.range.minFrameDuration
+        captureDevice.activeVideoMaxFrameDuration = selection.range.minFrameDuration
+        if captureDevice.isExposureModeSupported(.continuousAutoExposure) { captureDevice.exposureMode = .continuousAutoExposure }
+        if captureDevice.isFocusModeSupported(.continuousAutoFocus) { captureDevice.focusMode = .continuousAutoFocus }
+        if captureDevice.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) { captureDevice.whiteBalanceMode = .continuousAutoWhiteBalance }
+        captureDevice.torchMode = .off
+        captureDevice.unlockForConfiguration()
+        nativeSession.commitConfiguration()
+        session = nativeSession
+        output = nativeOutput
+        self.illuminationResponseNativeSession = nativeSession
+        nativeSession.startRunning()
+        guard nativeSession.isRunning else { throw NSError(domain: "SIGILLUMIlluminationResponse", code: 4, userInfo: [NSLocalizedDescriptionKey: "Illumination session failed to start"]) }
+        Thread.sleep(forTimeInterval: 0.18)
+
+        let baselineDuration = max(CMTimeGetSeconds(captureDevice.exposureDuration), CMTimeGetSeconds(captureDevice.activeFormat.minExposureDuration))
+        let baselineISO = max(captureDevice.iso, captureDevice.activeFormat.minISO)
+        let maxLockedDuration = min(CMTimeGetSeconds(captureDevice.activeFormat.maxExposureDuration), 0.90 / selection.fps)
+        let lockedDuration = min(maxLockedDuration, baselineDuration)
+        let exposureCompensation = baselineDuration / max(lockedDuration, 0.000001)
+        let lockedISO = min(captureDevice.activeFormat.maxISO, max(captureDevice.activeFormat.minISO, baselineISO * Float(exposureCompensation)))
+        let duration = CMTimeMakeWithSeconds(lockedDuration, preferredTimescale: 1_000_000_000)
+        let exposureSemaphore = DispatchSemaphore(value: 0)
+        try captureDevice.lockForConfiguration()
+        if captureDevice.isFocusModeSupported(.locked) {
+          captureDevice.setFocusModeLocked(lensPosition: captureDevice.lensPosition, completionHandler: nil)
+        }
+        if captureDevice.isWhiteBalanceModeSupported(.locked) {
+          let gains = self.clampedWhiteBalanceGains(captureDevice.deviceWhiteBalanceGains, for: captureDevice)
+          captureDevice.setWhiteBalanceModeLocked(with: gains, completionHandler: nil)
+        }
+        guard captureDevice.isExposureModeSupported(.custom) else {
+          captureDevice.unlockForConfiguration()
+          throw NSError(domain: "SIGILLUMIlluminationResponse", code: 5, userInfo: [NSLocalizedDescriptionKey: "Custom exposure unavailable"])
+        }
+        captureDevice.setExposureModeCustom(duration: duration, iso: lockedISO) { _ in exposureSemaphore.signal() }
+        captureDevice.unlockForConfiguration()
+        _ = exposureSemaphore.wait(timeout: .now() + 0.8)
+        Thread.sleep(forTimeInterval: 0.04)
+
+        let collector = HCVIlluminationResponseNativeCollector(maxFramesPerPhase: 12)
+        self.illuminationResponseNativeCollector = collector
+        nativeOutput.setSampleBufferDelegate(collector, queue: self.temporalFrequencySampleQueue)
+
+        try captureDevice.lockForConfiguration()
+        captureDevice.torchMode = .off
+        captureDevice.unlockForConfiguration()
+        collector.setPhase(0)
+        Thread.sleep(forTimeInterval: 0.16)
+
+        try captureDevice.lockForConfiguration()
+        do {
+          try captureDevice.setTorchModeOn(level: torchLevel)
+          captureDevice.unlockForConfiguration()
+        } catch {
+          captureDevice.unlockForConfiguration()
+          throw error
+        }
+        Thread.sleep(forTimeInterval: 0.04)
+        collector.setPhase(1)
+        Thread.sleep(forTimeInterval: 0.18)
+
+        try captureDevice.lockForConfiguration()
+        captureDevice.torchMode = .off
+        captureDevice.unlockForConfiguration()
+        Thread.sleep(forTimeInterval: 0.04)
+        collector.setPhase(2)
+        Thread.sleep(forTimeInterval: 0.16)
+
+        collector.setPhase(-1)
+        nativeOutput.setSampleBufferDelegate(nil, queue: nil)
+        let phases = collector.snapshot()
+        if nativeSession.isRunning { nativeSession.stopRunning() }
+        let handoff = self.resetTemporalFrequencyOpticsForFlutterHandoff(captureDevice)
+        self.illuminationResponseNativeCollector = nil
+        self.illuminationResponseNativeSession = nil
+        self.illuminationResponseNativeBusy = false
+        let dimensions = CMVideoFormatDescriptionGetDimensions(selection.format.formatDescription)
+        let payload: [String: Any] = [
+          "analysisStatus": phases.allSatisfy { $0.count >= 3 } ? "CAPTURED" : "NOT_ANALYZED",
+          "reason": phases.allSatisfy { $0.count >= 3 } ? "CAPTURE_COMPLETE" : "NOT_ENOUGH_PHASE_FRAMES",
+          "captureMode": "ISOLATED_NATIVE_TORCH_OFF_ON_OFF_LOCKED_EXPOSURE",
+          "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
+          "configuredFrameRate": selection.fps,
+          "frameWidth": Int(dimensions.width),
+          "frameHeight": Int(dimensions.height),
+          "torchLevel": Double(torchLevel),
+          "lockedExposureSeconds": CMTimeGetSeconds(captureDevice.exposureDuration),
+          "lockedISO": Double(captureDevice.iso),
+          "phaseFrames": phases,
+          "phaseFrameCounts": phases.map { $0.count },
+          "cameraHandoffAfterIlluminationProbe": handoff,
+        ]
+        DispatchQueue.main.async { result(payload) }
+      } catch {
+        do {
+          try captureDevice.lockForConfiguration()
+          captureDevice.torchMode = .off
+          captureDevice.unlockForConfiguration()
+        } catch {}
+        output?.setSampleBufferDelegate(nil, queue: nil)
+        if let session, session.isRunning { session.stopRunning() }
+        _ = self.resetTemporalFrequencyOpticsForFlutterHandoff(captureDevice)
+        self.illuminationResponseNativeCollector = nil
+        self.illuminationResponseNativeSession = nil
+        self.illuminationResponseNativeBusy = false
+        DispatchQueue.main.async {
+          result(FlutterError(code: "ILLUMINATION_RESPONSE_CAPTURE_FAILED", message: error.localizedDescription, details: nil))
+        }
+      }
+    }
+  }
+
   private func handleCameraProbeCall(
     _ call: FlutterMethodCall,
     result: @escaping FlutterResult
@@ -736,6 +975,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     }
 
     switch call.method {
+    case "captureIlluminationResponseNative":
+      let physicalDevice = temporalFrequencyPhysicalDevice(for: device)
+      captureIlluminationResponseNative(device: physicalDevice, call: call, result: result)
+
     case "captureTemporalFrequencyNative":
       let physicalDevice = temporalFrequencyPhysicalDevice(for: device)
       captureTemporalFrequencyNative(

@@ -24,6 +24,8 @@ import 'hcv_capture_location.dart';
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_temporal_capture_probe.dart';
 import 'hcv_temporal_frequency_probe.dart';
+import 'hcv_illumination_response_probe.dart';
+import 'hcv_physical_display_fusion.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_capture_timestamp.dart';
@@ -286,6 +288,7 @@ class _CameraPageState extends State<CameraPage> {
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
   Map<String, dynamic>? pendingTemporalFrequencyProbe;
+  Map<String, dynamic>? pendingIlluminationResponseProbe;
   HCVCaptureLocation? pendingVideoLocation;
   HCVCaptureLocation? _lastCaptureLocation;
   DateTime? pendingVideoCapturedAt;
@@ -510,7 +513,19 @@ class _CameraPageState extends State<CameraPage> {
       );
     }
 
-    // The native method returns only after its AVCaptureSession has stopped.
+    try {
+      pendingIlluminationResponseProbe =
+          await const HCVIlluminationResponseProbe()
+              .captureNative(description.name);
+    } catch (error) {
+      pendingIlluminationResponseProbe =
+          HCVIlluminationResponseProbe.unavailable(
+        'ISOLATED_NATIVE_ILLUMINATION_RESPONSE_FAILED',
+        error: error,
+      );
+    }
+
+    // The native methods return only after their AVCaptureSessions have stopped.
     // Give AVFoundation a short release interval, then reconstruct the Flutter
     // camera before BUILD 80's original capture path resumes.
     await Future.delayed(const Duration(milliseconds: 220));
@@ -617,6 +632,7 @@ class _CameraPageState extends State<CameraPage> {
 
     pendingLiveScreenProbe = null;
     pendingTemporalFrequencyProbe = null;
+    pendingIlluminationResponseProbe = null;
     pendingVideoLocation = captureLocation;
     lastLiveSignals = null;
 
@@ -654,6 +670,7 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
       pendingTemporalFrequencyProbe = null;
+      pendingIlluminationResponseProbe = null;
       setState(() {
         recording = false;
         status = '${_c('startError')}: $e';
@@ -824,6 +841,7 @@ class _CameraPageState extends State<CameraPage> {
     HCVTemporalCaptureClip? temporalClip;
     Map<String, dynamic>? temporalProbe;
     Map<String, dynamic>? temporalFrequencyProbe;
+    Map<String, dynamic>? illuminationResponseProbe;
 
     try {
       // One user tap starts the technical clip and automatically finishes with
@@ -833,7 +851,10 @@ class _CameraPageState extends State<CameraPage> {
         result = null;
       });
 
+      pendingIlluminationResponseProbe = null;
       temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
+      illuminationResponseProbe = pendingIlluminationResponseProbe;
+      pendingIlluminationResponseProbe = null;
 
       try {
         temporalClip = await temporalProbeEngine.capture(
@@ -945,8 +966,15 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final displayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
+      final baselineDisplayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
         screenReplayAnalyses,
+      );
+      final displayRisk = HCVPhysicalDisplayFusion.apply(
+        baseline: baselineDisplayRisk,
+        temporalFrequencyProbe: temporalFrequencyProbe,
+        illuminationResponseProbe: illuminationResponseProbe,
+        hardDisplayCorroboration:
+            _hasHardDisplayCorroboration(screenReplayAnalyses),
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -1014,6 +1042,7 @@ class _CameraPageState extends State<CameraPage> {
         "locationPrinted": captureLocation != null,
         "liveScreenProbe": liveScreenProbe,
         "temporalFrequencyProbe": temporalFrequencyProbe,
+        "illuminationResponseProbe": illuminationResponseProbe,
         "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",
         "geometryChallenge": liveScreenProbe["geometryChallenge"],
         "screenReplayAnalysis": screenReplayAnalysis,
@@ -1253,6 +1282,8 @@ class _CameraPageState extends State<CameraPage> {
     pendingLiveScreenProbe = null;
     final temporalFrequencyProbe = pendingTemporalFrequencyProbe;
     pendingTemporalFrequencyProbe = null;
+    final illuminationResponseProbe = pendingIlluminationResponseProbe;
+    pendingIlluminationResponseProbe = null;
     final effectiveCapturedAt = capturedAt ?? DateTime.now();
 
     setState(() {
@@ -1310,8 +1341,15 @@ class _CameraPageState extends State<CameraPage> {
       screenReplayAnalysis,
       mlScreenReplayAnalysis,
     ];
-    final displayRisk = combineVideoDisplayRiskFromCaptureEvidence(
+    final baselineDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
       screenReplayAnalyses,
+    );
+    final displayRisk = HCVPhysicalDisplayFusion.apply(
+      baseline: baselineDisplayRisk,
+      temporalFrequencyProbe: temporalFrequencyProbe,
+      illuminationResponseProbe: illuminationResponseProbe,
+      hardDisplayCorroboration:
+          _hasHardDisplayCorroboration(screenReplayAnalyses),
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
@@ -1397,6 +1435,7 @@ class _CameraPageState extends State<CameraPage> {
       "locationPrinted": captureLocation != null,
       "liveScreenProbe": liveScreenProbe,
       "temporalFrequencyProbe": temporalFrequencyProbe,
+      "illuminationResponseProbe": illuminationResponseProbe,
       "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",
       "geometryChallenge": liveScreenProbe?["geometryChallenge"],
       "screenReplayAnalysis": screenReplayAnalysis,
