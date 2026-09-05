@@ -1,6 +1,14 @@
 workflows:
   ios-workflow:
     name: SIGILLUM iOS User
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'fix/capture-lifecycle-lock-build92'
+          include: true
+          source: true
+      cancel_previous_builds: true
     environment:
       flutter: 3.47.1
       xcode: latest
@@ -43,29 +51,8 @@ workflows:
           SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share Development
           XCCONFIG
 
-      - name: Set up iOS export options
-        script: |
-          cat > /Users/builder/export_options.plist <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>development</string>
-            <key>teamID</key>
-            <string>DN9W7Z3HCZ</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.sigillum.hcv</key>
-              <string>SIGILLUM HCV Development</string>
-              <key>com.sigillum.hcv.share</key>
-              <string>SIGILLUM HCV Share Development</string>
-            </dict>
-          </dict>
-          </plist>
-          PLIST
+      - name: Apply development signing profiles
+        script: xcode-project use-profiles --project ios/Runner.xcodeproj
 
       - name: Install validated iOS pods
         script: |
@@ -76,14 +63,24 @@ workflows:
           grep -F "TensorFlowLiteSwift (2.17.0)" ios/Podfile.lock
           git diff --exit-code -- lib test ios/Runner ios/Podfile
 
-      - name: Build IPA from committed source
+      - name: Build IPA 93 from committed source
         script: |
           set -euo pipefail
           BUILD_COMMIT="$(git rev-parse HEAD)"
+          ENTITLEMENTS="ios/Runner/Runner.entitlements"
+          cp "$ENTITLEMENTS" /tmp/Runner.entitlements.original
+          /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.associated-domains" "$ENTITLEMENTS"
+          restore_entitlements() {
+            cp /tmp/Runner.entitlements.original "$ENTITLEMENTS"
+          }
+          trap restore_entitlements EXIT
           flutter build ipa --release --no-pub \
+            --build-number=93 \
             --dart-define=SIGILLUM_EDITION=user \
             --dart-define=GIT_COMMIT="$BUILD_COMMIT" \
             --export-options-plist=/Users/builder/export_options.plist
+          restore_entitlements
+          trap - EXIT
           git diff --exit-code -- lib test ios/Runner ios/Podfile
           python3 tool/verify_postpatch_release_20260825.py
 
@@ -91,6 +88,13 @@ workflows:
       - build/ios/ipa/*.ipa
       - build/ios/archive/*.xcarchive
       - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - MARCELLOORIZIO@YAHOO.IT
+        notify:
+          success: true
+          failure: true
 
   ios-testflight:
     name: SIGILLUM iOS TestFlight
