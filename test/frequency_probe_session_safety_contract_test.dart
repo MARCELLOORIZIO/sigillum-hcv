@@ -29,10 +29,25 @@ void main() {
     expect(source, contains('captureTemporalFrequencyNative'));
   });
 
-  test('frequency probe remains shadow-only', () {
+  test('frequency probe production use remains strictly gated', () {
     final source =
         File('lib/hcv_temporal_frequency_probe.dart').readAsStringSync();
-    expect(source, contains("'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL'"));
-    expect(source, contains("'productionDecisionChanged': false"));
+    expect(
+      source,
+      contains(
+        "'decisionRole': 'POSITIVE_DISPLAY_RESCUE_AND_CONFLICT_DIAGNOSTIC'",
+      ),
+    );
+    expect(source, contains("'productionFusionEnabled': true"));
+
+    final gate =
+        File('lib/hcv_physical_display_evidence.dart').readAsStringSync();
+    expect(gate, contains('hasStrongHfrDisplaySignature'));
+    expect(gate, contains('hasElectronicallyQuietHfr'));
+    expect(gate, contains('_hfrQualityReady'));
+    expect(gate, contains("fps >= 119.0"));
+    expect(gate, contains('exposureVerified'));
+    expect(gate, contains('frames >= 24'));
+    expect(gate, isNot(contains("decision: 'NO_DISPLAY_EVIDENCE'")));
   });
 }
