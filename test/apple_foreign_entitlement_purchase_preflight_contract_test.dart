@@ -45,9 +45,18 @@ void main() {
       );
       final section = billing.substring(preflight, purchase);
 
+      final currentEntitlements = section.indexOf("'currentEntitlements'");
+      final serverVerification = section.indexOf(
+        'await account.verifyApplePurchase(',
+      );
+      final ownershipConflict = section.indexOf(
+        "if (error.code == 'APPLE_SUBSCRIPTION_ALREADY_LINKED') rethrow;",
+      );
+
       expect(preflight, greaterThanOrEqualTo(0));
-      expect(section, contains("'currentEntitlements'"));
-      expect(section, contains('await account.verifyApplePurchase('));
+      expect(currentEntitlements, greaterThanOrEqualTo(0));
+      expect(serverVerification, greaterThan(currentEntitlements));
+      expect(ownershipConflict, greaterThan(serverVerification));
       expect(section, contains('transactionId: transactionId'));
       expect(section, contains('receiptData: receiptData'));
       expect(section, isNot(contains('.billingStatus()')));
@@ -55,7 +64,7 @@ void main() {
   );
 
   test(
-    'ownership conflict is terminal before payment while unrelated failures do not grant entitlement',
+    'ownership conflict is terminal before payment while preflight cannot grant entitlement',
     () {
       final billing =
           File('lib/commercial_billing_service.dart').readAsStringSync();
@@ -72,18 +81,9 @@ void main() {
         section,
         contains("if (error.code == 'APPLE_SUBSCRIPTION_ALREADY_LINKED') rethrow;"),
       );
-      expect(
-        section,
-        contains('current foreign entitlement'),
-      );
-      expect(
-        section,
-        isNot(contains('completeVerifiedPurchase(')),
-      );
-      expect(
-        section,
-        isNot(contains('_iap.buyNonConsumable(')),
-      );
+      expect(section, isNot(contains('completeVerifiedPurchase(')));
+      expect(section, isNot(contains('_iap.buyNonConsumable(')));
+      expect(section, isNot(contains('_iap.restorePurchases(')));
     },
   );
 }
