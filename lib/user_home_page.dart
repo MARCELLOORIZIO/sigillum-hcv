@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camera_page.dart';
+import 'commercial_account_service.dart';
 import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
 import 'commercial_profile_page.dart';
@@ -25,11 +26,16 @@ class UserHomePage extends StatefulWidget {
   State<UserHomePage> createState() => _UserHomePageState();
 }
 
-class _UserHomePageState extends State<UserHomePage> {
+class _UserHomePageState extends State<UserHomePage>
+    with WidgetsBindingObserver {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
+  static const CommercialAccountService _account = CommercialAccountService();
+
   String? _lastOpenedSharedPath;
   String? _pendingSharedPath;
   bool _sharedOpenScheduled = false;
+  bool _entitlementCheckInFlight = false;
+  bool _routingToCommercialGate = false;
   String languageCode = SigillumCopy.initialLanguageCode();
 
   String _t(String key) => SigillumCopy.t(languageCode, key);
@@ -37,10 +43,85 @@ class _UserHomePageState extends State<UserHomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _intentChannel.setMethodCallHandler(_handleNativeIntent);
     Future.microtask(_loadLanguage);
     Future.microtask(_checkInitialIntent);
-    Future.microtask(_retryRegistryOutbox);
+    Future.microtask(_bootstrapCreatorSession);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      Future.microtask(_revalidateCreatorEntitlement);
+    }
+  }
+
+  Future<void> _bootstrapCreatorSession() async {
+    final active = await _revalidateCreatorEntitlement();
+    if (active) {
+      await _retryRegistryOutbox();
+    }
+  }
+
+  Future<bool> _revalidateCreatorEntitlement({
+    bool blockProtectedAction = false,
+  }) async {
+    if (_routingToCommercialGate) return false;
+    if (_entitlementCheckInFlight) return false;
+
+    _entitlementCheckInFlight = true;
+    try {
+      final billing = await _account.billingStatus();
+      final status = billing['status']?.toString() ?? 'inactive';
+      final active = status == 'active' || status == 'grace';
+      if (active) return true;
+
+      _routeToCommercialGate();
+      return false;
+    } catch (error) {
+      // A transient network/App Store error must not silently grant access to a
+      // new Creator operation. Existing UI remains visible, but protected
+      // certification actions stay blocked until entitlement can be verified.
+      if (blockProtectedAction && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Impossibile verificare l’abbonamento Creator. Riprova quando la connessione è disponibile.',
+            ),
+          ),
+        );
+      }
+      return false;
+    } finally {
+      _entitlementCheckInFlight = false;
+    }
+  }
+
+  void _routeToCommercialGate() {
+    if (!mounted || _routingToCommercialGate) return;
+    _routingToCommercialGate = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        Navigator.defaultRouteName,
+        (route) => false,
+      );
+    });
+  }
+
+  Future<void> _openCreatorProtected(Widget page) async {
+    final active = await _revalidateCreatorEntitlement(
+      blockProtectedAction: true,
+    );
+    if (!active || !mounted) return;
+    _open(page);
   }
 
   Future<void> _retryRegistryOutbox() async {
@@ -198,8 +279,9 @@ class _UserHomePageState extends State<UserHomePage> {
                       title: _t('certifyMediaTitle'),
                       subtitle: _t('certifyMediaSubtitle'),
                       accent: SigillumTheme.accent,
-                      onPressed: () =>
-                          _open(CameraPage(languageCode: languageCode)),
+                      onPressed: () => _openCreatorProtected(
+                        CameraPage(languageCode: languageCode),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(
@@ -207,8 +289,9 @@ class _UserHomePageState extends State<UserHomePage> {
                       title: _t('certifyTextTitle'),
                       subtitle: _t('certifyTextSubtitle'),
                       accent: SigillumTheme.accentAlt,
-                      onPressed: () =>
-                          _open(TextCertPage(languageCode: languageCode)),
+                      onPressed: () => _openCreatorProtected(
+                        TextCertPage(languageCode: languageCode),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(
