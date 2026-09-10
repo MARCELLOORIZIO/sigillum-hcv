@@ -26,7 +26,10 @@ void main() {
     expect(source, contains('final check = _performCreatorEntitlementCheck();'));
     expect(source, contains('_entitlementCheckInFlight = check;'));
     expect(source, contains('identical(_entitlementCheckInFlight, check)'));
-    expect(source, isNot(contains('if (_entitlementCheckInFlight) return false;'));
+    expect(
+      source.contains('if (_entitlementCheckInFlight) return false;'),
+      isFalse,
+    );
   });
 
   test('Registry retry waits for a valid Creator entitlement', () {
