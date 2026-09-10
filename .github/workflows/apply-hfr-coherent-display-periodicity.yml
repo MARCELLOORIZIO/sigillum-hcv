@@ -28,7 +28,10 @@ jobs:
           cache: true
 
       - name: Apply focused HFR decision patch
-        run: python3 tools/apply_hfr_coherent_display_periodicity.py
+        shell: bash
+        run: |
+          python3 tools/apply_hfr_coherent_display_periodicity.py
+          sed -i "s#import 'package:sigillum_hcv/hcv_temporal_frequency_probe.dart';#import '../lib/hcv_temporal_frequency_probe.dart';#" test/hfr_coherent_display_periodicity_gate_test.dart
 
       - name: Format changed Dart files
         run: dart format lib/hcv_temporal_frequency_probe.dart lib/camera_page.dart test/hfr_coherent_display_periodicity_gate_test.dart test/hfr_coherent_display_periodicity_integration_contract_test.dart
