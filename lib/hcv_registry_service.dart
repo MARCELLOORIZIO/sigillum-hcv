@@ -11,6 +11,7 @@ enum HCVRegistryFailureKind {
   notFound,
   unavailable,
   server,
+  subscriptionInactive,
   invalidCertificate,
   invalidResponse,
 }
@@ -37,6 +38,7 @@ class HCVRegistryRetryReport {
     required this.pending,
     required this.discarded,
     required this.uploadedPaths,
+    required this.subscriptionInactivePaths,
   });
 
   final int attempted;
@@ -44,6 +46,7 @@ class HCVRegistryRetryReport {
   final int pending;
   final int discarded;
   final Set<String> uploadedPaths;
+  final Set<String> subscriptionInactivePaths;
 }
 
 class HCVRegistryService {
@@ -156,9 +159,11 @@ class HCVRegistryService {
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
         throw HCVRegistryException(
-          res.statusCode >= 500
-              ? HCVRegistryFailureKind.server
-              : HCVRegistryFailureKind.invalidResponse,
+          res.statusCode == 402
+              ? HCVRegistryFailureKind.subscriptionInactive
+              : res.statusCode >= 500
+                  ? HCVRegistryFailureKind.server
+                  : HCVRegistryFailureKind.invalidResponse,
           'Registry upload error ${res.statusCode}: $body',
           statusCode: res.statusCode,
         );
@@ -399,6 +404,7 @@ class HCVRegistryService {
     final pending = await _readPendingUploads();
     final remaining = <Map<String, dynamic>>[];
     final uploadedPaths = <String>{};
+    final subscriptionInactivePaths = <String>{};
     var attempted = 0;
     var discarded = 0;
 
@@ -425,6 +431,9 @@ class HCVRegistryService {
           break;
         } on HCVRegistryException catch (e) {
           lastRegistryError = e;
+          if (e.kind == HCVRegistryFailureKind.subscriptionInactive) {
+            subscriptionInactivePaths.add(path);
+          }
           if (e.kind == HCVRegistryFailureKind.invalidCertificate) {
             discarded++;
             discardCurrent = true;
@@ -464,6 +473,7 @@ class HCVRegistryService {
       pending: remaining.length,
       discarded: discarded,
       uploadedPaths: uploadedPaths,
+      subscriptionInactivePaths: subscriptionInactivePaths,
     );
   }
 

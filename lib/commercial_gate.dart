@@ -1126,6 +1126,21 @@ class _CommercialGateState extends State<CommercialGate> {
     _resetLoggedOutState();
   }
 
+  Future<void> _onSubscriptionInactive() async {
+    if (!mounted) return;
+    setState(() {
+      _busy = true;
+      _message = _t('subscriptionInactive');
+    });
+    await _prepareBilling();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _stage = _GateStage.billing;
+      _message = _t('subscriptionInactive');
+    });
+  }
+
   Future<void> _logout() async {
     await _account.logout();
     _resetLoggedOutState();
@@ -1152,7 +1167,10 @@ class _CommercialGateState extends State<CommercialGate> {
   @override
   Widget build(BuildContext context) {
     if (_stage == _GateStage.creator) {
-      return UserHomePage(onSessionInvalidated: _onSessionInvalidated);
+      return UserHomePage(
+        onSessionInvalidated: _onSessionInvalidated,
+        onSubscriptionInactive: _onSubscriptionInactive,
+      );
     }
     if (_stage == _GateStage.landing) {
       return Scaffold(body: _landing());

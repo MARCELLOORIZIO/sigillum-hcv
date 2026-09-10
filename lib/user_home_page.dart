@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camera_page.dart';
+import 'commercial_account_service.dart';
 import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
 import 'commercial_profile_page.dart';
@@ -17,19 +18,26 @@ import 'text_cert_page.dart';
 import 'text_social_verify_page.dart';
 
 class UserHomePage extends StatefulWidget {
-  const UserHomePage({super.key, this.onSessionInvalidated});
+  const UserHomePage({
+    super.key,
+    this.onSessionInvalidated,
+    this.onSubscriptionInactive,
+  });
 
   final VoidCallback? onSessionInvalidated;
+  final Future<void> Function()? onSubscriptionInactive;
 
   @override
   State<UserHomePage> createState() => _UserHomePageState();
 }
 
-class _UserHomePageState extends State<UserHomePage> {
+class _UserHomePageState extends State<UserHomePage> with WidgetsBindingObserver {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
   String? _lastOpenedSharedPath;
   String? _pendingSharedPath;
   bool _sharedOpenScheduled = false;
+  bool _entitlementCheckInFlight = false;
+  final CommercialAccountService _account = const CommercialAccountService();
   String languageCode = SigillumCopy.initialLanguageCode();
 
   String _t(String key) => SigillumCopy.t(languageCode, key);
@@ -37,6 +45,7 @@ class _UserHomePageState extends State<UserHomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _intentChannel.setMethodCallHandler(_handleNativeIntent);
     Future.microtask(_loadLanguage);
     Future.microtask(_checkInitialIntent);
@@ -45,10 +54,48 @@ class _UserHomePageState extends State<UserHomePage> {
 
   Future<void> _retryRegistryOutbox() async {
     try {
-      await const HCVRegistryService().retryPendingUploads();
+      final report = await const HCVRegistryService().retryPendingUploads();
+      if (report.subscriptionInactivePaths.isNotEmpty) {
+        await widget.onSubscriptionInactive?.call();
+      }
     } catch (_) {
       // La coda resta disponibile per il tentativo successivo.
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      Future.microtask(() => _revalidateCreatorEntitlement(showError: false));
+    }
+  }
+
+  Future<bool> _revalidateCreatorEntitlement({required bool showError}) async {
+    if (_entitlementCheckInFlight) return false;
+    _entitlementCheckInFlight = true;
+    try {
+      final billing = await _account.billingStatus();
+      final status = billing['status']?.toString() ?? '';
+      if (status == 'active' || status == 'grace') return true;
+      await widget.onSubscriptionInactive?.call();
+      return false;
+    } catch (_) {
+      if (showError && mounted) {
+        final message = languageCode.toLowerCase().startsWith('it')
+            ? 'Impossibile verificare ora l’abbonamento. Controlla la connessione e riprova.'
+            : 'Unable to verify the subscription now. Check your connection and try again.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
+      return false;
+    } finally {
+      _entitlementCheckInFlight = false;
+    }
+  }
+
+  Future<void> _openCreatorFeature(Widget Function() builder) async {
+    final active = await _revalidateCreatorEntitlement(showError: true);
+    if (!active || !mounted) return;
+    _open(builder());
   }
 
   Future<void> _loadLanguage() async {
@@ -156,6 +203,12 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9FA),
@@ -198,8 +251,12 @@ class _UserHomePageState extends State<UserHomePage> {
                       title: _t('certifyMediaTitle'),
                       subtitle: _t('certifyMediaSubtitle'),
                       accent: SigillumTheme.accent,
-                      onPressed: () =>
-                          _open(CameraPage(languageCode: languageCode)),
+                      onPressed: () => _openCreatorFeature(
+                        () => CameraPage(
+                          languageCode: languageCode,
+                          onSubscriptionInactive: widget.onSubscriptionInactive,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(
@@ -207,8 +264,12 @@ class _UserHomePageState extends State<UserHomePage> {
                       title: _t('certifyTextTitle'),
                       subtitle: _t('certifyTextSubtitle'),
                       accent: SigillumTheme.accentAlt,
-                      onPressed: () =>
-                          _open(TextCertPage(languageCode: languageCode)),
+                      onPressed: () => _openCreatorFeature(
+                        () => TextCertPage(
+                          languageCode: languageCode,
+                          onSubscriptionInactive: widget.onSubscriptionInactive,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(

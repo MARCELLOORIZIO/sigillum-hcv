@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import 'hcv_engine.dart';
+import 'commercial_account_service.dart';
 import 'hcv_verifier.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_text_integrity.dart';
@@ -15,9 +16,14 @@ import 'text_social_verify_page.dart';
 import 'sigillum_localization.dart';
 
 class TextCertPage extends StatefulWidget {
-  const TextCertPage({super.key, this.languageCode = 'it'});
+  const TextCertPage({
+    super.key,
+    this.languageCode = 'it',
+    this.onSubscriptionInactive,
+  });
 
   final String languageCode;
+  final Future<void> Function()? onSubscriptionInactive;
 
   @override
   State<TextCertPage> createState() => _TextCertPageState();
@@ -28,6 +34,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
+  final CommercialAccountService _account = const CommercialAccountService();
 
   String status = '';
   String? result;
@@ -48,7 +55,10 @@ class _TextCertPageState extends State<TextCertPage> {
     status = _t('textWritePrompt');
     Future.microtask(() async {
       try {
-        await registry.retryPendingUploads();
+        final report = await registry.retryPendingUploads();
+        if (report.subscriptionInactivePaths.isNotEmpty) {
+          await _routeToSubscription();
+        }
       } catch (_) {}
     });
   }
@@ -56,6 +66,43 @@ class _TextCertPageState extends State<TextCertPage> {
   void _dismissKeyboard() {
     FocusManager.instance.primaryFocus?.unfocus();
     SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+  }
+
+  String get _subscriptionInactiveMessage =>
+      widget.languageCode.toLowerCase().startsWith('it')
+          ? 'Abbonamento non attivo — rinnova per pubblicare nel Registry.'
+          : 'Subscription inactive — renew to publish to the Registry.';
+
+  String get _subscriptionCheckFailedMessage =>
+      widget.languageCode.toLowerCase().startsWith('it')
+          ? 'Impossibile verificare ora l’abbonamento. Controlla la connessione e riprova.'
+          : 'Unable to verify the subscription now. Check your connection and try again.';
+
+  Future<void> _routeToSubscription() async {
+    if (mounted) setState(() => registryStatus = _subscriptionInactiveMessage);
+    final callback = widget.onSubscriptionInactive;
+    if (callback == null) return;
+    await callback();
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<bool> _ensureCreatorEntitlement() async {
+    try {
+      final billing = await _account.billingStatus();
+      final status = billing['status']?.toString() ?? '';
+      if (status == 'active' || status == 'grace') return true;
+      await _routeToSubscription();
+      return false;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_subscriptionCheckFailedMessage)),
+        );
+      }
+      return false;
+    }
   }
 
   Future<Directory> _outputDirectory() async {
@@ -104,6 +151,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
   Future<void> createTextCertificate() async {
     _dismissKeyboard();
+    if (!await _ensureCreatorEntitlement()) return;
     final text = controller.text.trim();
 
     if (text.isEmpty) {
@@ -228,7 +276,18 @@ class _TextCertPageState extends State<TextCertPage> {
           setState(() {
             registryStatus = 'Registry OK: ${res['hcvId'] ?? detectedId}';
           });
-        } catch (e) {
+        } on HCVRegistryException catch (e) {
+          try {
+            await registry.enqueueCertificateFile(finalHcvPath);
+          } catch (_) {}
+          if (e.kind == HCVRegistryFailureKind.subscriptionInactive) {
+            await _routeToSubscription();
+          } else if (mounted) {
+            setState(() {
+              registryStatus = 'Registry non disponibile: certificato conservato e accodato per il nuovo invio.';
+            });
+          }
+        } catch (_) {
           try {
             await registry.enqueueCertificateFile(finalHcvPath);
           } catch (_) {}

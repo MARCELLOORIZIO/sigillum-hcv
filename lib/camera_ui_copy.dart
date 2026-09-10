@@ -43,6 +43,10 @@ class CameraUiCopy {
       'registrySynced': 'Registry sincronizzato',
       'registryPublished': 'pubblicati',
       'registryWaiting': 'in attesa',
+      'registrySubscriptionInactive':
+          'Abbonamento non attivo — rinnova per pubblicare nel Registry',
+      'subscriptionCheckFailed':
+          'Impossibile verificare ora l’abbonamento. Controlla la connessione e riprova.',
       'hcvCopied': 'HCV-ID copiato',
       'noFileToShare': 'NESSUN FILE DA CONDIVIDERE',
       'verifiedContent': 'Contenuto verificato SIGILLUM',
@@ -98,6 +102,10 @@ class CameraUiCopy {
       'registrySynced': 'Registry synchronized',
       'registryPublished': 'published',
       'registryWaiting': 'pending',
+      'registrySubscriptionInactive':
+          'Subscription inactive — renew to publish to the Registry',
+      'subscriptionCheckFailed':
+          'Unable to verify the subscription now. Check your connection and try again.',
       'hcvCopied': 'HCV-ID copied',
       'noFileToShare': 'NO FILE TO SHARE',
       'verifiedContent': 'SIGILLUM verified content',
@@ -154,6 +162,10 @@ class CameraUiCopy {
       'registrySynced': 'Registry sincronizado',
       'registryPublished': 'publicados',
       'registryWaiting': 'pendientes',
+      'registrySubscriptionInactive':
+          'Suscripción inactiva — renueva para publicar en el Registry',
+      'subscriptionCheckFailed':
+          'No se puede verificar ahora la suscripción. Comprueba la conexión e inténtalo de nuevo.',
       'hcvCopied': 'HCV-ID copiado',
       'noFileToShare': 'NINGÚN ARCHIVO PARA COMPARTIR',
       'verifiedContent': 'Contenido verificado por SIGILLUM',
@@ -209,6 +221,10 @@ class CameraUiCopy {
       'registrySynced': 'Registry синхронизирован',
       'registryPublished': 'опубликовано',
       'registryWaiting': 'ожидает',
+      'registrySubscriptionInactive':
+          'Подписка неактивна — продлите её для публикации в Registry',
+      'subscriptionCheckFailed':
+          'Не удалось проверить подписку. Проверьте соединение и повторите попытку.',
       'hcvCopied': 'HCV-ID скопирован',
       'noFileToShare': 'НЕТ ФАЙЛА ДЛЯ ОТПРАВКИ',
       'verifiedContent': 'Контент проверен SIGILLUM',

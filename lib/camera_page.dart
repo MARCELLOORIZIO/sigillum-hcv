@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import 'hcv_engine.dart';
+import 'commercial_account_service.dart';
 import 'hcv_verifier.dart';
 import 'hcv_package.dart';
 import 'hcv_registry_service.dart';
@@ -114,6 +115,113 @@ HCVDisplayRiskResult _mergeMlPrimaryWithDiagnostics(
   );
 }
 
+
+Iterable<Map<String, dynamic>> _walkDisplayEvidence(dynamic value) sync* {
+  if (value is Map) {
+    final map = Map<String, dynamic>.from(value);
+    yield map;
+    for (final child in map.values) {
+      yield* _walkDisplayEvidence(child);
+    }
+  } else if (value is List) {
+    for (final child in value) {
+      yield* _walkDisplayEvidence(child);
+    }
+  }
+}
+
+bool _hasIndependentPhysicalDisplayEvidence(
+  List<Map<String, dynamic>?> analyses,
+) {
+  for (final root in analyses.whereType<Map<String, dynamic>>()) {
+    for (final node in _walkDisplayEvidence(root)) {
+      final rawSignals = node['signals'];
+      if (rawSignals is! Map) continue;
+      final signals = Map<String, dynamic>.from(rawSignals);
+      if (signals['confirmedDisplayTrace'] == true ||
+          signals['periodicLightTrace'] == true ||
+          signals['opticalCorroboratedTrace'] == true ||
+          signals['structuralDisplayTrace'] == true ||
+          signals['strongDisplayTrace'] == true ||
+          signals['localRefreshFlicker'] == true ||
+          signals['horizontalRefreshBands'] == true ||
+          signals['displayBandTrace'] == true ||
+          signals['activeIlluminationDisplayEvidence'] == true) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool _hasStringentMlDisplayEvidence(
+  List<Map<String, dynamic>?> analyses,
+) {
+  for (final root in analyses.whereType<Map<String, dynamic>>()) {
+    for (final node in _walkDisplayEvidence(root)) {
+      if (node['type'] != 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1') continue;
+      final frames = (node['framesAnalyzed'] as num?)?.toInt() ?? 0;
+      if (frames <= 1) {
+        if (HCVDisplayRiskFusion.hasSpatialScreenCorroboration(node)) {
+          return true;
+        }
+      } else if (HCVDisplayRiskFusion.hasMultiFrameScreenConsistency(node) ||
+          HCVDisplayRiskFusion.hasPersistentSemanticScreenAcrossVideoFrames(
+            node,
+          )) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool _hasFlatLowVariationAmbiguity(
+  List<Map<String, dynamic>?> analyses,
+) {
+  var flat = false;
+  var lowVariation = false;
+  for (final root in analyses.whereType<Map<String, dynamic>>()) {
+    for (final node in _walkDisplayEvidence(root)) {
+      final rawSignals = node['signals'];
+      if (rawSignals is! Map) continue;
+      final signals = Map<String, dynamic>.from(rawSignals);
+      flat = flat || signals['flatSceneUniformity'] == true;
+      lowVariation = lowVariation || signals['lowMicroVariation'] == true;
+    }
+  }
+  return flat && lowVariation;
+}
+
+HCVDisplayRiskResult _guardReflectivePlanarStrongResult(
+  HCVDisplayRiskResult result,
+  List<Map<String, dynamic>?> analyses,
+) {
+  if (result.decision != 'STRONG_DISPLAY_RISK' ||
+      !_hasFlatLowVariationAmbiguity(analyses)) {
+    return result;
+  }
+  if (_hasIndependentPhysicalDisplayEvidence(analyses) ||
+      _hasStringentMlDisplayEvidence(analyses)) {
+    return result;
+  }
+
+  final evidenceSources = <String>{...result.evidenceSources}.toList()..sort();
+  final reasons = <String>{
+    ...result.reasons,
+    'FLAT_REFLECTIVE_SCREEN_LIKE_CONTENT_WITHOUT_STRONG_DISPLAY_CORROBORATION',
+  }.toList();
+  return HCVDisplayRiskResult(
+    risk: 'MEDIUM',
+    score: result.score.clamp(40, 69).toInt(),
+    decision: 'NON_CONCLUSIVE',
+    analysisStatus: result.analysisStatus,
+    evidenceSources: evidenceSources,
+    strongSources: const [],
+    reasons: reasons,
+  );
+}
+
 bool _hasLiveTemporalScreenCorroboration(Map<String, dynamic>? live) {
   if (live == null ||
       live['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' ||
@@ -164,15 +272,16 @@ HCVDisplayRiskResult combinePhotoDisplayRiskFromPreCaptureEvidence(
   // immediately before the automatic still must not be erased by one semantic
   // still-image REALITY false negative (the C8FF failure mode).
   if (isTemporalV2 && legacy.decision == 'STRONG_DISPLAY_RISK') {
-    return legacy;
+    return _guardReflectivePlanarStrongResult(legacy, analyses);
   }
 
   if (mlFirst != null &&
       (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
           !_hasHardDisplayCorroboration(analyses))) {
-    return _mergeMlPrimaryWithDiagnostics(mlFirst, legacy);
+    final merged = _mergeMlPrimaryWithDiagnostics(mlFirst, legacy);
+    return _guardReflectivePlanarStrongResult(merged, analyses);
   }
-  return legacy;
+  return _guardReflectivePlanarStrongResult(legacy, analyses);
 }
 
 HCVDisplayRiskResult _combinePhotoDisplayRiskLegacy(
@@ -215,9 +324,10 @@ HCVDisplayRiskResult combineVideoDisplayRiskFromCaptureEvidence(
   if (mlFirst != null &&
       (mlFirst.decision == 'STRONG_DISPLAY_RISK' ||
           !_hasHardDisplayCorroboration(analyses))) {
-    return _mergeMlPrimaryWithDiagnostics(mlFirst, legacy);
+    final merged = _mergeMlPrimaryWithDiagnostics(mlFirst, legacy);
+    return _guardReflectivePlanarStrongResult(merged, analyses);
   }
-  return legacy;
+  return _guardReflectivePlanarStrongResult(legacy, analyses);
 }
 
 HCVDisplayRiskResult _combineVideoDisplayRiskLegacy(
@@ -261,10 +371,12 @@ class CameraPage extends StatefulWidget {
     super.key,
     this.initialPhotoMode = false,
     this.languageCode = 'it',
+    this.onSubscriptionInactive,
   });
 
   final bool initialPhotoMode;
   final String languageCode;
+  final Future<void> Function()? onSubscriptionInactive;
 
   @override
   State<CameraPage> createState() => _CameraPageState();
@@ -278,6 +390,9 @@ class _CameraPageState extends State<CameraPage> {
 
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
+  final CommercialAccountService _account = const CommercialAccountService();
+  bool _entitlementCheckInFlight = false;
+  DateTime? _lastEntitlementCheckAt;
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
@@ -321,6 +436,45 @@ class _CameraPageState extends State<CameraPage> {
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _c(String key) => CameraUiExtendedCopy.t(widget.languageCode, key);
+
+  Future<void> _handleSubscriptionInactive() async {
+    if (mounted) {
+      setState(() => registryStatus = _c('registrySubscriptionInactive'));
+    }
+    final callback = widget.onSubscriptionInactive;
+    if (callback == null) return;
+    await callback();
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<bool> _ensureCreatorEntitlement() async {
+    final lastCheck = _lastEntitlementCheckAt;
+    if (lastCheck != null &&
+        DateTime.now().difference(lastCheck) < const Duration(minutes: 1)) {
+      return true;
+    }
+    if (_entitlementCheckInFlight) return false;
+    _entitlementCheckInFlight = true;
+    try {
+      final billing = await _account.billingStatus();
+      final status = billing['status']?.toString() ?? '';
+      if (status == 'active' || status == 'grace') {
+        _lastEntitlementCheckAt = DateTime.now();
+        return true;
+      }
+      await _handleSubscriptionInactive();
+      return false;
+    } catch (_) {
+      if (mounted) {
+        _showLocationMessage(_c('subscriptionCheckFailed'));
+      }
+      return false;
+    } finally {
+      _entitlementCheckInFlight = false;
+    }
+  }
 
   Future<void> _toggleCoordinateStamp() async {
     if (_locationBusy) return;
@@ -611,6 +765,7 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> start() async {
     if (controller == null || !controller!.value.isInitialized) return;
     if (controller!.value.isRecordingVideo) return;
+    if (!await _ensureCreatorEntitlement()) return;
 
     final captureLocation = await _locationForCapture();
     if (_printCoordinates && captureLocation == null) return;
@@ -816,6 +971,7 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> takePhoto() async {
     if (controller == null || !controller!.value.isInitialized) return;
     if (controller!.value.isRecordingVideo) return;
+    if (!await _ensureCreatorEntitlement()) return;
 
     final captureLocation = await _locationForCapture();
     if (_printCoordinates && captureLocation == null) return;
@@ -1506,7 +1662,12 @@ class _CameraPageState extends State<CameraPage> {
     try {
       await registry.enqueueCertificateFile(currentPath);
       final report = await registry.retryPendingUploads();
+      if (report.subscriptionInactivePaths.contains(currentPath)) {
+        await _handleSubscriptionInactive();
+        return;
+      }
       final currentUploaded = report.uploadedPaths.contains(currentPath);
+      if (!mounted) return;
       setState(() {
         registryStatus = currentUploaded
             ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
@@ -1522,6 +1683,10 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> _retryPendingRegistryUploads() async {
     try {
       final report = await registry.retryPendingUploads();
+      if (report.subscriptionInactivePaths.isNotEmpty) {
+        await _handleSubscriptionInactive();
+        return;
+      }
       if (!mounted || report.uploaded == 0) return;
       setState(() {
         registryStatus = report.pending == 0
