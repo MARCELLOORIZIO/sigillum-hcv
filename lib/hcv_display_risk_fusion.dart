@@ -38,12 +38,23 @@ class HCVDisplayRiskFusion {
     final predictedClass = ml['predictedClass']?.toString() ?? '';
     final screenProbability =
         (ml['screenProbability'] as num?)?.toDouble();
+    final confidence =
+        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
     if (screenProbability == null) return null;
     final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
         (screenProbability * 100).round();
 
-    if (predictedClass.startsWith('SCREEN_') && screenProbability >= 0.80) {
-      final score = mlScore.clamp(80, 100).toInt();
+    // A framed print, glossy photograph or painting behind glass can look
+    // semantically identical to a monitor in one still frame. Do not promote
+    // that semantic resemblance to STRONG display risk unless the ML result
+    // also carries the strict dual-region spatial signature already used by
+    // the fusion engine. The uploaded real-monitor control satisfies this
+    // gate, while the reflective artwork false positive does not.
+    if (predictedClass.startsWith('SCREEN_') &&
+        screenProbability >= 0.95 &&
+        confidence >= 0.90 &&
+        hasSpatialScreenCorroboration(ml)) {
+      final score = mlScore.clamp(85, 100).toInt();
       return HCVDisplayRiskResult(
         risk: 'HIGH',
         score: score,
@@ -51,7 +62,9 @@ class HCVDisplayRiskFusion {
         analysisStatus: 'COMPLETE',
         evidenceSources: const ['ML_SCREEN_CLASS'],
         strongSources: const ['ML_SCREEN_CLASS'],
-        reasons: const ['ML_FIRST_PHOTO_SCREEN_FAMILY_HIGH_PROBABILITY'],
+        reasons: const [
+          'ML_FIRST_PHOTO_EXTREME_DUAL_REGION_SCREEN_EVIDENCE',
+        ],
       );
     }
 
@@ -96,7 +109,13 @@ class HCVDisplayRiskFusion {
     final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
         (screenProbability * 100).round();
 
-    if (screenProbability >= 0.75 && screenMajority) {
+    // A screen-family majority is not sufficient by itself: a reflective flat
+    // artwork can stay semantically screen-like across a short pan. Require the
+    // existing multi-frame consistency gate (medium evidence in at least 75%
+    // of frames, high aggregate/region scores and high probability). This keeps
+    // the uploaded true monitor strong while rejecting the reflective artwork
+    // and manuscript controls as ML-only false positives.
+    if (screenMajority && hasMultiFrameScreenConsistency(ml)) {
       final score = mlScore.clamp(75, 100).toInt();
       return HCVDisplayRiskResult(
         risk: 'HIGH',
@@ -105,7 +124,7 @@ class HCVDisplayRiskFusion {
         analysisStatus: 'COMPLETE',
         evidenceSources: const ['ML_SCREEN_CLASS'],
         strongSources: const ['ML_SCREEN_CLASS'],
-        reasons: const ['ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY'],
+        reasons: const ['ML_FIRST_VIDEO_MULTI_FRAME_SCREEN_CONSISTENCY'],
       );
     }
 
