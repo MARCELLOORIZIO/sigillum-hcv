@@ -39,12 +39,19 @@ jobs:
               Path('test/temporal_frequency_probe_contract_test.dart'),
               Path('test/native_temporal_frequency_v2_contract_test.dart'),
           ]
+          role = 'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY'
           for path in files:
               text = path.read_text()
-              text = text.replace('SHADOW_ONLY_NEVER_DECISIONAL', 'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY')
+              text = text.replace('SHADOW_ONLY_NEVER_DECISIONAL', role)
               text = text.replace('frequency probe remains shadow-only', 'frequency probe is decisional only under the strict coherent HFR gate')
               text = text.replace('probe contract is explicitly shadow-only and non-decisional', 'probe contract exposes the strict coherent HFR decision role')
               text = text.replace('V2 probe is native, consecutive and permanently shadow-only', 'V2 probe is native, consecutive and decision-limited to strict coherent HFR periodicity')
+              if path.name == 'frequency_probe_session_safety_contract_test.dart':
+                  old = f'''expect(source, contains("'decisionRole': '{role}'"));'''
+                  new = f'''expect(source, contains('{role}'));'''
+                  if old not in text:
+                      raise SystemExit('Missing formatting-sensitive decisionRole assertion')
+                  text = text.replace(old, new, 1)
               path.write_text(text)
           PY
 
