@@ -17,6 +17,18 @@ void main() {
     expect(source, contains('TextCertPage(languageCode: languageCode)'));
   });
 
+  test('Concurrent Creator checks share one in-flight verification Future', () {
+    final source = File('lib/user_home_page.dart').readAsStringSync();
+
+    expect(source, contains('Future<bool>? _entitlementCheckInFlight;'));
+    expect(source, contains('final existingCheck = _entitlementCheckInFlight;'));
+    expect(source, contains('final active = await existingCheck;'));
+    expect(source, contains('final check = _performCreatorEntitlementCheck();'));
+    expect(source, contains('_entitlementCheckInFlight = check;'));
+    expect(source, contains('identical(_entitlementCheckInFlight, check)'));
+    expect(source, isNot(contains('if (_entitlementCheckInFlight) return false;'));
+  });
+
   test('Registry retry waits for a valid Creator entitlement', () {
     final source = File('lib/user_home_page.dart').readAsStringSync();
     final bootstrap = source.indexOf('Future<void> _bootstrapCreatorSession() async');
