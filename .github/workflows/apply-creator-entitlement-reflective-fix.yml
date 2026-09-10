@@ -20,19 +20,9 @@ jobs:
           ref: fix/creator-entitlement-reflective-surface-build92
           fetch-depth: 0
       - name: Apply source patch
-        run: python3 tool/apply_creator_entitlement_reflective_fix.py
-      - name: Format changed Dart sources and tests
         run: |
-          dart format \
-            lib/commercial_gate.dart \
-            lib/user_home_page.dart \
-            lib/hcv_registry_service.dart \
-            lib/camera_page.dart \
-            lib/text_cert_page.dart \
-            lib/camera_ui_copy.dart \
-            test/creator_entitlement_revalidation_contract_test.dart \
-            test/registry_subscription_expiry_contract_test.dart \
-            test/reflective_planar_surface_regression_test.dart
+          sed -i 's/package:hcv_app\/camera_page.dart/package:sigillum_iphone\/camera_page.dart/' tool/apply_creator_entitlement_reflective_fix.py
+          python3 tool/apply_creator_entitlement_reflective_fix.py
       - name: Commit materialized patch
         run: |
           git config user.name "SIGILLUM Patch Bot"
