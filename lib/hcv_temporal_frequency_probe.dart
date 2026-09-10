@@ -107,14 +107,11 @@ class HCVTemporalFrequencyProbe {
       final result = HCVTemporalFrequencyMath.analyzeRowProfileSequence(
         cellSequences[cell],
       );
-      cellResults.add({
-        'row': cell ~/ 3,
-        'column': cell % 3,
-        ...result,
-      });
+      cellResults.add({'row': cell ~/ 3, 'column': cell % 3, ...result});
     }
 
-    final timestamps = (raw['frameTimestampsSeconds'] as List?)
+    final timestamps =
+        (raw['frameTimestampsSeconds'] as List?)
             ?.whereType<num>()
             .map((value) => value.toDouble())
             .toList(growable: false) ??
@@ -139,33 +136,99 @@ class HCVTemporalFrequencyProbe {
               ..sort(),
           );
 
-    final periodicityStrengths = cellResults
-        .map((e) => (e['periodicityStrength'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList()
-      ..sort();
-    final frequencyStabilities = cellResults
-        .map((e) => (e['dominantFrequencyStability'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList()
-      ..sort();
-    final phaseConsistencies = cellResults
-        .map((e) => (e['phaseStepConsistency'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList()
-      ..sort();
+    final periodicityStrengths =
+        cellResults
+            .map((e) => (e['periodicityStrength'] as num?)?.toDouble())
+            .whereType<double>()
+            .toList()
+          ..sort();
+    final frequencyStabilities =
+        cellResults
+            .map((e) => (e['dominantFrequencyStability'] as num?)?.toDouble())
+            .whereType<double>()
+            .toList()
+          ..sort();
+    final phaseConsistencies =
+        cellResults
+            .map((e) => (e['phaseStepConsistency'] as num?)?.toDouble())
+            .whereType<double>()
+            .toList()
+          ..sort();
 
     final configuredFps = (raw['configuredFrameRate'] as num?)?.toDouble();
-    final actualExposure =
-        (raw['actualShortExposureSeconds'] as num?)?.toDouble();
-    final framePeriod =
-        configuredFps != null && configuredFps > 0 ? 1.0 / configuredFps : null;
+    final actualExposure = (raw['actualShortExposureSeconds'] as num?)
+        ?.toDouble();
+    final framePeriod = configuredFps != null && configuredFps > 0
+        ? 1.0 / configuredFps
+        : null;
+
+    final globalTemporalSpectrum =
+        HCVTemporalFrequencyMath.analyzeScalarSequence(frameLuma);
+    final dominantTemporalBin =
+        (globalTemporalSpectrum['dominantTemporalFrequencyBin'] as num?)
+            ?.toInt() ??
+        0;
+    final dominantTemporalFrequencyHz =
+        actualFps != null &&
+            actualFps > 0 &&
+            dominantTemporalBin > 0 &&
+            acceptedFrames > 0
+        ? dominantTemporalBin * actualFps / acceptedFrames
+        : null;
+    final globalModulationDepth =
+        (globalTemporalSpectrum['robustFrameLumaModulationDepth'] as num?)
+            ?.toDouble() ??
+        0.0;
+    final globalSpectralConcentration =
+        (globalTemporalSpectrum['temporalSpectralConcentration'] as num?)
+            ?.toDouble() ??
+        0.0;
+    final medianCellPeriodicity = _median(periodicityStrengths) ?? 0.0;
+    final medianCellStability = _median(frequencyStabilities) ?? 0.0;
+    final medianCellPhase = _median(phaseConsistencies) ?? 0.0;
+    final periodicCellCount = cellResults.where((entry) {
+      return ((entry['periodicityStrength'] as num?)?.toDouble() ?? 0.0) >=
+          0.10;
+    }).length;
+    final stableCellCount = cellResults.where((entry) {
+      return ((entry['dominantFrequencyStability'] as num?)?.toDouble() ??
+              0.0) >=
+          0.80;
+    }).length;
+    final coherentDisplayPeriodicity = qualifiesCoherentDisplayPeriodicity(
+      actualFps: actualFps,
+      framesAnalyzed: acceptedFrames,
+      shortExposureVerified: raw['shortExposureVerified'] == true,
+      exposureLocked: raw['exposureLockedForEntireNativeCapture'] == true,
+      dominantTemporalFrequencyHz: dominantTemporalFrequencyHz,
+      globalModulationDepth: globalModulationDepth,
+      globalSpectralConcentration: globalSpectralConcentration,
+      medianCellPeriodicityStrength: medianCellPeriodicity,
+      medianCellFrequencyStability: medianCellStability,
+      medianCellPhaseStepConsistency: medianCellPhase,
+      periodicCellCount: periodicCellCount,
+      stableCellCount: stableCellCount,
+    );
 
     return {
       'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
       'analysisStatus': 'ANALYZED',
-      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
-      'productionDecisionChanged': false,
+      'decisionRole':
+          'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY',
+      'productionDecisionChanged': coherentDisplayPeriodicity,
+      'coherentDisplayPeriodicity': coherentDisplayPeriodicity,
+      'coherentDisplayPeriodicityEvidence': {
+        'dominantTemporalFrequencyHz': dominantTemporalFrequencyHz,
+        'globalModulationDepth': globalModulationDepth,
+        'globalSpectralConcentration': globalSpectralConcentration,
+        'medianCellPeriodicityStrength': medianCellPeriodicity,
+        'medianCellFrequencyStability': medianCellStability,
+        'medianCellPhaseStepConsistency': medianCellPhase,
+        'periodicCellCount': periodicCellCount,
+        'stableCellCount': stableCellCount,
+        'requiredPeriodicCells': 6,
+        'requiredStableCells': 6,
+      },
       'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
       'flutterCameraDisposedDuringProbe': true,
       'requestedTargetFps': raw['requestedTargetFps'],
@@ -199,38 +262,73 @@ class HCVTemporalFrequencyProbe {
       'encodedVideoUsed': false,
       'ffmpegUsed': false,
       'rawNativeFramesOmittedFromCertificate': true,
-      'globalFrameLumaTemporalSpectrum':
-          HCVTemporalFrequencyMath.analyzeScalarSequence(frameLuma),
+      'globalFrameLumaTemporalSpectrum': globalTemporalSpectrum,
+      'globalDominantTemporalFrequencyHz': dominantTemporalFrequencyHz,
       'cellResults': cellResults,
-      'minimumCellPeriodicityStrength':
-          periodicityStrengths.isEmpty ? null : periodicityStrengths.first,
+      'minimumCellPeriodicityStrength': periodicityStrengths.isEmpty
+          ? null
+          : periodicityStrengths.first,
       'medianCellPeriodicityStrength': _median(periodicityStrengths),
-      'minimumCellFrequencyStability':
-          frequencyStabilities.isEmpty ? null : frequencyStabilities.first,
+      'minimumCellFrequencyStability': frequencyStabilities.isEmpty
+          ? null
+          : frequencyStabilities.first,
       'medianCellFrequencyStability': _median(frequencyStabilities),
-      'minimumCellPhaseStepConsistency':
-          phaseConsistencies.isEmpty ? null : phaseConsistencies.first,
+      'minimumCellPhaseStepConsistency': phaseConsistencies.isEmpty
+          ? null
+          : phaseConsistencies.first,
       'medianCellPhaseStepConsistency': _median(phaseConsistencies),
       'spatialPolicy': const {
         'gridRows': 3,
         'gridColumns': 3,
-        'decisionEnabled': false,
+        'decisionEnabled': true,
+        'decisionGate': 'STRICT_HFR_COHERENT_DISPLAY_PERIODICITY',
       },
       'nativeCaptureMetadata': _withoutRawFrames(raw),
-      'note':
-          'V2 measures row-profile phase evolution directly from native consecutive CMSampleBuffers at the highest isolated hardware tier available (240, 120, then 60 fps). It never participates in BUILD 80 display fusion.',
+      'note': 'V2 measures row-profile phase evolution directly from native consecutive CMSampleBuffers. It participates in display fusion only when the strict coherent HFR periodicity gate is satisfied across the frame.',
     };
   }
 
-  static Map<String, dynamic> unavailable(
-    String reason, {
-    Object? error,
+  static bool qualifiesCoherentDisplayPeriodicity({
+    required double? actualFps,
+    required int framesAnalyzed,
+    required bool shortExposureVerified,
+    required bool exposureLocked,
+    required double? dominantTemporalFrequencyHz,
+    required double globalModulationDepth,
+    required double globalSpectralConcentration,
+    required double medianCellPeriodicityStrength,
+    required double medianCellFrequencyStability,
+    required double medianCellPhaseStepConsistency,
+    required int periodicCellCount,
+    required int stableCellCount,
   }) {
+    if (actualFps == null || actualFps < 120.0) return false;
+    if (framesAnalyzed < 60 || !shortExposureVerified || !exposureLocked) {
+      return false;
+    }
+    if (dominantTemporalFrequencyHz == null ||
+        dominantTemporalFrequencyHz < 40.0 ||
+        dominantTemporalFrequencyHz > 120.0 ||
+        dominantTemporalFrequencyHz > actualFps / 2.0 + 1.0) {
+      return false;
+    }
+    return globalModulationDepth >= 0.75 &&
+        globalSpectralConcentration >= 0.85 &&
+        medianCellPeriodicityStrength >= 0.12 &&
+        medianCellFrequencyStability >= 0.85 &&
+        medianCellPhaseStepConsistency >= 0.40 &&
+        periodicCellCount >= 6 &&
+        stableCellCount >= 6;
+  }
+
+  static Map<String, dynamic> unavailable(String reason, {Object? error}) {
     return {
       'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
       'analysisStatus': 'NOT_ANALYZED',
-      'decisionRole': 'SHADOW_ONLY_NEVER_DECISIONAL',
+      'decisionRole':
+          'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY',
       'productionDecisionChanged': false,
+      'coherentDisplayPeriodicity': false,
       'reason': reason,
       if (error != null) 'error': error.toString(),
     };
@@ -307,8 +405,9 @@ class HCVTemporalFrequencyMath {
       final bin = spectra[i]['bin']?.round() ?? 0;
       if (modalBin > 0 && (bin - modalBin).abs() <= 1) matching.add(i);
     }
-    final frequencyStability =
-        spectra.isEmpty ? 0.0 : matching.length / spectra.length;
+    final frequencyStability = spectra.isEmpty
+        ? 0.0
+        : matching.length / spectra.length;
 
     final phases = matching
         .map((index) => spectra[index]['phase'] ?? 0.0)
@@ -326,8 +425,9 @@ class HCVTemporalFrequencyMath {
       'analysisStatus': 'ANALYZED',
       'framePairCount': spectra.length,
       'dominantRowFrequencyBin': modalBin,
-      'approximateDominantPeriodRows':
-          modalBin <= 0 ? null : frames.first.length / modalBin,
+      'approximateDominantPeriodRows': modalBin <= 0
+          ? null
+          : frames.first.length / modalBin,
       'dominantFrequencyStability': frequencyStability,
       'medianSpatialSpectralConcentration': medianConcentration,
       'phaseStepConsistency': phaseStepConsistency,
@@ -347,8 +447,9 @@ class HCVTemporalFrequencyMath {
     final sorted = List<double>.from(values)..sort();
     final p10 = sorted[((sorted.length - 1) * 0.10).round()];
     final p90 = sorted[((sorted.length - 1) * 0.90).round()];
-    final modulationDepth =
-        mean.abs() < 1e-9 ? 0.0 : (p90 - p10).abs() / mean.abs();
+    final modulationDepth = mean.abs() < 1e-9
+        ? 0.0
+        : (p90 - p10).abs() / mean.abs();
     final centered = values.map((v) => v - mean).toList();
     final spectrum = _dominantTemporalSpectrum(centered);
     return {

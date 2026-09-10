@@ -114,6 +114,42 @@ HCVDisplayRiskResult _mergeMlPrimaryWithDiagnostics(
   );
 }
 
+HCVDisplayRiskResult _promoteWithCoherentHfrDisplayPeriodicity(
+  HCVDisplayRiskResult base,
+  Map<String, dynamic>? temporalFrequencyProbe,
+) {
+  if (temporalFrequencyProbe == null ||
+      temporalFrequencyProbe['analysisStatus'] != 'ANALYZED' ||
+      temporalFrequencyProbe['coherentDisplayPeriodicity'] != true) {
+    return base;
+  }
+
+  final evidenceSources = <String>{
+    ...base.evidenceSources,
+    'HFR_COHERENT_DISPLAY_PERIODICITY',
+  }.toList()
+    ..sort();
+  final strongSources = <String>{
+    ...base.strongSources,
+    'HFR_COHERENT_DISPLAY_PERIODICITY',
+  }.toList()
+    ..sort();
+  final reasons = <String>{
+    ...base.reasons,
+    'HFR_FULL_FRAME_COHERENT_DISPLAY_PERIODICITY',
+  }.toList();
+
+  return HCVDisplayRiskResult(
+    risk: 'HIGH',
+    score: base.score < 95 ? 95 : base.score,
+    decision: 'STRONG_DISPLAY_RISK',
+    analysisStatus: 'COMPLETE',
+    evidenceSources: evidenceSources,
+    strongSources: strongSources,
+    reasons: reasons,
+  );
+}
+
 bool _hasLiveTemporalScreenCorroboration(Map<String, dynamic>? live) {
   if (live == null ||
       live['type'] != 'SIGILLUM_LIVE_SCREEN_PROBE_V1' ||
@@ -945,8 +981,12 @@ class _CameraPageState extends State<CameraPage> {
         screenReplayAnalysis,
         mlScreenReplayAnalysis,
       ];
-      final displayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
+      final baseDisplayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
         screenReplayAnalyses,
+      );
+      final displayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
+        baseDisplayRisk,
+        temporalFrequencyProbe,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -1310,8 +1350,12 @@ class _CameraPageState extends State<CameraPage> {
       screenReplayAnalysis,
       mlScreenReplayAnalysis,
     ];
-    final displayRisk = combineVideoDisplayRiskFromCaptureEvidence(
+    final baseDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
       screenReplayAnalyses,
+    );
+    final displayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
+      baseDisplayRisk,
+      temporalFrequencyProbe,
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
