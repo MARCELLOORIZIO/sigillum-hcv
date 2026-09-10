@@ -34,7 +34,7 @@ class _UserHomePageState extends State<UserHomePage>
   String? _lastOpenedSharedPath;
   String? _pendingSharedPath;
   bool _sharedOpenScheduled = false;
-  bool _entitlementCheckInFlight = false;
+  Future<bool>? _entitlementCheckInFlight;
   bool _routingToCommercialGate = false;
   String languageCode = SigillumCopy.initialLanguageCode();
 
@@ -74,9 +74,32 @@ class _UserHomePageState extends State<UserHomePage>
     bool blockProtectedAction = false,
   }) async {
     if (_routingToCommercialGate) return false;
-    if (_entitlementCheckInFlight) return false;
 
-    _entitlementCheckInFlight = true;
+    final existingCheck = _entitlementCheckInFlight;
+    if (existingCheck != null) {
+      final active = await existingCheck;
+      if (!active && blockProtectedAction && !_routingToCommercialGate) {
+        _showEntitlementVerificationBlocked();
+      }
+      return active;
+    }
+
+    final check = _performCreatorEntitlementCheck();
+    _entitlementCheckInFlight = check;
+    try {
+      final active = await check;
+      if (!active && blockProtectedAction && !_routingToCommercialGate) {
+        _showEntitlementVerificationBlocked();
+      }
+      return active;
+    } finally {
+      if (identical(_entitlementCheckInFlight, check)) {
+        _entitlementCheckInFlight = null;
+      }
+    }
+  }
+
+  Future<bool> _performCreatorEntitlementCheck() async {
     try {
       final billing = await _account.billingStatus();
       final status = billing['status']?.toString() ?? 'inactive';
@@ -85,23 +108,22 @@ class _UserHomePageState extends State<UserHomePage>
 
       _routeToCommercialGate();
       return false;
-    } catch (error) {
-      // A transient network/App Store error must not silently grant access to a
-      // new Creator operation. Existing UI remains visible, but protected
-      // certification actions stay blocked until entitlement can be verified.
-      if (blockProtectedAction && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Impossibile verificare l’abbonamento Creator. Riprova quando la connessione è disponibile.',
-            ),
-          ),
-        );
-      }
+    } catch (_) {
+      // Fail closed for new Creator operations when entitlement cannot be
+      // verified. A concurrent caller will receive this same result.
       return false;
-    } finally {
-      _entitlementCheckInFlight = false;
     }
+  }
+
+  void _showEntitlementVerificationBlocked() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Impossibile verificare l’abbonamento Creator. Riprova quando la connessione è disponibile.',
+        ),
+      ),
+    );
   }
 
   void _routeToCommercialGate() {
