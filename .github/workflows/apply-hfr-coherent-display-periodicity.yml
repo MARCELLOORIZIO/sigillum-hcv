@@ -31,10 +31,25 @@ jobs:
         shell: bash
         run: |
           python3 tools/apply_hfr_coherent_display_periodicity.py
-          sed -i "s#import 'package:sigillum_hcv/hcv_temporal_frequency_probe.dart';#import '../lib/hcv_temporal_frequency_probe.dart';#" test/hfr_coherent_display_periodicity_gate_test.dart
+          sed -i "s#import 'package:sigillum_hcv/hcv_temporal_frequency_probe.dart';#import 'package:sigillum_iphone/hcv_temporal_frequency_probe.dart';#" test/hfr_coherent_display_periodicity_gate_test.dart
+          python3 - <<'PY'
+          from pathlib import Path
+          files = [
+              Path('test/frequency_probe_session_safety_contract_test.dart'),
+              Path('test/temporal_frequency_probe_contract_test.dart'),
+              Path('test/native_temporal_frequency_v2_contract_test.dart'),
+          ]
+          for path in files:
+              text = path.read_text()
+              text = text.replace('SHADOW_ONLY_NEVER_DECISIONAL', 'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY')
+              text = text.replace('frequency probe remains shadow-only', 'frequency probe is decisional only under the strict coherent HFR gate')
+              text = text.replace('probe contract is explicitly shadow-only and non-decisional', 'probe contract exposes the strict coherent HFR decision role')
+              text = text.replace('V2 probe is native, consecutive and permanently shadow-only', 'V2 probe is native, consecutive and decision-limited to strict coherent HFR periodicity')
+              path.write_text(text)
+          PY
 
       - name: Format changed Dart files
-        run: dart format lib/hcv_temporal_frequency_probe.dart lib/camera_page.dart test/hfr_coherent_display_periodicity_gate_test.dart test/hfr_coherent_display_periodicity_integration_contract_test.dart
+        run: dart format lib/hcv_temporal_frequency_probe.dart test/hfr_coherent_display_periodicity_gate_test.dart test/hfr_coherent_display_periodicity_integration_contract_test.dart test/frequency_probe_session_safety_contract_test.dart test/temporal_frequency_probe_contract_test.dart test/native_temporal_frequency_v2_contract_test.dart
 
       - name: Install dependencies
         run: flutter pub get
@@ -50,7 +65,7 @@ jobs:
         run: |
           git config user.name "SIGILLUM CI"
           git config user.email "actions@users.noreply.github.com"
-          git add lib/hcv_temporal_frequency_probe.dart lib/camera_page.dart test/hfr_coherent_display_periodicity_gate_test.dart test/hfr_coherent_display_periodicity_integration_contract_test.dart
+          git add lib/hcv_temporal_frequency_probe.dart lib/camera_page.dart test/hfr_coherent_display_periodicity_gate_test.dart test/hfr_coherent_display_periodicity_integration_contract_test.dart test/frequency_probe_session_safety_contract_test.dart test/temporal_frequency_probe_contract_test.dart test/native_temporal_frequency_v2_contract_test.dart
           git diff --cached --check
           git commit -m "fix: detect full-frame display recapture from coherent HFR periodicity"
           git push origin HEAD:fix/hfr-coherent-display-periodicity-20260910
