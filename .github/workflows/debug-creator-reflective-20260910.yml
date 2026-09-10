@@ -1,0 +1,49 @@
+name: Debug Creator entitlement and reflective-planar fixes
+
+on:
+  push:
+    branches:
+      - fix/creator-entitlement-and-reflective-planar-20260910
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter 3.47.1
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Resolve locked dependencies
+        run: |
+          set -euo pipefail
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run full tests
+        run: |
+          set -o pipefail
+          flutter test --reporter expanded 2>&1 | tee flutter-tests.log
+
+      - name: Verify postpatch release contract
+        run: python3 tool/verify_postpatch_release_20260825.py
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: creator-reflective-debug-${{ github.run_id }}
+          path: flutter-tests.log
+          if-no-files-found: warn
+          retention-days: 7
