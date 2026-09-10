@@ -1,0 +1,46 @@
+name: Apply creator entitlement and reflective-surface fix
+
+on:
+  push:
+    branches:
+      - fix/creator-entitlement-reflective-surface-build92
+    paths:
+      - tool/apply_creator_entitlement_reflective_fix.py
+      - .github/workflows/apply-creator-entitlement-reflective-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/creator-entitlement-reflective-surface-build92
+          fetch-depth: 0
+      - name: Apply source patch
+        run: python3 tool/apply_creator_entitlement_reflective_fix.py
+      - name: Format changed Dart sources and tests
+        run: |
+          dart format \
+            lib/commercial_gate.dart \
+            lib/user_home_page.dart \
+            lib/hcv_registry_service.dart \
+            lib/camera_page.dart \
+            lib/text_cert_page.dart \
+            lib/camera_ui_copy.dart \
+            test/creator_entitlement_revalidation_contract_test.dart \
+            test/registry_subscription_expiry_contract_test.dart \
+            test/reflective_planar_surface_regression_test.dart
+      - name: Commit materialized patch
+        run: |
+          git config user.name "SIGILLUM Patch Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib test
+          if git diff --cached --quiet; then
+            echo "No source changes produced"
+            exit 1
+          fi
+          git commit -m "fix: revalidate Creator entitlement and guard reflective planar scenes"
+          git push origin HEAD:fix/creator-entitlement-reflective-surface-build92
