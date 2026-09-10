@@ -740,18 +740,10 @@ class _CommercialGateState extends State<CommercialGate> {
     var serverStatus = billing['status']?.toString() ?? '';
     var serverActive = serverStatus == 'active' || serverStatus == 'grace';
 
-    if (!serverActive) {
-      try {
-        final recoveredActive = await _recoverUnfinishedAppleTransactions();
-        if (recoveredActive) {
-          billing = await _account.billingStatus();
-          serverStatus = billing['status']?.toString() ?? '';
-          serverActive = serverStatus == 'active' || serverStatus == 'grace';
-        }
-      } catch (error) {
-        _message = "${_t('subscriptionFailed')}: $error";
-      }
-    }
+    // billingStatus() already performs current-entitlement verification
+    // and an account-bound Apple server reconcile. Do not replay unfinished
+    // StoreKit transactions during ordinary login: stale queue cleanup belongs
+    // to the purchase/restore paths and must not hold the login spinner open.
 
     if (!serverActive) {
       if (returnToLandingIfUnpaid) {

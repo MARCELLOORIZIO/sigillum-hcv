@@ -105,16 +105,11 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
 
     if (detectedId == null) {
       if (isPhoto) {
-        // A single native OCR miss must not classify a certified photo as
-        // uncertified. Still images get one focused top-crop fallback first.
-        // If that fast path is inconclusive, RegistryVerifyPage performs the
-        // existing deeper multi-crop OCR recovery before any final verdict.
+        // Quick verification is deliberately bounded: one full-image OCR pass
+        // plus one focused top-crop fallback. If neither finds an HCV-ID, stop
+        // here. The dedicated Registry verifier still owns the deeper
+        // multi-crop recovery path when the user explicitly requests it.
         detectedId = await _ocrImage(widget.path, allowFocusedFallback: true);
-        if (!mounted) return;
-        if (detectedId == null || detectedId.isEmpty) {
-          await _openRegistry();
-          return;
-        }
       } else if (lower.endsWith('.mp4') ||
           lower.endsWith('.mov') ||
           lower.endsWith('.m4v')) {

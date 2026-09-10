@@ -58,9 +58,13 @@ class _UserHomePageState extends State<UserHomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      Future.microtask(_revalidateCreatorEntitlement);
-    }
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    // A route kept underneath the iOS photo/video picker also receives app
+    // lifecycle callbacks. Revalidate only when Creator Home is actually the
+    // visible route; otherwise the hidden page would compete with OCR/media
+    // work as soon as the picker returns.
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    Future.microtask(_revalidateCreatorEntitlement);
   }
 
   Future<void> _bootstrapCreatorSession() async {
