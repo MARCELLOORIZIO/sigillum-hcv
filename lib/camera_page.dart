@@ -984,9 +984,32 @@ class _CameraPageState extends State<CameraPage> {
       final baseDisplayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
         screenReplayAnalyses,
       );
-      final displayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
+      final hfrDisplayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
         baseDisplayRisk,
         temporalFrequencyProbe,
+      );
+      final photoTemporalProbeRaw =
+          liveScreenProbe['photoTemporalVideoProbe'];
+      final photoTemporalProbe = photoTemporalProbeRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalProbeRaw)
+          : null;
+      final photoTemporalMlRaw =
+          photoTemporalProbe?['mlScreenReplayAnalysis'];
+      final photoTemporalOpticalRaw =
+          photoTemporalProbe?['screenReplayAnalysis'];
+      final photoTemporalMl = photoTemporalMlRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalMlRaw)
+          : null;
+      final photoTemporalOptical = photoTemporalOpticalRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalOpticalRaw)
+          : null;
+      final displayRisk =
+          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+        base: hfrDisplayRisk,
+        passiveOptical: photoTemporalOptical,
+        ml: mlScreenReplayAnalysis,
+        temporalFrequencyProbe: temporalFrequencyProbe,
+        photoTemporalMl: photoTemporalMl,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -1353,9 +1376,16 @@ class _CameraPageState extends State<CameraPage> {
     final baseDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
       screenReplayAnalyses,
     );
-    final displayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
+    final hfrDisplayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
       baseDisplayRisk,
       temporalFrequencyProbe,
+    );
+    final displayRisk =
+        HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: hfrDisplayRisk,
+      passiveOptical: screenReplayAnalysis,
+      ml: mlScreenReplayAnalysis,
+      temporalFrequencyProbe: temporalFrequencyProbe,
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
