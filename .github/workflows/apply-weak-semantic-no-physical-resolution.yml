@@ -31,8 +31,10 @@ jobs:
       - name: Apply bounded decision patch
         run: python3 tools/apply_weak_semantic_no_physical_resolution.py
 
-      - name: Format changed Dart files
-        run: dart format lib/hcv_display_risk_fusion.dart lib/camera_page.dart test/weak_semantic_no_physical_resolution_test.dart
+      # Do not format camera_page.dart here: historical source-order contract
+      # tests intentionally match exact capture/analyze tokens in that file.
+      - name: Format new decision code and tests
+        run: dart format lib/hcv_display_risk_fusion.dart test/weak_semantic_no_physical_resolution_test.dart
 
       - name: Install dependencies
         run: flutter pub get
