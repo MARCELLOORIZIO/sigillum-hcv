@@ -44,8 +44,8 @@ jobs:
           {
             git diff --name-only
             git ls-files --others --exclude-standard
-          } | sort -u | tee changed-files.txt
-          cat > expected-files.txt <<'EOF'
+          } | sort -u | tee /tmp/changed-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
           lib/camera_page.dart
           lib/hcv_display_risk_fusion.dart
           lib/hcv_temporal_capture_probe.dart
@@ -53,8 +53,8 @@ jobs:
           test/photo_temporal_fast_contract_test.dart
           test/weak_semantic_no_physical_resolution_test.dart
           EOF
-          sort -o expected-files.txt expected-files.txt
-          diff -u expected-files.txt changed-files.txt
+          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/changed-files.txt
 
       - name: Install dependencies
         run: flutter pub get
