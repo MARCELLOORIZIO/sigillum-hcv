@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   validate:
-    if: ${{ github.event.head_commit.message != 'feat: activate HFR V3 full-frame mixed-scene evidence' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +33,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 tools/apply_build104_hfr_v3_fullframe.py
+          if grep -q "SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3" lib/hcv_temporal_frequency_probe.dart; then
+            echo "BUILD104 V3 already materialized"
+          else
+            python3 tools/apply_build104_hfr_v3_fullframe.py
+          fi
 
       - name: Guard intended diff only
         shell: bash
@@ -45,15 +48,17 @@ jobs:
             git diff --name-only
             git ls-files --others --exclude-standard
           } | sort -u | tee /tmp/changed-files.txt
-          cat > /tmp/expected-files.txt <<'EOF'
+          if [ -s /tmp/changed-files.txt ]; then
+            cat > /tmp/expected-files.txt <<'EOF'
           lib/hcv_display_risk_fusion.dart
           lib/hcv_temporal_frequency_probe.dart
           test/dual_display_reality_evidence_v1_test.dart
           test/hfr_v3_fullframe_mixed_scene_test.dart
           test/native_temporal_frequency_v2_contract_test.dart
           EOF
-          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
-          diff -u /tmp/expected-files.txt /tmp/changed-files.txt
+            sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+            diff -u /tmp/expected-files.txt /tmp/changed-files.txt
+          fi
 
       - name: Dependencies
         run: flutter pub get
@@ -76,6 +81,10 @@ jobs:
             test/dual_display_reality_evidence_v1_test.dart \
             test/hfr_v3_fullframe_mixed_scene_test.dart \
             test/native_temporal_frequency_v2_contract_test.dart
+          if git diff --cached --quiet; then
+            echo "No new application diff to commit"
+            exit 0
+          fi
           git commit -m "feat: activate HFR V3 full-frame mixed-scene evidence"
           git push origin HEAD:fix/hfr-v3-fullframe-mixedscene-build104-20260912
           echo "VALIDATED_SHA=$(git rev-parse HEAD)"
