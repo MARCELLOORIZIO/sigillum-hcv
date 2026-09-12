@@ -61,7 +61,10 @@ class HCVDisplayRiskFusion {
     final isPhotoTemporalCase = photoTemporalMl != null;
     if (isPhotoTemporalCase) {
       if (!_isWeakPhotoStillSemantic(ml) ||
-          !_isWeakMultiFrameScreenSemantic(photoTemporalMl)) {
+          !_isWeakMultiFrameScreenSemantic(
+            photoTemporalMl,
+            minFrames: 4,
+          )) {
         return base;
       }
     } else {
@@ -142,31 +145,27 @@ class HCVDisplayRiskFusion {
 
   static bool _isWeakPhotoStillSemantic(Map<String, dynamic>? ml) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
-    final screenProbability =
-        (ml['screenProbability'] as num?)?.toDouble() ?? 1.0;
     final score = (ml['screenReplayRiskScore'] as num?)?.toInt() ?? 100;
-    final confidence =
-        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 1.0;
-    final predictedClass = ml['predictedClass']?.toString() ?? '';
     final signals = _signals(ml);
     final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 100;
     final contentArea =
         (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 100;
 
-    if (predictedClass.startsWith('REALITY_')) {
-      return screenProbability <= 0.20 && score <= 20;
-    }
-    return predictedClass.startsWith('SCREEN_') &&
-        screenProbability <= 0.70 &&
-        score <= 70 &&
-        confidence <= 0.60 &&
-        (fullFrame < 90 || contentArea < 85);
+    // At this stage HFR and passive optical evidence have already been proven
+    // strictly negative. Do not let the semantic class label or its confidence
+    // become a second pseudo-physical gate: both shifted materially between
+    // BUILD100 and BUILD101 on the same real-world artwork/textile classes.
+    // Retain a conservative still ceiling and reject any strong regional score.
+    return score <= 70 && fullFrame < 90 && contentArea < 85;
   }
 
-  static bool _isWeakMultiFrameScreenSemantic(Map<String, dynamic>? ml) {
+  static bool _isWeakMultiFrameScreenSemantic(
+    Map<String, dynamic>? ml, {
+    int minFrames = 2,
+  }) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
     final frames = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
-    if (frames < 2) return false;
+    if (frames < minFrames) return false;
     final medium = (ml['mediumScreenFrameCount'] as num?)?.toInt() ?? 0;
     final strong = (ml['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
     final average =
@@ -175,15 +174,15 @@ class HCVDisplayRiskFusion {
         (ml['maxFrameScreenReplayRiskScore'] as num?)?.toInt() ?? 100;
     final screenProbability =
         (ml['screenProbability'] as num?)?.toDouble() ?? 1.0;
-    final confidence =
-        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 1.0;
 
+    // Confidence is top-class confidence, not independent display evidence.
+    // Persistence and bounded screen-family probability are the useful semantic
+    // constraints once strict physical evidence is negative.
     return medium == 0 &&
         strong == 0 &&
         average <= 65.0 &&
         maxFrame <= 80 &&
-        screenProbability <= 0.80 &&
-        confidence <= 0.60;
+        screenProbability <= 0.80;
   }
 
   static bool _isExtremeSingleFrameReality(Map<String, dynamic>? ml) {

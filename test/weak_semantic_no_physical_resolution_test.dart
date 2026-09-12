@@ -176,6 +176,198 @@ void main() {
     expect(result.decision, 'NO_DISPLAY_EVIDENCE');
   });
 
+
+  test('build101 reflective artwork photo resolves semantic class drift', () {
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: unresolved(),
+      passiveOptical: cleanOptical(),
+      ml: ml(
+        frames: 1,
+        predictedClass: 'REALITY_PAPER',
+        p: 0.4959,
+        confidence: 0.4194,
+        score: 50,
+        fullFrame: 50,
+        contentArea: 46,
+      ),
+      temporalFrequencyProbe: negativeHfr(),
+      photoTemporalMl: ml(
+        frames: 4,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.7633,
+        confidence: 0.6884,
+        score: 76,
+        average: 58.5,
+        maxFrame: 76,
+        fullFrame: 76,
+        contentArea: 68,
+      ),
+    );
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+  });
+
+  test('build101 textile photo resolves despite unstable class confidence', () {
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: unresolved(),
+      passiveOptical: cleanOptical(),
+      ml: ml(
+        frames: 1,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.6942,
+        confidence: 0.5749,
+        score: 69,
+        fullFrame: 69,
+        contentArea: 13,
+      ),
+      temporalFrequencyProbe: negativeHfr(),
+      photoTemporalMl: ml(
+        frames: 4,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.7889,
+        confidence: 0.6354,
+        score: 79,
+        average: 62.25,
+        maxFrame: 79,
+        fullFrame: 79,
+        contentArea: 65,
+      ),
+    );
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+  });
+
+  test('photo temporal resolver requires all four BUILD100+ samples', () {
+    final base = unresolved();
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: base,
+      passiveOptical: cleanOptical(),
+      ml: ml(
+        frames: 1,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.69,
+        confidence: 0.55,
+        score: 69,
+        fullFrame: 69,
+        contentArea: 30,
+      ),
+      temporalFrequencyProbe: negativeHfr(),
+      photoTemporalMl: ml(
+        frames: 3,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.79,
+        confidence: 0.70,
+        score: 79,
+        average: 60.0,
+        maxFrame: 79,
+      ),
+    );
+    expect(identical(result, base), isTrue);
+  });
+
+  test('photo temporal max frame above 80 blocks downgrade', () {
+    final base = unresolved();
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: base,
+      passiveOptical: cleanOptical(),
+      ml: ml(
+        frames: 1,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.69,
+        confidence: 0.55,
+        score: 69,
+        fullFrame: 69,
+        contentArea: 30,
+      ),
+      temporalFrequencyProbe: negativeHfr(),
+      photoTemporalMl: ml(
+        frames: 4,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.81,
+        confidence: 0.70,
+        score: 81,
+        average: 60.0,
+        maxFrame: 81,
+      ),
+    );
+    expect(identical(result, base), isTrue);
+  });
+
+  test('photo temporal average above 65 blocks downgrade', () {
+    final base = unresolved();
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: base,
+      passiveOptical: cleanOptical(),
+      ml: ml(
+        frames: 1,
+        predictedClass: 'REALITY_PAPER',
+        p: 0.50,
+        confidence: 0.42,
+        score: 50,
+        fullFrame: 50,
+        contentArea: 46,
+      ),
+      temporalFrequencyProbe: negativeHfr(),
+      photoTemporalMl: ml(
+        frames: 4,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.78,
+        confidence: 0.69,
+        score: 78,
+        average: 66.0,
+        maxFrame: 78,
+      ),
+    );
+    expect(identical(result, base), isTrue);
+  });
+
+  test('one medium screen frame blocks photo downgrade', () {
+    final base = unresolved();
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: base,
+      passiveOptical: cleanOptical(),
+      ml: ml(
+        frames: 1,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.69,
+        confidence: 0.55,
+        score: 69,
+        fullFrame: 69,
+        contentArea: 30,
+      ),
+      temporalFrequencyProbe: negativeHfr(),
+      photoTemporalMl: ml(
+        frames: 4,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.79,
+        confidence: 0.70,
+        score: 79,
+        medium: 1,
+        average: 60.0,
+        maxFrame: 79,
+      ),
+    );
+    expect(identical(result, base), isTrue);
+  });
+
+  test('adaptive multi-frame video is not gated by class confidence', () {
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: unresolved(),
+      passiveOptical: cleanOptical(),
+      ml: ml(
+        frames: 4,
+        predictedClass: 'SCREEN_MONITOR',
+        p: 0.70,
+        confidence: 0.72,
+        score: 70,
+        average: 54.0,
+        maxFrame: 70,
+        fullFrame: 70,
+        contentArea: 68,
+      ),
+      temporalFrequencyProbe: negativeHfr(),
+    );
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+  });
+
   test('missing HFR keeps historical incompatible samples unchanged', () {
     final base = unresolved();
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
