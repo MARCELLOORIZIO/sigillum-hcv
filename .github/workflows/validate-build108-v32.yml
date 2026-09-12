@@ -37,6 +37,7 @@ jobs:
           python3 tools/build108_probe_part1.py
           python3 tools/build108_probe_part2.py
           python3 tools/build108_fusion_swift_tests.py
+          python3 tools/build108_test_import_fix.py
 
       - name: Guard intended diff
         shell: bash
