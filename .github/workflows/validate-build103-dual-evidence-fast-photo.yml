@@ -1,0 +1,80 @@
+name: Validate BUILD103 dual evidence fast photo
+
+on:
+  push:
+    branches:
+      - fix/dual-evidence-fast-photo-build103-20260912
+    paths:
+      - .github/workflows/validate-build103-dual-evidence-fast-photo.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify BUILD102 base ancestry
+        shell: bash
+        run: |
+          git merge-base --is-ancestor e700da014bdd5ef70ba46b7f33d6cb9c552d5ecd HEAD
+          echo "BUILD102 base verified"
+
+      - name: Set up Flutter 3.47.1
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - name: Apply BUILD103 patch
+        run: python3 tools/apply_build103_dual_evidence_fast_photo.py
+
+      - name: Verify intended diff only
+        shell: bash
+        run: |
+          git diff --check
+          git diff --name-only | sort | tee changed-files.txt
+          cat > expected-files.txt <<'EOF'
+          lib/camera_page.dart
+          lib/hcv_display_risk_fusion.dart
+          lib/hcv_temporal_capture_probe.dart
+          test/dual_display_reality_evidence_v1_test.dart
+          test/photo_temporal_fast_contract_test.dart
+          test/weak_semantic_no_physical_resolution_test.dart
+          EOF
+          sort -o expected-files.txt expected-files.txt
+          diff -u expected-files.txt changed-files.txt
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run complete test suite
+        run: flutter test --reporter expanded
+
+      - name: Commit validated runtime and tests
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            lib/camera_page.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_temporal_capture_probe.dart \
+            test/dual_display_reality_evidence_v1_test.dart \
+            test/photo_temporal_fast_contract_test.dart \
+            test/weak_semantic_no_physical_resolution_test.dart
+          git commit -m "feat: activate dual display reality evidence and faster photo probe"
+          git push origin HEAD:fix/dual-evidence-fast-photo-build103-20260912
+          echo "VALIDATED_SHA=$(git rev-parse HEAD)"
+          git status --short
