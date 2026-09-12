@@ -34,9 +34,14 @@ jobs:
         run: |
           set -euo pipefail
           if grep -q "SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3" lib/hcv_temporal_frequency_probe.dart; then
-            echo "BUILD104 V3 already materialized"
+            echo "BUILD104 V3 core already materialized"
           else
             python3 tools/apply_build104_hfr_v3_fullframe.py
+          fi
+          if grep -q "SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE" lib/hcv_display_risk_fusion.dart; then
+            echo "BUILD104 V3 mixed-screen correction already materialized"
+          else
+            python3 tools/apply_build104_v3_contract_corrections.py
           fi
 
       - name: Guard intended diff only
@@ -53,8 +58,11 @@ jobs:
           lib/hcv_display_risk_fusion.dart
           lib/hcv_temporal_frequency_probe.dart
           test/dual_display_reality_evidence_v1_test.dart
+          test/frequency_probe_session_safety_contract_test.dart
           test/hfr_v3_fullframe_mixed_scene_test.dart
           test/native_temporal_frequency_v2_contract_test.dart
+          test/temporal_frequency_probe_contract_test.dart
+          test/weak_semantic_no_physical_resolution_test.dart
           EOF
             sort -o /tmp/expected-files.txt /tmp/expected-files.txt
             diff -u /tmp/expected-files.txt /tmp/changed-files.txt
@@ -79,8 +87,11 @@ jobs:
             lib/hcv_display_risk_fusion.dart \
             lib/hcv_temporal_frequency_probe.dart \
             test/dual_display_reality_evidence_v1_test.dart \
+            test/frequency_probe_session_safety_contract_test.dart \
             test/hfr_v3_fullframe_mixed_scene_test.dart \
-            test/native_temporal_frequency_v2_contract_test.dart
+            test/native_temporal_frequency_v2_contract_test.dart \
+            test/temporal_frequency_probe_contract_test.dart \
+            test/weak_semantic_no_physical_resolution_test.dart
           if git diff --cached --quiet; then
             echo "No new application diff to commit"
             exit 0
