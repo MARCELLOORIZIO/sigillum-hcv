@@ -91,11 +91,19 @@ jobs:
           set -euo pipefail
           test "${{ steps.flutter_tests.outputs.exit_code }}" = "0"
 
+      - name: Snapshot intended source before iOS compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --binary -- \
+            lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml \
+            > /tmp/pre-ios-source.diff
+
       - name: Compile iOS native Swift without signing
         shell: bash
         run: |
           set -euo pipefail
-          flutter build ios --simulator --debug --no-pub \
+          flutter build ios --debug --no-codesign --no-pub \
             --dart-define=SIGILLUM_EDITION=user
 
       - name: Prove source unchanged by iOS compile
@@ -103,8 +111,11 @@ jobs:
         run: |
           set -euo pipefail
           git diff --check
-          git diff --exit-code -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml || {
-            echo "Build mutated committed application source or generated lock state"
+          git diff --binary -- \
+            lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml \
+            > /tmp/post-ios-source.diff
+          cmp /tmp/pre-ios-source.diff /tmp/post-ios-source.diff || {
+            echo "iOS build mutated application source or tracked lock/config state"
             git status --short
             exit 1
           }
