@@ -48,7 +48,11 @@ Map<String, dynamic> hfr({required bool coherent, bool reality = false}) =>
       },
     };
 
-Map<String, dynamic> temporal(List<double> probabilities) => <String, dynamic>{
+Map<String, dynamic> temporal(
+  List<double> probabilities, {
+  int fullFrameRiskScore = 96,
+  int contentAreaRiskScore = 95,
+}) => <String, dynamic>{
   'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
   'analysisStatus': 'ANALYZED',
   'framesAnalyzed': probabilities.length,
@@ -57,6 +61,10 @@ Map<String, dynamic> temporal(List<double> probabilities) => <String, dynamic>{
       <String, dynamic>{
         'videoFrameIndex': i,
         'screenProbability': probabilities[i],
+        'signals': <String, dynamic>{
+          'fullFrameRiskScore': fullFrameRiskScore,
+          'contentAreaRiskScore': contentAreaRiskScore,
+        },
       },
   ],
 };
@@ -70,7 +78,7 @@ void main() {
       temporalFrequencyProbe: hfr(coherent: true),
     );
     expect(result.decision, 'STRONG_DISPLAY_RISK');
-    expect(result.reasons, contains('DUAL_EVIDENCE_STRICT_COHERENT_DISPLAY_PHYSICS'));
+    expect(result.reasons, contains('HFR_V3_ALL_NINE_CELLS_ONE_DISPLAY_FAMILY'));
   });
 
   test('two high temporal screen samples are active DISPLAY evidence', () {
@@ -81,7 +89,7 @@ void main() {
       temporalFrequencyProbe: hfr(coherent: false, reality: true),
     );
     expect(result.decision, 'STRONG_DISPLAY_RISK');
-    expect(result.reasons, contains('DUAL_EVIDENCE_TWO_HIGH_SCREEN_TEMPORAL_SAMPLES'));
+    expect(result.reasons, contains('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES'));
   });
 
   test('BUILD102-like reality signature resolves NON_CONCLUSIVE to reality', () {
@@ -93,7 +101,7 @@ void main() {
     );
     expect(result.decision, 'NO_DISPLAY_EVIDENCE');
     expect(result.score, 20);
-    expect(result.reasons, contains('DUAL_EVIDENCE_STRICT_PHYSICAL_REALITY_SIGNATURE'));
+    expect(result.reasons, contains('HFR_V3_FULL_FRAME_REALITY_SIGNATURE'));
   });
 
   test('three-sample fast photo monitor remains DISPLAY', () {

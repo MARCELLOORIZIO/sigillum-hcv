@@ -2,12 +2,12 @@ import 'dart:math';
 
 import 'package:flutter/services.dart';
 
-/// Shadow-only native physical probe for display refresh / PWM periodicity.
+/// Native HFR V3 physical probe for display-vs-reality evidence.
 ///
-/// V2 deliberately does NOT use Flutter camera recording or FFmpeg. The
-/// Flutter CameraController is released before this call, then iOS owns the
-/// camera in a short isolated AVCaptureSession and returns row profiles from
-/// consecutive CMSampleBuffers together with their real presentation times.
+/// V3 keeps the isolated AVFoundation/CMSampleBuffer capture introduced by V2
+/// and adds explicit 3x3 full-frame consistency plus row-by-time analysis.
+/// A display verdict requires all nine cells to belong to one coherent physical
+/// display family; partial display-like coverage is a mixed real scene.
 class HCVTemporalFrequencyProbe {
   const HCVTemporalFrequencyProbe();
 
@@ -104,10 +104,18 @@ class HCVTemporalFrequencyProbe {
 
     final cellResults = <Map<String, dynamic>>[];
     for (var cell = 0; cell < 9; cell++) {
-      final result = HCVTemporalFrequencyMath.analyzeRowProfileSequence(
+      final rolling = HCVTemporalFrequencyMath.analyzeRowProfileSequence(
         cellSequences[cell],
       );
-      cellResults.add({'row': cell ~/ 3, 'column': cell % 3, ...result});
+      final rowTime = HCVTemporalFrequencyMath.analyzeRowTimeMatrix(
+        cellSequences[cell],
+      );
+      cellResults.add({
+        'row': cell ~/ 3,
+        'column': cell % 3,
+        ...rolling,
+        ...rowTime,
+      });
     }
 
     final timestamps =
@@ -154,6 +162,12 @@ class HCVTemporalFrequencyProbe {
             .whereType<double>()
             .toList()
           ..sort();
+    final rowTimeCoherences =
+        cellResults
+            .map((e) => (e['rowTimeCoherenceScore'] as num?)?.toDouble())
+            .whereType<double>()
+            .toList()
+          ..sort();
 
     final configuredFps = (raw['configuredFrameRate'] as num?)?.toDouble();
     final actualExposure = (raw['actualShortExposureSeconds'] as num?)
@@ -195,7 +209,21 @@ class HCVTemporalFrequencyProbe {
               0.0) >=
           0.80;
     }).length;
-    final coherentDisplayPeriodicity = qualifiesCoherentDisplayPeriodicity(
+    final displayLikeCellCount = cellResults.where(_isV3DisplayLikeCell).length;
+    final realityLikeCellCount = cellResults.where(_isV3RealityLikeCell).length;
+    final indeterminateCellCount = 9 - displayLikeCellCount - realityLikeCellCount;
+    final spatialBins = cellResults
+        .map((entry) => (entry['dominantRowFrequencyBin'] as num?)?.toInt() ?? 0)
+        .toList(growable: false);
+    final rowTimeBins = cellResults
+        .map((entry) =>
+            (entry['rowTimeDominantTemporalFrequencyBin'] as num?)?.toInt() ?? 0)
+        .toList(growable: false);
+    final spatialFamilyCellCount = _compatibleModalBinCount(spatialBins);
+    final rowTimeFamilyCellCount = _compatibleModalBinCount(rowTimeBins);
+    final medianRowTimeCoherence = _median(rowTimeCoherences) ?? 0.0;
+
+    final legacyHfrCandidate = qualifiesCoherentDisplayPeriodicity(
       actualFps: actualFps,
       framesAnalyzed: acceptedFrames,
       shortExposureVerified: raw['shortExposureVerified'] == true,
@@ -209,13 +237,31 @@ class HCVTemporalFrequencyProbe {
       periodicCellCount: periodicCellCount,
       stableCellCount: stableCellCount,
     );
+    final allNineCellsSameDisplayFamily =
+        displayLikeCellCount == 9 &&
+        spatialFamilyCellCount == 9 &&
+        rowTimeFamilyCellCount == 9;
+    final fullFrameDisplayV3 = qualifiesFullFrameDisplayV3(
+      legacyHfrCandidate: legacyHfrCandidate,
+      displayLikeCellCount: displayLikeCellCount,
+      spatialFamilyCellCount: spatialFamilyCellCount,
+      rowTimeFamilyCellCount: rowTimeFamilyCellCount,
+      medianRowTimeCoherence: medianRowTimeCoherence,
+    );
+    final mixedSceneDetected =
+        displayLikeCellCount > 0 && !allNineCellsSameDisplayFamily;
+    final fullFrameRealityV3 =
+        !mixedSceneDetected &&
+        displayLikeCellCount == 0 &&
+        realityLikeCellCount >= 6;
+    final coherentDisplayPeriodicity = fullFrameDisplayV3;
 
     return {
-      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
+      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3',
       'analysisStatus': 'ANALYZED',
-      'decisionRole':
-          'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY',
-      'productionDecisionChanged': coherentDisplayPeriodicity,
+      'decisionRole': 'DECISIONAL_DISPLAY_REALITY_V3_FULL_FRAME_OR_MIXED_SCENE',
+      'productionDecisionChanged':
+          fullFrameDisplayV3 || mixedSceneDetected || fullFrameRealityV3,
       'coherentDisplayPeriodicity': coherentDisplayPeriodicity,
       'coherentDisplayPeriodicityEvidence': {
         'dominantTemporalFrequencyHz': dominantTemporalFrequencyHz,
@@ -224,10 +270,30 @@ class HCVTemporalFrequencyProbe {
         'medianCellPeriodicityStrength': medianCellPeriodicity,
         'medianCellFrequencyStability': medianCellStability,
         'medianCellPhaseStepConsistency': medianCellPhase,
+        'medianRowTimeCoherence': medianRowTimeCoherence,
         'periodicCellCount': periodicCellCount,
         'stableCellCount': stableCellCount,
-        'requiredPeriodicCells': 6,
-        'requiredStableCells': 6,
+        'displayLikeCellCount': displayLikeCellCount,
+        'realityLikeCellCount': realityLikeCellCount,
+        'indeterminateCellCount': indeterminateCellCount,
+        'requiredDisplayLikeCells': 9,
+        'requiredSpatialFamilyCells': 9,
+        'requiredRowTimeFamilyCells': 9,
+        'legacyV2HfrCandidate': legacyHfrCandidate,
+      },
+      'displayRealityEvidenceV3': {
+        'fullFrameDisplay': fullFrameDisplayV3,
+        'fullFrameReality': fullFrameRealityV3,
+        'mixedSceneDetected': mixedSceneDetected,
+        'allNineCellsSameDisplayFamily': allNineCellsSameDisplayFamily,
+        'displayLikeCellCount': displayLikeCellCount,
+        'realityLikeCellCount': realityLikeCellCount,
+        'indeterminateCellCount': indeterminateCellCount,
+        'spatialFamilyCellCount': spatialFamilyCellCount,
+        'rowTimeFamilyCellCount': rowTimeFamilyCellCount,
+        'medianRowTimeCoherence': medianRowTimeCoherence,
+        'classificationPolicy':
+            'ALL_9_CELLS_ONE_DISPLAY_FAMILY_ELSE_PARTIAL_DISPLAY_IS_REAL_MIXED_SCENE',
       },
       'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
       'flutterCameraDisposedDuringProbe': true,
@@ -281,10 +347,12 @@ class HCVTemporalFrequencyProbe {
         'gridRows': 3,
         'gridColumns': 3,
         'decisionEnabled': true,
-        'decisionGate': 'STRICT_HFR_COHERENT_DISPLAY_PERIODICITY',
+        'requiredSameDisplayFamilyCells': 9,
+        'partialDisplayCoverageMeansMixedReality': true,
+        'decisionGate': 'HFR_V3_FULL_FRAME_DISPLAY_VS_MIXED_REAL_SCENE',
       },
       'nativeCaptureMetadata': _withoutRawFrames(raw),
-      'note': 'V2 measures row-profile phase evolution directly from native consecutive CMSampleBuffers. It participates in display fusion only when the strict coherent HFR periodicity gate is satisfied across the frame.',
+      'note': 'V3 combines native 240/120 fps timing, 3x3 row-profile rolling-shutter band evolution, row-by-time temporal coherence and strict all-nine-cell spatial consistency. Partial display-like coverage is classified as a mixed real scene.',
     };
   }
 
@@ -321,12 +389,62 @@ class HCVTemporalFrequencyProbe {
         stableCellCount >= 6;
   }
 
+  static bool qualifiesFullFrameDisplayV3({
+    required bool legacyHfrCandidate,
+    required int displayLikeCellCount,
+    required int spatialFamilyCellCount,
+    required int rowTimeFamilyCellCount,
+    required double medianRowTimeCoherence,
+  }) {
+    return legacyHfrCandidate &&
+        displayLikeCellCount == 9 &&
+        spatialFamilyCellCount == 9 &&
+        rowTimeFamilyCellCount == 9 &&
+        medianRowTimeCoherence >= 0.20;
+  }
+
+  static bool _isV3DisplayLikeCell(Map<String, dynamic> entry) {
+    final periodicity =
+        (entry['periodicityStrength'] as num?)?.toDouble() ?? 0.0;
+    final stability =
+        (entry['dominantFrequencyStability'] as num?)?.toDouble() ?? 0.0;
+    final phase =
+        (entry['phaseStepConsistency'] as num?)?.toDouble() ?? 0.0;
+    final rowTime =
+        (entry['rowTimeCoherenceScore'] as num?)?.toDouble() ?? 0.0;
+    return periodicity >= 0.10 &&
+        stability >= 0.80 &&
+        phase >= 0.35 &&
+        rowTime >= 0.20;
+  }
+
+  static bool _isV3RealityLikeCell(Map<String, dynamic> entry) {
+    final periodicity =
+        (entry['periodicityStrength'] as num?)?.toDouble() ?? 1.0;
+    final stability =
+        (entry['dominantFrequencyStability'] as num?)?.toDouble() ?? 1.0;
+    final rowTime =
+        (entry['rowTimeCoherenceScore'] as num?)?.toDouble() ?? 1.0;
+    return periodicity < 0.02 && stability < 0.45 && rowTime < 0.15;
+  }
+
+  static int _compatibleModalBinCount(List<int> bins) {
+    final positive = bins.where((bin) => bin > 0).toList(growable: false);
+    if (positive.isEmpty) return 0;
+    var best = 0;
+    for (final candidate in positive) {
+      final count = positive.where((bin) => (bin - candidate).abs() <= 1).length;
+      if (count > best) best = count;
+    }
+    return best;
+  }
+
   static Map<String, dynamic> unavailable(String reason, {Object? error}) {
     return {
-      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2',
+      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3',
       'analysisStatus': 'NOT_ANALYZED',
       'decisionRole':
-          'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY',
+          'DECISIONAL_DISPLAY_REALITY_V3_FULL_FRAME_OR_MIXED_SCENE',
       'productionDecisionChanged': false,
       'coherentDisplayPeriodicity': false,
       'reason': reason,
@@ -433,6 +551,63 @@ class HCVTemporalFrequencyMath {
       'phaseStepConsistency': phaseStepConsistency,
       'medianTemporalDifferenceRms': medianDifferenceRms,
       'periodicityStrength': periodicityStrength,
+      'rollingShutterBandCoherence':
+          medianConcentration * frequencyStability,
+      'rollingShutterPhaseDriftConsistency': phaseStepConsistency,
+    };
+  }
+
+  static Map<String, dynamic> analyzeRowTimeMatrix(
+    List<List<double>> frames,
+  ) {
+    if (frames.length < 6 || frames.any((profile) => profile.length < 16)) {
+      return const {
+        'rowTimeAnalysisStatus': 'NOT_ANALYZED',
+        'rowTimeReason': 'ROW_TIME_MATRIX_TOO_SHORT',
+      };
+    }
+    final bins = frames.map((profile) => profile.length).reduce(min);
+    final spectra = <Map<String, double>>[];
+    for (var row = 0; row < bins; row++) {
+      final sequence = frames.map((frame) => frame[row]).toList(growable: false);
+      final mean = _mean(sequence);
+      final centered = sequence.map((value) => value - mean).toList(growable: false);
+      spectra.add(_dominantTemporalSpectrum(centered));
+    }
+
+    final weightedBins = <int, double>{};
+    for (final spectrum in spectra) {
+      final bin = spectrum['bin']?.round() ?? 0;
+      if (bin <= 0) continue;
+      final weight = spectrum['concentration'] ?? 0.0;
+      weightedBins[bin] = (weightedBins[bin] ?? 0.0) + weight;
+    }
+    var modalBin = 0;
+    var modalWeight = -1.0;
+    for (final entry in weightedBins.entries) {
+      if (entry.value > modalWeight) {
+        modalWeight = entry.value;
+        modalBin = entry.key;
+      }
+    }
+    final matching = spectra.where((spectrum) {
+      final bin = spectrum['bin']?.round() ?? 0;
+      return modalBin > 0 && (bin - modalBin).abs() <= 1;
+    }).length;
+    final stabilityAcrossRows =
+        spectra.isEmpty ? 0.0 : matching / spectra.length;
+    final concentrations =
+        spectra.map((spectrum) => spectrum['concentration'] ?? 0.0).toList()
+          ..sort();
+    final medianConcentration = _median(concentrations) ?? 0.0;
+    final coherence = stabilityAcrossRows * medianConcentration;
+    return {
+      'rowTimeAnalysisStatus': 'ANALYZED',
+      'rowTimeDominantTemporalFrequencyBin': modalBin,
+      'rowTimeFrequencyStabilityAcrossRows': stabilityAcrossRows,
+      'rowTimeMedianTemporalSpectralConcentration': medianConcentration,
+      'rowTimeCoherenceScore': coherence,
+      'rowTimeRowsAnalyzed': spectra.length,
     };
   }
 

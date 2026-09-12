@@ -47,9 +47,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
   }) {
-    if (base.decision == 'STRONG_DISPLAY_RISK') return base;
-
-    final dualEvidence = _resolveDualEvidenceV1(
+    final dualEvidence = _resolveDualEvidenceV3(
       base: base,
       passiveOptical: passiveOptical,
       ml: ml,
@@ -57,6 +55,8 @@ class HCVDisplayRiskFusion {
       photoTemporalMl: photoTemporalMl,
     );
     if (dualEvidence != null) return dualEvidence;
+
+    if (base.decision == 'STRONG_DISPLAY_RISK') return base;
 
     if (base.decision != 'NON_CONCLUSIVE' ||
         base.evidenceSources.isNotEmpty ||
@@ -113,7 +113,7 @@ class HCVDisplayRiskFusion {
     );
   }
 
-  static HCVDisplayRiskResult? _resolveDualEvidenceV1({
+  static HCVDisplayRiskResult? _resolveDualEvidenceV3({
     required HCVDisplayRiskResult base,
     required Map<String, dynamic>? passiveOptical,
     required Map<String, dynamic>? ml,
@@ -122,12 +122,78 @@ class HCVDisplayRiskFusion {
   }) {
     final temporalMl = photoTemporalMl ?? ml;
     final temporalFrames = _temporalFrameCount(temporalMl);
-    final highScreenFrames = _temporalHighScreenFrameCount(temporalMl);
+    final highAnyScreenFrames =
+        _temporalHighAnyScreenFrameCount(temporalMl);
+    final highFullFrameScreenFrames =
+        _temporalHighFullFrameScreenFrameCount(temporalMl);
+    final mixedScene = _isV3MixedRealScene(temporalFrequencyProbe);
+    final v3Analyzed =
+        temporalFrequencyProbe?['type'] ==
+                'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3' &&
+            temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
+
+    // A monitor/TV inside a wider real scene is reality for SIGILLUM. This
+    // veto runs before any inherited STRONG ML decision so semantic screen
+    // presence can never turn a mixed physical scene into a screen recapture.
+    if (mixedScene) {
+      final reasons = base.reasons
+          .where(
+            (reason) =>
+                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                reason != 'LIVE_PROBE_MISSING',
+          )
+          .toList()
+        ..add('HFR_V3_MIXED_REAL_SCENE')
+        ..add('HFR_V3_PARTIAL_DISPLAY_COVERAGE_IS_REALITY')
+        ..add('DUAL_EVIDENCE_V3_ACTIVE');
+      return HCVDisplayRiskResult(
+        risk: 'LOW',
+        score: min(base.score, 20),
+        decision: 'NO_DISPLAY_EVIDENCE',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: base.evidenceSources
+            .where((source) => !source.contains('SCREEN'))
+            .toList(),
+        strongSources: const <String>[],
+        reasons: reasons,
+      );
+    }
 
     final physicalDisplay =
         _isCompleteStrictPositiveHfr(temporalFrequencyProbe);
+
+    final screenPresentButNotFullFrame =
+        v3Analyzed &&
+        !physicalDisplay &&
+        temporalFrames >= 2 &&
+        highAnyScreenFrames >= 2 &&
+        highFullFrameScreenFrames == 0;
+    if (screenPresentButNotFullFrame) {
+      final reasons = base.reasons
+          .where(
+            (reason) =>
+                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                reason != 'LIVE_PROBE_MISSING',
+          )
+          .toList()
+        ..add('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')
+        ..add('DISPLAY_PRESENCE_IS_NOT_DISPLAY_CAPTURE')
+        ..add('DUAL_EVIDENCE_V3_ACTIVE');
+      return HCVDisplayRiskResult(
+        risk: 'LOW',
+        score: min(base.score, 20),
+        decision: 'NO_DISPLAY_EVIDENCE',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: base.evidenceSources
+            .where((source) => !source.contains('SCREEN'))
+            .toList(),
+        strongSources: const <String>[],
+        reasons: reasons,
+      );
+    }
+
     final persistentVisualDisplay =
-        temporalFrames >= 2 && highScreenFrames >= 2;
+        temporalFrames >= 2 && highFullFrameScreenFrames >= 2;
 
     if (physicalDisplay || persistentVisualDisplay) {
       final evidenceSources = <String>{...base.evidenceSources};
@@ -141,16 +207,16 @@ class HCVDisplayRiskFusion {
           .toList();
 
       if (physicalDisplay) {
-        evidenceSources.add('DUAL_EVIDENCE_PHYSICAL_DISPLAY_HFR');
-        strongSources.add('DUAL_EVIDENCE_PHYSICAL_DISPLAY_HFR');
-        reasons.add('DUAL_EVIDENCE_STRICT_COHERENT_DISPLAY_PHYSICS');
+        evidenceSources.add('HFR_V3_FULL_FRAME_DISPLAY_PHYSICS');
+        strongSources.add('HFR_V3_FULL_FRAME_DISPLAY_PHYSICS');
+        reasons.add('HFR_V3_ALL_NINE_CELLS_ONE_DISPLAY_FAMILY');
       }
       if (persistentVisualDisplay) {
-        evidenceSources.add('DUAL_EVIDENCE_TEMPORAL_SCREEN_PERSISTENCE');
-        strongSources.add('DUAL_EVIDENCE_TEMPORAL_SCREEN_PERSISTENCE');
-        reasons.add('DUAL_EVIDENCE_TWO_HIGH_SCREEN_TEMPORAL_SAMPLES');
+        evidenceSources.add('FULL_FRAME_TEMPORAL_SCREEN_PERSISTENCE');
+        strongSources.add('FULL_FRAME_TEMPORAL_SCREEN_PERSISTENCE');
+        reasons.add('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES');
       }
-      reasons.add('DUAL_EVIDENCE_V1_ACTIVE');
+      reasons.add('DUAL_EVIDENCE_V3_ACTIVE');
 
       return HCVDisplayRiskResult(
         risk: 'HIGH',
@@ -170,7 +236,7 @@ class HCVDisplayRiskFusion {
         cleanOptical &&
         base.strongSources.isEmpty &&
         temporalFrames >= 2 &&
-        highScreenFrames == 0;
+        highFullFrameScreenFrames == 0;
 
     if (!realityEvidence) return null;
 
@@ -181,10 +247,10 @@ class HCVDisplayRiskFusion {
               reason != 'LIVE_PROBE_MISSING',
         )
         .toList()
-      ..add('DUAL_EVIDENCE_STRICT_PHYSICAL_REALITY_SIGNATURE')
-      ..add('DUAL_EVIDENCE_NO_HIGH_SCREEN_TEMPORAL_SAMPLE')
-      ..add('DUAL_EVIDENCE_NO_OPTICAL_DISPLAY_TRACE')
-      ..add('DUAL_EVIDENCE_V1_ACTIVE');
+      ..add('HFR_V3_FULL_FRAME_REALITY_SIGNATURE')
+      ..add('NO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLE')
+      ..add('NO_OPTICAL_DISPLAY_TRACE')
+      ..add('DUAL_EVIDENCE_V3_ACTIVE');
 
     return HCVDisplayRiskResult(
       risk: 'LOW',
@@ -199,7 +265,7 @@ class HCVDisplayRiskFusion {
 
   static bool _isCompleteStrictPositiveHfr(Map<String, dynamic>? probe) {
     if (probe == null ||
-        probe['type'] != 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2' ||
+        !_isSupportedHfrType(probe['type']) ||
         probe['analysisStatus'] != 'ANALYZED' ||
         probe['coherentDisplayPeriodicity'] != true ||
         probe['shortExposureVerified'] != true ||
@@ -209,11 +275,43 @@ class HCVDisplayRiskFusion {
     final frames = (probe['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final fps =
         (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
-    return frames >= 60 && fps >= 120.0;
+    if (frames < 60 || fps < 120.0) return false;
+    if (probe['type'] == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3') {
+      final v3 = _v3Evidence(probe);
+      return v3?['fullFrameDisplay'] == true &&
+          v3?['mixedSceneDetected'] != true &&
+          (v3?['displayLikeCellCount'] as num?)?.toInt() == 9 &&
+          (v3?['spatialFamilyCellCount'] as num?)?.toInt() == 9 &&
+          (v3?['rowTimeFamilyCellCount'] as num?)?.toInt() == 9;
+    }
+    return true;
+  }
+
+  static bool _isSupportedHfrType(Object? type) =>
+      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2' ||
+      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3';
+
+  static Map<String, dynamic>? _v3Evidence(Map<String, dynamic>? probe) {
+    final raw = probe?['displayRealityEvidenceV3'];
+    return raw is Map ? Map<String, dynamic>.from(raw) : null;
+  }
+
+  static bool _isV3MixedRealScene(Map<String, dynamic>? probe) {
+    if (probe?['type'] != 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3' ||
+        probe?['analysisStatus'] != 'ANALYZED') {
+      return false;
+    }
+    return _v3Evidence(probe)?['mixedSceneDetected'] == true;
   }
 
   static bool _isStrictPhysicalRealityHfr(Map<String, dynamic>? probe) {
     if (!_isCompleteStrictNegativeHfr(probe)) return false;
+    if (probe?['type'] == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3') {
+      final v3 = _v3Evidence(probe);
+      if (v3 == null || v3['mixedSceneDetected'] == true) return false;
+      return v3['fullFrameReality'] == true &&
+          ((v3['displayLikeCellCount'] as num?)?.toInt() ?? 9) == 0;
+    }
     final raw = probe?['coherentDisplayPeriodicityEvidence'];
     if (raw is! Map) return false;
     final evidence = Map<String, dynamic>.from(raw);
@@ -247,7 +345,7 @@ class HCVDisplayRiskFusion {
     return rawFrames.whereType<Map>().length;
   }
 
-  static int _temporalHighScreenFrameCount(Map<String, dynamic>? ml) {
+  static int _temporalHighAnyScreenFrameCount(Map<String, dynamic>? ml) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return 0;
     final rawFrames = ml['videoFrameAnalyses'];
     if (rawFrames is! List) return 0;
@@ -261,9 +359,34 @@ class HCVDisplayRiskFusion {
     return count;
   }
 
+  static int _temporalHighFullFrameScreenFrameCount(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (rawFrames is! List) return 0;
+    var count = 0;
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! Map) continue;
+      final probability =
+          (rawFrame['screenProbability'] as num?)?.toDouble() ?? 0.0;
+      final rawSignals = rawFrame['signals'];
+      if (rawSignals is! Map) continue;
+      final signals = Map<String, dynamic>.from(rawSignals);
+      final fullFrame =
+          (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      final contentArea =
+          (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+      if (probability >= 0.90 && fullFrame >= 90 && contentArea >= 85) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   static bool _isCompleteStrictNegativeHfr(Map<String, dynamic>? probe) {
     if (probe == null ||
-        probe['type'] != 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2' ||
+        !_isSupportedHfrType(probe['type']) ||
         probe['analysisStatus'] != 'ANALYZED' ||
         probe['coherentDisplayPeriodicity'] != false ||
         probe['shortExposureVerified'] != true ||

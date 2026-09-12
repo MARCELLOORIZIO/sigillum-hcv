@@ -38,7 +38,7 @@ void main() {
           .readAsStringSync();
       expect(
         source,
-        contains('DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY'),
+        contains('DECISIONAL_DISPLAY_REALITY_V3_FULL_FRAME_OR_MIXED_SCENE'),
       );
       expect(source, contains("'productionDecisionChanged': false"));
     },

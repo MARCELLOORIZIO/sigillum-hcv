@@ -452,7 +452,7 @@ void main() {
     expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(
       result.reasons,
-      contains('DUAL_EVIDENCE_STRICT_COHERENT_DISPLAY_PHYSICS'),
+      contains('HFR_V3_ALL_NINE_CELLS_ONE_DISPLAY_FAMILY'),
     );
   });
 }

@@ -4,15 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_temporal_frequency_probe.dart';
 
 void main() {
-  test('V2 probe is native, consecutive and decision-limited to strict coherent HFR periodicity', () {
+  test('V3 probe is native, consecutive and decision-limited to full-frame display versus mixed reality', () {
     final source = File('lib/hcv_temporal_frequency_probe.dart')
         .readAsStringSync();
     expect(source, contains('captureTemporalFrequencyNative'));
-    expect(source, contains('SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2'));
+    expect(source, contains('SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3'));
     expect(source, contains('ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER'));
     expect(
       source,
-      contains('DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY'),
+      contains('DECISIONAL_DISPLAY_REALITY_V3_FULL_FRAME_OR_MIXED_SCENE'),
     );
     expect(source, contains("'encodedVideoUsed': false"));
     expect(source, contains("'ffmpegUsed': false"));
@@ -59,11 +59,11 @@ void main() {
     },
   );
 
-  test('unavailable V2 evidence cannot change production decision', () {
+  test('unavailable V3 evidence cannot change production decision', () {
     final unavailable = HCVTemporalFrequencyProbe.unavailable('TEST');
     expect(
       unavailable['decisionRole'],
-      'DECISIONAL_ONLY_FOR_STRICT_HFR_COHERENT_DISPLAY_PERIODICITY',
+      'DECISIONAL_DISPLAY_REALITY_V3_FULL_FRAME_OR_MIXED_SCENE',
     );
     expect(unavailable['productionDecisionChanged'], false);
   });
