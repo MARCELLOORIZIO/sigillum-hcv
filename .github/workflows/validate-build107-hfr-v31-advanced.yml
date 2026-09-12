@@ -50,8 +50,11 @@ jobs:
           ios/Runner/AppDelegate.swift
           lib/hcv_display_risk_fusion.dart
           lib/hcv_temporal_frequency_probe.dart
+          test/frequency_probe_session_safety_contract_test.dart
           test/hfr_v3_fullframe_mixed_scene_test.dart
           test/hfr_v31_advanced_probe_contract_test.dart
+          test/native_temporal_frequency_v2_contract_test.dart
+          test/temporal_frequency_probe_contract_test.dart
           EOF
           sort -o /tmp/expected-files.txt /tmp/expected-files.txt
           diff -u /tmp/expected-files.txt /tmp/changed-files.txt
@@ -116,8 +119,11 @@ jobs:
             ios/Runner/AppDelegate.swift \
             lib/hcv_display_risk_fusion.dart \
             lib/hcv_temporal_frequency_probe.dart \
+            test/frequency_probe_session_safety_contract_test.dart \
             test/hfr_v3_fullframe_mixed_scene_test.dart \
-            test/hfr_v31_advanced_probe_contract_test.dart
+            test/hfr_v31_advanced_probe_contract_test.dart \
+            test/native_temporal_frequency_v2_contract_test.dart \
+            test/temporal_frequency_probe_contract_test.dart
           git commit -m "feat: add HFR V3.1 exposure sweep and spatial diagnostics"
           git push origin HEAD:fix/hfr-v31-exposure-spatial-build107-20260912
           echo "VALIDATED_SHA=$(git rev-parse HEAD)"
