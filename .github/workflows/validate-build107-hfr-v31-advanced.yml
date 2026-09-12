@@ -1,0 +1,102 @@
+name: Validate BUILD107 HFR V3.1 advanced physics
+
+on:
+  push:
+    branches:
+      - fix/hfr-v31-exposure-spatial-build107-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify BUILD106 clean base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 2617d63994c21d1514ee1395c34823dbe37f8324 HEAD
+          echo "BUILD106 base verified"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Apply BUILD107 advanced physical probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/apply_build107_hfr_v31_advanced_probe.py
+
+      - name: Guard intended application diff only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          {
+            git diff --name-only
+            git ls-files --others --exclude-standard
+          } | sort -u > /tmp/changed-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
+          ios/Runner/AppDelegate.swift
+          lib/hcv_display_risk_fusion.dart
+          lib/hcv_temporal_frequency_probe.dart
+          test/hfr_v3_fullframe_mixed_scene_test.dart
+          test/hfr_v31_advanced_probe_contract_test.dart
+          EOF
+          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/changed-files.txt
+
+      - name: Resolve Flutter dependencies
+        run: |
+          set -euo pipefail
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Full Flutter test suite
+        run: flutter test --reporter expanded
+
+      - name: Compile iOS native Swift without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build ios --simulator --debug --no-pub \
+            --dart-define=SIGILLUM_EDITION=user
+
+      - name: Prove source unchanged by iOS compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --exit-code -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml || {
+            echo "Build mutated committed application source or generated lock state"
+            git status --short
+            exit 1
+          }
+
+      - name: Commit validated application and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            ios/Runner/AppDelegate.swift \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_temporal_frequency_probe.dart \
+            test/hfr_v3_fullframe_mixed_scene_test.dart \
+            test/hfr_v31_advanced_probe_contract_test.dart
+          git commit -m "feat: add HFR V3.1 exposure sweep and spatial diagnostics"
+          git push origin HEAD:fix/hfr-v31-exposure-spatial-build107-20260912
+          echo "VALIDATED_SHA=$(git rev-parse HEAD)"
