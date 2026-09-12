@@ -45,7 +45,9 @@ void main() {
       contains('_ = self.resetTemporalFrequencyOpticsForFlutterHandoff(captureDevice)'),
     );
     expect(
-      RegExp(r'device: captureDevice,').allMatches(capture).length,
+      RegExp(r'self\.finishTemporalFrequencyNativeCapture\(')
+          .allMatches(capture)
+          .length,
       2,
     );
     expect(source, contains('cameraHandoffAfterNativeProbe'));
