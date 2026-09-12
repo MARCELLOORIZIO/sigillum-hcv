@@ -41,7 +41,10 @@ jobs:
         shell: bash
         run: |
           git diff --check
-          git diff --name-only | sort | tee changed-files.txt
+          {
+            git diff --name-only
+            git ls-files --others --exclude-standard
+          } | sort -u | tee changed-files.txt
           cat > expected-files.txt <<'EOF'
           lib/camera_page.dart
           lib/hcv_display_risk_fusion.dart
