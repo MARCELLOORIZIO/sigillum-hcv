@@ -280,4 +280,212 @@ void main() {
     );
     expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
   });
+
+  test('BUILD105 full-frame photo passes V3 family gate despite five locally stable cells', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesDisplayFamilyGlobalHfrV3(
+        actualFps: 240.62,
+        framesAnalyzed: 84,
+        shortExposureVerified: true,
+        exposureLocked: true,
+        dominantTemporalFrequencyHz: 100.261673,
+        globalModulationDepth: 0.962852,
+        globalSpectralConcentration: 0.907329,
+        medianCellPeriodicityStrength: 0.217227,
+        medianCellFrequencyStability: 0.903614,
+        medianCellPhaseStepConsistency: 0.684237,
+        periodicCellCount: 9,
+      ),
+      isTrue,
+    );
+  });
+
+  test('V3 family gate does not weaken global median stability or periodic-cell requirements', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesDisplayFamilyGlobalHfrV3(
+        actualFps: 240.62,
+        framesAnalyzed: 84,
+        shortExposureVerified: true,
+        exposureLocked: true,
+        dominantTemporalFrequencyHz: 100.26,
+        globalModulationDepth: 0.96,
+        globalSpectralConcentration: 0.91,
+        medianCellPeriodicityStrength: 0.22,
+        medianCellFrequencyStability: 0.84,
+        medianCellPhaseStepConsistency: 0.68,
+        periodicCellCount: 9,
+      ),
+      isFalse,
+    );
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesDisplayFamilyGlobalHfrV3(
+        actualFps: 240.62,
+        framesAnalyzed: 84,
+        shortExposureVerified: true,
+        exposureLocked: true,
+        dominantTemporalFrequencyHz: 100.26,
+        globalModulationDepth: 0.96,
+        globalSpectralConcentration: 0.91,
+        medianCellPeriodicityStrength: 0.22,
+        medianCellFrequencyStability: 0.90,
+        medianCellPhaseStepConsistency: 0.68,
+        periodicCellCount: 5,
+      ),
+      isFalse,
+    );
+  });
+
+  test('BUILD105 framed artwork video qualifies as strong physical Reality V3', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+        actualFps: 240.62,
+        framesAnalyzed: 84,
+        shortExposureVerified: true,
+        exposureLocked: true,
+        fullFrameDisplay: false,
+        mixedSceneDetected: false,
+        displayLikeCellCount: 0,
+        dominantTemporalFrequencyHz: 2.864590,
+        medianCellPeriodicityStrength: 0.006995,
+        medianCellFrequencyStability: 0.168675,
+        periodicCellCount: 0,
+        stableCellCount: 0,
+      ),
+      isTrue,
+    );
+  });
+
+  test('BUILD105 desk video qualifies as physical Reality V3 despite one weak periodic cell', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+        actualFps: 240.62,
+        framesAnalyzed: 84,
+        shortExposureVerified: true,
+        exposureLocked: true,
+        fullFrameDisplay: false,
+        mixedSceneDetected: false,
+        displayLikeCellCount: 0,
+        dominantTemporalFrequencyHz: 2.864562,
+        medianCellPeriodicityStrength: 0.021898,
+        medianCellFrequencyStability: 0.373494,
+        periodicCellCount: 1,
+        stableCellCount: 1,
+      ),
+      isTrue,
+    );
+  });
+
+  test('Reality V3 rejects mixed scenes and true high-frequency display signatures', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+        actualFps: 240.62,
+        framesAnalyzed: 84,
+        shortExposureVerified: true,
+        exposureLocked: true,
+        fullFrameDisplay: false,
+        mixedSceneDetected: true,
+        displayLikeCellCount: 2,
+        dominantTemporalFrequencyHz: 2.8646,
+        medianCellPeriodicityStrength: 0.012,
+        medianCellFrequencyStability: 0.29,
+        periodicCellCount: 4,
+        stableCellCount: 2,
+      ),
+      isFalse,
+    );
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+        actualFps: 240.62,
+        framesAnalyzed: 84,
+        shortExposureVerified: true,
+        exposureLocked: true,
+        fullFrameDisplay: false,
+        mixedSceneDetected: false,
+        displayLikeCellCount: 0,
+        dominantTemporalFrequencyHz: 100.26,
+        medianCellPeriodicityStrength: 0.01,
+        medianCellFrequencyStability: 0.20,
+        periodicCellCount: 1,
+        stableCellCount: 1,
+      ),
+      isFalse,
+    );
+  });
+
+  test('Reality V3 resolves weak artwork semantics without changing ML thresholds', () {
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: unresolvedV3(),
+      passiveOptical: opticalCleanV3(),
+      ml: temporalV3(<double>[0.7543, 0.6020]),
+      temporalFrequencyProbe: v3Probe(
+        fullFrameDisplay: false,
+        fullFrameReality: true,
+        mixed: false,
+        displayCells: 0,
+        spatialFamilyCells: 7,
+        rowTimeFamilyCells: 9,
+      ),
+    );
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(result.reasons, contains('HFR_V3_FULL_FRAME_REALITY_SIGNATURE'));
+  });
+
+  test('Reality V3 overrides temporal-only passive optical false positive on desk', () {
+    final temporalOnlyOptical = <String, dynamic>{
+      'analysisStatus': 'ANALYZED',
+      'framesAnalyzed': 15,
+      'screenReplayRiskScore': 75,
+      'signals': <String, dynamic>{
+        'displayFlicker': false,
+        'pixelGridOrMoireHint': false,
+        'uniformPixelGrid': false,
+        'localRefreshFlicker': true,
+        'horizontalRefreshBands': false,
+        'pairedLocalRefresh': true,
+        'temporalScreenPulse': true,
+        'structuralDisplayTrace': false,
+        'strongDisplayTrace': true,
+        'confirmedDisplayTrace': false,
+        'periodicLightTrace': false,
+        'opticalCorroboratedTrace': false,
+      },
+    };
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: unresolvedV3(),
+      passiveOptical: temporalOnlyOptical,
+      ml: temporalV3(<double>[0.7381, 0.1400]),
+      temporalFrequencyProbe: v3Probe(
+        fullFrameDisplay: false,
+        fullFrameReality: true,
+        mixed: false,
+        displayCells: 0,
+        spatialFamilyCells: 6,
+        rowTimeFamilyCells: 9,
+      ),
+    );
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(
+      result.reasons,
+      contains('HFR_V3_REALITY_OVERRIDES_TEMPORAL_ONLY_PASSIVE_OPTICAL_CUE'),
+    );
+  });
+
+  test('Reality V3 cannot override structural optical screen evidence', () {
+    final structuralOptical = opticalCleanV3();
+    final signals = Map<String, dynamic>.from(structuralOptical['signals'] as Map);
+    signals['pixelGridOrMoireHint'] = true;
+    structuralOptical['signals'] = signals;
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: unresolvedV3(),
+      passiveOptical: structuralOptical,
+      ml: temporalV3(<double>[0.30, 0.25]),
+      temporalFrequencyProbe: v3Probe(
+        fullFrameDisplay: false,
+        fullFrameReality: true,
+        mixed: false,
+      ),
+    );
+    expect(result.decision, 'NON_CONCLUSIVE');
+  });
+
 }

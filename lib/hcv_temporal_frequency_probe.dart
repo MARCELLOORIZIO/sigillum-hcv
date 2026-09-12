@@ -237,29 +237,52 @@ class HCVTemporalFrequencyProbe {
       periodicCellCount: periodicCellCount,
       stableCellCount: stableCellCount,
     );
-    // BUILD105: all nine cells must belong to one physical frequency
-    // family, but individual cells are allowed to be locally weaker because
-    // content, glare and perspective can depress periodicity/phase metrics.
-    // The unchanged strict legacy HFR gate still supplies the global physical
-    // proof, while 9/9 spatial + row-time family coherence proves full-frame
-    // coverage. This is deliberately not a relaxation of the HFR thresholds.
+    // BUILD106: the global physical display proof keeps every strict median,
+    // spectral, phase, exposure and periodic-cell gate from V2. The old
+    // stableCellCount >= 6 veto is not reused once V3 can prove that all nine
+    // cells belong to the same spatial + row-time frequency family. This is a
+    // family-coherence correction, not a generic threshold reduction.
+    final displayFamilyGlobalHfrCandidate =
+        qualifiesDisplayFamilyGlobalHfrV3(
+      actualFps: actualFps,
+      framesAnalyzed: acceptedFrames,
+      shortExposureVerified: raw['shortExposureVerified'] == true,
+      exposureLocked: raw['exposureLockedForEntireNativeCapture'] == true,
+      dominantTemporalFrequencyHz: dominantTemporalFrequencyHz,
+      globalModulationDepth: globalModulationDepth,
+      globalSpectralConcentration: globalSpectralConcentration,
+      medianCellPeriodicityStrength: medianCellPeriodicity,
+      medianCellFrequencyStability: medianCellStability,
+      medianCellPhaseStepConsistency: medianCellPhase,
+      periodicCellCount: periodicCellCount,
+    );
     final allNineCellsSameDisplayFamily =
-        legacyHfrCandidate &&
+        displayFamilyGlobalHfrCandidate &&
         spatialFamilyCellCount == 9 &&
         rowTimeFamilyCellCount == 9 &&
         medianRowTimeCoherence >= 0.20;
     final fullFrameDisplayV3 = qualifiesFullFrameDisplayV3(
-      legacyHfrCandidate: legacyHfrCandidate,
+      legacyHfrCandidate: displayFamilyGlobalHfrCandidate,
       spatialFamilyCellCount: spatialFamilyCellCount,
       rowTimeFamilyCellCount: rowTimeFamilyCellCount,
       medianRowTimeCoherence: medianRowTimeCoherence,
     );
     final mixedSceneDetected =
         displayLikeCellCount > 0 && !fullFrameDisplayV3;
-    final fullFrameRealityV3 =
-        !mixedSceneDetected &&
-        displayLikeCellCount == 0 &&
-        realityLikeCellCount >= 6;
+    final fullFrameRealityV3 = qualifiesFullFrameRealityV3(
+      actualFps: actualFps,
+      framesAnalyzed: acceptedFrames,
+      shortExposureVerified: raw['shortExposureVerified'] == true,
+      exposureLocked: raw['exposureLockedForEntireNativeCapture'] == true,
+      fullFrameDisplay: fullFrameDisplayV3,
+      mixedSceneDetected: mixedSceneDetected,
+      displayLikeCellCount: displayLikeCellCount,
+      dominantTemporalFrequencyHz: dominantTemporalFrequencyHz,
+      medianCellPeriodicityStrength: medianCellPeriodicity,
+      medianCellFrequencyStability: medianCellStability,
+      periodicCellCount: periodicCellCount,
+      stableCellCount: stableCellCount,
+    );
     final coherentDisplayPeriodicity = fullFrameDisplayV3;
 
     return {
@@ -286,6 +309,8 @@ class HCVTemporalFrequencyProbe {
         'requiredSpatialFamilyCells': 9,
         'requiredRowTimeFamilyCells': 9,
         'legacyV2HfrCandidate': legacyHfrCandidate,
+        'displayFamilyGlobalHfrCandidateV3': displayFamilyGlobalHfrCandidate,
+        'localDisplayLikeCellCountDecisionGate': false,
       },
       'displayRealityEvidenceV3': {
         'fullFrameDisplay': fullFrameDisplayV3,
@@ -299,7 +324,7 @@ class HCVTemporalFrequencyProbe {
         'rowTimeFamilyCellCount': rowTimeFamilyCellCount,
         'medianRowTimeCoherence': medianRowTimeCoherence,
         'classificationPolicy':
-            'STRICT_GLOBAL_HFR_PLUS_ALL_9_CELLS_ONE_FREQUENCY_FAMILY;_LOCAL_WEAK_CELLS_ALLOWED;PARTIAL_DISPLAY_IS_REAL_MIXED_SCENE',
+            'BUILD106_GLOBAL_HFR_PLUS_ALL_9_CELLS_ONE_FREQUENCY_FAMILY;LOCAL_STABLE_CELL_COUNT_DIAGNOSTIC_ONLY;STRONG_LOW_PERIODICITY_SIGNATURE_IS_PHYSICAL_REALITY;PARTIAL_DISPLAY_IS_REAL_MIXED_SCENE',
       },
       'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
       'flutterCameraDisposedDuringProbe': true,
@@ -358,7 +383,7 @@ class HCVTemporalFrequencyProbe {
         'decisionGate': 'HFR_V3_FULL_FRAME_DISPLAY_VS_MIXED_REAL_SCENE',
       },
       'nativeCaptureMetadata': _withoutRawFrames(raw),
-      'note': 'V3 BUILD105 combines native 240/120 fps timing, strict global HFR evidence, 3x3 row-profile rolling-shutter band evolution and row-by-time coherence. Full-frame display requires all nine cells in one spatial and row-time frequency family, while locally weaker cells are tolerated. Partial display coverage remains a mixed real scene.',
+      'note': 'V3 BUILD106 combines native 240/120 fps timing, strict global HFR evidence, 3x3 row-profile rolling-shutter band evolution and row-by-time coherence. Full-frame display uses strict global medians plus all-nine family coherence without a redundant local stable-cell-count veto. Reality V3 is an independent strong low-periodicity physical signature. Partial display coverage remains a mixed real scene.',
     };
   }
 
@@ -395,6 +420,37 @@ class HCVTemporalFrequencyProbe {
         stableCellCount >= 6;
   }
 
+  static bool qualifiesDisplayFamilyGlobalHfrV3({
+    required double? actualFps,
+    required int framesAnalyzed,
+    required bool shortExposureVerified,
+    required bool exposureLocked,
+    required double? dominantTemporalFrequencyHz,
+    required double globalModulationDepth,
+    required double globalSpectralConcentration,
+    required double medianCellPeriodicityStrength,
+    required double medianCellFrequencyStability,
+    required double medianCellPhaseStepConsistency,
+    required int periodicCellCount,
+  }) {
+    if (actualFps == null || actualFps < 120.0) return false;
+    if (framesAnalyzed < 60 || !shortExposureVerified || !exposureLocked) {
+      return false;
+    }
+    if (dominantTemporalFrequencyHz == null ||
+        dominantTemporalFrequencyHz < 40.0 ||
+        dominantTemporalFrequencyHz > 120.0 ||
+        dominantTemporalFrequencyHz > actualFps / 2.0 + 1.0) {
+      return false;
+    }
+    return globalModulationDepth >= 0.75 &&
+        globalSpectralConcentration >= 0.85 &&
+        medianCellPeriodicityStrength >= 0.12 &&
+        medianCellFrequencyStability >= 0.85 &&
+        medianCellPhaseStepConsistency >= 0.40 &&
+        periodicCellCount >= 6;
+  }
+
   static bool qualifiesFullFrameDisplayV3({
     required bool legacyHfrCandidate,
     required int spatialFamilyCellCount,
@@ -405,6 +461,37 @@ class HCVTemporalFrequencyProbe {
         spatialFamilyCellCount == 9 &&
         rowTimeFamilyCellCount == 9 &&
         medianRowTimeCoherence >= 0.20;
+  }
+
+  static bool qualifiesFullFrameRealityV3({
+    required double? actualFps,
+    required int framesAnalyzed,
+    required bool shortExposureVerified,
+    required bool exposureLocked,
+    required bool fullFrameDisplay,
+    required bool mixedSceneDetected,
+    required int displayLikeCellCount,
+    required double? dominantTemporalFrequencyHz,
+    required double medianCellPeriodicityStrength,
+    required double medianCellFrequencyStability,
+    required int periodicCellCount,
+    required int stableCellCount,
+  }) {
+    if (actualFps == null || actualFps < 120.0) return false;
+    if (framesAnalyzed < 60 || !shortExposureVerified || !exposureLocked) {
+      return false;
+    }
+    if (fullFrameDisplay || mixedSceneDetected || displayLikeCellCount != 0) {
+      return false;
+    }
+    if (dominantTemporalFrequencyHz == null ||
+        dominantTemporalFrequencyHz >= 10.0) {
+      return false;
+    }
+    return medianCellPeriodicityStrength < 0.05 &&
+        medianCellFrequencyStability < 0.60 &&
+        periodicCellCount <= 1 &&
+        stableCellCount <= 1;
   }
 
   static bool _isV3DisplayLikeCell(Map<String, dynamic> entry) {

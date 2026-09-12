@@ -232,10 +232,13 @@ class HCVDisplayRiskFusion {
     final physicalReality =
         _isStrictPhysicalRealityHfr(temporalFrequencyProbe);
     final cleanOptical = _hasNoPhysicalDisplayTrace(passiveOptical);
+    final noStructuralOpticalDisplayTrace =
+        _hasNoStructuralOpticalDisplayTraceForV3Reality(passiveOptical);
     final realityEvidence = physicalReality &&
-        cleanOptical &&
+        noStructuralOpticalDisplayTrace &&
         base.strongSources.isEmpty &&
         temporalFrames >= 2 &&
+        highAnyScreenFrames == 0 &&
         highFullFrameScreenFrames == 0;
 
     if (!realityEvidence) return null;
@@ -248,9 +251,12 @@ class HCVDisplayRiskFusion {
         )
         .toList()
       ..add('HFR_V3_FULL_FRAME_REALITY_SIGNATURE')
-      ..add('NO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLE')
-      ..add('NO_OPTICAL_DISPLAY_TRACE')
-      ..add('DUAL_EVIDENCE_V3_ACTIVE');
+      ..add('NO_HIGH_SCREEN_TEMPORAL_SAMPLE')
+      ..add('NO_STRUCTURAL_OPTICAL_DISPLAY_TRACE');
+    if (!cleanOptical) {
+      reasons.add('HFR_V3_REALITY_OVERRIDES_TEMPORAL_ONLY_PASSIVE_OPTICAL_CUE');
+    }
+    reasons.add('DUAL_EVIDENCE_V3_ACTIVE');
 
     return HCVDisplayRiskResult(
       risk: 'LOW',
@@ -423,6 +429,31 @@ class HCVDisplayRiskFusion {
       'opticalCorroboratedTrace',
     ];
     return hardSignalKeys.every((key) => signals[key] != true);
+  }
+
+  static bool _hasNoStructuralOpticalDisplayTraceForV3Reality(
+    Map<String, dynamic>? optical,
+  ) {
+    if (optical == null || optical['analysisStatus'] == 'NOT_ANALYZED') {
+      return false;
+    }
+    final frames = (optical['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    if (frames < 12) return false;
+
+    final signals = _signals(optical);
+    // BUILD106: when native HFR V3 gives a strong physical-reality signature,
+    // temporal-only passive cues (local flicker / paired pulse) are not allowed
+    // to veto it. Spatial/structural screen evidence still blocks the override.
+    const structuralSignalKeys = <String>[
+      'pixelGridOrMoireHint',
+      'uniformPixelGrid',
+      'horizontalRefreshBands',
+      'structuralDisplayTrace',
+      'confirmedDisplayTrace',
+      'periodicLightTrace',
+      'opticalCorroboratedTrace',
+    ];
+    return structuralSignalKeys.every((key) => signals[key] != true);
   }
 
   static bool _isWeakPhotoStillSemantic(Map<String, dynamic>? ml) {
