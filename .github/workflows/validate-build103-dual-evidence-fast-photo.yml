@@ -35,7 +35,10 @@ jobs:
           cache: true
 
       - name: Apply BUILD103 patch
-        run: python3 tools/apply_build103_dual_evidence_fast_photo.py
+        shell: bash
+        run: |
+          python3 tools/apply_build103_dual_evidence_fast_photo.py
+          python3 tools/apply_build103_contract_corrections.py
 
       - name: Verify intended diff only
         shell: bash
@@ -51,6 +54,8 @@ jobs:
           lib/hcv_temporal_capture_probe.dart
           test/dual_display_reality_evidence_v1_test.dart
           test/photo_temporal_fast_contract_test.dart
+          test/photo_temporal_four_frame_sampling_contract_test.dart
+          test/video_native_capture_writer_stability_contract_test.dart
           test/weak_semantic_no_physical_resolution_test.dart
           EOF
           sort -o /tmp/expected-files.txt /tmp/expected-files.txt
@@ -76,6 +81,8 @@ jobs:
             lib/hcv_temporal_capture_probe.dart \
             test/dual_display_reality_evidence_v1_test.dart \
             test/photo_temporal_fast_contract_test.dart \
+            test/photo_temporal_four_frame_sampling_contract_test.dart \
+            test/video_native_capture_writer_stability_contract_test.dart \
             test/weak_semantic_no_physical_resolution_test.dart
           git commit -m "feat: activate dual display reality evidence and faster photo probe"
           git push origin HEAD:fix/dual-evidence-fast-photo-build103-20260912
