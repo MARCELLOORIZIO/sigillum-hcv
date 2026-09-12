@@ -12,7 +12,7 @@ void main() {
     expect(source, contains('ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER'));
     expect(
       source,
-      contains('DECISIONAL_DISPLAY_REALITY_V3_FULL_FRAME_OR_MIXED_SCENE'),
+      contains('DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V31_ADVANCED_PHYSICS_DIAGNOSTIC_ONLY'),
     );
     expect(source, contains("'encodedVideoUsed': false"));
     expect(source, contains("'ffmpegUsed': false"));
@@ -63,7 +63,7 @@ void main() {
     final unavailable = HCVTemporalFrequencyProbe.unavailable('TEST');
     expect(
       unavailable['decisionRole'],
-      'DECISIONAL_DISPLAY_REALITY_V3_FULL_FRAME_OR_MIXED_SCENE',
+      'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V31_ADVANCED_PHYSICS_DIAGNOSTIC_ONLY',
     );
     expect(unavailable['productionDecisionChanged'], false);
   });

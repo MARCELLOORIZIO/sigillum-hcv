@@ -128,8 +128,7 @@ class HCVDisplayRiskFusion {
         _temporalHighFullFrameScreenFrameCount(temporalMl);
     final mixedScene = _isV3MixedRealScene(temporalFrequencyProbe);
     final v3Analyzed =
-        temporalFrequencyProbe?['type'] ==
-                'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3' &&
+        _isV3OrLater(temporalFrequencyProbe?['type']) &&
             temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
 
     // A monitor/TV inside a wider real scene is reality for SIGILLUM. This
@@ -282,7 +281,7 @@ class HCVDisplayRiskFusion {
     final fps =
         (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
     if (frames < 60 || fps < 120.0) return false;
-    if (probe['type'] == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3') {
+    if (_isV3OrLater(probe['type'])) {
       final v3 = _v3Evidence(probe);
       return v3?['fullFrameDisplay'] == true &&
           v3?['mixedSceneDetected'] != true &&
@@ -293,9 +292,12 @@ class HCVDisplayRiskFusion {
     return true;
   }
 
+  static bool _isV3OrLater(Object? type) =>
+      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3' ||
+      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_1';
+
   static bool _isSupportedHfrType(Object? type) =>
-      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2' ||
-      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3';
+      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2' || _isV3OrLater(type);
 
   static Map<String, dynamic>? _v3Evidence(Map<String, dynamic>? probe) {
     final raw = probe?['displayRealityEvidenceV3'];
@@ -303,7 +305,7 @@ class HCVDisplayRiskFusion {
   }
 
   static bool _isV3MixedRealScene(Map<String, dynamic>? probe) {
-    if (probe?['type'] != 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3' ||
+    if (!_isV3OrLater(probe?['type']) ||
         probe?['analysisStatus'] != 'ANALYZED') {
       return false;
     }
@@ -312,11 +314,13 @@ class HCVDisplayRiskFusion {
 
   static bool _isStrictPhysicalRealityHfr(Map<String, dynamic>? probe) {
     if (!_isCompleteStrictNegativeHfr(probe)) return false;
-    if (probe?['type'] == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3') {
+    if (_isV3OrLater(probe?['type'])) {
       final v3 = _v3Evidence(probe);
       if (v3 == null || v3['mixedSceneDetected'] == true) return false;
-      return v3['fullFrameReality'] == true &&
-          ((v3['displayLikeCellCount'] as num?)?.toInt() ?? 9) == 0;
+      // BUILD107: only a future validated POSITIVE reality sensor may enter
+      // this branch. Quiet HFR/no periodicity is explicitly insufficient.
+      return v3['positivePhysicalRealityEvidence'] == true &&
+          v3['fullFrameReality'] == true;
     }
     final raw = probe?['coherentDisplayPeriodicityEvidence'];
     if (raw is! Map) return false;

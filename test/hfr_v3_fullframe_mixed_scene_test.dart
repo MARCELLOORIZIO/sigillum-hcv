@@ -335,9 +335,9 @@ void main() {
     );
   });
 
-  test('BUILD105 framed artwork video qualifies as strong physical Reality V3', () {
+  test('BUILD105 framed artwork video is quiet temporal signature, not positive Reality', () {
     expect(
-      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+      HCVTemporalFrequencyProbe.qualifiesNoTemporalDisplaySignatureV31(
         actualFps: 240.62,
         framesAnalyzed: 84,
         shortExposureVerified: true,
@@ -355,9 +355,9 @@ void main() {
     );
   });
 
-  test('BUILD105 desk video qualifies as physical Reality V3 despite one weak periodic cell', () {
+  test('BUILD105 desk video is quiet temporal signature despite one weak periodic cell', () {
     expect(
-      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+      HCVTemporalFrequencyProbe.qualifiesNoTemporalDisplaySignatureV31(
         actualFps: 240.62,
         framesAnalyzed: 84,
         shortExposureVerified: true,
@@ -377,7 +377,7 @@ void main() {
 
   test('Reality V3 rejects mixed scenes and true high-frequency display signatures', () {
     expect(
-      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+      HCVTemporalFrequencyProbe.qualifiesNoTemporalDisplaySignatureV31(
         actualFps: 240.62,
         framesAnalyzed: 84,
         shortExposureVerified: true,
@@ -394,7 +394,7 @@ void main() {
       isFalse,
     );
     expect(
-      HCVTemporalFrequencyProbe.qualifiesFullFrameRealityV3(
+      HCVTemporalFrequencyProbe.qualifiesNoTemporalDisplaySignatureV31(
         actualFps: 240.62,
         framesAnalyzed: 84,
         shortExposureVerified: true,
@@ -412,7 +412,7 @@ void main() {
     );
   });
 
-  test('Reality V3 resolves weak artwork semantics without changing ML thresholds', () {
+  test('quiet HFR alone does not resolve weak artwork semantics as reality', () {
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: unresolvedV3(),
       passiveOptical: opticalCleanV3(),
@@ -426,11 +426,11 @@ void main() {
         rowTimeFamilyCells: 9,
       ),
     );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_FULL_FRAME_REALITY_SIGNATURE'));
+    expect(result.decision, 'NON_CONCLUSIVE');
+    expect(result.reasons, isNot(contains('HFR_V3_FULL_FRAME_REALITY_SIGNATURE')));
   });
 
-  test('Reality V3 overrides temporal-only passive optical false positive on desk', () {
+  test('quiet HFR cannot override temporal-only passive optical false positive on desk', () {
     final temporalOnlyOptical = <String, dynamic>{
       'analysisStatus': 'ANALYZED',
       'framesAnalyzed': 15,
@@ -463,10 +463,10 @@ void main() {
         rowTimeFamilyCells: 9,
       ),
     );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(result.decision, 'NON_CONCLUSIVE');
     expect(
       result.reasons,
-      contains('HFR_V3_REALITY_OVERRIDES_TEMPORAL_ONLY_PASSIVE_OPTICAL_CUE'),
+      isNot(contains('HFR_V3_REALITY_OVERRIDES_TEMPORAL_ONLY_PASSIVE_OPTICAL_CUE')),
     );
   });
 
