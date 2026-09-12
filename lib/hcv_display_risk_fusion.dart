@@ -47,6 +47,17 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
   }) {
+    if (base.decision == 'STRONG_DISPLAY_RISK') return base;
+
+    final dualEvidence = _resolveDualEvidenceV1(
+      base: base,
+      passiveOptical: passiveOptical,
+      ml: ml,
+      temporalFrequencyProbe: temporalFrequencyProbe,
+      photoTemporalMl: photoTemporalMl,
+    );
+    if (dualEvidence != null) return dualEvidence;
+
     if (base.decision != 'NON_CONCLUSIVE' ||
         base.evidenceSources.isNotEmpty ||
         base.strongSources.isNotEmpty ||
@@ -63,7 +74,7 @@ class HCVDisplayRiskFusion {
       if (!_isWeakPhotoStillSemantic(ml) ||
           !_isWeakMultiFrameScreenSemantic(
             photoTemporalMl,
-            minFrames: 4,
+            minFrames: 3,
           )) {
         return base;
       }
@@ -100,6 +111,154 @@ class HCVDisplayRiskFusion {
       strongSources: base.strongSources,
       reasons: reasons,
     );
+  }
+
+  static HCVDisplayRiskResult? _resolveDualEvidenceV1({
+    required HCVDisplayRiskResult base,
+    required Map<String, dynamic>? passiveOptical,
+    required Map<String, dynamic>? ml,
+    required Map<String, dynamic>? temporalFrequencyProbe,
+    Map<String, dynamic>? photoTemporalMl,
+  }) {
+    final temporalMl = photoTemporalMl ?? ml;
+    final temporalFrames = _temporalFrameCount(temporalMl);
+    final highScreenFrames = _temporalHighScreenFrameCount(temporalMl);
+
+    final physicalDisplay =
+        _isCompleteStrictPositiveHfr(temporalFrequencyProbe);
+    final persistentVisualDisplay =
+        temporalFrames >= 2 && highScreenFrames >= 2;
+
+    if (physicalDisplay || persistentVisualDisplay) {
+      final evidenceSources = <String>{...base.evidenceSources};
+      final strongSources = <String>{...base.strongSources};
+      final reasons = base.reasons
+          .where(
+            (reason) =>
+                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                reason != 'LIVE_PROBE_MISSING',
+          )
+          .toList();
+
+      if (physicalDisplay) {
+        evidenceSources.add('DUAL_EVIDENCE_PHYSICAL_DISPLAY_HFR');
+        strongSources.add('DUAL_EVIDENCE_PHYSICAL_DISPLAY_HFR');
+        reasons.add('DUAL_EVIDENCE_STRICT_COHERENT_DISPLAY_PHYSICS');
+      }
+      if (persistentVisualDisplay) {
+        evidenceSources.add('DUAL_EVIDENCE_TEMPORAL_SCREEN_PERSISTENCE');
+        strongSources.add('DUAL_EVIDENCE_TEMPORAL_SCREEN_PERSISTENCE');
+        reasons.add('DUAL_EVIDENCE_TWO_HIGH_SCREEN_TEMPORAL_SAMPLES');
+      }
+      reasons.add('DUAL_EVIDENCE_V1_ACTIVE');
+
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: max(base.score, 95),
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: evidenceSources.toList(),
+        strongSources: strongSources.toList(),
+        reasons: reasons,
+      );
+    }
+
+    final physicalReality =
+        _isStrictPhysicalRealityHfr(temporalFrequencyProbe);
+    final cleanOptical = _hasNoPhysicalDisplayTrace(passiveOptical);
+    final realityEvidence = physicalReality &&
+        cleanOptical &&
+        base.strongSources.isEmpty &&
+        temporalFrames >= 2 &&
+        highScreenFrames == 0;
+
+    if (!realityEvidence) return null;
+
+    final reasons = base.reasons
+        .where(
+          (reason) =>
+              reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+              reason != 'LIVE_PROBE_MISSING',
+        )
+        .toList()
+      ..add('DUAL_EVIDENCE_STRICT_PHYSICAL_REALITY_SIGNATURE')
+      ..add('DUAL_EVIDENCE_NO_HIGH_SCREEN_TEMPORAL_SAMPLE')
+      ..add('DUAL_EVIDENCE_NO_OPTICAL_DISPLAY_TRACE')
+      ..add('DUAL_EVIDENCE_V1_ACTIVE');
+
+    return HCVDisplayRiskResult(
+      risk: 'LOW',
+      score: min(base.score, 20),
+      decision: 'NO_DISPLAY_EVIDENCE',
+      analysisStatus: 'COMPLETE',
+      evidenceSources: base.evidenceSources,
+      strongSources: base.strongSources,
+      reasons: reasons,
+    );
+  }
+
+  static bool _isCompleteStrictPositiveHfr(Map<String, dynamic>? probe) {
+    if (probe == null ||
+        probe['type'] != 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2' ||
+        probe['analysisStatus'] != 'ANALYZED' ||
+        probe['coherentDisplayPeriodicity'] != true ||
+        probe['shortExposureVerified'] != true ||
+        probe['exposureLockedForEntireNativeCapture'] != true) {
+      return false;
+    }
+    final frames = (probe['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final fps =
+        (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
+    return frames >= 60 && fps >= 120.0;
+  }
+
+  static bool _isStrictPhysicalRealityHfr(Map<String, dynamic>? probe) {
+    if (!_isCompleteStrictNegativeHfr(probe)) return false;
+    final raw = probe?['coherentDisplayPeriodicityEvidence'];
+    if (raw is! Map) return false;
+    final evidence = Map<String, dynamic>.from(raw);
+    final frequency =
+        (evidence['dominantTemporalFrequencyHz'] as num?)?.toDouble();
+    final periodicity =
+        (evidence['medianCellPeriodicityStrength'] as num?)?.toDouble();
+    final stability =
+        (evidence['medianCellFrequencyStability'] as num?)?.toDouble();
+    final periodicCells =
+        (evidence['periodicCellCount'] as num?)?.toInt();
+    final stableCells = (evidence['stableCellCount'] as num?)?.toInt();
+    if (frequency == null ||
+        periodicity == null ||
+        stability == null ||
+        periodicCells == null ||
+        stableCells == null) {
+      return false;
+    }
+    return frequency < 10.0 &&
+        periodicity < 0.02 &&
+        stability < 0.45 &&
+        periodicCells == 0 &&
+        stableCells == 0;
+  }
+
+  static int _temporalFrameCount(Map<String, dynamic>? ml) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (rawFrames is! List) return 0;
+    return rawFrames.whereType<Map>().length;
+  }
+
+  static int _temporalHighScreenFrameCount(Map<String, dynamic>? ml) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (rawFrames is! List) return 0;
+    var count = 0;
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! Map) continue;
+      final probability =
+          (rawFrame['screenProbability'] as num?)?.toDouble() ?? 0.0;
+      if (probability >= 0.90) count++;
+    }
+    return count;
   }
 
   static bool _isCompleteStrictNegativeHfr(Map<String, dynamic>? probe) {

@@ -235,7 +235,7 @@ void main() {
     expect(result.decision, 'NO_DISPLAY_EVIDENCE');
   });
 
-  test('photo temporal resolver requires all four BUILD100+ samples', () {
+  test('photo temporal resolver accepts three fast samples', () {
     final base = unresolved();
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: base,
@@ -260,7 +260,7 @@ void main() {
         maxFrame: 79,
       ),
     );
-    expect(identical(result, base), isTrue);
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
   });
 
   test('photo temporal max frame above 80 blocks downgrade', () {
@@ -432,7 +432,7 @@ void main() {
     expect(identical(result, base), isTrue);
   });
 
-  test('positive coherent HFR can never be downgraded', () {
+  test('positive coherent HFR actively resolves unresolved base as display', () {
     final base = unresolved();
     final hfr = negativeHfr()..['coherentDisplayPeriodicity'] = true;
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
@@ -449,6 +449,10 @@ void main() {
       ),
       temporalFrequencyProbe: hfr,
     );
-    expect(identical(result, base), isTrue);
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(
+      result.reasons,
+      contains('DUAL_EVIDENCE_STRICT_COHERENT_DISPLAY_PHYSICS'),
+    );
   });
 }

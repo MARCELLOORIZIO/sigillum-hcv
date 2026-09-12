@@ -581,7 +581,7 @@ class _CameraPageState extends State<CameraPage> {
 
       // Real BUILD 91 samples needed roughly 1-3 seconds to recover focus when
       // this reset was absent. Give the explicit AF kick a bounded head start;
-      // photo mode then gets the existing 2.4 s temporal clip as extra settle.
+      // photo mode then gets the 1.5 s temporal clip as extra settle.
       await Future.delayed(const Duration(milliseconds: 650));
 
       controller = replacement;
@@ -845,7 +845,7 @@ class _CameraPageState extends State<CameraPage> {
       if (temporalRisk != null)
         'videoEquivalentDisplayRisk': temporalRisk.toJson(),
       'note':
-          'Photo Temporal V2 uses a disposable 2.4 s clip immediately before automatic still capture. Manual parallax is not used.',
+          'Photo Temporal V2 uses a disposable 1.5 s clip immediately before automatic still capture. Manual parallax is not used.',
     };
   }
 
