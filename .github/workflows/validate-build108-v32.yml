@@ -38,6 +38,22 @@ jobs:
           python3 tools/build108_probe_part2.py
           python3 tools/build108_fusion_swift_tests.py
           python3 tools/build108_test_import_fix.py
+          python3 - <<'PY'
+          from pathlib import Path
+          old = 'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V31_ADVANCED_PHYSICS_DIAGNOSTIC_ONLY'
+          new = 'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V32_HARMONIC_DISPLAY_RECOVERY_CANDIDATE;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY'
+          paths = [
+              Path('test/frequency_probe_session_safety_contract_test.dart'),
+              Path('test/native_temporal_frequency_v2_contract_test.dart'),
+              Path('test/temporal_frequency_probe_contract_test.dart'),
+          ]
+          for path in paths:
+              text = path.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing BUILD107 role anchor in {path}')
+              path.write_text(text.replace(old, new))
+          print('BUILD108 V3.2 contract-role tests aligned')
+          PY
 
       - name: Guard intended diff
         shell: bash
@@ -52,7 +68,10 @@ jobs:
           ios/Runner/AppDelegate.swift
           lib/hcv_display_risk_fusion.dart
           lib/hcv_temporal_frequency_probe.dart
+          test/frequency_probe_session_safety_contract_test.dart
           test/hfr_v32_harmonic_reality_physics_test.dart
+          test/native_temporal_frequency_v2_contract_test.dart
+          test/temporal_frequency_probe_contract_test.dart
           EOF
           sort -o /tmp/expected.txt /tmp/expected.txt
           diff -u /tmp/expected.txt /tmp/changed.txt
@@ -79,7 +98,7 @@ jobs:
             echo "===== END FAILURE EXCERPTS ====="
             exit "$status"
           fi
-          grep -E 'All tests passed|\+[0-9]+:' /tmp/build108-tests.log | tail -n 8 || true
+          tail -n 12 /tmp/build108-tests.log
           echo "BUILD108 full Flutter suite passed"
 
       - name: Snapshot intended source before iOS compile
@@ -111,7 +130,10 @@ jobs:
             ios/Runner/AppDelegate.swift \
             lib/hcv_display_risk_fusion.dart \
             lib/hcv_temporal_frequency_probe.dart \
-            test/hfr_v32_harmonic_reality_physics_test.dart
+            test/frequency_probe_session_safety_contract_test.dart \
+            test/hfr_v32_harmonic_reality_physics_test.dart \
+            test/native_temporal_frequency_v2_contract_test.dart \
+            test/temporal_frequency_probe_contract_test.dart
           git commit -m "feat: add HFR V3.2 harmonic and reality physics"
           git push origin HEAD:fix/hfr-v32-harmonic-reality-physics-build108-20260913
           echo "VALIDATED_SHA=$(git rev-parse HEAD)"
