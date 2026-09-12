@@ -280,7 +280,7 @@ class HCVDisplayRiskFusion {
       final v3 = _v3Evidence(probe);
       return v3?['fullFrameDisplay'] == true &&
           v3?['mixedSceneDetected'] != true &&
-          (v3?['displayLikeCellCount'] as num?)?.toInt() == 9 &&
+          v3?['allNineCellsSameDisplayFamily'] == true &&
           (v3?['spatialFamilyCellCount'] as num?)?.toInt() == 9 &&
           (v3?['rowTimeFamilyCellCount'] as num?)?.toInt() == 9;
     }

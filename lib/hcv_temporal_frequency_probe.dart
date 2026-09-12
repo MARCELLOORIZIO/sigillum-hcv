@@ -237,19 +237,25 @@ class HCVTemporalFrequencyProbe {
       periodicCellCount: periodicCellCount,
       stableCellCount: stableCellCount,
     );
+    // BUILD105: all nine cells must belong to one physical frequency
+    // family, but individual cells are allowed to be locally weaker because
+    // content, glare and perspective can depress periodicity/phase metrics.
+    // The unchanged strict legacy HFR gate still supplies the global physical
+    // proof, while 9/9 spatial + row-time family coherence proves full-frame
+    // coverage. This is deliberately not a relaxation of the HFR thresholds.
     final allNineCellsSameDisplayFamily =
-        displayLikeCellCount == 9 &&
+        legacyHfrCandidate &&
         spatialFamilyCellCount == 9 &&
-        rowTimeFamilyCellCount == 9;
+        rowTimeFamilyCellCount == 9 &&
+        medianRowTimeCoherence >= 0.20;
     final fullFrameDisplayV3 = qualifiesFullFrameDisplayV3(
       legacyHfrCandidate: legacyHfrCandidate,
-      displayLikeCellCount: displayLikeCellCount,
       spatialFamilyCellCount: spatialFamilyCellCount,
       rowTimeFamilyCellCount: rowTimeFamilyCellCount,
       medianRowTimeCoherence: medianRowTimeCoherence,
     );
     final mixedSceneDetected =
-        displayLikeCellCount > 0 && !allNineCellsSameDisplayFamily;
+        displayLikeCellCount > 0 && !fullFrameDisplayV3;
     final fullFrameRealityV3 =
         !mixedSceneDetected &&
         displayLikeCellCount == 0 &&
@@ -293,7 +299,7 @@ class HCVTemporalFrequencyProbe {
         'rowTimeFamilyCellCount': rowTimeFamilyCellCount,
         'medianRowTimeCoherence': medianRowTimeCoherence,
         'classificationPolicy':
-            'ALL_9_CELLS_ONE_DISPLAY_FAMILY_ELSE_PARTIAL_DISPLAY_IS_REAL_MIXED_SCENE',
+            'STRICT_GLOBAL_HFR_PLUS_ALL_9_CELLS_ONE_FREQUENCY_FAMILY;_LOCAL_WEAK_CELLS_ALLOWED;PARTIAL_DISPLAY_IS_REAL_MIXED_SCENE',
       },
       'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
       'flutterCameraDisposedDuringProbe': true,
@@ -352,7 +358,7 @@ class HCVTemporalFrequencyProbe {
         'decisionGate': 'HFR_V3_FULL_FRAME_DISPLAY_VS_MIXED_REAL_SCENE',
       },
       'nativeCaptureMetadata': _withoutRawFrames(raw),
-      'note': 'V3 combines native 240/120 fps timing, 3x3 row-profile rolling-shutter band evolution, row-by-time temporal coherence and strict all-nine-cell spatial consistency. Partial display-like coverage is classified as a mixed real scene.',
+      'note': 'V3 BUILD105 combines native 240/120 fps timing, strict global HFR evidence, 3x3 row-profile rolling-shutter band evolution and row-by-time coherence. Full-frame display requires all nine cells in one spatial and row-time frequency family, while locally weaker cells are tolerated. Partial display coverage remains a mixed real scene.',
     };
   }
 
@@ -391,13 +397,11 @@ class HCVTemporalFrequencyProbe {
 
   static bool qualifiesFullFrameDisplayV3({
     required bool legacyHfrCandidate,
-    required int displayLikeCellCount,
     required int spatialFamilyCellCount,
     required int rowTimeFamilyCellCount,
     required double medianRowTimeCoherence,
   }) {
     return legacyHfrCandidate &&
-        displayLikeCellCount == 9 &&
         spatialFamilyCellCount == 9 &&
         rowTimeFamilyCellCount == 9 &&
         medianRowTimeCoherence >= 0.20;

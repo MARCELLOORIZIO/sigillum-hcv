@@ -41,6 +41,7 @@ Map<String, dynamic> v3Probe({
   int displayCells = 0,
   int spatialFamilyCells = 0,
   int rowTimeFamilyCells = 0,
+  bool? allNineSameFamily,
 }) =>
     <String, dynamic>{
       'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3',
@@ -54,6 +55,11 @@ Map<String, dynamic> v3Probe({
         'fullFrameDisplay': fullFrameDisplay,
         'fullFrameReality': fullFrameReality,
         'mixedSceneDetected': mixed,
+        'allNineCellsSameDisplayFamily':
+            allNineSameFamily ??
+                (fullFrameDisplay &&
+                    spatialFamilyCells == 9 &&
+                    rowTimeFamilyCells == 9),
         'displayLikeCellCount': displayCells,
         'spatialFamilyCellCount': spatialFamilyCells,
         'rowTimeFamilyCellCount': rowTimeFamilyCells,
@@ -81,11 +87,10 @@ Map<String, dynamic> temporalV3(
     };
 
 void main() {
-  test('V3 full-frame display requires all nine cells in one family', () {
+  test('V3 full-frame display requires all nine cells in one physical family', () {
     expect(
       HCVTemporalFrequencyProbe.qualifiesFullFrameDisplayV3(
         legacyHfrCandidate: true,
-        displayLikeCellCount: 9,
         spatialFamilyCellCount: 9,
         rowTimeFamilyCellCount: 9,
         medianRowTimeCoherence: 0.50,
@@ -95,12 +100,78 @@ void main() {
     expect(
       HCVTemporalFrequencyProbe.qualifiesFullFrameDisplayV3(
         legacyHfrCandidate: true,
-        displayLikeCellCount: 8,
-        spatialFamilyCellCount: 8,
+        spatialFamilyCellCount: 9,
         rowTimeFamilyCellCount: 8,
         medianRowTimeCoherence: 0.50,
       ),
       isFalse,
+    );
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameDisplayV3(
+        legacyHfrCandidate: false,
+        spatialFamilyCellCount: 9,
+        rowTimeFamilyCellCount: 9,
+        medianRowTimeCoherence: 0.80,
+      ),
+      isFalse,
+    );
+  });
+
+  test('BUILD104 full-frame display photo survives two locally weak cells', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameDisplayV3(
+        legacyHfrCandidate: true,
+        spatialFamilyCellCount: 9,
+        rowTimeFamilyCellCount: 9,
+        medianRowTimeCoherence: 0.786861,
+      ),
+      isTrue,
+    );
+  });
+
+  test('BUILD104 full-frame display video survives one locally weak cell', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameDisplayV3(
+        legacyHfrCandidate: true,
+        spatialFamilyCellCount: 9,
+        rowTimeFamilyCellCount: 9,
+        medianRowTimeCoherence: 0.800272,
+      ),
+      isTrue,
+    );
+  });
+
+  test('BUILD104 TV inside room does not become full-frame display', () {
+    expect(
+      HCVTemporalFrequencyProbe.qualifiesFullFrameDisplayV3(
+        legacyHfrCandidate: false,
+        spatialFamilyCellCount: 9,
+        rowTimeFamilyCellCount: 7,
+        medianRowTimeCoherence: 0.378844,
+      ),
+      isFalse,
+    );
+  });
+
+  test('fusion accepts BUILD104 recovered full-frame family with 7 local display cells', () {
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: unresolvedV3(),
+      passiveOptical: opticalCleanV3(),
+      ml: temporalV3(<double>[0.10, 0.12, 0.11]),
+      temporalFrequencyProbe: v3Probe(
+        fullFrameDisplay: true,
+        fullFrameReality: false,
+        mixed: false,
+        displayCells: 7,
+        spatialFamilyCells: 9,
+        rowTimeFamilyCells: 9,
+        allNineSameFamily: true,
+      ),
+    );
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(
+      result.reasons,
+      contains('HFR_V3_ALL_NINE_CELLS_ONE_DISPLAY_FAMILY'),
     );
   });
 
