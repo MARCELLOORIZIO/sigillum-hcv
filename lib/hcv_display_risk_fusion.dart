@@ -20,14 +20,14 @@ class HCVDisplayRiskResult {
   final List<String> reasons;
 
   Map<String, dynamic> toJson() => {
-        'risk': risk,
-        'score': score,
-        'decision': decision,
-        'analysisStatus': analysisStatus,
-        'evidenceSources': evidenceSources,
-        'strongSources': strongSources,
-        'reasons': reasons,
-      };
+    'risk': risk,
+    'score': score,
+    'decision': decision,
+    'analysisStatus': analysisStatus,
+    'evidenceSources': evidenceSources,
+    'strongSources': strongSources,
+    'reasons': reasons,
+  };
 }
 
 class HCVDisplayRiskFusion {
@@ -72,10 +72,7 @@ class HCVDisplayRiskFusion {
     final isPhotoTemporalCase = photoTemporalMl != null;
     if (isPhotoTemporalCase) {
       if (!_isWeakPhotoStillSemantic(ml) ||
-          !_isWeakMultiFrameScreenSemantic(
-            photoTemporalMl,
-            minFrames: 3,
-          )) {
+          !_isWeakMultiFrameScreenSemantic(photoTemporalMl, minFrames: 3)) {
         return base;
       }
     } else {
@@ -122,29 +119,32 @@ class HCVDisplayRiskFusion {
   }) {
     final temporalMl = photoTemporalMl ?? ml;
     final temporalFrames = _temporalFrameCount(temporalMl);
-    final highAnyScreenFrames =
-        _temporalHighAnyScreenFrameCount(temporalMl);
-    final highFullFrameScreenFrames =
-        _temporalHighFullFrameScreenFrameCount(temporalMl);
+    final highAnyScreenFrames = _temporalHighAnyScreenFrameCount(temporalMl);
+    final highFullFrameScreenFrames = _temporalHighFullFrameScreenFrameCount(
+      temporalMl,
+    );
+    final recoveredFullFrameScreenFrames =
+        _temporalRecoveredFullFrameScreenFrameCountV109(temporalMl);
     final mixedScene = _isV3MixedRealScene(temporalFrequencyProbe);
     final v3Analyzed =
         _isV3OrLater(temporalFrequencyProbe?['type']) &&
-            temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
+        temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
 
     // A monitor/TV inside a wider real scene is reality for SIGILLUM. This
     // veto runs before any inherited STRONG ML decision so semantic screen
     // presence can never turn a mixed physical scene into a screen recapture.
     if (mixedScene) {
-      final reasons = base.reasons
-          .where(
-            (reason) =>
-                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
-                reason != 'LIVE_PROBE_MISSING',
-          )
-          .toList()
-        ..add('HFR_V3_MIXED_REAL_SCENE')
-        ..add('HFR_V3_PARTIAL_DISPLAY_COVERAGE_IS_REALITY')
-        ..add('DUAL_EVIDENCE_V3_ACTIVE');
+      final reasons =
+          base.reasons
+              .where(
+                (reason) =>
+                    reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                    reason != 'LIVE_PROBE_MISSING',
+              )
+              .toList()
+            ..add('HFR_V3_MIXED_REAL_SCENE')
+            ..add('HFR_V3_PARTIAL_DISPLAY_COVERAGE_IS_REALITY')
+            ..add('DUAL_EVIDENCE_V3_ACTIVE');
       return HCVDisplayRiskResult(
         risk: 'LOW',
         score: min(base.score, 20),
@@ -158,26 +158,50 @@ class HCVDisplayRiskFusion {
       );
     }
 
-    final physicalDisplay =
-        _isCompleteStrictPositiveHfr(temporalFrequencyProbe);
+    final physicalDisplay = _isCompleteStrictPositiveHfr(
+      temporalFrequencyProbe,
+    );
+    final mlStrongScreenFrames =
+        (temporalMl?['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
+    final mlAverageScreenRisk =
+        (temporalMl?['averageScreenReplayRiskScore'] as num?)?.toDouble() ??
+        0.0;
+    final narrowThreeFrameFullFrameRecoveryV109 =
+        v3Analyzed &&
+        !mixedScene &&
+        !physicalDisplay &&
+        temporalFrames == 3 &&
+        highAnyScreenFrames == 3 &&
+        highFullFrameScreenFrames == 0 &&
+        recoveredFullFrameScreenFrames >= 2 &&
+        _hasExactlyThreeHighProbabilityScreenSemanticFramesV109(temporalMl) &&
+        mlStrongScreenFrames == 3 &&
+        mlAverageScreenRisk >= 90.0 &&
+        base.decision == 'STRONG_DISPLAY_RISK' &&
+        base.reasons.contains(
+          'ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY',
+        ) &&
+        base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
 
     final screenPresentButNotFullFrame =
         v3Analyzed &&
         !physicalDisplay &&
+        !narrowThreeFrameFullFrameRecoveryV109 &&
         temporalFrames >= 2 &&
         highAnyScreenFrames >= 2 &&
         highFullFrameScreenFrames == 0;
     if (screenPresentButNotFullFrame) {
-      final reasons = base.reasons
-          .where(
-            (reason) =>
-                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
-                reason != 'LIVE_PROBE_MISSING',
-          )
-          .toList()
-        ..add('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')
-        ..add('DISPLAY_PRESENCE_IS_NOT_DISPLAY_CAPTURE')
-        ..add('DUAL_EVIDENCE_V3_ACTIVE');
+      final reasons =
+          base.reasons
+              .where(
+                (reason) =>
+                    reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                    reason != 'LIVE_PROBE_MISSING',
+              )
+              .toList()
+            ..add('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')
+            ..add('DISPLAY_PRESENCE_IS_NOT_DISPLAY_CAPTURE')
+            ..add('DUAL_EVIDENCE_V3_ACTIVE');
       return HCVDisplayRiskResult(
         risk: 'LOW',
         score: min(base.score, 20),
@@ -191,8 +215,10 @@ class HCVDisplayRiskFusion {
       );
     }
 
-    final persistentVisualDisplay =
+    final strictPersistentVisualDisplay =
         temporalFrames >= 2 && highFullFrameScreenFrames >= 2;
+    final persistentVisualDisplay =
+        strictPersistentVisualDisplay || narrowThreeFrameFullFrameRecoveryV109;
 
     if (physicalDisplay || persistentVisualDisplay) {
       final evidenceSources = <String>{...base.evidenceSources};
@@ -213,7 +239,13 @@ class HCVDisplayRiskFusion {
       if (persistentVisualDisplay) {
         evidenceSources.add('FULL_FRAME_TEMPORAL_SCREEN_PERSISTENCE');
         strongSources.add('FULL_FRAME_TEMPORAL_SCREEN_PERSISTENCE');
-        reasons.add('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES');
+        if (narrowThreeFrameFullFrameRecoveryV109) {
+          reasons.add('THREE_HIGH_PROBABILITY_SCREEN_SEMANTIC_FRAMES');
+          reasons.add('TWO_FULL_FRAME_SCREEN_SAMPLES_WITH_CONTENT_SUPPORT_75');
+          reasons.add('ML_THREE_FRAME_FULL_FRAME_SCREEN_RECOVERY_V109');
+        } else {
+          reasons.add('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES');
+        }
       }
       reasons.add('DUAL_EVIDENCE_V3_ACTIVE');
 
@@ -228,12 +260,12 @@ class HCVDisplayRiskFusion {
       );
     }
 
-    final physicalReality =
-        _isStrictPhysicalRealityHfr(temporalFrequencyProbe);
+    final physicalReality = _isStrictPhysicalRealityHfr(temporalFrequencyProbe);
     final cleanOptical = _hasNoPhysicalDisplayTrace(passiveOptical);
     final noStructuralOpticalDisplayTrace =
         _hasNoStructuralOpticalDisplayTraceForV3Reality(passiveOptical);
-    final realityEvidence = physicalReality &&
+    final realityEvidence =
+        physicalReality &&
         noStructuralOpticalDisplayTrace &&
         base.strongSources.isEmpty &&
         temporalFrames >= 2 &&
@@ -242,16 +274,17 @@ class HCVDisplayRiskFusion {
 
     if (!realityEvidence) return null;
 
-    final reasons = base.reasons
-        .where(
-          (reason) =>
-              reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
-              reason != 'LIVE_PROBE_MISSING',
-        )
-        .toList()
-      ..add('HFR_V3_FULL_FRAME_REALITY_SIGNATURE')
-      ..add('NO_HIGH_SCREEN_TEMPORAL_SAMPLE')
-      ..add('NO_STRUCTURAL_OPTICAL_DISPLAY_TRACE');
+    final reasons =
+        base.reasons
+            .where(
+              (reason) =>
+                  reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                  reason != 'LIVE_PROBE_MISSING',
+            )
+            .toList()
+          ..add('HFR_V3_FULL_FRAME_REALITY_SIGNATURE')
+          ..add('NO_HIGH_SCREEN_TEMPORAL_SAMPLE')
+          ..add('NO_STRUCTURAL_OPTICAL_DISPLAY_TRACE');
     if (!cleanOptical) {
       reasons.add('HFR_V3_REALITY_OVERRIDES_TEMPORAL_ONLY_PASSIVE_OPTICAL_CUE');
     }
@@ -331,14 +364,13 @@ class HCVDisplayRiskFusion {
     final raw = probe?['coherentDisplayPeriodicityEvidence'];
     if (raw is! Map) return false;
     final evidence = Map<String, dynamic>.from(raw);
-    final frequency =
-        (evidence['dominantTemporalFrequencyHz'] as num?)?.toDouble();
-    final periodicity =
-        (evidence['medianCellPeriodicityStrength'] as num?)?.toDouble();
-    final stability =
-        (evidence['medianCellFrequencyStability'] as num?)?.toDouble();
-    final periodicCells =
-        (evidence['periodicCellCount'] as num?)?.toInt();
+    final frequency = (evidence['dominantTemporalFrequencyHz'] as num?)
+        ?.toDouble();
+    final periodicity = (evidence['medianCellPeriodicityStrength'] as num?)
+        ?.toDouble();
+    final stability = (evidence['medianCellFrequencyStability'] as num?)
+        ?.toDouble();
+    final periodicCells = (evidence['periodicCellCount'] as num?)?.toInt();
     final stableCells = (evidence['stableCellCount'] as num?)?.toInt();
     if (frequency == null ||
         periodicity == null ||
@@ -375,9 +407,7 @@ class HCVDisplayRiskFusion {
     return count;
   }
 
-  static int _temporalHighFullFrameScreenFrameCount(
-    Map<String, dynamic>? ml,
-  ) {
+  static int _temporalHighFullFrameScreenFrameCount(Map<String, dynamic>? ml) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return 0;
     final rawFrames = ml['videoFrameAnalyses'];
     if (rawFrames is! List) return 0;
@@ -389,11 +419,56 @@ class HCVDisplayRiskFusion {
       final rawSignals = rawFrame['signals'];
       if (rawSignals is! Map) continue;
       final signals = Map<String, dynamic>.from(rawSignals);
-      final fullFrame =
-          (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
       final contentArea =
           (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
       if (probability >= 0.90 && fullFrame >= 90 && contentArea >= 85) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  static bool _hasExactlyThreeHighProbabilityScreenSemanticFramesV109(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (framesAnalyzed != 3 || rawFrames is! List || rawFrames.length != 3) {
+      return false;
+    }
+    return rawFrames.every((rawFrame) {
+      if (rawFrame is! Map) return false;
+      final predictedClass = rawFrame['predictedClass']?.toString() ?? '';
+      final probability =
+          (rawFrame['screenProbability'] as num?)?.toDouble() ?? 0.0;
+      return predictedClass.startsWith('SCREEN_') && probability >= 0.90;
+    });
+  }
+
+  static int _temporalRecoveredFullFrameScreenFrameCountV109(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (rawFrames is! List) return 0;
+    var count = 0;
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! Map) continue;
+      final predictedClass = rawFrame['predictedClass']?.toString() ?? '';
+      final probability =
+          (rawFrame['screenProbability'] as num?)?.toDouble() ?? 0.0;
+      final rawSignals = rawFrame['signals'];
+      if (rawSignals is! Map) continue;
+      final signals = Map<String, dynamic>.from(rawSignals);
+      final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      final contentArea =
+          (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+      if (predictedClass.startsWith('SCREEN_') &&
+          probability >= 0.90 &&
+          fullFrame >= 90 &&
+          contentArea >= 75) {
         count++;
       }
     }
@@ -524,18 +599,15 @@ class HCVDisplayRiskFusion {
         confidence >= 0.30;
   }
 
-
-  static HCVDisplayRiskResult? mlFirstPhotoDecision(
-    Map<String, dynamic>? ml,
-  ) {
+  static HCVDisplayRiskResult? mlFirstPhotoDecision(Map<String, dynamic>? ml) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
     final predictedClass = ml['predictedClass']?.toString() ?? '';
-    final screenProbability =
-        (ml['screenProbability'] as num?)?.toDouble();
+    final screenProbability = (ml['screenProbability'] as num?)?.toDouble();
     final confidence =
         (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
     if (screenProbability == null) return null;
-    final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
+    final mlScore =
+        (ml['screenReplayRiskScore'] as num?)?.toInt() ??
         (screenProbability * 100).round();
 
     // Current classifiers provide independent full-frame and content-area
@@ -548,16 +620,16 @@ class HCVDisplayRiskFusion {
     final mlSignals = _signals(ml);
     final hasMlFirstPhotoSpatialDiagnostics =
         mlSignals.containsKey('fullFrameRiskScore') &&
-            mlSignals.containsKey('contentAreaRiskScore');
+        mlSignals.containsKey('contentAreaRiskScore');
     final fullFrameRisk =
         (mlSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
     final contentAreaRisk =
         (mlSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
     final currentPhotoSpatialCorroboration =
         !hasMlFirstPhotoSpatialDiagnostics ||
-            (fullFrameRisk >= 90 &&
-                contentAreaRisk >= 85 &&
-                (confidence == 0.0 || confidence >= 0.75));
+        (fullFrameRisk >= 90 &&
+            contentAreaRisk >= 85 &&
+            (confidence == 0.0 || confidence >= 0.75));
 
     if (predictedClass.startsWith('SCREEN_') &&
         screenProbability >= 0.80 &&
@@ -595,12 +667,9 @@ class HCVDisplayRiskFusion {
     return null;
   }
 
-  static HCVDisplayRiskResult? mlFirstVideoDecision(
-    Map<String, dynamic>? ml,
-  ) {
+  static HCVDisplayRiskResult? mlFirstVideoDecision(Map<String, dynamic>? ml) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
-    final screenProbability =
-        (ml['screenProbability'] as num?)?.toDouble();
+    final screenProbability = (ml['screenProbability'] as num?)?.toDouble();
     final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final rawFrames = ml['videoFrameAnalyses'];
     if (screenProbability == null ||
@@ -612,12 +681,12 @@ class HCVDisplayRiskFusion {
 
     final screenFrames = rawFrames.where((frame) {
       if (frame is! Map) return false;
-      return (frame['predictedClass']?.toString() ?? '')
-          .startsWith('SCREEN_');
+      return (frame['predictedClass']?.toString() ?? '').startsWith('SCREEN_');
     }).length;
     final screenMajority = screenFrames * 2 > framesAnalyzed;
     final noScreenMajority = screenFrames * 2 <= framesAnalyzed;
-    final mlScore = (ml['screenReplayRiskScore'] as num?)?.toInt() ??
+    final mlScore =
+        (ml['screenReplayRiskScore'] as num?)?.toInt() ??
         (screenProbability * 100).round();
 
     // Preserve the legacy probability+semantic-majority rule for older ML
@@ -629,10 +698,10 @@ class HCVDisplayRiskFusion {
     final mlSignals = _signals(ml);
     final hasMlFirstVideoDiagnostics =
         ml.containsKey('mediumScreenFrameCount') &&
-            ml.containsKey('averageScreenReplayRiskScore') &&
-            ml.containsKey('maxFrameScreenReplayRiskScore') &&
-            mlSignals.containsKey('fullFrameRiskScore') &&
-            mlSignals.containsKey('contentAreaRiskScore');
+        ml.containsKey('averageScreenReplayRiskScore') &&
+        ml.containsKey('maxFrameScreenReplayRiskScore') &&
+        mlSignals.containsKey('fullFrameRiskScore') &&
+        mlSignals.containsKey('contentAreaRiskScore');
     final mediumScreenFrames =
         (ml['mediumScreenFrameCount'] as num?)?.toInt() ?? 0;
     final averageFrameScore =
@@ -641,10 +710,10 @@ class HCVDisplayRiskFusion {
         (ml['maxFrameScreenReplayRiskScore'] as num?)?.toInt() ?? 0;
     final currentVideoDiagnosticCorroboration =
         !hasMlFirstVideoDiagnostics ||
-            (mlScore >= 75 &&
-                mediumScreenFrames * 2 >= framesAnalyzed &&
-                averageFrameScore >= 80.0 &&
-                maxFrameScore >= 90);
+        (mlScore >= 75 &&
+            mediumScreenFrames * 2 >= framesAnalyzed &&
+            averageFrameScore >= 80.0 &&
+            maxFrameScore >= 90);
 
     if (screenMajority &&
         screenProbability >= 0.75 &&
@@ -812,10 +881,10 @@ class HCVDisplayRiskFusion {
         .length;
     final atLeastEightyPercentScreen =
         screenFrameCount * 5 >= framesAnalyzed * 4;
-    final atLeastHalfMedium =
-        mediumScreenFrameCount * 2 >= framesAnalyzed;
+    final atLeastHalfMedium = mediumScreenFrameCount * 2 >= framesAnalyzed;
 
-    final commonPersistenceGate = predictedClass.startsWith('SCREEN_') &&
+    final commonPersistenceGate =
+        predictedClass.startsWith('SCREEN_') &&
         atLeastEightyPercentScreen &&
         strongScreenFrameCount >= 2 &&
         atLeastHalfMedium &&
@@ -826,7 +895,8 @@ class HCVDisplayRiskFusion {
     if (geometrySceneClass == 'REALITY') {
       final unanimousScreen =
           screenFrameCount == framesAnalyzed && averageFrameScore >= 85.0;
-      final nearUnanimousWithStrongAnchor = atLeastEightyPercentScreen &&
+      final nearUnanimousWithStrongAnchor =
+          atLeastEightyPercentScreen &&
           averageFrameScore >= 70.0 &&
           maxFrameScore >= 96 &&
           screenProbability >= 0.97 &&
@@ -895,7 +965,9 @@ class HCVDisplayRiskFusion {
         .where(
           (frame) =>
               frame is Map &&
-              (frame['predictedClass']?.toString() ?? '').startsWith('REALITY_'),
+              (frame['predictedClass']?.toString() ?? '').startsWith(
+                'REALITY_',
+              ),
         )
         .length;
     return predictedClass.startsWith('SCREEN_') &&
@@ -1001,9 +1073,7 @@ class HCVDisplayRiskFusion {
         confidence >= minConfidence;
   }
 
-  static bool _hasPhotoTemporalScreenFamilyAgreement(
-    Map<String, dynamic>? ml,
-  ) {
+  static bool _hasPhotoTemporalScreenFamilyAgreement(Map<String, dynamic>? ml) {
     if (ml == null) return false;
     final frames = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final strong = (ml['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
@@ -1037,8 +1107,7 @@ class HCVDisplayRiskFusion {
         (ml['screenProbability'] as num?)?.toDouble() ?? 0.0;
     final signals = _signals(ml);
     final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
-    final contentArea =
-        (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+    final contentArea = (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
     return predictedClass.startsWith('SCREEN_') &&
         frames == 1 &&
         score >= 95 &&
@@ -1092,26 +1161,32 @@ class HCVDisplayRiskFusion {
     bool liveCaptureOnly = false,
   }) {
     final allAvailable = analyses.whereType<Map<String, dynamic>>().toList();
-    final postCaptureMl =
-        _firstOfType(allAvailable, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1');
+    final postCaptureMl = _firstOfType(
+      allAvailable,
+      'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+    );
     final spatialPostCaptureMl =
         liveCaptureOnly && hasSpatialScreenCorroboration(postCaptureMl)
-            ? postCaptureMl
-            : null;
+        ? postCaptureMl
+        : null;
     final available = liveCaptureOnly
         ? allAvailable
-            .where(
-              (analysis) => analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
-            )
-            .toList()
+              .where(
+                (analysis) =>
+                    analysis['type'] == 'SIGILLUM_LIVE_SCREEN_PROBE_V1',
+              )
+              .toList()
         : allAvailable;
     final live = _firstOfType(available, 'SIGILLUM_LIVE_SCREEN_PROBE_V1');
-    final photoTemporalMl =
-        liveCaptureOnly ? _embeddedPhotoTemporalMl(live) : null;
-    final photoStrongScreenFamilyAgreement = liveCaptureOnly &&
+    final photoTemporalMl = liveCaptureOnly
+        ? _embeddedPhotoTemporalMl(live)
+        : null;
+    final photoStrongScreenFamilyAgreement =
+        liveCaptureOnly &&
         _hasPhotoTemporalScreenFamilyAgreement(photoTemporalMl) &&
         _hasPhotoStillScreenFamilyAgreement(postCaptureMl);
-    final photoLegacyDualRealityAgreement = liveCaptureOnly &&
+    final photoLegacyDualRealityAgreement =
+        liveCaptureOnly &&
         _isCredibleRealityMl(
           postCaptureMl,
           maxScore: 2,
@@ -1124,7 +1199,8 @@ class HCVDisplayRiskFusion {
           maxScreenProbability: 0.02,
           minConfidence: 0.60,
         );
-    final photoDualRealityAgreement = photoLegacyDualRealityAgreement ||
+    final photoDualRealityAgreement =
+        photoLegacyDualRealityAgreement ||
         (liveCaptureOnly &&
             _isCredibleRealityMl(
               postCaptureMl,
@@ -1144,7 +1220,7 @@ class HCVDisplayRiskFusion {
     }
     final ml =
         _firstOfType(available, 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1') ??
-            spatialPostCaptureMl;
+        spatialPostCaptureMl;
     // A post-capture ML REALITY result may corroborate geometric reality in
     // the photo pre-capture policy. A post-capture SCREEN result participates
     // only when full-frame and content-area evidence independently satisfy the
@@ -1162,8 +1238,9 @@ class HCVDisplayRiskFusion {
         .map((analysis) => (analysis['screenReplayRiskScore'] as num?)?.toInt())
         .whereType<int>()
         .toList();
-    final rawScore =
-        (scores.isEmpty ? 0 : scores.reduce(max)).clamp(0, 100).toInt();
+    final rawScore = (scores.isEmpty ? 0 : scores.reduce(max))
+        .clamp(0, 100)
+        .toInt();
 
     final evidenceSources = <String>{};
     final strongSources = <String>{};
@@ -1206,23 +1283,26 @@ class HCVDisplayRiskFusion {
         liveSignals['activeChallengeIndeterminate'] == true;
     final hardLiveDisplayTrace =
         liveSignals['confirmedDisplayTrace'] == true ||
-            liveSignals['periodicLightTrace'] == true ||
-            liveSignals['strongRefreshTrace'] == true ||
-            liveSignals['displayBandTrace'] == true ||
-            liveSignals['opticalStripeTrace'] == true ||
-            liveSignals['opticalCorroboratedTrace'] == true;
-    final activeProbeNonConclusive = activeProbeVersion != null &&
+        liveSignals['periodicLightTrace'] == true ||
+        liveSignals['strongRefreshTrace'] == true ||
+        liveSignals['displayBandTrace'] == true ||
+        liveSignals['opticalStripeTrace'] == true ||
+        liveSignals['opticalCorroboratedTrace'] == true;
+    final activeProbeNonConclusive =
+        activeProbeVersion != null &&
         activeProbeVersion >= 2 &&
         live?['displayRiskDecision'] == 'NON_CONCLUSIVE';
 
-    final liveTemporal = live != null &&
+    final liveTemporal =
+        live != null &&
         liveScore != null &&
         liveScore >= 70 &&
         (liveSignals['confirmedDisplayTrace'] == true ||
             liveSignals['periodicLightTrace'] == true) &&
         live['displayRiskDecision'] == 'STRONG_DISPLAY_RISK';
 
-    final liveUnifiedDisplaySignature = !reflectedRealityEvidence &&
+    final liveUnifiedDisplaySignature =
+        !reflectedRealityEvidence &&
         live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
@@ -1232,7 +1312,8 @@ class HCVDisplayRiskFusion {
         fineStripe < 0.50 &&
         (fineGrid >= 0.60 || moire >= 0.30);
 
-    final liveHighRefreshSignature = !reflectedRealityEvidence &&
+    final liveHighRefreshSignature =
+        !reflectedRealityEvidence &&
         live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
@@ -1240,7 +1321,8 @@ class HCVDisplayRiskFusion {
         refreshBand >= 0.15 &&
         (fineGrid >= 0.75 || moire >= 0.40);
 
-    final liveTemporalBandSignature = !reflectedRealityEvidence &&
+    final liveTemporalBandSignature =
+        !reflectedRealityEvidence &&
         live != null &&
         liveScore != null &&
         framesAnalyzed >= 24 &&
@@ -1248,23 +1330,28 @@ class HCVDisplayRiskFusion {
         refreshBand >= 0.15 &&
         (globalFlicker >= 0.08 || pairedFlickerTrace) &&
         (displayBandTrace || horizontalRefreshBands);
-    final activeTemporalPhysicalProof = rawActiveDisplayEvidence &&
+    final activeTemporalPhysicalProof =
+        rawActiveDisplayEvidence &&
         activeDisplayEvidence &&
         liveTemporalBandSignature;
     final planarTemporalPhysicalProof =
         planarSceneEvidence && liveTemporalBandSignature;
 
-    final diagnosticEmissiveTemporal = localFlicker >= 0.55 &&
+    final diagnosticEmissiveTemporal =
+        localFlicker >= 0.55 &&
         refreshBand >= 0.12 &&
         (fineGrid >= 0.80 || moire >= 0.45);
-    final diagnosticCorroboratedTemporal = localFlicker >= 0.30 &&
+    final diagnosticCorroboratedTemporal =
+        localFlicker >= 0.30 &&
         refreshBand >= 0.15 &&
         (fineGrid >= 0.75 || moire >= 0.40);
-    final diagnosticScreenTexture = localFlicker >= 0.38 &&
+    final diagnosticScreenTexture =
+        localFlicker >= 0.38 &&
         refreshBand >= 0.09 &&
         fineStripe >= 0.36 &&
         (fineGrid >= 0.60 || moire >= 0.34);
-    final diagnosticLowEmissionTexture = localFlicker >= 0.22 &&
+    final diagnosticLowEmissionTexture =
+        localFlicker >= 0.22 &&
         refreshBand >= 0.09 &&
         fineStripe >= 0.18 &&
         fineStripe <= 0.28 &&
@@ -1274,27 +1361,31 @@ class HCVDisplayRiskFusion {
         persistentPattern >= 0.68 &&
         dynamicChallenge <= 0.24 &&
         liveSignals['uncorroboratedDisplayPattern'] == true;
-    final diagnosticHighTemporalGrid = localFlicker >= 0.60 &&
+    final diagnosticHighTemporalGrid =
+        localFlicker >= 0.60 &&
         refreshBand >= 0.09 &&
         fineStripe >= 0.28 &&
         fineGrid >= 0.80 &&
         moire >= 0.34 &&
         persistentPattern >= 0.40 &&
         liveSignals['uncorroboratedDisplayPattern'] == true;
-    final diagnosticPersistentTexture = fineStripe >= 0.36 &&
+    final diagnosticPersistentTexture =
+        fineStripe >= 0.36 &&
         fineGrid >= 0.95 &&
         moire >= 0.50 &&
         persistentPattern >= 0.95 &&
         dynamicChallenge <= 0.10;
 
-    final activePlanarTemporal = !reflectedRealityEvidence &&
+    final activePlanarTemporal =
+        !reflectedRealityEvidence &&
         rawActiveDisplayEvidence &&
         planarSceneEvidence &&
         localFlicker >= 0.32 &&
         refreshBand >= 0.13 &&
         persistentPattern >= 0.58;
 
-    final liveModerate = live != null &&
+    final liveModerate =
+        live != null &&
         liveScore != null &&
         (liveTemporal ||
             activePlanarTemporal ||
@@ -1375,7 +1466,8 @@ class HCVDisplayRiskFusion {
       final analysisScore =
           (analysis['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final signals = _signals(analysis);
-      final structural = signals['structuralDisplayTrace'] == true ||
+      final structural =
+          signals['structuralDisplayTrace'] == true ||
           signals['confirmedDisplayTrace'] == true;
       if (structural) passiveStructuralEvidence = true;
       if (analysisScore >= 70 && structural) passiveStrong = true;
@@ -1395,23 +1487,26 @@ class HCVDisplayRiskFusion {
     final mlClass = ml?['predictedClass']?.toString() ?? '';
     final mlConfidence = (ml?['predictedClassConfidence'] as num?)?.toDouble();
     final mlScreenProbability = (ml?['screenProbability'] as num?)?.toDouble();
-    final mlMaxFrameScore =
-        (ml?['maxFrameScreenReplayRiskScore'] as num?)?.toInt();
-    final mlAverageFrameScore =
-        (ml?['averageScreenReplayRiskScore'] as num?)?.toDouble();
+    final mlMaxFrameScore = (ml?['maxFrameScreenReplayRiskScore'] as num?)
+        ?.toInt();
+    final mlAverageFrameScore = (ml?['averageScreenReplayRiskScore'] as num?)
+        ?.toDouble();
     final mlStrongestFrameScore = max(mlScore ?? 0, mlMaxFrameScore ?? 0);
     final mlSaysScreen = mlScore != null && mlClass.startsWith('SCREEN_');
     final mlSaysReality = mlScore != null && mlClass.startsWith('REALITY_');
-    final mlVeryStrongFrameEvidence = mlSaysScreen &&
+    final mlVeryStrongFrameEvidence =
+        mlSaysScreen &&
         (mlScreenProbability ?? 0.0) >= 0.96 &&
         (mlConfidence ?? 0.0) >= 0.90 &&
         mlStrongestFrameScore >= 92 &&
         (mlAverageFrameScore == null || mlAverageFrameScore >= 90.0);
-    final mlStrong = (mlSaysScreen &&
+    final mlStrong =
+        (mlSaysScreen &&
             mlScore >= 92 &&
             (mlConfidence == null || mlConfidence >= 0.78)) ||
         mlVeryStrongFrameEvidence;
-    final mlModerate = mlStrong ||
+    final mlModerate =
+        mlStrong ||
         (!reflectedRealityEvidence &&
             mlSaysScreen &&
             mlScore >= 88 &&
@@ -1428,7 +1523,8 @@ class HCVDisplayRiskFusion {
         (mlSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
     final mlContentAreaRisk =
         (mlSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
-    final mlPersistentVideoEvidence = mlSaysScreen &&
+    final mlPersistentVideoEvidence =
+        mlSaysScreen &&
         mlFramesAnalyzed >= 3 &&
         mlStrongScreenFrameCount >= 3 &&
         mlStrongScreenFrameCount * 4 >= mlFramesAnalyzed * 3 &&
@@ -1443,22 +1539,25 @@ class HCVDisplayRiskFusion {
     final mlShortGeometricSemanticReality =
         hasShortGeometricSemanticRealityAcrossVideoFrames(ml);
     final mlDualRegionPhotoEvidence = hasSpatialScreenCorroboration(ml);
-    final mlPersistentCorroboratedEvidence = mlPersistentVideoEvidence ||
+    final mlPersistentCorroboratedEvidence =
+        mlPersistentVideoEvidence ||
         mlMultiFrameScreenConsistency ||
         mlSemanticScreenPersistence ||
         mlDualRegionPhotoEvidence;
-    final mlOpticalCorroborated = mlStrong &&
+    final mlOpticalCorroborated =
+        mlStrong &&
         !reflectedRealityEvidence &&
         (liveUnifiedDisplaySignature ||
             liveHighRefreshSignature ||
             liveTemporalBandSignature);
 
-    final realityMlScore =
-        (realityMl?['screenReplayRiskScore'] as num?)?.toInt();
+    final realityMlScore = (realityMl?['screenReplayRiskScore'] as num?)
+        ?.toInt();
     final realityMlClass = realityMl?['predictedClass']?.toString() ?? '';
-    final realityMlConfidence =
-        (realityMl?['predictedClassConfidence'] as num?)?.toDouble();
-    final mlRealityCredible = realityMlScore != null &&
+    final realityMlConfidence = (realityMl?['predictedClassConfidence'] as num?)
+        ?.toDouble();
+    final mlRealityCredible =
+        realityMlScore != null &&
         realityMlClass.startsWith('REALITY_') &&
         realityMlScore <= 35 &&
         (realityMlConfidence ?? 0.0) >= 0.60;
@@ -1485,8 +1584,9 @@ class HCVDisplayRiskFusion {
     }
 
     final liveGeometryRaw = live?['geometryChallenge'];
-    final liveGeometry =
-        liveGeometryRaw is Map ? liveGeometryRaw : const <String, dynamic>{};
+    final liveGeometry = liveGeometryRaw is Map
+        ? liveGeometryRaw
+        : const <String, dynamic>{};
     final geometrySceneClass =
         liveGeometry['sceneClass']?.toString() ?? 'UNKNOWN';
     final geometryReality =
@@ -1499,42 +1599,47 @@ class HCVDisplayRiskFusion {
     );
     final mlRealisticContentScreenPersistence =
         hasRealisticContentScreenPersistence(
-      ml,
-      reflectedRealityEvidence: reflectedRealityEvidence,
-    );
+          ml,
+          reflectedRealityEvidence: reflectedRealityEvidence,
+        );
     final mlPlanarSemanticReality =
         hasPlanarSemanticRealityWithoutHardDisplayEvidence(ml);
     if (mlSemanticScreenPersistenceV2 || mlRealisticContentScreenPersistence) {
       evidenceSources.add('ML_SCREEN_CLASS');
       strongSources.add('ML_SCREEN_CLASS');
     }
-    final mlGeometryOverride = !reflectedRealityEvidence &&
+    final mlGeometryOverride =
+        !reflectedRealityEvidence &&
         geometrySceneClass == 'REALITY' &&
         (mlPersistentCorroboratedEvidence ||
             mlSemanticScreenPersistenceV2 ||
             mlRealisticContentScreenPersistence);
-    final mlUnresolvedGeometryOverride = !reflectedRealityEvidence &&
+    final mlUnresolvedGeometryOverride =
+        !reflectedRealityEvidence &&
         geometrySceneClass == 'UNKNOWN' &&
         (mlPersistentVideoEvidence ||
             mlMultiFrameScreenConsistency ||
             mlSemanticScreenPersistence ||
             mlSemanticScreenPersistenceV2 ||
             mlRealisticContentScreenPersistence);
-    final mlPlanarGeometryOverride = !reflectedRealityEvidence &&
+    final mlPlanarGeometryOverride =
+        !reflectedRealityEvidence &&
         geometrySceneClass == 'PLANAR' &&
         (mlPersistentVideoEvidence ||
             mlMultiFrameScreenConsistency ||
             mlSemanticScreenPersistence ||
             mlSemanticScreenPersistenceV2 ||
             mlRealisticContentScreenPersistence);
-    final weakScreenAcrossVideoFrames = !liveCaptureOnly &&
+    final weakScreenAcrossVideoFrames =
+        !liveCaptureOnly &&
         mlFramesAnalyzed >= 3 &&
         mlStrongScreenFrameCount == 0 &&
         mlMediumScreenFrameCount == 0 &&
         (mlAverageFrameScore ?? 100.0) <= 20.0 &&
         (mlScreenProbability ?? 1.0) <= 0.60 &&
         !mlStrong;
-    final strongMultiFrameRealityWithoutGeometry = !liveCaptureOnly &&
+    final strongMultiFrameRealityWithoutGeometry =
+        !liveCaptureOnly &&
         mlSaysReality &&
         mlFramesAnalyzed >= 3 &&
         mlStrongScreenFrameCount == 0 &&
@@ -1552,51 +1657,51 @@ class HCVDisplayRiskFusion {
         !mlStrong;
     final activeOnlyCanBeOverriddenBySemanticReality =
         (!rawActiveDisplayEvidence && !activeDisplayEvidence) ||
-            (geometrySceneClass != 'PLANAR' &&
-                !planarSceneEvidence &&
-                mlFramesAnalyzed >= 4 &&
-                mlStrongScreenFrameCount == 0 &&
-                mlMediumScreenFrameCount == 0 &&
-                (mlAverageFrameScore ?? 100.0) <= 10.0 &&
-                (mlScreenProbability ?? 1.0) <= 0.12);
+        (geometrySceneClass != 'PLANAR' &&
+            !planarSceneEvidence &&
+            mlFramesAnalyzed >= 4 &&
+            mlStrongScreenFrameCount == 0 &&
+            mlMediumScreenFrameCount == 0 &&
+            (mlAverageFrameScore ?? 100.0) <= 10.0 &&
+            (mlScreenProbability ?? 1.0) <= 0.12);
     final semanticMultiFrameRealityWithoutDisplayCorroboration =
         !liveCaptureOnly &&
-            mlSemanticRealityPersistence &&
-            activeOnlyCanBeOverriddenBySemanticReality &&
-            liveSignals['confirmedDisplayTrace'] != true &&
-            liveSignals['periodicLightTrace'] != true &&
-            !passiveStructuralEvidence &&
-            !passiveStrong &&
-            !passiveModerate &&
-            !mlStrong;
+        mlSemanticRealityPersistence &&
+        activeOnlyCanBeOverriddenBySemanticReality &&
+        liveSignals['confirmedDisplayTrace'] != true &&
+        liveSignals['periodicLightTrace'] != true &&
+        !passiveStructuralEvidence &&
+        !passiveStrong &&
+        !passiveModerate &&
+        !mlStrong;
     final shortGeometricSemanticRealityAgreement =
         !liveCaptureOnly &&
-            geometrySceneClass == 'REALITY' &&
-            !reflectedRealityEvidence &&
-            mlShortGeometricSemanticReality &&
-            liveSignals['confirmedDisplayTrace'] != true &&
-            liveSignals['periodicLightTrace'] != true &&
-            !passiveStructuralEvidence &&
-            !passiveStrong &&
-            !passiveModerate &&
-            !mlStrong;
+        geometrySceneClass == 'REALITY' &&
+        !reflectedRealityEvidence &&
+        mlShortGeometricSemanticReality &&
+        liveSignals['confirmedDisplayTrace'] != true &&
+        liveSignals['periodicLightTrace'] != true &&
+        !passiveStructuralEvidence &&
+        !passiveStrong &&
+        !passiveModerate &&
+        !mlStrong;
     final geometryRealityWithIndependentNonDisplay =
         geometrySceneClass == 'REALITY' &&
-            weakScreenAcrossVideoFrames &&
-            !passiveStructuralEvidence &&
-            !passiveStrong &&
-            !passiveModerate;
+        weakScreenAcrossVideoFrames &&
+        !passiveStructuralEvidence &&
+        !passiveStrong &&
+        !passiveModerate;
     final planarSemanticRealityWithoutHardDisplayEvidence =
         !liveCaptureOnly &&
-            geometrySceneClass == 'PLANAR' &&
-            mlPlanarSemanticReality &&
-            !rawActiveDisplayEvidence &&
-            !activeDisplayEvidence &&
-            !hardLiveDisplayTrace &&
-            !passiveStructuralEvidence &&
-            !passiveStrong &&
-            !passiveModerate &&
-            !mlStrong;
+        geometrySceneClass == 'PLANAR' &&
+        mlPlanarSemanticReality &&
+        !rawActiveDisplayEvidence &&
+        !activeDisplayEvidence &&
+        !hardLiveDisplayTrace &&
+        !passiveStructuralEvidence &&
+        !passiveStrong &&
+        !passiveModerate &&
+        !mlStrong;
 
     final strongDisplayFamilies = <String>{};
     if (liveTemporal) strongDisplayFamilies.add('LIVE_TEMPORAL');
@@ -1613,24 +1718,29 @@ class HCVDisplayRiskFusion {
 
     final hasIndependentCorroboration = strongDisplayFamilies.length >= 2;
     final hasAnyEvidence = evidenceSources.isNotEmpty;
-    final liveNotAnalyzed = live == null ||
+    final liveNotAnalyzed =
+        live == null ||
         liveScore == null ||
         live?['analysisStatus'] == 'NOT_ANALYZED';
 
     final liveReason = live?['reason']?.toString() ?? '';
-    final signedGeometricReality = live != null &&
+    final signedGeometricReality =
+        live != null &&
         live['sceneClass'] == 'REALITY' &&
         live['displayRiskDecision'] == 'NO_DISPLAY_EVIDENCE' &&
         (liveReason.contains('MULTI_DEPTH_PARALLAX_DETECTED') ||
             liveReason.contains(
-                'GEOMETRIC_REALITY_OVERRIDES_PLANAR_DISPLAY_HYPOTHESIS'));
-    final confirmedDisplayEvidence = liveTemporal ||
+              'GEOMETRIC_REALITY_OVERRIDES_PLANAR_DISPLAY_HYPOTHESIS',
+            ));
+    final confirmedDisplayEvidence =
+        liveTemporal ||
         activeDisplayEvidence ||
         mlStrong ||
         mlSemanticScreenPersistenceV2 ||
         mlRealisticContentScreenPersistence ||
         photoStrongScreenFamilyAgreement;
-    final independentRealityAgreement = geometryReality &&
+    final independentRealityAgreement =
+        geometryReality &&
         !geometryPlanar &&
         !planarSceneEvidence &&
         mlRealityCredible &&
@@ -1647,7 +1757,10 @@ class HCVDisplayRiskFusion {
           (postCaptureMl?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
       final temporalScore =
           (photoTemporalMl?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
-      score = max(max(rawScore, stillScore), temporalScore).clamp(85, 100).toInt();
+      score = max(
+        max(rawScore, stillScore),
+        temporalScore,
+      ).clamp(85, 100).toInt();
     } else if (photoDualRealityAgreement &&
         !hardLiveDisplayTrace &&
         !passiveStructuralEvidence &&
@@ -1660,7 +1773,8 @@ class HCVDisplayRiskFusion {
       reasons.remove('PLANAR_GEOMETRY_AND_TEMPORAL_BANDS_CONFIRMED');
       reasons.remove('ACTIVE_ILLUMINATION_AND_TEMPORAL_BANDS_CONFIRMED');
       reasons.add(
-          'PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL');
+        'PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL',
+      );
     } else if (signedGeometricReality && !confirmedDisplayEvidence) {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 20);
@@ -1669,7 +1783,8 @@ class HCVDisplayRiskFusion {
       reasons.remove('STATIC_STRUCTURE_CONFIRMED');
       reasons.remove('STATIC_SCORE_UNCORROBORATED');
       reasons.add(
-          'SIGNED_GEOMETRIC_REALITY_OVERRIDES_UNCORROBORATED_DISPLAY_SIGNALS');
+        'SIGNED_GEOMETRIC_REALITY_OVERRIDES_UNCORROBORATED_DISPLAY_SIGNALS',
+      );
     } else if (planarSemanticRealityWithoutHardDisplayEvidence) {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 20);
@@ -1683,14 +1798,18 @@ class HCVDisplayRiskFusion {
       score = max(rawScore, 70).clamp(70, 100).toInt();
     } else if (mlOpticalCorroborated) {
       decision = 'STRONG_DISPLAY_RISK';
-      score =
-          max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
+      score = max(
+        max(rawScore, mlStrongestFrameScore),
+        85,
+      ).clamp(85, 100).toInt();
     } else if (mlGeometryOverride ||
         mlUnresolvedGeometryOverride ||
         mlPlanarGeometryOverride) {
       decision = 'STRONG_DISPLAY_RISK';
-      score =
-          max(max(rawScore, mlStrongestFrameScore), 85).clamp(85, 100).toInt();
+      score = max(
+        max(rawScore, mlStrongestFrameScore),
+        85,
+      ).clamp(85, 100).toInt();
       if (mlPersistentVideoEvidence) {
         reasons.add('ML_SCREEN_MULTI_FRAME_PERSISTENCE_CONFIRMED');
       }
@@ -1713,8 +1832,8 @@ class HCVDisplayRiskFusion {
         mlGeometryOverride
             ? 'ML_GEOMETRY_CONFLICT_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
             : mlUnresolvedGeometryOverride
-                ? 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
-                : 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',
+            ? 'ML_UNRESOLVED_GEOMETRY_RESOLVED_BY_CORROBORATED_SCREEN_EVIDENCE'
+            : 'ML_PLANAR_GEOMETRY_CORROBORATED_BY_MULTI_FRAME_SCREEN_EVIDENCE',
       );
     } else if (semanticMultiFrameRealityWithoutDisplayCorroboration) {
       decision = 'NO_DISPLAY_EVIDENCE';
@@ -1750,8 +1869,9 @@ class HCVDisplayRiskFusion {
         !mlStrong) {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 20);
-      reasons
-          .add('PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL');
+      reasons.add(
+        'PHOTO_DUAL_REALITY_ML_AGREEMENT_OVERRIDES_ACTIVE_ONLY_SIGNAL',
+      );
     } else if (mlStrong && geometryReality) {
       decision = 'NON_CONCLUSIVE';
       score = max(45, min(rawScore, 69));
@@ -1763,8 +1883,9 @@ class HCVDisplayRiskFusion {
     } else if (independentRealityAgreement) {
       decision = 'NO_DISPLAY_EVIDENCE';
       score = min(rawScore, 20);
-      reasons
-          .add('INDEPENDENT_REALITY_AGREEMENT_OVERRIDES_TEMPORAL_ONLY_SIGNAL');
+      reasons.add(
+        'INDEPENDENT_REALITY_AGREEMENT_OVERRIDES_TEMPORAL_ONLY_SIGNAL',
+      );
     } else if (mlRealityStrong) {
       if (geometryReality && !hasAnyEvidence && !activeDisplayEvidence) {
         decision = 'NO_DISPLAY_EVIDENCE';
@@ -1815,8 +1936,8 @@ class HCVDisplayRiskFusion {
       risk: score >= 70
           ? 'HIGH'
           : score >= 45
-              ? 'MEDIUM'
-              : 'LOW',
+          ? 'MEDIUM'
+          : 'LOW',
       score: score,
       decision: decision,
       analysisStatus: analysisStatus,
@@ -1857,12 +1978,13 @@ class HCVDisplayRiskFusion {
     }
 
     return HCVDisplayRiskResult(
-      risk: raw['risk']?.toString() ??
+      risk:
+          raw['risk']?.toString() ??
           (score >= 70
               ? 'HIGH'
               : score >= 45
-                  ? 'MEDIUM'
-                  : 'LOW'),
+              ? 'MEDIUM'
+              : 'LOW'),
       score: score.clamp(0, 100).toInt(),
       decision: decision,
       analysisStatus: raw['analysisStatus']?.toString() ?? 'PARTIAL',
