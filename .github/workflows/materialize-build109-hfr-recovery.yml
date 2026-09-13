@@ -48,6 +48,7 @@ jobs:
           set -euo pipefail
           python3 tool/materialize_build109_hfr_recovery.py
           dart format lib/hcv_temporal_frequency_probe.dart test/build109_low_modulation_hfr_recovery_test.dart
+          git add -N test/build109_low_modulation_hfr_recovery_test.dart
 
       - name: Prove patch scope
         if: steps.guard.outputs.skip != 'true'
