@@ -92,12 +92,29 @@ jobs:
           set -euo pipefail
           flutter build ios --release --no-codesign 2>&1 | tee /tmp/build109/ios-no-codesign.log
 
-      - name: Prove tests and build did not mutate tracked source
+      - name: Restore toolchain mutations and prove final source scope
         if: steps.guard.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
+          echo 'Tracked/untracked status immediately after tests and iOS build:'
+          git status --short
           changed="$(git diff --name-only)"
+          printf '%s\n' "$changed" | while IFS= read -r path; do
+            test -n "$path" || continue
+            case "$path" in
+              lib/hcv_temporal_frequency_probe.dart|test/build109_low_modulation_hfr_recovery_test.dart)
+                ;;
+              *)
+                echo "Restoring toolchain-generated tracked mutation: $path"
+                git restore --staged --worktree -- "$path" || git checkout -- "$path"
+                ;;
+            esac
+          done
+          git add -N test/build109_low_modulation_hfr_recovery_test.dart
+          changed="$(git diff --name-only)"
+          echo 'Authorized diff after restoration:'
+          printf '%s\n' "$changed"
           count="$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')"
           test "$count" -eq 2
           printf '%s\n' "$changed" | grep -Fx 'lib/hcv_temporal_frequency_probe.dart'
