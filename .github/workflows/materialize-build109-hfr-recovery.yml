@@ -1,0 +1,122 @@
+name: BUILD109 HFR recovery materialization
+
+on:
+  push:
+    branches:
+      - fix/hfr-ml-recovery-build109-20260913
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build109-hfr-recovery
+  cancel-in-progress: false
+
+jobs:
+  materialize-test-checkpoint:
+    runs-on: macos-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Stop after materialized source commit
+        id: guard
+        shell: bash
+        run: |
+          if git log -1 --pretty=%s | grep -Fq 'BUILD109: materialize HFR low-modulation recovery'; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'skip=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Flutter
+        if: steps.guard.outputs.skip != 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Apply HFR recovery patch assertively
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tool/materialize_build109_hfr_recovery.py
+          dart format lib/hcv_temporal_frequency_probe.dart test/build109_low_modulation_hfr_recovery_test.dart
+
+      - name: Prove patch scope
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx 'lib/hcv_temporal_frequency_probe.dart'
+          printf '%s\n' "${changed[@]}" | grep -Fx 'test/build109_low_modulation_hfr_recovery_test.dart'
+
+      - name: Resolve dependencies
+        if: steps.guard.outputs.skip != 'true'
+        run: flutter pub get
+
+      - name: Run focused HFR regression tests
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/build109
+          flutter test test/build109_low_modulation_hfr_recovery_test.dart --reporter expanded 2>&1 | tee /tmp/build109/hfr-new-test.log
+          flutter test test/hfr_v32_harmonic_reality_physics_test.dart --reporter expanded 2>&1 | tee /tmp/build109/hfr-v32-regression.log
+          flutter test test/hfr_v3_fullframe_mixed_scene_test.dart --reporter expanded 2>&1 | tee /tmp/build109/hfr-mixed-regression.log
+          flutter test test/reality_temporal_false_positive_regression_test.dart --reporter expanded 2>&1 | tee /tmp/build109/reality-fp-regression.log
+
+      - name: Analyze and run full Flutter suite
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee /tmp/build109/flutter-analyze.log
+          flutter test --reporter expanded 2>&1 | tee /tmp/build109/flutter-tests-full.log
+
+      - name: Compile iOS without signing
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign 2>&1 | tee /tmp/build109/ios-no-codesign.log
+
+      - name: Prove tests and build did not mutate tracked source
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only)
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx 'lib/hcv_temporal_frequency_probe.dart'
+          printf '%s\n' "${changed[@]}" | grep -Fx 'test/build109_low_modulation_hfr_recovery_test.dart'
+          git diff --check
+
+      - name: Commit tested HFR source checkpoint
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add lib/hcv_temporal_frequency_probe.dart test/build109_low_modulation_hfr_recovery_test.dart
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'BUILD109: materialize HFR low-modulation recovery'
+          git push origin HEAD:fix/hfr-ml-recovery-build109-20260913
+
+      - name: Upload BUILD109 HFR validation logs
+        if: always() && steps.guard.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build109-hfr-validation
+          path: /tmp/build109
+          if-no-files-found: warn
+          retention-days: 14
