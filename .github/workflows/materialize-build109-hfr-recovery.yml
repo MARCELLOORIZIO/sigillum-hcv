@@ -54,11 +54,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t changed < <(git diff --name-only)
-          printf '%s\n' "${changed[@]}"
-          test "${#changed[@]}" -eq 2
-          printf '%s\n' "${changed[@]}" | grep -Fx 'lib/hcv_temporal_frequency_probe.dart'
-          printf '%s\n' "${changed[@]}" | grep -Fx 'test/build109_low_modulation_hfr_recovery_test.dart'
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          count="$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')"
+          test "$count" -eq 2
+          printf '%s\n' "$changed" | grep -Fx 'lib/hcv_temporal_frequency_probe.dart'
+          printf '%s\n' "$changed" | grep -Fx 'test/build109_low_modulation_hfr_recovery_test.dart'
 
       - name: Resolve dependencies
         if: steps.guard.outputs.skip != 'true'
@@ -95,10 +96,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t changed < <(git diff --name-only)
-          test "${#changed[@]}" -eq 2
-          printf '%s\n' "${changed[@]}" | grep -Fx 'lib/hcv_temporal_frequency_probe.dart'
-          printf '%s\n' "${changed[@]}" | grep -Fx 'test/build109_low_modulation_hfr_recovery_test.dart'
+          changed="$(git diff --name-only)"
+          count="$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')"
+          test "$count" -eq 2
+          printf '%s\n' "$changed" | grep -Fx 'lib/hcv_temporal_frequency_probe.dart'
+          printf '%s\n' "$changed" | grep -Fx 'test/build109_low_modulation_hfr_recovery_test.dart'
           git diff --check
 
       - name: Commit tested HFR source checkpoint
