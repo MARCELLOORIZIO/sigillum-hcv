@@ -38,7 +38,7 @@ void main() {
           .readAsStringSync();
       expect(
         source,
-        contains('DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V31_ADVANCED_PHYSICS_DIAGNOSTIC_ONLY'),
+        contains('DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V32_HARMONIC_DISPLAY_RECOVERY_CANDIDATE;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY'),
       );
       expect(source, contains("'productionDecisionChanged': false"));
     },

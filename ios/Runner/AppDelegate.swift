@@ -154,7 +154,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         result.append(profile)
 
         if includeSpatialSnapshot {
-          let gridSize = max(8, min(32, spatialGridBins))
+          let gridSize = max(8, min(64, spatialGridBins))
           var grid: [[Double]] = []
           grid.reserveCapacity(gridSize)
           for gy in 0..<gridSize {
@@ -541,7 +541,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     let collector = HCVTemporalFrequencyNativeCollector(
       targetFrameCount: frameCount,
       rowBins: 128,
-      spatialGridBins: 24
+      spatialGridBins: 64
     ) { _ in
       stageSemaphore.signal()
     }
@@ -560,8 +560,91 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     payload["iso"] = actualISO
     payload["isoClamped"] = compensatedISO >= device.activeFormat.maxISO - 0.5
     payload["rowProfileBins"] = 128
-    payload["spatialGridBins"] = 24
+    payload["spatialGridBins"] = 64
     return payload
+  }
+
+  private func captureActiveIlluminationRealityChallenge(
+    output: AVCaptureVideoDataOutput,
+    device: AVCaptureDevice,
+    frameCount: Int = 10
+  ) -> [String: Any] {
+    guard device.hasTorch, device.isTorchAvailable else {
+      return [
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "TORCH_UNAVAILABLE",
+      ]
+    }
+
+    func captureStage(_ stageName: String) -> [String: Any] {
+      let semaphore = DispatchSemaphore(value: 0)
+      let collector = HCVTemporalFrequencyNativeCollector(
+        targetFrameCount: frameCount,
+        rowBins: 48,
+        spatialGridBins: 0
+      ) { _ in
+        semaphore.signal()
+      }
+      output.setSampleBufferDelegate(collector, queue: temporalFrequencySampleQueue)
+      let waitResult = semaphore.wait(timeout: .now() + 0.45)
+      let snapshot = collector.snapshotAndFinish()
+      output.setSampleBufferDelegate(nil, queue: nil)
+      var payload = snapshot
+      payload["stageName"] = stageName
+      payload["analysisStatus"] = waitResult == .success ? "CAPTURED" : "PARTIAL"
+      return payload
+    }
+
+    do {
+      try device.lockForConfiguration()
+      if device.isTorchModeSupported(.off) {
+        device.torchMode = .off
+      }
+      device.unlockForConfiguration()
+      Thread.sleep(forTimeInterval: 0.025)
+    } catch {
+      return [
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "TORCH_OFF_CONFIGURATION_FAILED",
+        "error": error.localizedDescription,
+      ]
+    }
+
+    let torchOff = captureStage("TORCH_OFF")
+    let torchLevel: Float = min(0.10, AVCaptureDevice.maxAvailableTorchLevel)
+    do {
+      try device.lockForConfiguration()
+      try device.setTorchModeOn(level: torchLevel)
+      device.unlockForConfiguration()
+    } catch {
+      return [
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "TORCH_ON_CONFIGURATION_FAILED",
+        "error": error.localizedDescription,
+        "torchOff": torchOff,
+      ]
+    }
+
+    Thread.sleep(forTimeInterval: 0.040)
+    let torchOn = captureStage("TORCH_ON")
+
+    do {
+      try device.lockForConfiguration()
+      if device.isTorchModeSupported(.off) {
+        device.torchMode = .off
+      }
+      device.unlockForConfiguration()
+    } catch {
+      // Handoff reset below will still restore normal exposure/focus state.
+    }
+
+    return [
+      "analysisStatus": "CAPTURED",
+      "torchLevel": Double(torchLevel),
+      "torchOff": torchOff,
+      "torchOn": torchOn,
+      "decisionRole": "DIAGNOSTIC_ONLY_PENDING_PHYSICAL_VALIDATION",
+    ]
   }
 
   private func captureTemporalFrequencyNative(
@@ -666,6 +749,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
         self.temporalFrequencyNativeSession = session
         session.startRunning()
+        let totalProbeStartUptime = ProcessInfo.processInfo.systemUptime
         guard session.isRunning else {
           throw NSError(
             domain: "SIGILLUMTemporalFrequency",
@@ -829,8 +913,16 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
             }
             payload["advancedDiagnosticStages"] = stages
             payload["advancedDiagnosticsDecisionRole"] =
-              "DIAGNOSTIC_ONLY_PENDING_PHYSICAL_VALIDATION"
+              "V32_HARMONIC_RECOVERY_CORROBORATION_PLUS_DIAGNOSTIC_PHYSICS"
             payload["baselineSpatialGridBins"] = 24
+            payload["advancedSpatialGridBins"] = 64
+            payload["activeIlluminationChallenge"] =
+              self.captureActiveIlluminationRealityChallenge(
+                output: output,
+                device: captureDevice
+              )
+            payload["totalNativeProbeDurationMs"] =
+              Int(((ProcessInfo.processInfo.systemUptime - totalProbeStartUptime) * 1000.0).rounded())
             self.finishTemporalFrequencyNativeCapture(
               session: session,
               output: output,

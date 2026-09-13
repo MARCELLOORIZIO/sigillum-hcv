@@ -2,13 +2,13 @@ import 'dart:math';
 
 import 'package:flutter/services.dart';
 
-/// Native HFR V3.1 physical display probe.
+/// Native HFR V3.2 physical display probe.
 ///
-/// BUILD107 preserves the validated V3 full-frame display decision and adds a
-/// same-session short-exposure sweep, higher-resolution row-by-time diagnostics,
-/// and 2-D spatial lattice/moire diagnostics. New V3.1 physics is diagnostic
-/// until physically validated. Absence of temporal display evidence is never
-/// treated as positive proof of physical reality.
+/// BUILD108 preserves the validated V3 full-frame display decision, adds a
+/// tightly corroborated harmonic-family recovery path, upgrades short-exposure
+/// microtexture diagnostics, and adds an active illumination reality challenge.
+/// Absence of temporal display evidence is never treated as positive proof of
+/// physical reality; positive-reality physics remains diagnostic until iPhone validation.
 class HCVTemporalFrequencyProbe {
   const HCVTemporalFrequencyProbe();
 
@@ -221,8 +221,10 @@ class HCVTemporalFrequencyProbe {
             (entry['rowTimeDominantTemporalFrequencyBin'] as num?)?.toInt() ?? 0)
         .toList(growable: false);
     final spatialFamilyCellCount = _compatibleModalBinCount(spatialBins);
+    final harmonicAwareSpatialFamilyCellCount = harmonicAwareModalBinCount(spatialBins);
     final rowTimeFamilyCellCount = _compatibleModalBinCount(rowTimeBins);
     final medianRowTimeCoherence = _median(rowTimeCoherences) ?? 0.0;
+    final advancedPhysicsV32 = _analyzeAdvancedDisplayPhysicsV32(raw);
 
     final legacyHfrCandidate = qualifiesCoherentDisplayPeriodicity(
       actualFps: actualFps,
@@ -257,17 +259,42 @@ class HCVTemporalFrequencyProbe {
       medianCellPhaseStepConsistency: medianCellPhase,
       periodicCellCount: periodicCellCount,
     );
-    final allNineCellsSameDisplayFamily =
-        displayFamilyGlobalHfrCandidate &&
-        spatialFamilyCellCount == 9 &&
-        rowTimeFamilyCellCount == 9 &&
-        medianRowTimeCoherence >= 0.20;
-    final fullFrameDisplayV3 = qualifiesFullFrameDisplayV3(
+    final strictFullFrameDisplayV3 = qualifiesFullFrameDisplayV3(
       legacyHfrCandidate: displayFamilyGlobalHfrCandidate,
       spatialFamilyCellCount: spatialFamilyCellCount,
       rowTimeFamilyCellCount: rowTimeFamilyCellCount,
       medianRowTimeCoherence: medianRowTimeCoherence,
     );
+    final harmonicRecoveryGlobalHfrCandidate =
+        qualifiesHarmonicRecoveredGlobalHfrV32(
+      actualFps: actualFps,
+      framesAnalyzed: acceptedFrames,
+      shortExposureVerified: raw['shortExposureVerified'] == true,
+      exposureLocked: raw['exposureLockedForEntireNativeCapture'] == true,
+      dominantTemporalFrequencyHz: dominantTemporalFrequencyHz,
+      globalModulationDepth: globalModulationDepth,
+      globalSpectralConcentration: globalSpectralConcentration,
+      medianCellPeriodicityStrength: medianCellPeriodicity,
+      medianCellFrequencyStability: medianCellStability,
+      medianCellPhaseStepConsistency: medianCellPhase,
+      periodicCellCount: periodicCellCount,
+    );
+    final harmonicExposureCorroborated =
+        advancedPhysicsV32['harmonicRecoveryExposureCorroborated'] == true;
+    final harmonicFullFrameDisplayRecovery =
+        !strictFullFrameDisplayV3 &&
+        harmonicRecoveryGlobalHfrCandidate &&
+        harmonicAwareSpatialFamilyCellCount == 9 &&
+        rowTimeFamilyCellCount == 9 &&
+        medianRowTimeCoherence >= 0.20 &&
+        harmonicExposureCorroborated;
+    final fullFrameDisplayV3 =
+        strictFullFrameDisplayV3 || harmonicFullFrameDisplayRecovery;
+    final allNineCellsSameDisplayFamily =
+        fullFrameDisplayV3 &&
+        rowTimeFamilyCellCount == 9 &&
+        (spatialFamilyCellCount == 9 ||
+            harmonicAwareSpatialFamilyCellCount == 9);
     final mixedSceneDetected =
         displayLikeCellCount > 0 && !fullFrameDisplayV3;
     final noTemporalDisplaySignatureV31 =
@@ -289,13 +316,13 @@ class HCVTemporalFrequencyProbe {
     // reality evidence. Full-frame physical reality remains false until a
     // genuinely positive reality sensor is available and validated.
     const fullFrameRealityV3 = false;
-    final advancedPhysicsV31 = _analyzeAdvancedDisplayPhysicsV31(raw);
+    final activeIlluminationV32 = _analyzeActiveIlluminationRealityV32(raw);
     final coherentDisplayPeriodicity = fullFrameDisplayV3;
 
     return {
-      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_1',
+      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
       'analysisStatus': 'ANALYZED',
-      'decisionRole': 'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V31_ADVANCED_PHYSICS_DIAGNOSTIC_ONLY',
+      'decisionRole': 'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V32_HARMONIC_DISPLAY_RECOVERY_CANDIDATE;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY',
       'productionDecisionChanged': fullFrameDisplayV3 || mixedSceneDetected,
       'coherentDisplayPeriodicity': coherentDisplayPeriodicity,
       'coherentDisplayPeriodicityEvidence': {
@@ -316,6 +343,10 @@ class HCVTemporalFrequencyProbe {
         'requiredRowTimeFamilyCells': 9,
         'legacyV2HfrCandidate': legacyHfrCandidate,
         'displayFamilyGlobalHfrCandidateV3': displayFamilyGlobalHfrCandidate,
+        'harmonicRecoveryGlobalHfrCandidateV32': harmonicRecoveryGlobalHfrCandidate,
+        'harmonicFullFrameDisplayRecoveryV32': harmonicFullFrameDisplayRecovery,
+        'harmonicRecoveryExposureCorroboratedV32': harmonicExposureCorroborated,
+        'harmonicAwareSpatialFamilyCellCount': harmonicAwareSpatialFamilyCellCount,
         'localDisplayLikeCellCountDecisionGate': false,
       },
       'displayRealityEvidenceV3': {
@@ -330,12 +361,18 @@ class HCVTemporalFrequencyProbe {
         'realityLikeCellCount': realityLikeCellCount,
         'indeterminateCellCount': indeterminateCellCount,
         'spatialFamilyCellCount': spatialFamilyCellCount,
+        'harmonicAwareSpatialFamilyCellCount': harmonicAwareSpatialFamilyCellCount,
         'rowTimeFamilyCellCount': rowTimeFamilyCellCount,
         'medianRowTimeCoherence': medianRowTimeCoherence,
+        'harmonicDisplayRecovery': harmonicFullFrameDisplayRecovery,
+        'displayFamilyMode': harmonicFullFrameDisplayRecovery
+            ? 'HARMONIC_2_TO_1_CORROBORATED'
+            : 'STRICT_SINGLE_FAMILY',
         'classificationPolicy':
-            'BUILD107_VALIDATED_V3_DISPLAY_UNCHANGED;NO_TEMPORAL_SIGNATURE_IS_NOT_REALITY;PARTIAL_DISPLAY_IS_REAL_MIXED_SCENE;V31_ADVANCED_DISPLAY_PHYSICS_DIAGNOSTIC_ONLY',
+            'BUILD108_VALIDATED_V3_DISPLAY_PRESERVED;HARMONIC_2_TO_1_REQUIRES_GLOBAL_HFR_PLUS_ROW_TIME_9_OF_9_PLUS_TWO_SHORT_EXPOSURE_CORROBORATIONS;NO_TEMPORAL_SIGNATURE_IS_NOT_REALITY;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY',
       },
-      'advancedDisplayPhysicsV31': advancedPhysicsV31,
+      'advancedDisplayPhysicsV32': advancedPhysicsV32,
+      'activeIlluminationRealityV32': activeIlluminationV32,
       'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
       'flutterCameraDisposedDuringProbe': true,
       'requestedTargetFps': raw['requestedTargetFps'],
@@ -393,7 +430,7 @@ class HCVTemporalFrequencyProbe {
         'decisionGate': 'HFR_V3_FULL_FRAME_DISPLAY_VS_MIXED_REAL_SCENE',
       },
       'nativeCaptureMetadata': _withoutRawFrames(raw),
-      'note': 'V3.1 BUILD107 preserves validated V3 full-frame display/mixed-scene decisions and adds same-session exposure sweep, 128-bin row-time diagnostics, and 2-D microtexture lattice diagnostics. New advanced physics is diagnostic-only pending iPhone validation. A quiet temporal signature is explicitly not positive reality evidence.',
+      'note': 'V3.2 BUILD108 preserves validated V3 decisions, adds a tightly corroborated 2:1 harmonic display-family recovery, 64x64 short-exposure microtexture diagnostics, and an active illumination reality challenge. Quiet temporal signatures remain non-evidence for reality; active reality physics is diagnostic-only pending iPhone validation.',
     };
   }
 
@@ -471,6 +508,37 @@ class HCVTemporalFrequencyProbe {
         spatialFamilyCellCount == 9 &&
         rowTimeFamilyCellCount == 9 &&
         medianRowTimeCoherence >= 0.20;
+  }
+
+  static bool qualifiesHarmonicRecoveredGlobalHfrV32({
+    required double? actualFps,
+    required int framesAnalyzed,
+    required bool shortExposureVerified,
+    required bool exposureLocked,
+    required double? dominantTemporalFrequencyHz,
+    required double globalModulationDepth,
+    required double globalSpectralConcentration,
+    required double medianCellPeriodicityStrength,
+    required double medianCellFrequencyStability,
+    required double medianCellPhaseStepConsistency,
+    required int periodicCellCount,
+  }) {
+    if (actualFps == null || actualFps < 120.0) return false;
+    if (framesAnalyzed < 60 || !shortExposureVerified || !exposureLocked) {
+      return false;
+    }
+    if (dominantTemporalFrequencyHz == null ||
+        dominantTemporalFrequencyHz < 40.0 ||
+        dominantTemporalFrequencyHz > 120.0 ||
+        dominantTemporalFrequencyHz > actualFps / 2.0 + 1.0) {
+      return false;
+    }
+    return globalModulationDepth >= 0.75 &&
+        globalSpectralConcentration >= 0.85 &&
+        medianCellPeriodicityStrength >= 0.12 &&
+        medianCellFrequencyStability >= 0.80 &&
+        medianCellPhaseStepConsistency >= 0.40 &&
+        periodicCellCount >= 6;
   }
 
   static bool qualifiesNoTemporalDisplaySignatureV31({
@@ -555,8 +623,46 @@ class HCVTemporalFrequencyProbe {
     return best;
   }
 
+  static int harmonicAwareModalBinCount(List<int> bins) {
+    final positive = bins.where((bin) => bin > 0).toList(growable: false);
+    if (positive.isEmpty) return 0;
+    bool compatible(int a, int b) {
+      if ((a - b).abs() <= 1) return true;
+      final lower = min(a, b);
+      final upper = max(a, b);
+      if (lower < 2) return false;
+      return (upper - 2 * lower).abs() <= 1;
+    }
+    var best = 0;
+    for (final candidate in positive) {
+      final count = positive.where((bin) => compatible(bin, candidate)).length;
+      if (count > best) best = count;
+    }
+    return best;
+  }
 
-  static Map<String, dynamic> _analyzeAdvancedDisplayPhysicsV31(
+  static int _compatibleLatticeSignatureCount(
+    List<Map<String, dynamic>> lattice,
+  ) {
+    if (lattice.isEmpty) return 0;
+    var best = 0;
+    for (final candidate in lattice) {
+      final hx = (candidate['horizontalPeakLag'] as num?)?.toInt() ?? 0;
+      final vy = (candidate['verticalPeakLag'] as num?)?.toInt() ?? 0;
+      if (hx <= 0 || vy <= 0) continue;
+      final count = lattice.where((entry) {
+        final ex = (entry['horizontalPeakLag'] as num?)?.toInt() ?? 0;
+        final ey = (entry['verticalPeakLag'] as num?)?.toInt() ?? 0;
+        return ex > 0 && ey > 0 &&
+            (ex - hx).abs() <= 1 &&
+            (ey - vy).abs() <= 1;
+      }).length;
+      if (count > best) best = count;
+    }
+    return best;
+  }
+
+  static Map<String, dynamic> _analyzeAdvancedDisplayPhysicsV32(
     Map<String, dynamic> raw,
   ) {
     final stages = <Map<String, dynamic>>[];
@@ -625,12 +731,18 @@ class HCVTemporalFrequencyProbe {
           .map((m) => (m['latticeStrength'] as num?)?.toDouble())
           .whereType<double>()
           .toList()..sort();
+      final latticeSharpness = lattice
+          .map((m) => (m['latticePeakSharpness'] as num?)?.toDouble())
+          .whereType<double>()
+          .toList()..sort();
+      final latticeFamily = _compatibleLatticeSignatureCount(lattice);
       final spatialFamily = _compatibleModalBinCount(spatialBins);
       final rowTimeFamily = _compatibleModalBinCount(rowTimeBins);
       final medianBand = _medianStatic(band) ?? 0.0;
       final medianPhase = _medianStatic(phase) ?? 0.0;
       final medianRt = _medianStatic(rt) ?? 0.0;
       final medianLattice = _medianStatic(latticeStrengths) ?? 0.0;
+      final medianLatticeSharpness = _medianStatic(latticeSharpness) ?? 0.0;
       return {
         'stageName': stage['stageName'] ?? 'BASELINE',
         'analysisStatus': 'ANALYZED',
@@ -647,9 +759,20 @@ class HCVTemporalFrequencyProbe {
         'medianRollingShutterPhaseDriftConsistency': medianPhase,
         'medianRowTimeCoherence': medianRt,
         'medianSpatialLatticeStrength': medianLattice,
+        'medianSpatialLatticePeakSharpness': medianLatticeSharpness,
+        'latticeFamilyCellCount': latticeFamily,
         'rollingShutterHighFrequencyCandidate':
             spatialFamily >= 8 && medianBand >= 0.45 && medianPhase >= 0.20,
+        'harmonicRecoveryCorroborationCandidate':
+            spatialFamily == 9 &&
+            rowTimeFamily >= 8 &&
+            medianBand >= 0.20 &&
+            medianRt >= 0.20,
         'spatialLatticeCandidate': latticeStrengths.length >= 6 && medianLattice >= 0.30,
+        'coherentSpatialLatticeCandidate':
+            latticeFamily >= 8 &&
+            medianLattice >= 0.30 &&
+            medianLatticeSharpness >= 0.03,
       };
     }
 
@@ -661,8 +784,18 @@ class HCVTemporalFrequencyProbe {
         }
       }
     }
-    final rollingCandidates = stages.where((s) => s['rollingShutterHighFrequencyCandidate'] == true).length;
-    final latticeCandidates = stages.where((s) => s['spatialLatticeCandidate'] == true).length;
+    final rollingCandidates = stages
+        .where((s) => s['rollingShutterHighFrequencyCandidate'] == true)
+        .length;
+    final latticeCandidates = stages
+        .where((s) => s['spatialLatticeCandidate'] == true)
+        .length;
+    final coherentLatticeCandidates = stages
+        .where((s) => s['coherentSpatialLatticeCandidate'] == true)
+        .length;
+    final harmonicCorroborations = stages
+        .where((s) => s['harmonicRecoveryCorroborationCandidate'] == true)
+        .length;
     return {
       'analysisStatus': stages.isEmpty ? 'NOT_ANALYZED' : 'ANALYZED',
       'decisionRole': 'DIAGNOSTIC_ONLY_PENDING_PHYSICAL_VALIDATION',
@@ -670,11 +803,88 @@ class HCVTemporalFrequencyProbe {
       'exposureSweepStageCount': stages.length,
       'rollingShutterCandidateStageCount': rollingCandidates,
       'spatialLatticeCandidateStageCount': latticeCandidates,
+      'coherentSpatialLatticeCandidateStageCount': coherentLatticeCandidates,
+      'harmonicRecoveryCorroborationStageCount': harmonicCorroborations,
+      'harmonicRecoveryExposureCorroborated': harmonicCorroborations >= 2,
       'persistentHighFrequencyRollingShutterCandidate': rollingCandidates >= 2,
       'persistentSpatialLatticeCandidate': latticeCandidates >= 2,
-      'advancedPhysicalDisplayCandidate': rollingCandidates >= 2 || latticeCandidates >= 2,
+      'persistentCoherentSpatialLatticeCandidate': coherentLatticeCandidates >= 2,
+      'advancedPhysicalDisplayCandidate':
+          rollingCandidates >= 2 || coherentLatticeCandidates >= 2,
       'stages': stages,
-      'note': 'Advanced V3.1 signatures are diagnostic only; physical iPhone validation is required before they can change production verdicts.',
+      'note': 'V3.2 advanced signatures are diagnostic except the narrow harmonic display-family recovery, which additionally requires global HFR, row-time 9/9, harmonic-aware 9/9, and two independent short-exposure corroborations.',
+    };
+  }
+
+  static Map<String, dynamic> _analyzeActiveIlluminationRealityV32(
+    Map<String, dynamic> raw,
+  ) {
+    final challenge = raw['activeIlluminationChallenge'];
+    if (challenge is! Map || challenge['analysisStatus'] != 'CAPTURED') {
+      return {
+        'analysisStatus': 'NOT_ANALYZED',
+        'decisionRole': 'DIAGNOSTIC_ONLY_PENDING_PHYSICAL_VALIDATION',
+        'positivePhysicalRealityEvidence': false,
+        'reason': challenge is Map
+            ? challenge['reason'] ?? 'ILLUMINATION_CHALLENGE_NOT_CAPTURED'
+            : 'ILLUMINATION_CHALLENGE_MISSING',
+      };
+    }
+
+    List<double> cellMeans(Object? snapshot) {
+      if (snapshot is! Map) return const <double>[];
+      final frames = snapshot['frames'];
+      if (frames is! List) return const <double>[];
+      final perCell = List.generate(9, (_) => <double>[]);
+      for (final frame in frames) {
+        if (frame is! List || frame.length != 9) continue;
+        for (var cell = 0; cell < 9; cell++) {
+          final profile = frame[cell];
+          if (profile is! List) continue;
+          final values = profile
+              .whereType<num>()
+              .map((n) => n.toDouble())
+              .toList();
+          if (values.isNotEmpty) {
+            perCell[cell].add(values.reduce((a, b) => a + b) / values.length);
+          }
+        }
+      }
+      return perCell.map((values) {
+        if (values.isEmpty) return 0.0;
+        values.sort();
+        return _medianStatic(values) ?? 0.0;
+      }).toList(growable: false);
+    }
+
+    final off = cellMeans(challenge['torchOff']);
+    final on = cellMeans(challenge['torchOn']);
+    if (off.length != 9 || on.length != 9) {
+      return {
+        'analysisStatus': 'NOT_ANALYZED',
+        'decisionRole': 'DIAGNOSTIC_ONLY_PENDING_PHYSICAL_VALIDATION',
+        'positivePhysicalRealityEvidence': false,
+        'reason': 'ILLUMINATION_CELL_RESPONSE_INCOMPLETE',
+      };
+    }
+    final responses = <double>[];
+    for (var i = 0; i < 9; i++) {
+      responses.add((on[i] - off[i]) / max(0.03, off[i].abs()));
+    }
+    final sorted = List<double>.from(responses)..sort();
+    final medianResponse = _medianStatic(sorted) ?? 0.0;
+    final responsiveCells = responses.where((value) => value >= 0.08).length;
+    final candidate = medianResponse >= 0.08 && responsiveCells >= 7;
+    return {
+      'analysisStatus': 'ANALYZED',
+      'decisionRole': 'DIAGNOSTIC_ONLY_PENDING_PHYSICAL_VALIDATION',
+      'positivePhysicalRealityEvidence': false,
+      'activeIlluminationRealityCandidate': candidate,
+      'medianRelativeLumaResponse': medianResponse,
+      'responsiveCellCount': responsiveCells,
+      'cellRelativeLumaResponses': responses,
+      'torchLevel': challenge['torchLevel'],
+      'note': 'Active illumination is candidate positive reality physics only; it cannot change production verdicts until physically validated.',
     };
   }
 
@@ -686,10 +896,10 @@ class HCVTemporalFrequencyProbe {
 
   static Map<String, dynamic> unavailable(String reason, {Object? error}) {
     return {
-      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_1',
+      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
       'analysisStatus': 'NOT_ANALYZED',
       'decisionRole':
-          'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V31_ADVANCED_PHYSICS_DIAGNOSTIC_ONLY',
+          'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V32_HARMONIC_DISPLAY_RECOVERY_CANDIDATE;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY',
       'productionDecisionChanged': false,
       'coherentDisplayPeriodicity': false,
       'reason': reason,
@@ -912,7 +1122,9 @@ class HCVTemporalFrequencyMath {
       return denom <= 1e-12 ? 0.0 : numerator / denom;
     }
 
-    final maxLag = min(12, min(width, height) ~/ 3);
+    final maxLag = min(24, min(width, height) ~/ 3);
+    final hByLag = <int, double>{};
+    final vByLag = <int, double>{};
     var bestH = 0.0;
     var bestHLag = 0;
     var bestV = 0.0;
@@ -920,10 +1132,29 @@ class HCVTemporalFrequencyMath {
     for (var lag = 2; lag <= maxLag; lag++) {
       final h = correlation(lag, 0).abs();
       final v = correlation(0, lag).abs();
+      hByLag[lag] = h;
+      vByLag[lag] = v;
       if (h > bestH) { bestH = h; bestHLag = lag; }
       if (v > bestV) { bestV = v; bestVLag = lag; }
     }
+    double secondBestOutsideNeighborhood(Map<int, double> values, int peakLag) {
+      var second = 0.0;
+      for (final entry in values.entries) {
+        if ((entry.key - peakLag).abs() <= 1) continue;
+        if (entry.value > second) second = entry.value;
+      }
+      return second;
+    }
+    final hSharpness = max(
+      0.0,
+      bestH - secondBestOutsideNeighborhood(hByLag, bestHLag),
+    );
+    final vSharpness = max(
+      0.0,
+      bestV - secondBestOutsideNeighborhood(vByLag, bestVLag),
+    );
     final latticeStrength = sqrt(bestH * bestV);
+    final latticePeakSharpness = sqrt(hSharpness * vSharpness);
     return {
       'analysisStatus': 'ANALYZED',
       'latticeStrength': latticeStrength,
@@ -931,6 +1162,9 @@ class HCVTemporalFrequencyMath {
       'verticalAutocorrelationPeak': bestV,
       'horizontalPeakLag': bestHLag,
       'verticalPeakLag': bestVLag,
+      'horizontalPeakSharpness': hSharpness,
+      'verticalPeakSharpness': vSharpness,
+      'latticePeakSharpness': latticePeakSharpness,
       'gridWidth': width,
       'gridHeight': height,
     };

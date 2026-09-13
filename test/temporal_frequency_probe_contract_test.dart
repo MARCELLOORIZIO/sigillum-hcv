@@ -78,7 +78,7 @@ void main() {
     final unavailable = HCVTemporalFrequencyProbe.unavailable('TEST');
     expect(
       unavailable['decisionRole'],
-      'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V31_ADVANCED_PHYSICS_DIAGNOSTIC_ONLY',
+      'DECISIONAL_VALIDATED_V3_DISPLAY_AND_MIXED_SCENE;V32_HARMONIC_DISPLAY_RECOVERY_CANDIDATE;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY',
     );
     expect(unavailable['productionDecisionChanged'], false);
   });

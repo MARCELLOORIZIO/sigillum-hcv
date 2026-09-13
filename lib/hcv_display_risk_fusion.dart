@@ -283,10 +283,15 @@ class HCVDisplayRiskFusion {
     if (frames < 60 || fps < 120.0) return false;
     if (_isV3OrLater(probe['type'])) {
       final v3 = _v3Evidence(probe);
+      final strictSpatialFamily =
+          (v3?['spatialFamilyCellCount'] as num?)?.toInt() == 9;
+      final harmonicSpatialFamily =
+          v3?['harmonicDisplayRecovery'] == true &&
+          (v3?['harmonicAwareSpatialFamilyCellCount'] as num?)?.toInt() == 9;
       return v3?['fullFrameDisplay'] == true &&
           v3?['mixedSceneDetected'] != true &&
           v3?['allNineCellsSameDisplayFamily'] == true &&
-          (v3?['spatialFamilyCellCount'] as num?)?.toInt() == 9 &&
+          (strictSpatialFamily || harmonicSpatialFamily) &&
           (v3?['rowTimeFamilyCellCount'] as num?)?.toInt() == 9;
     }
     return true;
@@ -294,7 +299,8 @@ class HCVDisplayRiskFusion {
 
   static bool _isV3OrLater(Object? type) =>
       type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3' ||
-      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_1';
+      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_1' ||
+      type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2';
 
   static bool _isSupportedHfrType(Object? type) =>
       type == 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V2' || _isV3OrLater(type);
