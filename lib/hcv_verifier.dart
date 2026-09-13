@@ -95,10 +95,11 @@ class HCVVerifier {
     final rawMeta = data["meta"];
     if (rawMeta is! Map) return false;
 
-    final rawAttestation = rawMeta["softwareAttestation"];
     // Backward compatibility: certificates issued before D3 did not contain
     // software attestation metadata and remain verifiable under V2.
-    if (rawAttestation == null) return true;
+    if (!rawMeta.containsKey("softwareAttestation")) return true;
+
+    final rawAttestation = rawMeta["softwareAttestation"];
     if (rawAttestation is! Map) return false;
 
     try {
