@@ -182,11 +182,23 @@ class HCVDisplayRiskFusion {
           'ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY',
         ) &&
         base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
+    final videoPhotoSpatialFullFrameCorroboration =
+        v3Analyzed &&
+        !mixedScene &&
+        !physicalDisplay &&
+        temporalFrames >= 3 &&
+        _hasStableVideoPhotoSpatialFullFrameCorroboration(temporalMl) &&
+        base.decision == 'STRONG_DISPLAY_RISK' &&
+        base.reasons.contains(
+          'ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY',
+        ) &&
+        base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
 
     final screenPresentButNotFullFrame =
         v3Analyzed &&
         !physicalDisplay &&
         !narrowThreeFrameFullFrameRecoveryV109 &&
+        !videoPhotoSpatialFullFrameCorroboration &&
         temporalFrames >= 2 &&
         highAnyScreenFrames >= 2 &&
         highFullFrameScreenFrames == 0;
@@ -218,7 +230,9 @@ class HCVDisplayRiskFusion {
     final strictPersistentVisualDisplay =
         temporalFrames >= 2 && highFullFrameScreenFrames >= 2;
     final persistentVisualDisplay =
-        strictPersistentVisualDisplay || narrowThreeFrameFullFrameRecoveryV109;
+        strictPersistentVisualDisplay ||
+        narrowThreeFrameFullFrameRecoveryV109 ||
+        videoPhotoSpatialFullFrameCorroboration;
 
     if (physicalDisplay || persistentVisualDisplay) {
       final evidenceSources = <String>{...base.evidenceSources};
@@ -239,12 +253,19 @@ class HCVDisplayRiskFusion {
       if (persistentVisualDisplay) {
         evidenceSources.add('FULL_FRAME_TEMPORAL_SCREEN_PERSISTENCE');
         strongSources.add('FULL_FRAME_TEMPORAL_SCREEN_PERSISTENCE');
+        if (strictPersistentVisualDisplay) {
+          reasons.add('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES');
+        }
         if (narrowThreeFrameFullFrameRecoveryV109) {
           reasons.add('THREE_HIGH_PROBABILITY_SCREEN_SEMANTIC_FRAMES');
           reasons.add('TWO_FULL_FRAME_SCREEN_SAMPLES_WITH_CONTENT_SUPPORT_75');
           reasons.add('ML_THREE_FRAME_FULL_FRAME_SCREEN_RECOVERY_V109');
-        } else {
-          reasons.add('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES');
+        }
+        if (videoPhotoSpatialFullFrameCorroboration) {
+          evidenceSources.add('VIDEO_PHOTO_SPATIAL_CORROBORATION');
+          strongSources.add('VIDEO_PHOTO_SPATIAL_CORROBORATION');
+          reasons.add('VIDEO_PHOTO_SPATIAL_STABLE_SCREEN_SEQUENCE');
+          reasons.add('VIDEO_PHOTO_SPATIAL_FULL_FRAME_CORROBORATION');
         }
       }
       reasons.add('DUAL_EVIDENCE_V3_ACTIVE');
@@ -473,6 +494,20 @@ class HCVDisplayRiskFusion {
       }
     }
     return count;
+  }
+
+  static bool _hasStableVideoPhotoSpatialFullFrameCorroboration(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
+    final raw = ml['videoPhotoSpatialEvidence'];
+    if (raw is! Map) return false;
+    final evidence = Map<String, dynamic>.from(raw);
+    return evidence['type'] == 'SIGILLUM_VIDEO_PHOTO_SPATIAL_EVIDENCE_V1' &&
+        evidence['analysisStatus'] == 'ANALYZED' &&
+        evidence['stableScreenSequence'] == true &&
+        evidence['stableFullFrameScreenCorroboration'] == true &&
+        evidence['sceneTransitionDetected'] != true;
   }
 
   static bool _isCompleteStrictNegativeHfr(Map<String, dynamic>? probe) {

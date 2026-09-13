@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import 'hcv_ml_model_store.dart';
+import 'hcv_video_photo_spatial_evidence.dart';
 import 'sigillum_edition.dart';
 
 class HCVMLScreenReplayClassifier {
@@ -76,7 +77,8 @@ class HCVMLScreenReplayClassifier {
       var samplingFallbackUsed = false;
       final frameLimit = max(1, maxFrames);
       final framePattern = p.join(workDir.path, 'frame_%03d.jpg');
-      final command = "-y -i '$videoPath' "
+      final command =
+          "-y -i '$videoPath' "
           "-vf \"scale=720:720:force_original_aspect_ratio=decrease,"
           "pad=720:720:(ow-iw)/2:(oh-ih)/2,"
           "fps=1/$samplingIntervalSeconds\" "
@@ -89,12 +91,13 @@ class HCVMLScreenReplayClassifier {
         return _unknown('FRAME_EXTRACTION_FAILED');
       }
 
-      var frames = workDir
-          .listSync()
-          .whereType<File>()
-          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
-          .toList()
-        ..sort((a, b) => a.path.compareTo(b.path));
+      var frames =
+          workDir
+              .listSync()
+              .whereType<File>()
+              .where((file) => file.path.toLowerCase().endsWith('.jpg'))
+              .toList()
+            ..sort((a, b) => a.path.compareTo(b.path));
 
       // Generic video analysis historically samples every three seconds. Very
       // short real videos can therefore yield only one ML frame and can never
@@ -103,9 +106,9 @@ class HCVMLScreenReplayClassifier {
       // explicit interval and is intentionally left unchanged.
       if (frames.length < 2 && frameSamplingIntervalSeconds == null) {
         const fallbackSamplingIntervalSeconds = 1.0;
-        final fallbackFramePattern =
-            p.join(workDir.path, 'fallback_%03d.jpg');
-        final fallbackCommand = "-y -i '$videoPath' "
+        final fallbackFramePattern = p.join(workDir.path, 'fallback_%03d.jpg');
+        final fallbackCommand =
+            "-y -i '$videoPath' "
             "-vf \"scale=720:720:force_original_aspect_ratio=decrease,"
             "pad=720:720:(ow-iw)/2:(oh-ih)/2,"
             "fps=1/$fallbackSamplingIntervalSeconds\" "
@@ -114,16 +117,17 @@ class HCVMLScreenReplayClassifier {
         final fallbackSession = await FFmpegKit.execute(fallbackCommand);
         final fallbackCode = await fallbackSession.getReturnCode();
         if (fallbackCode != null && ReturnCode.isSuccess(fallbackCode)) {
-          final fallbackFrames = workDir
-              .listSync()
-              .whereType<File>()
-              .where(
-                (file) =>
-                    p.basename(file.path).startsWith('fallback_') &&
-                    file.path.toLowerCase().endsWith('.jpg'),
-              )
-              .toList()
-            ..sort((a, b) => a.path.compareTo(b.path));
+          final fallbackFrames =
+              workDir
+                  .listSync()
+                  .whereType<File>()
+                  .where(
+                    (file) =>
+                        p.basename(file.path).startsWith('fallback_') &&
+                        file.path.toLowerCase().endsWith('.jpg'),
+                  )
+                  .toList()
+                ..sort((a, b) => a.path.compareTo(b.path));
           if (fallbackFrames.length >= 2) {
             frames = fallbackFrames;
             samplingIntervalSeconds = fallbackSamplingIntervalSeconds;
@@ -140,10 +144,15 @@ class HCVMLScreenReplayClassifier {
       for (var i = 0; i < frames.length; i++) {
         final analysis = await analyzeImage(frames[i].path);
         analysis['videoFrameIndex'] = i;
-        analysis['approxVideoSecond'] =
-            _round(i * samplingIntervalSeconds.toDouble());
+        analysis['approxVideoSecond'] = _round(
+          i * samplingIntervalSeconds.toDouble(),
+        );
         analyses.add(analysis);
       }
+
+      final videoPhotoSpatialEvidence = HCVVideoPhotoSpatialEvidence.analyze(
+        analyses,
+      );
 
       analyses.sort((a, b) {
         final bScore = (b['screenReplayRiskScore'] as num?)?.toInt() ?? -1;
@@ -172,8 +181,9 @@ class HCVMLScreenReplayClassifier {
       worst['scanMode'] = 'VIDEO_MULTI_FRAME_ML_CLASSIFIER';
       worst['framesAnalyzed'] = analyses.length;
       worst['screenReplayRiskScore'] = finalScore;
-      worst['screenReplayRisk'] =
-          finalScore == null ? 'UNKNOWN' : _riskLabel(finalScore);
+      worst['screenReplayRisk'] = finalScore == null
+          ? 'UNKNOWN'
+          : _riskLabel(finalScore);
       worst['videoFrameSecond'] = worst['approxVideoSecond'];
       worst['maxFrameScreenReplayRiskScore'] = maxScore;
       worst['strongScreenFrameCount'] = strongFrameCount;
@@ -184,12 +194,14 @@ class HCVMLScreenReplayClassifier {
         strongFrameCount: strongFrameCount,
         mediumFrameCount: mediumFrameCount,
       );
-      worst['averageScreenReplayRiskScore'] =
-          averageScore == null ? null : _round(averageScore);
+      worst['averageScreenReplayRiskScore'] = averageScore == null
+          ? null
+          : _round(averageScore);
       worst['videoFrameSamplingIntervalSeconds'] = samplingIntervalSeconds;
       worst['videoFrameSamplingLimit'] = frameLimit;
       worst['videoFrameSamplingFallbackUsed'] = samplingFallbackUsed;
       worst['videoFrameAnalyses'] = analyses.take(12).toList();
+      worst['videoPhotoSpatialEvidence'] = videoPhotoSpatialEvidence;
       return worst;
     } catch (e) {
       return _unknown('VIDEO_ML_ANALYSIS_ERROR', e);
@@ -264,8 +276,7 @@ class HCVMLScreenReplayClassifier {
           'fullFrameRiskScore': fullScore,
           'contentAreaRiskScore': croppedScore,
         },
-        'note':
-            'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',
+        'note': 'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',
       };
     } catch (e) {
       return _unknown('ML_ANALYSIS_ERROR', e);
@@ -276,8 +287,9 @@ class HCVMLScreenReplayClassifier {
     if (_interpreter != null && _classes != null) return;
 
     final allowLocalModel = SigillumBuildConfig.isLab;
-    _modelPolicy =
-        allowLocalModel ? 'LAB_LOCAL_MODEL_ALLOWED' : 'USER_BUNDLED_MODEL_ONLY';
+    _modelPolicy = allowLocalModel
+        ? 'LAB_LOCAL_MODEL_ALLOWED'
+        : 'USER_BUNDLED_MODEL_ONLY';
     final errors = <String>[];
 
     if (allowLocalModel) {
@@ -303,8 +315,8 @@ class HCVMLScreenReplayClassifier {
     }
 
     try {
-      final fallback =
-          await HCVMLModelStore.instance.loadBundledFallbackBundle();
+      final fallback = await HCVMLModelStore.instance
+          .loadBundledFallbackBundle();
       await _loadBundle(fallback);
       _modelLoadError = errors.isEmpty ? null : errors.join('; ');
       return;
@@ -313,8 +325,9 @@ class HCVMLScreenReplayClassifier {
       _disposeInterpreterOnly();
     }
 
-    _modelPolicy =
-        allowLocalModel ? 'LAB_LOCAL_MODEL_ALLOWED' : 'USER_BUNDLED_MODEL_ONLY';
+    _modelPolicy = allowLocalModel
+        ? 'LAB_LOCAL_MODEL_ALLOWED'
+        : 'USER_BUNDLED_MODEL_ONLY';
     _modelLoadError = errors.join('; ');
     throw Exception(_modelLoadError);
   }
@@ -362,10 +375,10 @@ class HCVMLScreenReplayClassifier {
     _modelVersion = bundle.source == 'BUNDLED_ASSET_MODEL_V2'
         ? 'v2'
         : bundle.source == 'BUNDLED_ASSET_MODEL_V1_FALLBACK'
-            ? 'v1-fallback'
-            : 'local-update';
-    _modelSha256 =
-        (await sha256.bind(bundle.modelFile.openRead()).first).toString();
+        ? 'v1-fallback'
+        : 'local-update';
+    _modelSha256 = (await sha256.bind(bundle.modelFile.openRead()).first)
+        .toString();
     _modelLoadError = null;
   }
 
@@ -521,8 +534,8 @@ class HCVMLScreenReplayClassifier {
     return riskScore >= 92
         ? 'HIGH'
         : riskScore >= 88
-            ? 'MEDIUM'
-            : 'LOW';
+        ? 'MEDIUM'
+        : 'LOW';
   }
 
   double _round(double value) => double.parse(value.toStringAsFixed(4));
