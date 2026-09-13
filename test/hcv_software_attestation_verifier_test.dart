@@ -33,17 +33,24 @@ Map<String, dynamic> _chainEvent(
 Map<String, dynamic> _buildCertificate({
   Object? softwareAttestation = _absent,
 }) {
-  final start = _chainEvent(
-    'START',
-    '2026-09-13T20:00:00.000Z',
-    'GENESIS',
-  );
-  final stop = _chainEvent(
-    'STOP',
+  const hcvId = 'HCV-0123456789ABCDEF';
+  const sessionId = 'session-d1-test';
+  const contentName = 'hcv_photo_HCV-0123456789ABCDEF.jpg';
+  const captureCreatedAt = '2026-09-13T20:00:00.000Z';
+  final contentHash = _sha('final-photo-bytes');
+
+  final start = _chainEvent('START', '2026-09-13T19:59:58.000Z', 'GENESIS');
+  final bound = _chainEvent(
+    'CONTENT_BOUND',
     '2026-09-13T20:00:01.000Z',
     start['hash'] as String,
   );
-  final chain = <Map<String, dynamic>>[start, stop];
+  final stop = _chainEvent(
+    'STOP',
+    '2026-09-13T20:00:02.000Z',
+    bound['hash'] as String,
+  );
+  final chain = <Map<String, dynamic>>[start, bound, stop];
   final rootHash = _sha(jsonEncode(chain));
 
   final deviceFingerprint = _sha(jsonEncode(_publicKey));
@@ -53,7 +60,7 @@ Map<String, dynamic> _buildCertificate({
       _sha('$creatorId|$creatorName|$deviceFingerprint');
 
   final meta = <String, dynamic>{
-    'hcvId': 'HCV-0123456789ABCDEF',
+    'hcvId': hcvId,
     'identity': <String, dynamic>{
       'creatorId': creatorId,
       'creatorName': creatorName,
@@ -68,16 +75,19 @@ Map<String, dynamic> _buildCertificate({
   final signedPayload = <String, dynamic>{
     'format': 'HCV_CERTIFICATE',
     'version': 2,
-    'sessionId': 'session-d1-test',
-    'createdAt': '2026-09-13T19:59:59.000Z',
+    'sessionId': sessionId,
+    'createdAt': '2026-09-13T19:59:57.000Z',
     'meta': meta,
     'content': <String, dynamic>{
       'type': 'photo',
-      'hash': _sha('d1-photo-bytes'),
-      'size': 1234,
-      'name': 'hcv_photo_HCV-0123456789ABCDEF.jpg',
+      'hash': contentHash,
+      'size': 4321,
+      'name': contentName,
     },
-    'claims': <String, dynamic>{},
+    'claims': <String, dynamic>{
+      'captureSource': 'HCV_CAMERA',
+      'captureCreatedAt': captureCreatedAt,
+    },
     'rootHash': rootHash,
     'chain': chain,
   };
@@ -95,7 +105,7 @@ Future<bool> _verifyCertificate(Map<String, dynamic> certificate) async {
   try {
     final file = File('${dir.path}/certificate.hcv');
     await file.writeAsString(jsonEncode(certificate));
-    return HCVVerifier().verifyFile(file.path);
+    return await HCVVerifier().verifyFile(file.path);
   } finally {
     await dir.delete(recursive: true);
   }
