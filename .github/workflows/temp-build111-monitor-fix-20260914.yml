@@ -9,8 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build111-fix:
-    if: github.actor != 'github-actions[bot]'
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,234 +19,23 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      - name: Reapply D1 and HCVPACK security work
+      - name: Apply security commits
         run: |
           git cherry-pick e99640a0b52e1ecd703c9711d0e6fccaf8cd00f1
           git cherry-pick 52d4cf3ddcbd4e01d406050e5eb17cda2bdfc6e6
-      - name: Patch narrow photo monitor fusion regression
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('lib/hcv_display_risk_fusion.dart')
-          s = p.read_text()
-          old = """    final screenPresentButNotFullFrame =
-        v3Analyzed &&
-        !physicalDisplay &&
-        !narrowThreeFrameFullFrameRecoveryV109 &&
-        !videoPhotoSpatialFullFrameCorroboration &&
-        temporalFrames >= 2 &&
-        highAnyScreenFrames >= 2 &&
-        highFullFrameScreenFrames == 0;
-"""
-          new = """    final stillSignals = _signals(ml);
-    final stillPredictedClass = ml?['predictedClass']?.toString() ?? '';
-    final stillScreenProbability =
-        (ml?['screenProbability'] as num?)?.toDouble() ?? 0.0;
-    final stillScreenRisk =
-        (ml?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
-    final stillFullFrameRisk =
-        (stillSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
-    final stillContentAreaRisk =
-        (stillSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
-    final photoStillTemporalScreenCorroboration =
-        photoTemporalMl != null &&
-        v3Analyzed &&
-        !mixedScene &&
-        !physicalDisplay &&
-        temporalFrames >= 3 &&
-        highAnyScreenFrames == temporalFrames &&
-        mlStrongScreenFrames >= 3 &&
-        mlAverageScreenRisk >= 90.0 &&
-        stillPredictedClass.startsWith('SCREEN_') &&
-        stillScreenProbability >= 0.92 &&
-        stillScreenRisk >= 92 &&
-        stillFullFrameRisk >= 92 &&
-        stillContentAreaRisk >= 85 &&
-        base.decision == 'STRONG_DISPLAY_RISK';
-
-    final screenPresentButNotFullFrame =
-        v3Analyzed &&
-        !physicalDisplay &&
-        !narrowThreeFrameFullFrameRecoveryV109 &&
-        !videoPhotoSpatialFullFrameCorroboration &&
-        !photoStillTemporalScreenCorroboration &&
-        temporalFrames >= 2 &&
-        highAnyScreenFrames >= 2 &&
-        highFullFrameScreenFrames == 0;
-"""
-          if old not in s:
-              raise SystemExit('target block not found')
-          s = s.replace(old, new, 1)
-          old2 = """    final persistentVisualDisplay =
-        strictPersistentVisualDisplay ||
-        narrowThreeFrameFullFrameRecoveryV109 ||
-        videoPhotoSpatialFullFrameCorroboration;
-"""
-          new2 = """    final persistentVisualDisplay =
-        strictPersistentVisualDisplay ||
-        narrowThreeFrameFullFrameRecoveryV109 ||
-        videoPhotoSpatialFullFrameCorroboration ||
-        photoStillTemporalScreenCorroboration;
-"""
-          if old2 not in s:
-              raise SystemExit('persistent block not found')
-          s = s.replace(old2, new2, 1)
-          old3 = """        if (videoPhotoSpatialFullFrameCorroboration) {
-          evidenceSources.add('VIDEO_PHOTO_SPATIAL_CORROBORATION');
-          strongSources.add('VIDEO_PHOTO_SPATIAL_CORROBORATION');
-          reasons.add('VIDEO_PHOTO_SPATIAL_STABLE_SCREEN_SEQUENCE');
-          reasons.add('VIDEO_PHOTO_SPATIAL_FULL_FRAME_CORROBORATION');
-        }
-"""
-          new3 = old3 + """        if (photoStillTemporalScreenCorroboration) {
-          evidenceSources.add('PHOTO_STILL_TEMPORAL_SCREEN_CORROBORATION');
-          strongSources.add('PHOTO_STILL_TEMPORAL_SCREEN_CORROBORATION');
-          reasons.add('PHOTO_STILL_STRONG_SCREEN_WITH_TEMPORAL_SCREEN_SEQUENCE');
-        }
-"""
-          if old3 not in s:
-              raise SystemExit('reason block not found')
-          s = s.replace(old3, new3, 1)
-          p.write_text(s)
-          PY
-      - name: Add exact BUILD110 monitor regression tests
-        run: |
-          cat > test/build111_photo_monitor_regression_test.dart <<'DART'
-          import 'package:flutter_test/flutter_test.dart';
-          import 'package:sigillum_iphone/hcv_display_risk_fusion.dart';
-
-          Map<String, dynamic> _frame(double p, int full, int content) => <String, dynamic>{
-                'analysisStatus': 'ANALYZED',
-                'predictedClass': 'SCREEN_MONITOR',
-                'predictedClassConfidence': p,
-                'screenProbability': p,
-                'screenReplayRiskScore': (p * 100).round(),
-                'signals': <String, dynamic>{
-                  'fullFrameRiskScore': full,
-                  'contentAreaRiskScore': content,
-                },
-              };
-
-          Map<String, dynamic> _temporal(List<Map<String, dynamic>> frames) => <String, dynamic>{
-                'analysisStatus': 'ANALYZED',
-                'framesAnalyzed': frames.length,
-                'strongScreenFrameCount': frames.length,
-                'mediumScreenFrameCount': frames.length,
-                'averageScreenReplayRiskScore': frames
-                        .map((e) => (e['screenReplayRiskScore'] as num).toDouble())
-                        .reduce((a, b) => a + b) /
-                    frames.length,
-                'videoFrameAnalyses': frames,
-              };
-
-          Map<String, dynamic> _still(double p, int full, int content) => <String, dynamic>{
-                'analysisStatus': 'ANALYZED',
-                'predictedClass': 'SCREEN_MONITOR',
-                'screenProbability': p,
-                'screenReplayRiskScore': (p * 100).round(),
-                'signals': <String, dynamic>{
-                  'fullFrameRiskScore': full,
-                  'contentAreaRiskScore': content,
-                },
-              };
-
-          Map<String, dynamic> _quietHfr() => <String, dynamic>{
-                'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
-                'analysisStatus': 'ANALYZED',
-                'coherentDisplayPeriodicity': false,
-                'shortExposureVerified': true,
-                'exposureLockedForEntireNativeCapture': true,
-                'framesAnalyzed': 84,
-                'actualFrameRateFromTimestamps': 240.0,
-                'displayRealityEvidenceV3': <String, dynamic>{
-                  'fullFrameDisplay': false,
-                  'fullFrameReality': false,
-                  'positivePhysicalRealityEvidence': false,
-                  'mixedSceneDetected': false,
-                  'allNineCellsSameDisplayFamily': false,
-                  'displayLikeCellCount': 0,
-                  'spatialFamilyCellCount': 0,
-                  'harmonicAwareSpatialFamilyCellCount': 0,
-                  'rowTimeFamilyCellCount': 0,
-                },
-              };
-
-          const base = HCVDisplayRiskResult(
-            risk: 'HIGH',
-            score: 97,
-            decision: 'STRONG_DISPLAY_RISK',
-            analysisStatus: 'COMPLETE',
-            evidenceSources: <String>['ML_SCREEN_CLASS'],
-            strongSources: <String>['ML_SCREEN_CLASS'],
-            reasons: <String>[
-              'ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY',
-              'ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION',
-            ],
-          );
-
-          HCVDisplayRiskResult _resolve(Map<String, dynamic> still, Map<String, dynamic> temporal) =>
-              HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
-                base: base,
-                passiveOptical: null,
-                ml: still,
-                temporalFrequencyProbe: _quietHfr(),
-                photoTemporalMl: temporal,
-              );
-
-          void main() {
-            test('C546 BUILD110 monitor case remains HIGH', () {
-              final r = _resolve(
-                _still(0.932, 93, 87),
-                _temporal(<Map<String, dynamic>>[
-                  _frame(0.95, 95, 71),
-                  _frame(0.95, 95, 79),
-                  _frame(0.92, 92, 73),
-                ]),
-              );
-              expect(r.decision, 'STRONG_DISPLAY_RISK');
-              expect(r.risk, 'HIGH');
-              expect(r.reasons, contains('PHOTO_STILL_STRONG_SCREEN_WITH_TEMPORAL_SCREEN_SEQUENCE'));
-              expect(r.reasons, isNot(contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')));
-            });
-
-            test('F776 BUILD110 monitor case remains HIGH', () {
-              final r = _resolve(
-                _still(0.9732, 97, 92),
-                _temporal(<Map<String, dynamic>>[
-                  _frame(0.98, 98, 75),
-                  _frame(0.93, 93, 74),
-                  _frame(0.92, 92, 73),
-                ]),
-              );
-              expect(r.decision, 'STRONG_DISPLAY_RISK');
-              expect(r.risk, 'HIGH');
-            });
-
-            test('weak or non-full-frame still does not bypass real-scene veto', () {
-              final r = _resolve(
-                _still(0.91, 91, 70),
-                _temporal(<Map<String, dynamic>>[
-                  _frame(0.95, 95, 71),
-                  _frame(0.94, 94, 74),
-                  _frame(0.93, 93, 73),
-                ]),
-              );
-              expect(r.decision, 'NO_DISPLAY_EVIDENCE');
-              expect(r.reasons, contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'));
-            });
-          }
-          DART
-      - name: Commit product and tests
+      - name: Apply monitor fusion fix
+        run: python3 .github/scripts/build111_monitor_patch.py
+      - name: Commit candidate changes
         run: |
           git add lib/hcv_display_risk_fusion.dart lib/hcv_verifier.dart test/hcv_software_attestation_verifier_test.dart test/hcvpack_integrity_release_gate_test.dart test/build111_photo_monitor_regression_test.dart
-          git commit -m "fix(build111): preserve strong photo monitor corroboration"
+          git commit -m "fix(build111): preserve strong photo monitor corroboration [skip ci]"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
       - run: flutter pub get
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - name: BUILD111 regression tests
+      - name: Targeted tests
         run: |
           flutter test test/build111_photo_monitor_regression_test.dart
           flutter test test/video_photo_spatial_evidence_test.dart test/video_photo_spatial_fusion_test.dart
@@ -256,5 +44,5 @@ jobs:
           flutter test test/hcvpack_integrity_release_gate_test.dart
       - name: Full suite
         run: flutter test
-      - name: Push tested commit
+      - name: Push tested candidate
         run: git push origin HEAD:candidate/build111-final-20260914
