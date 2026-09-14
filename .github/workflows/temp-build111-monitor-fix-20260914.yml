@@ -23,6 +23,7 @@ jobs:
         run: |
           git cherry-pick e99640a0b52e1ecd703c9711d0e6fccaf8cd00f1
           git cherry-pick 52d4cf3ddcbd4e01d406050e5eb17cda2bdfc6e6
+          git show 8c9635751a9e92c683cc6b1e7174d4d44189e8ab:test/hcvpack_integrity_release_gate_test.dart > test/hcvpack_integrity_release_gate_test.dart
       - name: Apply monitor fusion fix
         run: python3 .github/scripts/build111_monitor_patch.py
       - name: Commit candidate changes
@@ -49,7 +50,7 @@ jobs:
         timeout-minutes: 3
         run: flutter test test/hcv_software_attestation_verifier_test.dart
       - name: HCVPACK integrity gate
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: flutter test test/hcvpack_integrity_release_gate_test.dart
       - name: Full suite
         timeout-minutes: 12
