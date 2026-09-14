@@ -3,7 +3,7 @@ name: temp-build111-monitor-fix-20260914
 on:
   push:
     branches:
-      - candidate/build111-final-20260914
+      - candidate/build111-v2-20260914
 
 permissions:
   contents: write
@@ -34,15 +34,25 @@ jobs:
           channel: stable
       - run: flutter pub get
       - name: Analyze
+        timeout-minutes: 3
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - name: Targeted tests
-        run: |
-          flutter test test/build111_photo_monitor_regression_test.dart
-          flutter test test/video_photo_spatial_evidence_test.dart test/video_photo_spatial_fusion_test.dart
-          flutter test test/build109_low_modulation_hfr_recovery_test.dart test/build109_ml_fullframe_recovery_test.dart
-          flutter test test/hcv_software_attestation_verifier_test.dart
-          flutter test test/hcvpack_integrity_release_gate_test.dart
+      - name: BUILD111 monitor regression
+        timeout-minutes: 3
+        run: flutter test test/build111_photo_monitor_regression_test.dart
+      - name: BUILD109 spatial regression
+        timeout-minutes: 3
+        run: flutter test test/video_photo_spatial_evidence_test.dart test/video_photo_spatial_fusion_test.dart
+      - name: BUILD109 HFR ML regression
+        timeout-minutes: 3
+        run: flutter test test/build109_low_modulation_hfr_recovery_test.dart test/build109_ml_fullframe_recovery_test.dart
+      - name: D1 verifier regression
+        timeout-minutes: 3
+        run: flutter test test/hcv_software_attestation_verifier_test.dart
+      - name: HCVPACK integrity gate
+        timeout-minutes: 3
+        run: flutter test test/hcvpack_integrity_release_gate_test.dart
       - name: Full suite
+        timeout-minutes: 12
         run: flutter test
       - name: Push tested candidate
-        run: git push origin HEAD:candidate/build111-final-20260914
+        run: git push origin HEAD:candidate/build111-v2-20260914
