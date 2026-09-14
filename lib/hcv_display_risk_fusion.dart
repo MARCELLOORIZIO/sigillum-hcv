@@ -194,11 +194,38 @@ class HCVDisplayRiskFusion {
         ) &&
         base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
 
+    final stillSignals = _signals(ml);
+    final stillPredictedClass = ml?['predictedClass']?.toString() ?? '';
+    final stillScreenProbability =
+        (ml?['screenProbability'] as num?)?.toDouble() ?? 0.0;
+    final stillScreenRisk =
+        (ml?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final stillFullFrameRisk =
+        (stillSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final stillContentAreaRisk =
+        (stillSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+    final photoStillTemporalScreenCorroboration =
+        photoTemporalMl != null &&
+        v3Analyzed &&
+        !mixedScene &&
+        !physicalDisplay &&
+        temporalFrames >= 3 &&
+        highAnyScreenFrames == temporalFrames &&
+        mlStrongScreenFrames >= 3 &&
+        mlAverageScreenRisk >= 90.0 &&
+        stillPredictedClass.startsWith('SCREEN_') &&
+        stillScreenProbability >= 0.92 &&
+        stillScreenRisk >= 92 &&
+        stillFullFrameRisk >= 92 &&
+        stillContentAreaRisk >= 85 &&
+        base.decision == 'STRONG_DISPLAY_RISK';
+
     final screenPresentButNotFullFrame =
         v3Analyzed &&
         !physicalDisplay &&
         !narrowThreeFrameFullFrameRecoveryV109 &&
         !videoPhotoSpatialFullFrameCorroboration &&
+        !photoStillTemporalScreenCorroboration &&
         temporalFrames >= 2 &&
         highAnyScreenFrames >= 2 &&
         highFullFrameScreenFrames == 0;
@@ -232,7 +259,8 @@ class HCVDisplayRiskFusion {
     final persistentVisualDisplay =
         strictPersistentVisualDisplay ||
         narrowThreeFrameFullFrameRecoveryV109 ||
-        videoPhotoSpatialFullFrameCorroboration;
+        videoPhotoSpatialFullFrameCorroboration ||
+        photoStillTemporalScreenCorroboration;
 
     if (physicalDisplay || persistentVisualDisplay) {
       final evidenceSources = <String>{...base.evidenceSources};
@@ -266,6 +294,11 @@ class HCVDisplayRiskFusion {
           strongSources.add('VIDEO_PHOTO_SPATIAL_CORROBORATION');
           reasons.add('VIDEO_PHOTO_SPATIAL_STABLE_SCREEN_SEQUENCE');
           reasons.add('VIDEO_PHOTO_SPATIAL_FULL_FRAME_CORROBORATION');
+        }
+        if (photoStillTemporalScreenCorroboration) {
+          evidenceSources.add('PHOTO_STILL_TEMPORAL_SCREEN_CORROBORATION');
+          strongSources.add('PHOTO_STILL_TEMPORAL_SCREEN_CORROBORATION');
+          reasons.add('PHOTO_STILL_STRONG_SCREEN_WITH_TEMPORAL_SCREEN_SEQUENCE');
         }
       }
       reasons.add('DUAL_EVIDENCE_V3_ACTIVE');

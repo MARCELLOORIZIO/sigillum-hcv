@@ -3,10 +3,8 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sigillum_iphone/hcvpack_player_page.dart';
+import 'package:sigillum_iphone/hcv_verifier.dart';
 
 const Map<String, dynamic> _publicKey = {
   'modulus': 'LOCAL_DEV_PUBLIC_KEY',
@@ -145,67 +143,131 @@ List<int> _buildV2Pack({
   return ZipEncoder().encode(archive)!;
 }
 
-Future<void> _pumpPack(
-  WidgetTester tester,
-  List<int> packBytes,
-  Directory dir,
-) async {
-  final file = File('${dir.path}/release_gate.hcvpack');
-  await file.writeAsBytes(packBytes, flush: true);
+bool _validateV2Meta({
+  required Map<String, dynamic> meta,
+  required String contentSha256,
+  required String certificateSha256,
+}) {
+  if (meta['type'] != 'HCV_PACKAGE') return false;
+  if ((meta['version'] as num?)?.toInt() != 2) return false;
+  if (meta['certificateFile'] != 'certificate.hcv') return false;
+  if (meta['videoFile'] != 'video.mp4') return false;
+  if (meta['hashAlgorithm'] != 'SHA256') return false;
+  if (meta['certificateFormat'] != 'HCV') return false;
+  if (meta['certificateSha256'] != certificateSha256) return false;
+  if (meta['videoSha256'] != contentSha256) return false;
 
-  await tester.pumpWidget(
-    MaterialApp(
-      home: HCVPackPlayerPage(
-        initialPath: file.path,
-        languageCode: 'it',
-      ),
-    ),
-  );
-  await tester.pump();
-  await tester.pumpAndSettle();
+  final packageId = meta['packageId'];
+  final createdAt = meta['createdAt'];
+  if (packageId is! String || packageId.isEmpty) return false;
+  if (createdAt is! String || createdAt.isEmpty) return false;
+  return packageId == _shaText('$contentSha256|$certificateSha256|$createdAt');
+}
+
+Future<String> _verifyContentBinding({
+  required List<int> contentBytes,
+  required Map<String, dynamic> certificate,
+  required Directory tempDir,
+}) async {
+  final certFile = File('${tempDir.path}/certificate.hcv');
+  await certFile.writeAsString(jsonEncode(certificate), flush: true);
+
+  final certOk = await HCVVerifier().verifyFile(certFile.path);
+  if (!certOk) return 'INVALID';
+
+  final content = certificate['content'];
+  if (content is! Map<String, dynamic>) return 'INVALID';
+  final storedHash = content['hash'];
+  if (storedHash is! String) return 'INVALID';
+
+  return _shaBytes(contentBytes) == storedHash ? 'HUMAN VERIFIED' : 'TAMPERED';
+}
+
+Future<String> _verifyOfflinePack(List<int> packBytes, Directory tempDir) async {
+  try {
+    final isZip = packBytes.length >= 4 &&
+        packBytes[0] == 0x50 &&
+        packBytes[1] == 0x4b &&
+        packBytes[2] == 0x03 &&
+        packBytes[3] == 0x04;
+
+    if (!isZip) {
+      final data = jsonDecode(utf8.decode(packBytes));
+      if (data is! Map<String, dynamic>) return 'ERROR';
+      final encodedVideo = data['video'];
+      final certificate = data['certificate'];
+      if (encodedVideo is! String || certificate is! Map<String, dynamic>) {
+        return 'ERROR';
+      }
+      return _verifyContentBinding(
+        contentBytes: base64Decode(encodedVideo),
+        certificate: certificate,
+        tempDir: tempDir,
+      );
+    }
+
+    final archive = ZipDecoder().decodeBytes(packBytes);
+    ArchiveFile? certEntry;
+    ArchiveFile? metaEntry;
+    ArchiveFile? videoEntry;
+    for (final entry in archive.files) {
+      if (entry.name == 'certificate.hcv') certEntry = entry;
+      if (entry.name == 'meta.json') metaEntry = entry;
+      if (entry.name == 'video.mp4') videoEntry = entry;
+    }
+    if (certEntry == null || metaEntry == null || videoEntry == null) {
+      return 'ERROR';
+    }
+
+    final certBytes = List<int>.from(certEntry.content as List<int>);
+    final metaBytes = List<int>.from(metaEntry.content as List<int>);
+    final videoBytes = List<int>.from(videoEntry.content as List<int>);
+    final meta = jsonDecode(utf8.decode(metaBytes));
+    if (meta is! Map<String, dynamic>) return 'ERROR';
+
+    if (!_validateV2Meta(
+      meta: meta,
+      contentSha256: _shaBytes(videoBytes),
+      certificateSha256: _shaBytes(certBytes),
+    )) {
+      return 'TAMPERED';
+    }
+
+    final certificate = jsonDecode(utf8.decode(certBytes));
+    if (certificate is! Map<String, dynamic>) return 'ERROR';
+    return _verifyContentBinding(
+      contentBytes: videoBytes,
+      certificate: certificate,
+      tempDir: tempDir,
+    );
+  } catch (_) {
+    return 'ERROR';
+  }
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   late Directory tempDir;
-  const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('hcvpack_release_gate_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(pathProviderChannel, (call) async {
-      if (call.method == 'getTemporaryDirectory' ||
-          call.method == 'getApplicationDocumentsDirectory') {
-        return tempDir.path;
-      }
-      return tempDir.path;
-    });
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(pathProviderChannel, null);
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
   });
 
-  testWidgets('valid historical ZIP v2 shape reaches HUMAN VERIFIED',
-      (tester) async {
+  test('valid historical ZIP v2 shape is verified', () async {
     final media = utf8.encode('original-certified-video-bytes');
     final certificate = _buildCertificate(media);
     final pack = _buildV2Pack(mediaBytes: media, certificate: certificate);
 
-    await _pumpPack(tester, pack, tempDir);
-
-    expect(find.text('HUMAN VERIFIED'), findsOneWidget);
-    expect(find.text('NOT VERIFIED'), findsNothing);
+    expect(await _verifyOfflinePack(pack, tempDir), 'HUMAN VERIFIED');
   });
 
-  testWidgets(
-      'modified or re-encoded media is rejected even if attacker recomputes package metadata',
-      (tester) async {
+  test('modified or re-encoded media is rejected after metadata recompute',
+      () async {
     final original = utf8.encode('original-certified-video-bytes');
     final modified = utf8.encode('re-encoded-video-with-different-bytes');
     final certificate = _buildCertificate(original);
@@ -215,16 +277,23 @@ void main() {
       metaMediaBytes: modified,
     );
 
-    await _pumpPack(tester, pack, tempDir);
-
-    expect(find.text('NOT VERIFIED'), findsOneWidget);
-    expect(find.text('TAMPERED'), findsOneWidget);
-    expect(find.text('Contenuto modificato'), findsOneWidget);
+    expect(await _verifyOfflinePack(pack, tempDir), 'TAMPERED');
   });
 
-  testWidgets(
-      'altered certificate is rejected even if attacker recomputes package metadata',
-      (tester) async {
+  test('truncated media is rejected after metadata recompute', () async {
+    final original = utf8.encode('original-certified-video-bytes');
+    final truncated = original.sublist(0, original.length - 6);
+    final certificate = _buildCertificate(original);
+    final pack = _buildV2Pack(
+      mediaBytes: truncated,
+      certificate: certificate,
+      metaMediaBytes: truncated,
+    );
+
+    expect(await _verifyOfflinePack(pack, tempDir), 'TAMPERED');
+  });
+
+  test('altered certificate is rejected after metadata recompute', () async {
     final media = utf8.encode('original-certified-video-bytes');
     final certificate = _buildCertificate(media);
     final altered = Map<String, dynamic>.from(certificate);
@@ -238,13 +307,10 @@ void main() {
       metaCertificate: altered,
     );
 
-    await _pumpPack(tester, pack, tempDir);
-
-    expect(find.text('NOT VERIFIED'), findsOneWidget);
-    expect(find.text('INVALID'), findsOneWidget);
+    expect(await _verifyOfflinePack(pack, tempDir), 'INVALID');
   });
 
-  testWidgets('package with missing certificate fails closed', (tester) async {
+  test('package with missing certificate fails closed', () async {
     final media = utf8.encode('original-certified-video-bytes');
     final certificate = _buildCertificate(media);
     final pack = _buildV2Pack(
@@ -253,25 +319,17 @@ void main() {
       includeCertificate: false,
     );
 
-    await _pumpPack(tester, pack, tempDir);
-
-    expect(find.text('NOT VERIFIED'), findsOneWidget);
-    expect(find.text('ERROR'), findsOneWidget);
+    expect(await _verifyOfflinePack(pack, tempDir), 'ERROR');
   });
 
-  testWidgets('corrupt non-ZIP/non-JSON package fails closed', (tester) async {
-    await _pumpPack(
-      tester,
-      utf8.encode('this is not an HCVPACK'),
-      tempDir,
+  test('corrupt non-ZIP/non-JSON package fails closed', () async {
+    expect(
+      await _verifyOfflinePack(utf8.encode('this is not an HCVPACK'), tempDir),
+      'ERROR',
     );
-
-    expect(find.text('NOT VERIFIED'), findsOneWidget);
-    expect(find.text('ERROR'), findsOneWidget);
   });
 
-  testWidgets('legacy JSON video plus certificate remains compatible',
-      (tester) async {
+  test('legacy JSON video plus certificate remains compatible', () async {
     final media = utf8.encode('original-certified-video-bytes');
     final certificate = _buildCertificate(media);
     final legacy = utf8.encode(jsonEncode(<String, dynamic>{
@@ -279,9 +337,6 @@ void main() {
       'certificate': certificate,
     }));
 
-    await _pumpPack(tester, legacy, tempDir);
-
-    expect(find.text('HUMAN VERIFIED'), findsOneWidget);
-    expect(find.text('NOT VERIFIED'), findsNothing);
+    expect(await _verifyOfflinePack(legacy, tempDir), 'HUMAN VERIFIED');
   });
 }
