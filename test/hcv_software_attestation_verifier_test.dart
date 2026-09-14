@@ -16,11 +16,7 @@ const Object _absent = Object();
 String _sha(String value) => sha256.convert(utf8.encode(value)).toString();
 String _sign(String value) => _sha('LOCAL_DEV_SIGNATURE:$value');
 
-Map<String, dynamic> _chainEvent(
-  String type,
-  String timestamp,
-  String prev,
-) {
+Map<String, dynamic> _chainEvent(String type, String timestamp, String prev) {
   final event = <String, dynamic>{
     'type': type,
     'timestamp': timestamp,
@@ -56,8 +52,9 @@ Map<String, dynamic> _buildCertificate({
   final deviceFingerprint = _sha(jsonEncode(_publicKey));
   const creatorId = 'creator-d1-test';
   const creatorName = 'D1 Test Creator';
-  final identityFingerprint =
-      _sha('$creatorId|$creatorName|$deviceFingerprint');
+  final identityFingerprint = _sha(
+    '$creatorId|$creatorName|$deviceFingerprint',
+  );
 
   final meta = <String, dynamic>{
     'hcvId': hcvId,
@@ -145,48 +142,48 @@ void main() {
     );
   });
 
-  test('D1 verifier rejects malformed attestation even when certificate is signed',
-      () async {
-    final malformed = <String, dynamic>{
-      'type': HCVSoftwareAttestation.schema,
-      'version': HCVSoftwareAttestation.schemaVersion,
-      'status': 'BOUND',
-      'bindingMethod': HCVSoftwareAttestation.bindingMethod,
-      'sourceCommit': 'not-a-git-commit',
-      'sourceCommitAlgorithm': 'GIT_SHA1',
-      'edition': 'user',
-      'appVersion': '1.0.0',
-      'buildNumber': '108',
-    };
+  test(
+    'D1 verifier rejects malformed attestation even when certificate is signed',
+    () async {
+      final malformed = <String, dynamic>{
+        'type': HCVSoftwareAttestation.schema,
+        'version': HCVSoftwareAttestation.schemaVersion,
+        'status': 'BOUND',
+        'bindingMethod': HCVSoftwareAttestation.bindingMethod,
+        'sourceCommit': 'not-a-git-commit',
+        'sourceCommitAlgorithm': 'GIT_SHA1',
+        'edition': 'user',
+        'appVersion': '1.0.0',
+        'buildNumber': '108',
+      };
 
-    expect(
-      await _verifyCertificate(
-        _buildCertificate(softwareAttestation: malformed),
-      ),
-      isFalse,
-    );
-  });
+      expect(
+        await _verifyCertificate(
+          _buildCertificate(softwareAttestation: malformed),
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test('D1 verifier rejects non-map attestation', () async {
     expect(
-      await _verifyCertificate(
-        _buildCertificate(softwareAttestation: 'BOUND'),
-      ),
+      await _verifyCertificate(_buildCertificate(softwareAttestation: 'BOUND')),
       isFalse,
     );
   });
 
   test('D1 verifier rejects explicit null attestation', () async {
     expect(
-      await _verifyCertificate(
-        _buildCertificate(softwareAttestation: null),
-      ),
+      await _verifyCertificate(_buildCertificate(softwareAttestation: null)),
       isFalse,
     );
   });
 
-  test('pre-D3 V2 certificate without software attestation remains compatible',
-      () async {
-    expect(await _verifyCertificate(_buildCertificate()), isTrue);
-  });
+  test(
+    'pre-D3 V2 certificate without software attestation remains compatible',
+    () async {
+      expect(await _verifyCertificate(_buildCertificate()), isTrue);
+    },
+  );
 }

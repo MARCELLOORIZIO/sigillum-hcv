@@ -75,7 +75,8 @@ Map<String, dynamic> _temporal({
   final medium = scores.where((score) => score >= 88).length;
   final average = scores.reduce((a, b) => a + b) / scores.length;
   final maxScore = scores.reduce((a, b) => a > b ? a : b);
-  final classes = predictedClasses ??
+  final classes =
+      predictedClasses ??
       List<String>.filled(probabilities.length, 'SCREEN_MONITOR');
   return <String, dynamic>{
     'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
@@ -181,31 +182,34 @@ void main() {
     );
   });
 
-  test('strong temporal monitor cannot promote weak still spatial evidence', () {
-    final temporal = _temporal(
-      probabilities: const <double>[0.954401, 0.951494, 0.922244],
-      fullFrames: const <int>[95, 95, 92],
-      contentAreas: const <int>[71, 79, 73],
-    );
-    final result = _resolve(
-      still: _still(
-        score: 93,
-        probability: 0.932044,
-        fullFrame: 93,
-        contentArea: 84,
-      ),
-      temporal: temporal,
-    );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(
-      result.reasons,
-      contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
-    );
-    expect(
-      result.reasons,
-      isNot(contains('PHOTO_STILL_TEMPORAL_FULL_FRAME_CORROBORATION')),
-    );
-  });
+  test(
+    'strong temporal monitor cannot promote weak still spatial evidence',
+    () {
+      final temporal = _temporal(
+        probabilities: const <double>[0.954401, 0.951494, 0.922244],
+        fullFrames: const <int>[95, 95, 92],
+        contentAreas: const <int>[71, 79, 73],
+      );
+      final result = _resolve(
+        still: _still(
+          score: 93,
+          probability: 0.932044,
+          fullFrame: 93,
+          contentArea: 84,
+        ),
+        temporal: temporal,
+      );
+      expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+      expect(
+        result.reasons,
+        contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
+      );
+      expect(
+        result.reasons,
+        isNot(contains('PHOTO_STILL_TEMPORAL_FULL_FRAME_CORROBORATION')),
+      );
+    },
+  );
 
   test('semantic transition cannot activate still-temporal corroboration', () {
     final temporal = _temporal(

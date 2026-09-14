@@ -194,11 +194,37 @@ class HCVDisplayRiskFusion {
         ) &&
         base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
 
+    // BUILD110 regression guard. A strong final still-photo SCREEN result
+    // may corroborate three stable full-frame SCREEN temporal samples even when
+    // their content-area crop remains below the generic 85 threshold. This path
+    // is photo-only, keeps the existing global thresholds, and never overrides
+    // the mixed-scene HFR veto above.
+    final photoStillTemporalFullFrameCorroboration =
+        photoTemporalMl != null &&
+        v3Analyzed &&
+        !mixedScene &&
+        !physicalDisplay &&
+        temporalFrames == 3 &&
+        highAnyScreenFrames == 3 &&
+        highFullFrameScreenFrames == 0 &&
+        _hasExactlyThreeStrongFullFrameScreenSemanticFramesForPhoto(
+          temporalMl,
+        ) &&
+        _isStrongStillPhotoFullFrameScreen(ml) &&
+        mlStrongScreenFrames == 3 &&
+        mlAverageScreenRisk >= 90.0 &&
+        base.decision == 'STRONG_DISPLAY_RISK' &&
+        base.reasons.contains(
+          'ML_FIRST_VIDEO_SCREEN_MAJORITY_HIGH_PROBABILITY',
+        ) &&
+        base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
+
     final screenPresentButNotFullFrame =
         v3Analyzed &&
         !physicalDisplay &&
         !narrowThreeFrameFullFrameRecoveryV109 &&
         !videoPhotoSpatialFullFrameCorroboration &&
+        !photoStillTemporalFullFrameCorroboration &&
         temporalFrames >= 2 &&
         highAnyScreenFrames >= 2 &&
         highFullFrameScreenFrames == 0;
@@ -232,7 +258,8 @@ class HCVDisplayRiskFusion {
     final persistentVisualDisplay =
         strictPersistentVisualDisplay ||
         narrowThreeFrameFullFrameRecoveryV109 ||
-        videoPhotoSpatialFullFrameCorroboration;
+        videoPhotoSpatialFullFrameCorroboration ||
+        photoStillTemporalFullFrameCorroboration;
 
     if (physicalDisplay || persistentVisualDisplay) {
       final evidenceSources = <String>{...base.evidenceSources};
@@ -267,6 +294,13 @@ class HCVDisplayRiskFusion {
           reasons.add('VIDEO_PHOTO_SPATIAL_STABLE_SCREEN_SEQUENCE');
           reasons.add('VIDEO_PHOTO_SPATIAL_FULL_FRAME_CORROBORATION');
         }
+      }
+      if (photoStillTemporalFullFrameCorroboration) {
+        evidenceSources.add('PHOTO_STILL_TEMPORAL_SCREEN_CORROBORATION');
+        strongSources.add('PHOTO_STILL_TEMPORAL_SCREEN_CORROBORATION');
+        reasons.add('STRONG_STILL_PHOTO_FULL_FRAME_SCREEN');
+        reasons.add('THREE_STRONG_FULL_FRAME_SCREEN_TEMPORAL_FRAMES');
+        reasons.add('PHOTO_STILL_TEMPORAL_FULL_FRAME_CORROBORATION');
       }
       reasons.add('DUAL_EVIDENCE_V3_ACTIVE');
 
@@ -494,6 +528,50 @@ class HCVDisplayRiskFusion {
       }
     }
     return count;
+  }
+
+  static bool _hasExactlyThreeStrongFullFrameScreenSemanticFramesForPhoto(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (framesAnalyzed != 3 || rawFrames is! List || rawFrames.length != 3) {
+      return false;
+    }
+    return rawFrames.every((rawFrame) {
+      if (rawFrame is! Map) return false;
+      final predictedClass = rawFrame['predictedClass']?.toString() ?? '';
+      final probability =
+          (rawFrame['screenProbability'] as num?)?.toDouble() ?? 0.0;
+      final rawSignals = rawFrame['signals'];
+      if (rawSignals is! Map) return false;
+      final signals = Map<String, dynamic>.from(rawSignals);
+      final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      return predictedClass.startsWith('SCREEN_') &&
+          probability >= 0.90 &&
+          fullFrame >= 90;
+    });
+  }
+
+  static bool _isStrongStillPhotoFullFrameScreen(Map<String, dynamic>? ml) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
+    final predictedClass = ml['predictedClass']?.toString() ?? '';
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final score = (ml['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final probability = (ml['screenProbability'] as num?)?.toDouble() ?? 0.0;
+    final confidence =
+        (ml['predictedClassConfidence'] as num?)?.toDouble() ?? 0.0;
+    final signals = _signals(ml);
+    final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final contentArea = (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+    return predictedClass.startsWith('SCREEN_') &&
+        framesAnalyzed == 1 &&
+        score >= 92 &&
+        probability >= 0.92 &&
+        fullFrame >= 90 &&
+        contentArea >= 85 &&
+        (confidence == 0.0 || confidence >= 0.75);
   }
 
   static bool _hasStableVideoPhotoSpatialFullFrameCorroboration(

@@ -53,8 +53,9 @@ class HCVVerifier {
     final chainOk = _verifyChain(chain);
     if (!chainOk) return false;
 
-    final recalculatedRoot =
-        sha256.convert(utf8.encode(jsonEncode(chain))).toString();
+    final recalculatedRoot = sha256
+        .convert(utf8.encode(jsonEncode(chain)))
+        .toString();
 
     if (data["rootHash"] != recalculatedRoot) return false;
 
@@ -188,8 +189,9 @@ class HCVVerifier {
     }
 
     final nonce = event["nonce"]?.toString() ?? "";
-    final eventTimestamp =
-        DateTime.tryParse(event["timestamp"]?.toString() ?? "");
+    final eventTimestamp = DateTime.tryParse(
+      event["timestamp"]?.toString() ?? "",
+    );
     if (nonce.isEmpty || eventTimestamp == null) return false;
 
     final eventHash = event["eventHash"]?.toString() ?? "";
@@ -202,9 +204,7 @@ class HCVVerifier {
       ..remove("signature")
       ..remove("publicKey");
     final recalculatedEventHash = sha256
-        .convert(
-          utf8.encode(HCVProvenanceChain.canonicalJson(unsignedEvent)),
-        )
+        .convert(utf8.encode(HCVProvenanceChain.canonicalJson(unsignedEvent)))
         .toString();
     if (recalculatedEventHash != eventHash) return false;
 
@@ -249,10 +249,12 @@ class HCVVerifier {
       return false;
     }
 
-    final claimCapturedAt =
-        DateTime.tryParse(rawClaims["captureCreatedAt"]?.toString() ?? "");
-    final eventCapturedAt =
-        DateTime.tryParse(eventMetadata["capturedAt"]?.toString() ?? "");
+    final claimCapturedAt = DateTime.tryParse(
+      rawClaims["captureCreatedAt"]?.toString() ?? "",
+    );
+    final eventCapturedAt = DateTime.tryParse(
+      eventMetadata["capturedAt"]?.toString() ?? "",
+    );
     if (claimCapturedAt == null || eventCapturedAt == null) return false;
     if (claimCapturedAt.toUtc() != eventCapturedAt.toUtc()) return false;
 
@@ -280,8 +282,9 @@ class HCVVerifier {
     final chainOk = _verifyChain(chain);
     if (!chainOk) return false;
 
-    final recalculatedRoot =
-        sha256.convert(utf8.encode(jsonEncode(chain))).toString();
+    final recalculatedRoot = sha256
+        .convert(utf8.encode(jsonEncode(chain)))
+        .toString();
 
     if (rootHash != recalculatedRoot) return false;
 
@@ -317,17 +320,13 @@ class HCVVerifier {
     if (creatorName is! String || creatorName.isEmpty) return false;
 
     final actualKeyFingerprint = sha256
-        .convert(
-          utf8.encode(jsonEncode(publicKey)),
-        )
+        .convert(utf8.encode(jsonEncode(publicKey)))
         .toString();
 
     if (declaredKeyFingerprint != actualKeyFingerprint) return false;
 
     final expectedIdentityFingerprint = sha256
-        .convert(
-          utf8.encode("$creatorId|$creatorName|$declaredKeyFingerprint"),
-        )
+        .convert(utf8.encode("$creatorId|$creatorName|$declaredKeyFingerprint"))
         .toString();
 
     return identityFingerprint == expectedIdentityFingerprint;
@@ -391,8 +390,9 @@ class HCVVerifier {
       if (exponent is! String) return false;
 
       if (modulus == "LOCAL_DEV_PUBLIC_KEY" && exponent == "LOCAL_DEV") {
-        final expected =
-            sha256.convert(utf8.encode("LOCAL_DEV_SIGNATURE:$data")).toString();
+        final expected = sha256
+            .convert(utf8.encode("LOCAL_DEV_SIGNATURE:$data"))
+            .toString();
         return signatureBase64 == expected;
       }
 
@@ -401,15 +401,9 @@ class HCVVerifier {
         _bytesToBigInt(base64Decode(exponent)),
       );
 
-      final verifier = RSASigner(
-        SHA256Digest(),
-        '0609608648016503040201',
-      );
+      final verifier = RSASigner(SHA256Digest(), '0609608648016503040201');
 
-      verifier.init(
-        false,
-        PublicKeyParameter<RSAPublicKey>(pubKey),
-      );
+      verifier.init(false, PublicKeyParameter<RSAPublicKey>(pubKey));
 
       final sig = RSASignature(base64Decode(signatureBase64));
 

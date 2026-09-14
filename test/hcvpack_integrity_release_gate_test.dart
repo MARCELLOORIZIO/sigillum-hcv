@@ -15,11 +15,7 @@ String _shaBytes(List<int> bytes) => sha256.convert(bytes).toString();
 String _shaText(String value) => _shaBytes(utf8.encode(value));
 String _sign(String value) => _shaText('LOCAL_DEV_SIGNATURE:$value');
 
-Map<String, dynamic> _chainEvent(
-  String type,
-  String timestamp,
-  String prev,
-) {
+Map<String, dynamic> _chainEvent(String type, String timestamp, String prev) {
   final event = <String, dynamic>{
     'type': type,
     'timestamp': timestamp,
@@ -51,8 +47,9 @@ Map<String, dynamic> _buildCertificate(List<int> mediaBytes) {
   final deviceFingerprint = _shaText(jsonEncode(_publicKey));
   const creatorId = 'creator-hcvpack-release-gate';
   const creatorName = 'HCVPACK Release Gate';
-  final identityFingerprint =
-      _shaText('$creatorId|$creatorName|$deviceFingerprint');
+  final identityFingerprint = _shaText(
+    '$creatorId|$creatorName|$deviceFingerprint',
+  );
 
   final signedPayload = <String, dynamic>{
     'format': 'HCV_CERTIFICATE',
@@ -101,8 +98,9 @@ List<int> _buildV2Pack({
 }) {
   final certificateBytes = utf8.encode(jsonEncode(certificate));
   final mediaForMeta = metaMediaBytes ?? mediaBytes;
-  final certificateForMeta =
-      utf8.encode(jsonEncode(metaCertificate ?? certificate));
+  final certificateForMeta = utf8.encode(
+    jsonEncode(metaCertificate ?? certificate),
+  );
   const createdAt = '2026-09-14T07:00:03.000Z';
   final mediaSha = _shaBytes(mediaForMeta);
   final certificateSha = _shaBytes(certificateForMeta);
@@ -129,11 +127,7 @@ List<int> _buildV2Pack({
   }
   if (includeCertificate) {
     archive.addFile(
-      ArchiveFile(
-        'certificate.hcv',
-        certificateBytes.length,
-        certificateBytes,
-      ),
+      ArchiveFile('certificate.hcv', certificateBytes.length, certificateBytes),
     );
   }
   if (includeMeta) {
@@ -183,9 +177,13 @@ Future<String> _verifyContentBinding({
   return _shaBytes(contentBytes) == storedHash ? 'HUMAN VERIFIED' : 'TAMPERED';
 }
 
-Future<String> _verifyOfflinePack(List<int> packBytes, Directory tempDir) async {
+Future<String> _verifyOfflinePack(
+  List<int> packBytes,
+  Directory tempDir,
+) async {
   try {
-    final isZip = packBytes.length >= 4 &&
+    final isZip =
+        packBytes.length >= 4 &&
         packBytes[0] == 0x50 &&
         packBytes[1] == 0x4b &&
         packBytes[2] == 0x03 &&
@@ -266,19 +264,21 @@ void main() {
     expect(await _verifyOfflinePack(pack, tempDir), 'HUMAN VERIFIED');
   });
 
-  test('modified or re-encoded media is rejected after metadata recompute',
-      () async {
-    final original = utf8.encode('original-certified-video-bytes');
-    final modified = utf8.encode('re-encoded-video-with-different-bytes');
-    final certificate = _buildCertificate(original);
-    final pack = _buildV2Pack(
-      mediaBytes: modified,
-      certificate: certificate,
-      metaMediaBytes: modified,
-    );
+  test(
+    'modified or re-encoded media is rejected after metadata recompute',
+    () async {
+      final original = utf8.encode('original-certified-video-bytes');
+      final modified = utf8.encode('re-encoded-video-with-different-bytes');
+      final certificate = _buildCertificate(original);
+      final pack = _buildV2Pack(
+        mediaBytes: modified,
+        certificate: certificate,
+        metaMediaBytes: modified,
+      );
 
-    expect(await _verifyOfflinePack(pack, tempDir), 'TAMPERED');
-  });
+      expect(await _verifyOfflinePack(pack, tempDir), 'TAMPERED');
+    },
+  );
 
   test('truncated media is rejected after metadata recompute', () async {
     final original = utf8.encode('original-certified-video-bytes');
@@ -332,10 +332,12 @@ void main() {
   test('legacy JSON video plus certificate remains compatible', () async {
     final media = utf8.encode('original-certified-video-bytes');
     final certificate = _buildCertificate(media);
-    final legacy = utf8.encode(jsonEncode(<String, dynamic>{
-      'video': base64Encode(media),
-      'certificate': certificate,
-    }));
+    final legacy = utf8.encode(
+      jsonEncode(<String, dynamic>{
+        'video': base64Encode(media),
+        'certificate': certificate,
+      }),
+    );
 
     expect(await _verifyOfflinePack(legacy, tempDir), 'HUMAN VERIFIED');
   });
