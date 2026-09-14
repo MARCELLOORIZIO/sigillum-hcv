@@ -162,7 +162,16 @@ Future<void> _pumpPack(
     ),
   );
   await tester.pump();
-  await tester.pumpAndSettle();
+
+  for (var i = 0; i < 100; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    if (find.text('HUMAN VERIFIED').evaluate().isNotEmpty ||
+        find.text('NOT VERIFIED').evaluate().isNotEmpty) {
+      return;
+    }
+  }
+
+  fail('HCVPACK player did not reach a terminal verdict');
 }
 
 void main() {
@@ -213,6 +222,25 @@ void main() {
       mediaBytes: modified,
       certificate: certificate,
       metaMediaBytes: modified,
+    );
+
+    await _pumpPack(tester, pack, tempDir);
+
+    expect(find.text('NOT VERIFIED'), findsOneWidget);
+    expect(find.text('TAMPERED'), findsOneWidget);
+    expect(find.text('Contenuto modificato'), findsOneWidget);
+  });
+
+  testWidgets(
+      'truncated media is rejected even if attacker recomputes package metadata',
+      (tester) async {
+    final original = utf8.encode('original-certified-video-bytes');
+    final truncated = original.sublist(0, original.length - 6);
+    final certificate = _buildCertificate(original);
+    final pack = _buildV2Pack(
+      mediaBytes: truncated,
+      certificate: certificate,
+      metaMediaBytes: truncated,
     );
 
     await _pumpPack(tester, pack, tempDir);
