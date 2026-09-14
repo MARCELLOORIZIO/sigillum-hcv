@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:pointycastle/export.dart';
 
 import 'hcv_provenance_chain.dart';
+import 'hcv_software_attestation.dart';
 
 class HCVVerifier {
   Future<bool> verifyFile(String path) async {
@@ -85,8 +86,29 @@ class HCVVerifier {
       publicKeyData: publicKey,
     );
     if (!certificateSignatureOk) return false;
+    if (!_verifySoftwareAttestation(data)) return false;
 
     return _verifyCaptureProvenanceBinding(data, publicKey);
+  }
+
+  bool _verifySoftwareAttestation(Map<String, dynamic> data) {
+    final rawMeta = data["meta"];
+    if (rawMeta is! Map) return false;
+
+    // Backward compatibility: certificates issued before D3 did not contain
+    // software attestation metadata and remain verifiable under V2.
+    if (!rawMeta.containsKey("softwareAttestation")) return true;
+
+    final rawAttestation = rawMeta["softwareAttestation"];
+    if (rawAttestation is! Map) return false;
+
+    try {
+      return HCVSoftwareAttestation.isValid(
+        Map<String, dynamic>.from(rawAttestation),
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   bool _verifyCaptureProvenanceBinding(
