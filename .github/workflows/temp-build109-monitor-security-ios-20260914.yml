@@ -1,0 +1,91 @@
+name: Temporary BUILD109 Monitor Security iOS Gate
+
+on:
+  push:
+    branches:
+      - validation/build109-monitor-security-ios-20260914
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ios:
+    runs-on: macos-15
+    timeout-minutes: 75
+    env:
+      CANDIDATE_SHA: e046a51dc1532147bbcd601b6819f66e78a91b21
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove validation branch differs from candidate only by this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "$CANDIDATE_SHA" HEAD | tee /tmp/validation-diff.txt
+          test "$(wc -l < /tmp/validation-diff.txt | tr -d ' ')" = "1"
+          grep -Fx '.github/workflows/temp-build109-monitor-security-ios-20260914.yml' /tmp/validation-diff.txt
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve dependencies and pin iOS runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code "$CANDIDATE_SHA" -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Analyze and targeted regression gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test test/build110_monitor_photo_regression_test.dart --reporter expanded
+          flutter test test/build109_ml_fullframe_recovery_test.dart --reporter expanded
+          flutter test test/video_photo_spatial_evidence_test.dart --reporter expanded
+          flutter test test/video_photo_spatial_fusion_test.dart --reporter expanded
+          flutter test test/hcv_software_attestation_verifier_test.dart --reporter expanded
+          flutter test test/hcvpack_integrity_release_gate_test.dart --reporter expanded
+
+      - name: Full Flutter suite
+        shell: bash
+        run: flutter test --reporter expanded
+
+      - name: Resolve CocoaPods
+        shell: bash
+        run: |
+          set -euo pipefail
+          pushd ios >/dev/null
+          pod install --repo-update
+          popd >/dev/null
+          grep -F 'TensorFlowLiteSwift (2.17.0)' ios/Podfile.lock
+
+      - name: Build unsigned iOS release bound to candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign --no-pub \
+            --dart-define=SIGILLUM_EDITION=user \
+            --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com \
+            --dart-define=GIT_COMMIT="$CANDIDATE_SHA"
+          APP='build/ios/iphoneos/Runner.app'
+          test -d "$APP"
+          test -f "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -Fx 'com.sigillum.hcv'
+          FLUTTER_ASSETS="$APP/Frameworks/App.framework/flutter_assets"
+          for MODEL in sigillum_screen_replay_v2.tflite sigillum_screen_replay_v1.tflite; do
+            test -f "$FLUTTER_ASSETS/assets/ml/$MODEL"
+            cmp "assets/ml/$MODEL" "$FLUTTER_ASSETS/assets/ml/$MODEL"
+          done
+          SHARE_EXTENSION="$(find "$APP/PlugIns" -maxdepth 1 -type d -name '*.appex' | head -n 1 || true)"
+          test -n "$SHARE_EXTENSION"
+          git diff --exit-code "$CANDIDATE_SHA" -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml
+          echo "IOS_UNSIGNED_RELEASE_BUILD=PASS candidate=$CANDIDATE_SHA"
