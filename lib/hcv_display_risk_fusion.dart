@@ -220,6 +220,97 @@ class HCVDisplayRiskFusion {
         stillContentAreaRisk >= 85 &&
         base.decision == 'STRONG_DISPLAY_RISK';
 
+    // BUILD112: recover the physically observed A6 photo false negative without
+    // weakening any global ML/HFR threshold. This path is PHOTO-only and needs
+    // three independent families to agree: near-full-frame still ML, a stable
+    // three-frame SCREEN_* temporal sequence, and a strong passive optical
+    // refresh trace from the technical mini-video. Mixed/physical-reality HFR
+    // evidence remains an explicit veto.
+    final opticalSignals = _signals(passiveOptical);
+    final opticalRisk = passiveOptical?['screenReplayRisk']?.toString() ?? '';
+    final opticalScore =
+        (passiveOptical?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final temporalFrameAnalyses = temporalMl?['videoFrameAnalyses'];
+    var temporalScreenClassFrames = 0;
+    var temporalRisk80Frames = 0;
+    var temporalFullFrame80Frames = 0;
+    if (temporalFrameAnalyses is List) {
+      for (final rawFrame in temporalFrameAnalyses) {
+        if (rawFrame is! Map) continue;
+        final frame = Map<String, dynamic>.from(rawFrame);
+        final frameSignals = _signals(frame);
+        if ((frame['predictedClass']?.toString() ?? '').startsWith('SCREEN_')) {
+          temporalScreenClassFrames++;
+        }
+        if (((frame['screenReplayRiskScore'] as num?)?.toInt() ?? 0) >= 80) {
+          temporalRisk80Frames++;
+        }
+        if (((frameSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0) >= 80) {
+          temporalFullFrame80Frames++;
+        }
+      }
+    }
+    final positivePhysicalReality =
+        _v3Evidence(temporalFrequencyProbe)?['positivePhysicalRealityEvidence'] ==
+        true;
+    final photoModerateScreenOpticalCorroboration =
+        photoTemporalMl != null &&
+        v3Analyzed &&
+        !mixedScene &&
+        !physicalDisplay &&
+        !positivePhysicalReality &&
+        base.decision == 'NON_CONCLUSIVE' &&
+        passiveOptical?['captureSource'] == 'PHOTO_TECHNICAL_MINI_VIDEO_V2' &&
+        opticalRisk == 'HIGH' &&
+        opticalScore >= 80 &&
+        opticalSignals['strongDisplayTrace'] == true &&
+        opticalSignals['temporalScreenPulse'] == true &&
+        opticalSignals['localRefreshFlicker'] == true &&
+        stillPredictedClass.startsWith('SCREEN_') &&
+        stillScreenProbability >= 0.88 &&
+        stillScreenRisk >= 88 &&
+        stillFullFrameRisk >= 88 &&
+        stillContentAreaRisk >= 90 &&
+        temporalFrames >= 3 &&
+        mlAverageScreenRisk >= 80.0 &&
+        temporalScreenClassFrames == temporalFrames &&
+        temporalRisk80Frames == temporalFrames &&
+        temporalFullFrame80Frames == temporalFrames;
+
+    if (photoModerateScreenOpticalCorroboration) {
+      final evidenceSources = <String>{
+        ...base.evidenceSources,
+        'PHOTO_MODERATE_SCREEN_OPTICAL_CORROBORATION',
+      };
+      final strongSources = <String>{
+        ...base.strongSources,
+        'PHOTO_MODERATE_SCREEN_OPTICAL_CORROBORATION',
+      };
+      final reasons = base.reasons
+          .where(
+            (reason) =>
+                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                reason != 'LIVE_PROBE_MISSING',
+          )
+          .toList()
+        ..add('PHOTO_NEAR_FULL_FRAME_SCREEN_ML_SEQUENCE')
+        ..add('PHOTO_OPTICAL_REFRESH_TRACE_CORROBORATES_SCREEN')
+        ..add('DUAL_EVIDENCE_V3_ACTIVE');
+      final corroboratedScore = max(
+        base.score,
+        max(opticalScore, max(stillScreenRisk, mlAverageScreenRisk.round())),
+      );
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: corroboratedScore,
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: evidenceSources.toList(),
+        strongSources: strongSources.toList(),
+        reasons: reasons,
+      );
+    }
+
     final screenPresentButNotFullFrame =
         v3Analyzed &&
         !physicalDisplay &&
