@@ -34,6 +34,10 @@ jobs:
               "Если контент сертифицирован, вы увидите происхождение, целостность и личность автора.",
               "Если контент сертифицирован, вы увидите происхождение, целостность и идентичность автора.",
           )
+          text = text.replace(
+              "      'recording': 'GRABACIÓN EN CURSO',\\n",
+              "      'recording': 'GRABANDO',\\n",
+          )
           path.write_text(text, encoding='utf-8')
           PY
           python3 .github/scripts/build113_copy_complete_patch.py
