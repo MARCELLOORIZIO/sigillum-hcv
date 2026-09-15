@@ -25,7 +25,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Apply complete copy patch
-        run: python3 .github/scripts/build113_copy_complete_patch.py
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/build113_copy_complete_patch.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              "Если контент сертифицирован, вы увидите происхождение, целостность и личность автора.",
+              "Если контент сертифицирован, вы увидите происхождение, целостность и идентичность автора.",
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+          python3 .github/scripts/build113_copy_complete_patch.py
 
       - name: Diff guard
         run: |
