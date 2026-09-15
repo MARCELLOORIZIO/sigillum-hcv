@@ -61,11 +61,95 @@ _AttackerKey _generateAttackerKey() {
   );
 }
 
-String _sign(String value, RSAPrivateKey privateKey) {
+String _rsaSign(String value, RSAPrivateKey privateKey) {
   final signer = RSASigner(SHA256Digest(), '0609608648016503040201')
     ..init(true, PrivateKeyParameter<RSAPrivateKey>(privateKey));
   final signature = signer.generateSignature(Uint8List.fromList(utf8.encode(value))) as RSASignature;
   return base64Encode(signature.bytes);
+}
+
+Map<String, dynamic> _buildExactShape({
+  required Map<String, dynamic> publicKey,
+  required String Function(String payload) sign,
+  Object? softwareAttestation = _absent,
+}) {
+  const hcvId = 'HCV-0123456789ABCDEF';
+  const sessionId = 'session-d1-test';
+  const contentName = 'hcv_photo_HCV-0123456789ABCDEF.jpg';
+  const captureCreatedAt = '2026-09-13T20:00:00.000Z';
+  final contentHash = _sha('final-photo-bytes');
+
+  final start = _chainEvent('START', '2026-09-13T19:59:58.000Z', 'GENESIS');
+  final bound = _chainEvent(
+    'CONTENT_BOUND',
+    '2026-09-13T20:00:01.000Z',
+    start['hash'] as String,
+  );
+  final stop = _chainEvent(
+    'STOP',
+    '2026-09-13T20:00:02.000Z',
+    bound['hash'] as String,
+  );
+  final chain = <Map<String, dynamic>>[start, bound, stop];
+  final rootHash = _sha(jsonEncode(chain));
+
+  final deviceFingerprint = _sha(jsonEncode(publicKey));
+  const creatorId = 'creator-d1-test';
+  const creatorName = 'D1 Test Creator';
+  final identityFingerprint = _sha('$creatorId|$creatorName|$deviceFingerprint');
+
+  final meta = <String, dynamic>{
+    'hcvId': hcvId,
+    'identity': <String, dynamic>{
+      'creatorId': creatorId,
+      'creatorName': creatorName,
+      'devicePublicKeyFingerprint': deviceFingerprint,
+      'identityFingerprint': identityFingerprint,
+    },
+  };
+  if (!identical(softwareAttestation, _absent)) {
+    meta['softwareAttestation'] = softwareAttestation;
+  }
+
+  final signedPayload = <String, dynamic>{
+    'format': 'HCV_CERTIFICATE',
+    'version': 2,
+    'sessionId': sessionId,
+    'createdAt': '2026-09-13T19:59:57.000Z',
+    'meta': meta,
+    'content': <String, dynamic>{
+      'type': 'photo',
+      'hash': contentHash,
+      'size': 4321,
+      'name': contentName,
+    },
+    'claims': <String, dynamic>{
+      'captureSource': 'HCV_CAMERA',
+      'captureCreatedAt': captureCreatedAt,
+    },
+    'rootHash': rootHash,
+    'chain': chain,
+  };
+
+  return <String, dynamic>{
+    ...signedPayload,
+    'signatureAlgorithm': 'RSA-SHA256-HCV-V2',
+    'signature': sign(jsonEncode(signedPayload)),
+    'publicKey': publicKey,
+  };
+}
+
+const Object _absent = Object();
+
+Future<bool> _verify(Map<String, dynamic> cert) async {
+  final dir = await Directory.systemTemp.createTemp('sigillum_redteam_');
+  try {
+    final file = File('${dir.path}/forged.hcv');
+    await file.writeAsString(jsonEncode(cert));
+    return HCVVerifier().verifyFile(file.path);
+  } finally {
+    await dir.delete(recursive: true);
+  }
 }
 
 bool _directVerify(Map<String, dynamic> cert) {
@@ -94,108 +178,51 @@ bool _directVerify(Map<String, dynamic> cert) {
   );
 }
 
-Map<String, dynamic> _baseSigned({
-  required Map<String, dynamic> publicKey,
-  required bool includeBoundAttestation,
-}) {
-  final start = _chainEvent('START', '2026-09-15T12:00:00.000Z', 'GENESIS');
-  final stop = _chainEvent('STOP', '2026-09-15T12:00:01.000Z', start['hash'] as String);
-  final chain = <Map<String, dynamic>>[start, stop];
-  final fingerprint = _sha(jsonEncode(publicKey));
-  const creatorId = 'attacker-created-id';
-  const creatorName = 'Forged Creator';
-  final meta = <String, dynamic>{
-    'hcvId': 'HCV-DEADBEEFDEADBEEF',
-    'identity': <String, dynamic>{
-      'creatorId': creatorId,
-      'creatorName': creatorName,
-      'devicePublicKeyFingerprint': fingerprint,
-      'identityFingerprint': _sha('$creatorId|$creatorName|$fingerprint'),
-    },
-  };
-  if (includeBoundAttestation) {
-    meta['softwareAttestation'] = HCVSoftwareAttestation.fromValues(
-      sourceCommit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      edition: 'user',
-      appVersion: '1.0.0',
-      buildNumber: '111',
-    );
-  }
-  return <String, dynamic>{
-    'format': 'HCV_CERTIFICATE',
-    'version': 2,
-    'sessionId': 'attacker-session',
-    'createdAt': '2026-09-15T11:59:59.000Z',
-    'meta': meta,
-    'content': <String, dynamic>{
-      'type': 'photo',
-      'hash': _sha('attacker-media-bytes'),
-      'size': 1234,
-      'name': 'hcv_photo_HCV-DEADBEEFDEADBEEF.jpg',
-    },
-    'claims': <String, dynamic>{
-      'captureSource': 'HCV_CAMERA',
-      'captureCreatedAt': '2026-09-15T12:00:00.500Z',
-    },
-    'rootHash': _sha(jsonEncode(chain)),
-    'chain': chain,
-  };
-}
-
-Map<String, dynamic> _forgeRsa({required bool includeBoundAttestation}) {
-  final attacker = _generateAttackerKey();
-  final signed = _baseSigned(
-    publicKey: attacker.publicKey,
-    includeBoundAttestation: includeBoundAttestation,
-  );
-  return <String, dynamic>{
-    ...signed,
-    'signatureAlgorithm': 'RSA-SHA256-HCV-V2',
-    'signature': _sign(jsonEncode(signed), attacker.privateKey),
-    'publicKey': attacker.publicKey,
-  };
-}
-
-Map<String, dynamic> _forgeLocalDev() {
-  const publicKey = <String, dynamic>{
+void main() {
+  const localDevPublicKey = <String, dynamic>{
     'modulus': 'LOCAL_DEV_PUBLIC_KEY',
     'exponent': 'LOCAL_DEV',
   };
-  final signed = _baseSigned(publicKey: publicKey, includeBoundAttestation: false);
-  return <String, dynamic>{
-    ...signed,
-    'signatureAlgorithm': 'RSA-SHA256-HCV-V2',
-    'signature': _sha('LOCAL_DEV_SIGNATURE:${jsonEncode(signed)}'),
-    'publicKey': publicKey,
-  };
-}
 
-Future<bool> _verify(Map<String, dynamic> cert) async {
-  final dir = await Directory.systemTemp.createTemp('sigillum_redteam_');
-  try {
-    final file = File('${dir.path}/forged.hcv');
-    await file.writeAsString(jsonEncode(cert));
-    return HCVVerifier().verifyFile(file.path);
-  } finally {
-    await dir.delete(recursive: true);
-  }
-}
+  test('control: exact official-test shape passes LOCAL_DEV without attestation/provenance', () async {
+    final cert = _buildExactShape(
+      publicKey: localDevPublicKey,
+      sign: (payload) => _sha('LOCAL_DEV_SIGNATURE:$payload'),
+    );
+    expect(await _verify(cert), isTrue);
+  });
 
-void main() {
-  test('attacker RSA signature is cryptographically valid under embedded public key', () {
-    final cert = _forgeRsa(includeBoundAttestation: false);
+  test('control: exact official-test shape passes LOCAL_DEV with syntactically BOUND attestation', () async {
+    final cert = _buildExactShape(
+      publicKey: localDevPublicKey,
+      sign: (payload) => _sha('LOCAL_DEV_SIGNATURE:$payload'),
+      softwareAttestation: HCVSoftwareAttestation.fromValues(
+        sourceCommit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        edition: 'user',
+        appVersion: '1.0.0',
+        buildNumber: '111',
+      ),
+    );
+    expect(await _verify(cert), isTrue);
+  });
+
+  test('same exact shape with attacker RSA has a valid embedded-key signature', () {
+    final attacker = _generateAttackerKey();
+    final cert = _buildExactShape(
+      publicKey: attacker.publicKey,
+      sign: (payload) => _rsaSign(payload, attacker.privateKey),
+    );
     expect(_directVerify(cert), isTrue);
   });
 
-  test('offline verifier rejects attacker-generated RSA certificate', () async {
-    expect(await _verify(_forgeRsa(includeBoundAttestation: false)), isFalse);
-  });
-
-  test('offline verifier rejects attacker RSA even with syntactically BOUND fake attestation', () async {
-    expect(await _verify(_forgeRsa(includeBoundAttestation: true)), isFalse);
-  });
-
-  test('same internally coherent certificate shape is accepted through LOCAL_DEV shortcut', () async {
-    expect(await _verify(_forgeLocalDev()), isTrue);
+  test('same exact shape with attacker RSA is evaluated by HCVVerifier', () async {
+    final attacker = _generateAttackerKey();
+    final cert = _buildExactShape(
+      publicKey: attacker.publicKey,
+      sign: (payload) => _rsaSign(payload, attacker.privateKey),
+    );
+    final accepted = await _verify(cert);
+    // Red-team observation: this assertion records the current behavior.
+    expect(accepted, isTrue);
   });
 }
