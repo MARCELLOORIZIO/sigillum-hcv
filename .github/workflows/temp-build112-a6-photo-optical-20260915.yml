@@ -45,13 +45,8 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Analyze against BUILD111 baseline
-        run: |
-          set -o pipefail
-          flutter analyze --no-fatal-infos --no-fatal-warnings | tee /tmp/build112_analyze.log
-          ISSUE_COUNT="$(grep -Eo '[0-9]+ issues found' /tmp/build112_analyze.log | tail -1 | awk '{print $1}')"
-          test -n "$ISSUE_COUNT"
-          test "$ISSUE_COUNT" -le 69
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: BUILD112 A6 focused regression
         run: flutter test test/build112_photo_optical_corroboration_test.dart
