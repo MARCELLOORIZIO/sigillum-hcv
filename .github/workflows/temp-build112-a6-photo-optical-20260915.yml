@@ -25,26 +25,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Apply BUILD112 A6 patch
-        run: |
-          python3 .github/scripts/build112_a6_photo_optical_patch.py
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('lib/hcv_display_risk_fusion.dart')
-          source = path.read_text(encoding='utf-8')
-          source = source.replace(
-              "passiveOptical?['screenReplayRisk']?.toString()",
-              "passiveOptical['screenReplayRisk']?.toString()",
-          )
-          source = source.replace(
-              "passiveOptical?['screenReplayRiskScore']",
-              "passiveOptical['screenReplayRiskScore']",
-          )
-          source = source.replace(
-              "passiveOptical?['captureSource']",
-              "passiveOptical['captureSource']",
-          )
-          path.write_text(source, encoding='utf-8')
-          PY
+        run: python3 .github/scripts/build112_a6_photo_optical_patch.py
 
       - name: Diff guard
         run: |
