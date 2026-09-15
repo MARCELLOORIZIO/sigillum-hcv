@@ -1,0 +1,81 @@
+name: TEMP BUILD113 complete copy validation
+
+on:
+  push:
+    branches:
+      - fix/build113-copy-complete-20260916
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+        with:
+          ref: fix/build113-copy-complete-20260916
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply complete copy patch
+        run: python3 .github/scripts/build113_copy_complete_patch.py
+
+      - name: Diff guard
+        run: |
+          git diff --check
+          git status --short
+          CHANGED="$(git status --porcelain | awk '{print $2}' | sort)"
+          EXPECTED=$'lib/camera_page.dart\nlib/camera_ui_copy.dart\nlib/camera_ui_extended_copy.dart\nlib/commercial_gate.dart\nlib/commercial_profile_page.dart\nlib/hcvpack_player_page.dart\nlib/home_page.dart\nlib/lab_ui_copy.dart\nlib/legal_info_page.dart\nlib/registry_verify_copy.dart\nlib/registry_verify_page.dart\nlib/screen_replay_calibration_page.dart\nlib/screen_replay_diagnostics_page.dart\nlib/sigillum_localization.dart\nlib/sigillum_quick_guide_page.dart\nlib/text_cert_page.dart\nlib/user_home_page.dart\nlib/verification_ui_copy.dart\nlib/video_player_verify_page.dart\nlib/video_verify_page.dart\ntest/build113_copy_localization_contract_test.dart'
+          test "$CHANGED" = "$EXPECTED"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: false
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: BUILD113 copy contract
+        run: flutter test test/build113_copy_localization_contract_test.dart
+
+      - name: BUILD113 audio fingerprint regression
+        run: flutter test test/build113_audio_fingerprint_test.dart
+
+      - name: Existing localization and verification contracts
+        run: |
+          flutter test test/prelaunch_legal_localization_contract_test.dart
+          flutter test test/verification_clarity_localization_ml_contract_test.dart
+          flutter test test/prelaunch_verification_registry_regression_20260824_test.dart
+          flutter test test/hcv_registry_provenance_gate_contract_test.dart
+
+      - name: HCVPACK integrity gate
+        run: flutter test test/hcvpack_integrity_release_gate_test.dart
+
+      - name: Full Flutter suite
+        run: flutter test
+
+      - name: Commit tested app copy
+        run: |
+          git add lib/camera_page.dart lib/camera_ui_copy.dart lib/camera_ui_extended_copy.dart \
+            lib/commercial_gate.dart lib/commercial_profile_page.dart lib/hcvpack_player_page.dart \
+            lib/home_page.dart lib/lab_ui_copy.dart lib/legal_info_page.dart lib/registry_verify_copy.dart \
+            lib/registry_verify_page.dart lib/screen_replay_calibration_page.dart \
+            lib/screen_replay_diagnostics_page.dart lib/sigillum_localization.dart \
+            lib/sigillum_quick_guide_page.dart lib/text_cert_page.dart lib/user_home_page.dart \
+            lib/verification_ui_copy.dart lib/video_player_verify_page.dart lib/video_verify_page.dart \
+            test/build113_copy_localization_contract_test.dart
+          git commit -m "fix(copy): align all app pages with BUILD113 in four languages [skip ci]"
+          git push origin HEAD:fix/build113-copy-complete-20260916
