@@ -31,7 +31,7 @@ jobs:
         run: |
           git diff --check
           git status --short
-          CHANGED="$(git diff --name-only | sort)"
+          CHANGED="$(git status --porcelain | awk '{print $2}' | sort)"
           EXPECTED=$'lib/hcv_display_risk_fusion.dart\ntest/build112_photo_optical_corroboration_test.dart'
           test "$CHANGED" = "$EXPECTED"
 
