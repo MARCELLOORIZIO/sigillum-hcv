@@ -42,11 +42,12 @@ jobs:
               "s = replace_once(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar')",
               "s = replace_required(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar', count=2)",
           )
-          text = text.replace(
-              "\"'humanVerified': 'HUMAN VERIFIED'\":\"'humanVerified': 'CERTIFICAZIONE COMPLETATA'\",\\n",
-              "",
-          )
-          path.write_text(text, encoding='utf-8')
+          lines = text.splitlines()
+          lines = [
+              line for line in lines
+              if not ("'humanVerified': 'HUMAN VERIFIED'" in line and "CERTIFICAZIONE COMPLETATA" in line)
+          ]
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
           python3 .github/scripts/build113_copy_complete_patch.py
 
