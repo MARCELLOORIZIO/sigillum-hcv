@@ -1,0 +1,73 @@
+name: TEMP BUILD112 social fingerprint fail-closed validation
+
+on:
+  push:
+    branches:
+      - fix/build112-social-fingerprint-failclosed-20260915
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+        with:
+          ref: fix/build112-social-fingerprint-failclosed-20260915
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply social fingerprint fail-closed patch
+        run: python3 .github/scripts/build112_social_fingerprint_failclosed_patch.py
+
+      - name: Diff guard
+        run: |
+          git diff --check
+          git status --short
+          CHANGED="$(git status --porcelain | awk '{print $2}' | sort)"
+          EXPECTED=$'lib/registry_verify_page.dart\ntest/build112_social_fingerprint_failclosed_test.dart'
+          test "$CHANGED" = "$EXPECTED"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: false
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: BUILD112 focused social fingerprint regression
+        run: flutter test test/build112_social_fingerprint_failclosed_test.dart
+
+      - name: Registry verification regressions
+        run: flutter test test/registry_verify_hcv_id16_contract_test.dart test/registry_display_risk_claims_test.dart test/hcv_media_id_ocr_test.dart test/quick_hcv_media_gate_contract_test.dart test/rc2_photo_integrity_contract_test.dart
+
+      - name: Registry provenance regression
+        run: flutter test test/hcv_registry_provenance_gate_contract_test.dart
+
+      - name: HCVPACK integrity gate
+        run: flutter test test/hcvpack_integrity_release_gate_test.dart
+
+      - name: BUILD112 A6 and BUILD111 monitor regressions
+        run: flutter test test/build112_photo_optical_corroboration_test.dart test/build111_photo_monitor_regression_test.dart
+
+      - name: Full Flutter suite
+        run: flutter test
+
+      - name: Commit tested candidate
+        run: |
+          git add lib/registry_verify_page.dart test/build112_social_fingerprint_failclosed_test.dart
+          git commit -m "fix(build112): fail closed on missing modern social fingerprint [skip ci]"
+          git push origin HEAD:fix/build112-social-fingerprint-failclosed-20260915
