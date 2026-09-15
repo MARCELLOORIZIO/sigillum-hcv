@@ -25,7 +25,39 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Apply BUILD113 audio fingerprint patch
-        run: python3 .github/scripts/build113_audio_fingerprint_patch.py
+        run: |
+          python3 .github/scripts/build113_audio_fingerprint_patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          audio = Path('lib/hcv_audio_fingerprint.dart')
+          source = audio.read_text(encoding='utf-8')
+          source = source.replace(
+              "final samples = <int>[];\n      samples.length = bytes.length ~/ 2;",
+              "final samples = List<int>.filled(bytes.length ~/ 2, 0);",
+          )
+          source = source.replace(
+              "features.add(((correlation + 1.0) * 127.5).round().clamp(0, 255));",
+              "features.add(((correlation + 1.0) * 127.5).round().clamp(0, 255).toInt());",
+          )
+          source = source.replace(
+              "features.add((((delta + 2.0) / 4.0) * 255.0).round().clamp(0, 255));",
+              "features.add((((delta + 2.0) / 4.0) * 255.0).round().clamp(0, 255).toInt());",
+          )
+          audio.write_text(source, encoding='utf-8')
+
+          test = Path('test/build113_audio_fingerprint_test.dart')
+          source = test.read_text(encoding='utf-8')
+          source = source.replace(
+              "samples.add((value * 12000).round().clamp(-32768, 32767));",
+              "samples.add((value * 12000).round().clamp(-32768, 32767).toInt());",
+          )
+          source = source.replace(
+              ").clamp(-32768, 32767);",
+              ").clamp(-32768, 32767).toInt();",
+          )
+          test.write_text(source, encoding='utf-8')
+          PY
 
       - name: Diff guard
         run: |
