@@ -20,6 +20,11 @@ Uint8List _bigIntBytes(BigInt value) {
   return out;
 }
 
+BigInt _bytesBigInt(List<int> bytes) {
+  final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return BigInt.parse(hex, radix: 16);
+}
+
 Map<String, dynamic> _chainEvent(String type, String timestamp, String prev) {
   final event = <String, dynamic>{
     'type': type,
@@ -63,16 +68,42 @@ String _sign(String value, RSAPrivateKey privateKey) {
   return base64Encode(signature.bytes);
 }
 
-Map<String, dynamic> _forgeCertificate({required bool includeBoundAttestation}) {
-  final attacker = _generateAttackerKey();
+bool _directVerify(Map<String, dynamic> cert) {
+  final pub = cert['publicKey'] as Map<String, dynamic>;
+  final key = RSAPublicKey(
+    _bytesBigInt(base64Decode(pub['modulus'] as String)),
+    _bytesBigInt(base64Decode(pub['exponent'] as String)),
+  );
+  final signed = <String, dynamic>{
+    'format': cert['format'],
+    'version': cert['version'],
+    'sessionId': cert['sessionId'],
+    'createdAt': cert['createdAt'],
+    'meta': cert['meta'],
+    'content': cert['content'],
+    'claims': cert['claims'] ?? <String, dynamic>{},
+    if (cert.containsKey('liveSignals')) 'liveSignals': cert['liveSignals'],
+    'rootHash': cert['rootHash'],
+    'chain': cert['chain'],
+  };
+  final verifier = RSASigner(SHA256Digest(), '0609608648016503040201')
+    ..init(false, PublicKeyParameter<RSAPublicKey>(key));
+  return verifier.verifySignature(
+    Uint8List.fromList(utf8.encode(jsonEncode(signed))),
+    RSASignature(base64Decode(cert['signature'] as String)),
+  );
+}
+
+Map<String, dynamic> _baseSigned({
+  required Map<String, dynamic> publicKey,
+  required bool includeBoundAttestation,
+}) {
   final start = _chainEvent('START', '2026-09-15T12:00:00.000Z', 'GENESIS');
   final stop = _chainEvent('STOP', '2026-09-15T12:00:01.000Z', start['hash'] as String);
   final chain = <Map<String, dynamic>>[start, stop];
-  final rootHash = _sha(jsonEncode(chain));
-  final fingerprint = _sha(jsonEncode(attacker.publicKey));
+  final fingerprint = _sha(jsonEncode(publicKey));
   const creatorId = 'attacker-created-id';
   const creatorName = 'Forged Creator';
-
   final meta = <String, dynamic>{
     'hcvId': 'HCV-DEADBEEFDEADBEEF',
     'identity': <String, dynamic>{
@@ -90,8 +121,7 @@ Map<String, dynamic> _forgeCertificate({required bool includeBoundAttestation}) 
       buildNumber: '111',
     );
   }
-
-  final signed = <String, dynamic>{
+  return <String, dynamic>{
     'format': 'HCV_CERTIFICATE',
     'version': 2,
     'sessionId': 'attacker-session',
@@ -107,15 +137,36 @@ Map<String, dynamic> _forgeCertificate({required bool includeBoundAttestation}) 
       'captureSource': 'HCV_CAMERA',
       'captureCreatedAt': '2026-09-15T12:00:00.500Z',
     },
-    'rootHash': rootHash,
+    'rootHash': _sha(jsonEncode(chain)),
     'chain': chain,
   };
+}
 
+Map<String, dynamic> _forgeRsa({required bool includeBoundAttestation}) {
+  final attacker = _generateAttackerKey();
+  final signed = _baseSigned(
+    publicKey: attacker.publicKey,
+    includeBoundAttestation: includeBoundAttestation,
+  );
   return <String, dynamic>{
     ...signed,
     'signatureAlgorithm': 'RSA-SHA256-HCV-V2',
     'signature': _sign(jsonEncode(signed), attacker.privateKey),
     'publicKey': attacker.publicKey,
+  };
+}
+
+Map<String, dynamic> _forgeLocalDev() {
+  const publicKey = <String, dynamic>{
+    'modulus': 'LOCAL_DEV_PUBLIC_KEY',
+    'exponent': 'LOCAL_DEV',
+  };
+  final signed = _baseSigned(publicKey: publicKey, includeBoundAttestation: false);
+  return <String, dynamic>{
+    ...signed,
+    'signatureAlgorithm': 'RSA-SHA256-HCV-V2',
+    'signature': _sha('LOCAL_DEV_SIGNATURE:${jsonEncode(signed)}'),
+    'publicKey': publicKey,
   };
 }
 
@@ -131,11 +182,20 @@ Future<bool> _verify(Map<String, dynamic> cert) async {
 }
 
 void main() {
-  test('offline verifier accepts attacker-generated RSA key with no attestation/provenance', () async {
-    expect(await _verify(_forgeCertificate(includeBoundAttestation: false)), isTrue);
+  test('attacker RSA signature is cryptographically valid under embedded public key', () {
+    final cert = _forgeRsa(includeBoundAttestation: false);
+    expect(_directVerify(cert), isTrue);
   });
 
-  test('offline verifier accepts attacker-generated RSA key with syntactically BOUND fake build attestation', () async {
-    expect(await _verify(_forgeCertificate(includeBoundAttestation: true)), isTrue);
+  test('offline verifier rejects attacker-generated RSA certificate', () async {
+    expect(await _verify(_forgeRsa(includeBoundAttestation: false)), isFalse);
+  });
+
+  test('offline verifier rejects attacker RSA even with syntactically BOUND fake attestation', () async {
+    expect(await _verify(_forgeRsa(includeBoundAttestation: true)), isFalse);
+  });
+
+  test('same internally coherent certificate shape is accepted through LOCAL_DEV shortcut', () async {
+    expect(await _verify(_forgeLocalDev()), isTrue);
   });
 }
