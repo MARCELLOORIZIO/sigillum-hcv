@@ -66,6 +66,65 @@ HCVDisplayRiskClaimValues resolveHCVDisplayRiskClaimValues(
   );
 }
 
+enum HCVSocialFingerprintClaimState {
+  usable,
+  legacyMissing,
+  modernInvalid,
+}
+
+HCVSocialFingerprintClaimState resolveHCVSocialFingerprintClaimState(
+  Map<dynamic, dynamic> claims, {
+  required String mediaType,
+}) {
+  final requiresModernFingerprint = claims['socialVerification'] == true;
+  final rawFingerprint = claims['socialFingerprint'];
+  if (rawFingerprint is! Map) {
+    return requiresModernFingerprint
+        ? HCVSocialFingerprintClaimState.modernInvalid
+        : HCVSocialFingerprintClaimState.legacyMissing;
+  }
+
+  final algorithm = rawFingerprint['algorithm']?.toString() ?? '';
+  final shaLikeFingerprint = RegExp(r'^[a-fA-F0-9]{64}$');
+
+  bool valid = false;
+  if (mediaType == 'photo') {
+    final imageHash = rawFingerprint['imageHash']?.toString() ?? '';
+    valid = algorithm == 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1' &&
+        shaLikeFingerprint.hasMatch(imageHash);
+  } else if (mediaType == 'video') {
+    final frameHashes = rawFingerprint['frameHashes'];
+    valid = algorithm == 'SIGILLUM_SOCIAL_AHASH_V1' &&
+        frameHashes is List &&
+        frameHashes.isNotEmpty &&
+        frameHashes.every(
+          (value) => shaLikeFingerprint.hasMatch(value.toString()),
+        );
+  }
+
+  if (valid) return HCVSocialFingerprintClaimState.usable;
+  return requiresModernFingerprint
+      ? HCVSocialFingerprintClaimState.modernInvalid
+      : HCVSocialFingerprintClaimState.legacyMissing;
+}
+
+bool? resolveHCVSocialFingerprintAvailability(
+  Map<dynamic, dynamic> claims, {
+  required String mediaType,
+}) {
+  switch (resolveHCVSocialFingerprintClaimState(
+    claims,
+    mediaType: mediaType,
+  )) {
+    case HCVSocialFingerprintClaimState.usable:
+      return true;
+    case HCVSocialFingerprintClaimState.legacyMissing:
+      return null;
+    case HCVSocialFingerprintClaimState.modernInvalid:
+      return false;
+  }
+}
+
 class RegistryVerifyPage extends StatefulWidget {
   final String? initialMediaPath;
   final String? initialHcvId;
@@ -433,15 +492,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return null;
     }
 
-    final stored = claims['socialFingerprint'];
-    if (stored is! Map) {
-      return null;
-    }
+    final fingerprintAvailable = resolveHCVSocialFingerprintAvailability(
+      claims,
+      mediaType: 'video',
+    );
+    if (fingerprintAvailable != true) return fingerprintAvailable;
 
-    final storedHashes = stored['frameHashes'];
-    if (storedHashes is! List || storedHashes.isEmpty) {
-      return null;
-    }
+    final stored = claims['socialFingerprint'] as Map;
+    final storedHashes = stored['frameHashes'] as List;
 
     try {
       final current = await HCVSocialFingerprint().buildFromVideo(mediaPath!);
@@ -515,15 +573,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return null;
     }
 
-    final stored = claims['socialFingerprint'];
-    if (stored is! Map) {
-      return null;
-    }
+    final fingerprintAvailable = resolveHCVSocialFingerprintAvailability(
+      claims,
+      mediaType: 'photo',
+    );
+    if (fingerprintAvailable != true) return fingerprintAvailable;
 
-    final expected = stored['imageHash']?.toString();
-    if (expected == null || expected.isEmpty) {
-      return null;
-    }
+    final stored = claims['socialFingerprint'] as Map;
+    final expected = stored['imageHash']!.toString();
 
     try {
       final current = await HCVSocialFingerprint().buildFromImage(mediaPath!);
