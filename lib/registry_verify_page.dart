@@ -18,6 +18,7 @@ import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import 'hcv_social_fingerprint.dart';
+import 'hcv_audio_fingerprint.dart';
 import 'hcv_media_id_ocr.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
@@ -121,6 +122,40 @@ bool? resolveHCVSocialFingerprintAvailability(
     case HCVSocialFingerprintClaimState.legacyMissing:
       return null;
     case HCVSocialFingerprintClaimState.modernInvalid:
+      return false;
+  }
+}
+
+enum HCVAudioFingerprintClaimState {
+  usable,
+  legacyMissing,
+  modernInvalid,
+}
+
+HCVAudioFingerprintClaimState resolveHCVAudioFingerprintClaimState(
+  Map<dynamic, dynamic> claims,
+) {
+  final social = claims['socialFingerprint'];
+  if (social is! Map || !social.containsKey('audioFingerprintPolicy')) {
+    return HCVAudioFingerprintClaimState.legacyMissing;
+  }
+  if (social['audioFingerprintPolicy'] != HCVAudioFingerprint.policy) {
+    return HCVAudioFingerprintClaimState.modernInvalid;
+  }
+  final audio = social['audioFingerprint'];
+  if (audio is! Map || !HCVAudioFingerprint.isValidFingerprint(audio)) {
+    return HCVAudioFingerprintClaimState.modernInvalid;
+  }
+  return HCVAudioFingerprintClaimState.usable;
+}
+
+bool? resolveHCVAudioFingerprintAvailability(Map<dynamic, dynamic> claims) {
+  switch (resolveHCVAudioFingerprintClaimState(claims)) {
+    case HCVAudioFingerprintClaimState.usable:
+      return true;
+    case HCVAudioFingerprintClaimState.legacyMissing:
+      return null;
+    case HCVAudioFingerprintClaimState.modernInvalid:
       return false;
   }
 }
@@ -502,7 +537,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final storedHashes = stored['frameHashes'] as List;
 
     try {
-      final current = await HCVSocialFingerprint().buildFromVideo(mediaPath!);
+      final current = await HCVSocialFingerprint().buildVisualFromVideo(mediaPath!);
       final currentHashes = current['frameHashes'];
 
       if (currentHashes is! List || currentHashes.isEmpty) {
@@ -552,6 +587,34 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final requiredMatches = max(2, (comparableCount * 0.35).ceil());
 
     return matched >= requiredMatches;
+  }
+
+  Future<bool?> _matchesCertifiedAudioFingerprint(
+    Map<String, dynamic> cert,
+  ) async {
+    if (mediaPath == null) return null;
+    final lowerPath = mediaPath!.toLowerCase();
+    if (!lowerPath.endsWith('.mp4') &&
+        !lowerPath.endsWith('.mov') &&
+        !lowerPath.endsWith('.m4v')) {
+      return null;
+    }
+
+    final claims = cert['claims'];
+    if (claims is! Map) return null;
+    final availability = resolveHCVAudioFingerprintAvailability(claims);
+    if (availability != true) return availability;
+
+    final social = claims['socialFingerprint'] as Map;
+    final stored = Map<String, dynamic>.from(
+      social['audioFingerprint'] as Map,
+    );
+    try {
+      final current = await HCVAudioFingerprint.buildFromVideo(mediaPath!);
+      return HCVAudioFingerprint.matches(stored, current);
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool?> _matchesCertifiedImageFingerprint(
@@ -1070,6 +1133,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final videoFingerprintMatches = await _matchesCertifiedVideoFingerprint(
         cert,
       );
+      final audioFingerprintMatches = await _matchesCertifiedAudioFingerprint(
+        cert,
+      );
       final imageFingerprintMatches = await _matchesCertifiedImageFingerprint(
         cert,
       );
@@ -1137,11 +1203,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
           final hcvIdProvided = idController.text.trim().isNotEmpty;
 
-          if (contentType == 'video' && videoFingerprintMatches == true) {
+          if (contentType == 'video' &&
+              videoFingerprintMatches == true &&
+              audioFingerprintMatches == false) {
+            status = hcvIdWasDetectedInMedia
+                ? 'HCV-ID e fingerprint video compatibili, ma il fingerprint audio non corrisponde al contenuto certificato. Possibile audio sostituito, rimosso o alterato oltre la tolleranza di ricompressione.'
+                : 'HCV-ID inserito e fingerprint video compatibile, ma il fingerprint audio non corrisponde al contenuto certificato. Il video selezionato non verifica la traccia audio certificata.';
+            result = 'ID VALID / MEDIA NOT VERIFIED';
+          } else if (contentType == 'video' && videoFingerprintMatches == true) {
             markVerified(
-              hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint video compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
+              audioFingerprintMatches == true
+                  ? (hcvIdWasDetectedInMedia
+                        ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido, fingerprint video compatibile e fingerprint audio compatibile dopo ricompressione.'
+                        : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido, fingerprint video compatibile e fingerprint audio compatibile dopo ricompressione.')
+                  : (hcvIdWasDetectedInMedia
+                        ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video e fingerprint video compatibile. Certificato legacy precedente al fingerprint audio.'
+                        : 'SOCIAL VERIFIED OK\nHCV-ID inserito e fingerprint video compatibile. Certificato legacy precedente al fingerprint audio.'),
               'SOCIAL VERIFIED OK',
             );
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&

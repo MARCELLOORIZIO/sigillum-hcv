@@ -9,6 +9,8 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hcv_audio_fingerprint.dart';
+
 class HCVSocialFingerprint {
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
@@ -41,6 +43,16 @@ class HCVSocialFingerprint {
   }
 
   Future<Map<String, dynamic>> buildFromVideo(String videoPath) async {
+    final visual = await buildVisualFromVideo(videoPath);
+    final audio = await HCVAudioFingerprint.buildFromVideo(videoPath);
+    return <String, dynamic>{
+      ...visual,
+      'audioFingerprintPolicy': HCVAudioFingerprint.policy,
+      'audioFingerprint': audio,
+    };
+  }
+
+  Future<Map<String, dynamic>> buildVisualFromVideo(String videoPath) async {
     final file = File(videoPath);
     if (!await file.exists()) {
       throw Exception('Video non trovato: $videoPath');
@@ -118,7 +130,8 @@ class HCVSocialFingerprint {
         if (!await source.exists()) continue;
 
         await source.copy(
-            p.join(workDir.path, 'frame_${i.toString().padLeft(3, '0')}.jpg'));
+          p.join(workDir.path, 'frame_${i.toString().padLeft(3, '0')}.jpg'),
+        );
       } catch (_) {}
     }
 
