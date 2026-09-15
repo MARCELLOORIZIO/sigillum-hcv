@@ -1,0 +1,22 @@
+name: TEMP redteam offline verifier
+
+on:
+  push:
+    branches:
+      - audit/redteam-verifier-20260915
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/redteam-verifier-20260915
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: false
+      - run: flutter pub get
+      - run: flutter test test/redteam_offline_verifier_forgery_test.dart
