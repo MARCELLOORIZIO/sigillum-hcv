@@ -1,0 +1,20 @@
+name: TEMP BUILD113 UI copy audit
+
+on:
+  push:
+    branches:
+      - audit/build113-ui-copy-20260915
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/build113-ui-copy-20260915
+      - name: Run copy audit
+        run: python3 .github/scripts/audit_build113_ui_copy.py
