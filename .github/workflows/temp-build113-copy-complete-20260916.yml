@@ -38,6 +38,10 @@ jobs:
               "      'recording': 'GRABACIÓN EN CURSO',\\n",
               "      'recording': 'GRABANDO',\\n",
           )
+          text = text.replace(
+              "s = replace_once(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar')",
+              "s = replace_required(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar', count=2)",
+          )
           path.write_text(text, encoding='utf-8')
           PY
           python3 .github/scripts/build113_copy_complete_patch.py
