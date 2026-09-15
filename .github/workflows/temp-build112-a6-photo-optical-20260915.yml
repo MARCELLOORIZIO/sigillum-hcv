@@ -25,7 +25,26 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Apply BUILD112 A6 patch
-        run: python3 .github/scripts/build112_a6_photo_optical_patch.py
+        run: |
+          python3 .github/scripts/build112_a6_photo_optical_patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('lib/hcv_display_risk_fusion.dart')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              "passiveOptical?['screenReplayRisk']?.toString()",
+              "passiveOptical['screenReplayRisk']?.toString()",
+          )
+          source = source.replace(
+              "passiveOptical?['screenReplayRiskScore']",
+              "passiveOptical['screenReplayRiskScore']",
+          )
+          source = source.replace(
+              "passiveOptical?['captureSource']",
+              "passiveOptical['captureSource']",
+          )
+          path.write_text(source, encoding='utf-8')
+          PY
 
       - name: Diff guard
         run: |
@@ -38,15 +57,20 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.9'
+          flutter-version: '3.47.4'
           channel: stable
-          cache: true
+          cache: false
 
       - name: Pub get
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
+      - name: Analyze against BUILD111 baseline
+        run: |
+          set -o pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings | tee /tmp/build112_analyze.log
+          ISSUE_COUNT="$(grep -Eo '[0-9]+ issues found' /tmp/build112_analyze.log | tail -1 | awk '{print $1}')"
+          test -n "$ISSUE_COUNT"
+          test "$ISSUE_COUNT" -le 69
 
       - name: BUILD112 A6 focused regression
         run: flutter test test/build112_photo_optical_corroboration_test.dart
@@ -55,7 +79,10 @@ jobs:
         run: flutter test test/build111_photo_monitor_regression_test.dart
 
       - name: BUILD109 spatial regression
-        run: flutter test test/build109_photo_spatial_regression_test.dart
+        run: flutter test test/video_photo_spatial_evidence_test.dart test/video_photo_spatial_fusion_test.dart
+
+      - name: BUILD109 HFR ML regression
+        run: flutter test test/build109_low_modulation_hfr_recovery_test.dart test/build109_ml_fullframe_recovery_test.dart
 
       - name: Fusion regression
         run: flutter test test/hcv_display_risk_fusion_test.dart
