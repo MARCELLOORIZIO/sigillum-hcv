@@ -14,6 +14,12 @@ text = text.replace(
     "'es': \"      'recording': 'GRABANDO',\\n\"",
 )
 
+# Avoid consuming HUMAN VERIFIED before the deliberate four-language block.
+text = text.replace(
+    '"\'humanVerified\': \'HUMAN VERIFIED\'":"\'humanVerified\': \'CERTIFICAZIONE COMPLETATA\'",\n',
+    '',
+)
+
 # The English phrase appears in more than one copy map; update all expected hits.
 text = text.replace(
     "s = replace_once(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar')",
