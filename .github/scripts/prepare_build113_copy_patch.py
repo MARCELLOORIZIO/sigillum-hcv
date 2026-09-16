@@ -3,6 +3,17 @@ from pathlib import Path
 path = Path('.github/scripts/build113_copy_complete_patch.py')
 text = path.read_text(encoding='utf-8')
 
+# Align two stale source anchors in the materializer with the actual BUILD113
+# source without changing the product before the materializer applies its patch.
+text = text.replace(
+    "'socialVerifyStep4':\\n          'Если контент сертифицирован, вы увидите происхождение, целостность и личность автора.'",
+    "'socialVerifyStep4':\\n          'Если контент сертифицирован, вы увидите происхождение, целостность и идентичность автора.'",
+)
+text = text.replace(
+    "'es': \"      'recording': 'GRABACIÓN EN CURSO',\\n\"",
+    "'es': \"      'recording': 'GRABANDO',\\n\"",
+)
+
 # The English phrase appears in more than one copy map; update all expected hits.
 text = text.replace(
     "s = replace_once(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar')",
