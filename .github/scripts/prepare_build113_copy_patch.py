@@ -3,19 +3,14 @@ from pathlib import Path
 path = Path('.github/scripts/build113_copy_complete_patch.py')
 text = path.read_text(encoding='utf-8')
 
-text = text.replace(
-    "Если контент сертифицирован, вы увидите происхождение, целостность и личность автора.",
-    "Если контент сертифицирован, вы увидите происхождение, целостность и идентичность автора.",
-)
-text = text.replace(
-    "      'recording': 'GRABACIÓN EN CURSO',\n",
-    "      'recording': 'GRABANDO',\n",
-)
+# The English phrase appears in more than one copy map; update all expected hits.
 text = text.replace(
     "s = replace_once(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar')",
     "s = replace_required(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar', count=2)",
 )
 
+# The original CommercialGate helper anchored additions to openResourceFailed,
+# whose wording differs slightly by language. Anchor to purchaseFailed instead.
 old_loop = "for old,new in cg_add.items(): s=replace_once(s,old,new,'commercial map add')"
 new_loop = '''# Insert the four new CommercialGate keys using stable per-language anchors.
 for anchor, addition in [
@@ -31,12 +26,5 @@ if old_loop not in text:
     raise RuntimeError('commercial loop rewrite anchor missing')
 text = text.replace(old_loop, new_loop, 1)
 
-# The generated CameraUiCopy replacement had one duplicate HUMAN VERIFIED entry.
-lines = text.splitlines()
-lines = [
-    line for line in lines
-    if not ("'humanVerified': 'HUMAN VERIFIED'" in line and 'CERTIFICAZIONE COMPLETATA' in line)
-]
-
-path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+path.write_text(text, encoding='utf-8')
 print('BUILD113 copy materializer prepared')
