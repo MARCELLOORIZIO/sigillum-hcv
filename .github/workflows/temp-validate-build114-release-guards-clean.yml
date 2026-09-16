@@ -1,0 +1,56 @@
+name: TEMP validate BUILD114 clean release guards
+
+on:
+  push:
+    branches:
+      - validation/build114-release-guards-clean-20260916
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: macos-26
+    steps:
+      - name: Checkout exact clean SHA
+        uses: actions/checkout@v4
+        with:
+          ref: 0e427d4e476b97dc11f7a3423cd259550e70078c
+          fetch-depth: 0
+
+      - name: Verify exact clean SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "0e427d4e476b97dc11f7a3423cd259550e70078c"
+          test -z "$(git status --short)"
+          test ! -e .github/scripts/fix_build114_release_guards.py
+          test ! -e .github/workflows/temp-build114-release-guards-final.yml
+
+      - name: Set up Flutter 3.47.1
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies and pin iOS runtime
+        run: |
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Full Flutter suite
+        run: flutter test --reporter expanded
+
+      - name: Postpatch release verifier
+        run: python3 tool/verify_postpatch_release_20260825.py
+
+      - name: Test TestFlight source guards
+        run: |
+          grep -F "require_source_token lib/registry_verify_page.dart \"ml?['tfliteRuntimeVersion']\"" tool/build_testflight_ipa_rc2_20260825.sh
+          grep -F 'require_source_token lib/registry_verify_page.dart "pixelGridUniformityScore"' tool/build_testflight_ipa_rc2_20260825.sh
+          grep -F 'require_source_token lib/registry_verify_page.dart "liveProbeFineStripeScore"' tool/build_testflight_ipa_rc2_20260825.sh
+          ! grep -F 'require_source_token lib/registry_verify_page.dart "TFLite runtime:"' tool/build_testflight_ipa_rc2_20260825.sh
+          test -z "$(git status --short)"
