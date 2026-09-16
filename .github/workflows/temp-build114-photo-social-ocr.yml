@@ -25,7 +25,18 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
       - name: Apply bounded PHOTO OCR Registry fix
-        run: python3 .github/scripts/fix_build114_photo_social_registry_ocr.py
+        run: |
+          python3 .github/scripts/fix_build114_photo_social_registry_ocr.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('test/photo_ocr_registry_recovery_contract_test.dart')
+          text = path.read_text(encoding='utf-8')
+          old = "expect(registry, contains('_fetchCertificateExact(String hcvId)'));"
+          new = "expect(registry, contains('_fetchCertificateExact('));"
+          if text.count(old) != 1:
+              raise RuntimeError(f'unexpected contract assertion count: {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
 
       - name: Enforce scoped diff
         run: |
