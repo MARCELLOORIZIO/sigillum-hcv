@@ -1,0 +1,66 @@
+name: Validate BUILD114 clean candidate
+
+on:
+  push:
+    branches:
+      - validation/build114-clean-20260916
+
+permissions:
+  contents: read
+
+jobs:
+  validate-clean-sha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact clean candidate
+        uses: actions/checkout@v4
+        with:
+          ref: b295849ca600e17f1a230e577c6c60f670a89afb
+          fetch-depth: 0
+
+      - name: Verify exact SHA and clean candidate shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "b295849ca600e17f1a230e577c6c60f670a89afb"
+          test ! -e .github/scripts/build113_copy_complete_patch.py
+          test ! -e .github/scripts/prepare_build113_copy_patch.py
+          test ! -e .github/workflows/temp-build113-copy-complete-20260916.yml
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: false
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: BUILD113 copy contract
+        run: flutter test test/build113_copy_localization_contract_test.dart
+
+      - name: BUILD113 audio fingerprint regression
+        run: flutter test test/build113_audio_fingerprint_test.dart
+
+      - name: RC2 localized diagnostics regression
+        run: flutter test test/prelaunch_rc2_regression_20260825_test.dart
+
+      - name: Existing localization and verification contracts
+        run: |
+          flutter test test/prelaunch_legal_localization_contract_test.dart
+          flutter test test/verification_clarity_localization_ml_contract_test.dart
+          flutter test test/prelaunch_verification_registry_regression_20260824_test.dart
+          flutter test test/hcv_registry_provenance_gate_contract_test.dart
+
+      - name: HCVPACK integrity gate
+        run: flutter test test/hcvpack_integrity_release_gate_test.dart
+
+      - name: Full Flutter suite
+        run: flutter test
