@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   validate:
-    if: github.event.head_commit.message == 'ci(build114): validate photo social OCR recovery'
+    if: "${{ github.event.head_commit.message == 'ci(build114): validate photo social OCR recovery' }}"
     runs-on: macos-26
     timeout-minutes: 40
     steps:
