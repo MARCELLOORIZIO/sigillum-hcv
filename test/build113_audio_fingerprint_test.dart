@@ -116,14 +116,29 @@ void main() {
     });
 
     test('video social fingerprint signs audio policy and verifier separates axes', () {
-      final socialSource = File('lib/hcv_social_fingerprint.dart').readAsStringSync();
-      final registrySource = File('lib/registry_verify_page.dart').readAsStringSync();
+      final socialSource =
+          File('lib/hcv_social_fingerprint.dart').readAsStringSync();
+      final registrySource =
+          File('lib/registry_verify_page.dart').readAsStringSync();
+      final registryCopySource =
+          File('lib/registry_verify_copy.dart').readAsStringSync();
 
-      expect(socialSource, contains("'audioFingerprintPolicy': HCVAudioFingerprint.policy"));
-      expect(socialSource, contains('HCVAudioFingerprint.buildFromVideo(videoPath)'));
+      expect(
+        socialSource,
+        contains("'audioFingerprintPolicy': HCVAudioFingerprint.policy"),
+      );
+      expect(
+        socialSource,
+        contains('HCVAudioFingerprint.buildFromVideo(videoPath)'),
+      );
       expect(socialSource, contains('buildVisualFromVideo'));
       expect(registrySource, contains('audioFingerprintMatches == false'));
-      expect(registrySource, contains('fingerprint audio non corrisponde'));
+      expect(registrySource, contains("_r('audioMismatchDetected')"));
+      expect(registrySource, contains("_r('audioMismatchProvided')"));
+      expect(
+        registryCopySource,
+        contains('fingerprint audio non corrisponde'),
+      );
       expect(registrySource, contains('buildVisualFromVideo(mediaPath!)'));
     });
   });
