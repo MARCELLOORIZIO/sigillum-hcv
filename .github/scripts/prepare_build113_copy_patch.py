@@ -3,8 +3,7 @@ from pathlib import Path
 path = Path('.github/scripts/build113_copy_complete_patch.py')
 text = path.read_text(encoding='utf-8')
 
-# Align two stale source anchors in the materializer with the actual BUILD113
-# source without changing the product before the materializer applies its patch.
+# Align stale source anchors in the materializer with the actual BUILD113 source.
 text = text.replace(
     "'socialVerifyStep4':\\n          'Если контент сертифицирован, вы увидите происхождение, целостность и личность автора.'",
     "'socialVerifyStep4':\\n          'Если контент сертифицирован, вы увидите происхождение, целостность и идентичность автора.'",
@@ -27,14 +26,15 @@ text = text.replace(
 )
 
 # The original CommercialGate helper anchored additions to openResourceFailed,
-# whose wording differs slightly by language. Anchor to purchaseFailed instead.
+# whose wording differs slightly by language. Anchor to the actual four-space
+# indentation used by purchaseFailed in the BUILD113 source.
 old_loop = "for old,new in cg_add.items(): s=replace_once(s,old,new,'commercial map add')"
 new_loop = '''# Insert the four new CommercialGate keys using stable per-language anchors.
 for anchor, addition in [
-    ("      'purchaseFailed': 'Acquisto non completato.',\\n", "      'accountExists': 'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.',\\n      'accountNotFoundCreate': 'Non esiste un account con questa email. Puoi crearne uno nuovo.',\\n      'kycProcessingNotice': 'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',\\n      'refreshVerification': 'AGGIORNA STATO VERIFICA',\\n"),
-    ("      'purchaseFailed': 'Purchase not completed.',\\n", "      'accountExists': 'This email is already linked to an account. Sign in or use Forgot password.',\\n      'accountNotFoundCreate': 'No account exists with this email. You can create a new one.',\\n      'kycProcessingNotice': 'The verification was submitted to Stripe. Wait for the result before starting another procedure.',\\n      'refreshVerification': 'REFRESH VERIFICATION STATUS',\\n"),
-    ("      'purchaseFailed': 'Compra no completada.',\\n", "      'accountExists': 'Este correo ya está asociado a una cuenta. Inicia sesión o usa ¿Olvidaste la contraseña?.',\\n      'accountNotFoundCreate': 'No existe una cuenta con este correo. Puedes crear una nueva.',\\n      'kycProcessingNotice': 'La verificación se envió a Stripe. Espera el resultado antes de iniciar otro procedimiento.',\\n      'refreshVerification': 'ACTUALIZAR ESTADO DE VERIFICACIÓN',\\n"),
-    ("      'purchaseFailed': 'Покупка не завершена.',\\n", "      'accountExists': 'Этот email уже связан с аккаунтом. Войдите или используйте восстановление пароля.',\\n      'accountNotFoundCreate': 'Аккаунта с этим email нет. Можно создать новый.',\\n      'kycProcessingNotice': 'Проверка отправлена в Stripe. Дождитесь результата перед запуском новой процедуры.',\\n      'refreshVerification': 'ОБНОВИТЬ СТАТУС ПРОВЕРКИ',\\n"),
+    ("    'purchaseFailed': 'Acquisto non completato.',\\n", "    'accountExists': 'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.',\\n    'accountNotFoundCreate': 'Non esiste un account con questa email. Puoi crearne uno nuovo.',\\n    'kycProcessingNotice': 'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',\\n    'refreshVerification': 'AGGIORNA STATO VERIFICA',\\n"),
+    ("    'purchaseFailed': 'Purchase not completed.',\\n", "    'accountExists': 'This email is already linked to an account. Sign in or use Forgot password.',\\n    'accountNotFoundCreate': 'No account exists with this email. You can create a new one.',\\n    'kycProcessingNotice': 'The verification was submitted to Stripe. Wait for the result before starting another procedure.',\\n    'refreshVerification': 'REFRESH VERIFICATION STATUS',\\n"),
+    ("    'purchaseFailed': 'Compra no completada.',\\n", "    'accountExists': 'Este correo ya está asociado a una cuenta. Inicia sesión o usa ¿Olvidaste la contraseña?.',\\n    'accountNotFoundCreate': 'No existe una cuenta con este correo. Puedes crear una nueva.',\\n    'kycProcessingNotice': 'La verificación se envió a Stripe. Espera el resultado antes de iniciar otro procedimiento.',\\n    'refreshVerification': 'ACTUALIZAR ESTADO DE VERIFICACIÓN',\\n"),
+    ("    'purchaseFailed': 'Покупка не завершена.',\\n", "    'accountExists': 'Этот email уже связан с аккаунтом. Войдите или используйте восстановление пароля.',\\n    'accountNotFoundCreate': 'Аккаунта с этим email нет. Можно создать новый.',\\n    'kycProcessingNotice': 'Проверка отправлена в Stripe. Дождитесь результата перед запуском новой процедуры.',\\n    'refreshVerification': 'ОБНОВИТЬ СТАТУС ПРОВЕРКИ',\\n"),
 ]:
     if anchor not in s:
         raise RuntimeError(f'commercial purchase anchor missing: {anchor!r}')
