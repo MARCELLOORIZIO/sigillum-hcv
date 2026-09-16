@@ -42,6 +42,10 @@ jobs:
               "s = replace_once(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar')",
               "s = replace_required(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar', count=2)",
           )
+          text = text.replace(
+              "      'openResourceFailed': 'Не удалось открыть этот ресурс.',\\n",
+              "      'openResourceFailed': 'Не удалось открыть ресурс.',\\n",
+          )
           lines = text.splitlines()
           lines = [
               line for line in lines
