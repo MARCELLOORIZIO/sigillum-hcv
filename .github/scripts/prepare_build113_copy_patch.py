@@ -73,7 +73,7 @@ if video_anchor not in text:
 text = text.replace(video_anchor, video_prep, 1)
 
 # Additional strings required by the old VideoPlayerVerifyPage.
-central_anchor = "# -----------------------------------------------------------------------------\n# 2. Camera copy: neutral result labels; remove manual movement language."
+central_anchor = "# -----------------------------------------------------------------------------\n# 2. Verification summary copy."
 central_insert = '''s=read('sigillum_localization.dart')
 for anchor, addition in [
     ("      'audioTrust': 'Fiducia audio',\\n", "      'videoPlayerTitle': 'Player SIGILLUM',\\n      'selectVideoPrompt': 'Seleziona un video',\\n      'loadVideo': 'CARICA VIDEO',\\n      'loadHcv': 'CARICA HCV',\\n      'videoLoaded': 'Video caricato',\\n      'certificateLoaded': 'Certificato caricato',\\n      'noCertificate': 'Nessun certificato',\\n      'invalidCertificate': 'Certificato non valido',\\n      'hcvNotCompatible': 'HCV non compatibile con questo video',\\n      'videoModified': 'Video modificato',\\n"),
