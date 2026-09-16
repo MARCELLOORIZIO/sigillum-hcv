@@ -99,9 +99,9 @@ registry = text('lib/registry_verify_page.dart')
 for token in [
     'String get _fullTechnicalDiagnostics',
     "claims['mlScreenReplayAnalysis']",
-    'TFLite runtime:',
-    'Pixel-grid uniformity:',
-    'Fine stripe:',
+    "ml?['tfliteRuntimeVersion']",
+    'pixelGridUniformityScore',
+    'liveProbeFineStripeScore',
     '_fullTechnicalDiagnostics,',
     "_v('registryNotFound')",
     "_v('registryUnavailable')",
