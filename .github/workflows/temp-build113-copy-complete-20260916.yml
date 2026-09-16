@@ -30,6 +30,9 @@ jobs:
       - name: Apply complete copy patch
         run: python3 .github/scripts/build113_copy_complete_patch.py
 
+      - name: Restore temporary materializer
+        run: git checkout -- .github/scripts/build113_copy_complete_patch.py
+
       - name: Diff guard
         run: |
           git diff --check
