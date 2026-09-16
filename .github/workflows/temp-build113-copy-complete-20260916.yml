@@ -43,8 +43,8 @@ jobs:
               "s = replace_required(s, \"'compatible': 'No determinable'\", \"'compatible': 'Cannot be determined'\", 'English compatible grammar', count=2)",
           )
           text = text.replace(
-              "      'openResourceFailed': 'Не удалось открыть этот ресурс.',\\n",
-              "      'openResourceFailed': 'Не удалось открыть ресурс.',\\n",
+              "for old,new in cg_add.items(): s=replace_once(s,old,new,'commercial map add')",
+              "for old,new in cg_add.items():\n    candidate = old\n    if candidate not in s and 'Не удалось открыть этот ресурс.' in candidate:\n        candidate = candidate.replace('Не удалось открыть этот ресурс.', 'Не удалось открыть ресурс.')\n    if candidate not in s:\n        raise RuntimeError(f'commercial map add anchor missing: {old!r}')\n    s = s.replace(candidate, new, 1)",
           )
           lines = text.splitlines()
           lines = [
