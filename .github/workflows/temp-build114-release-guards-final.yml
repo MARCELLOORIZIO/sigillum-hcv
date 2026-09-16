@@ -1,0 +1,85 @@
+name: TEMP BUILD114 release guards final
+
+on:
+  push:
+    branches:
+      - fix/build114-release-guards-final-20260916
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: macos-26
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Apply release guard fix
+        run: python3 .github/scripts/fix_build114_release_guards.py
+
+      - name: Diff guard
+        run: |
+          CHANGED="$(git diff --name-only)"
+          echo "$CHANGED"
+          EXPECTED=$'tool/build_testflight_ipa_rc2_20260825.sh\ntool/verify_postpatch_release_20260825.py'
+          test "$CHANGED" = "$EXPECTED"
+
+      - name: Set up Flutter 3.47.1
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies and pin iOS runtime
+        run: |
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Full Flutter suite
+        run: flutter test --reporter expanded
+
+      - name: Postpatch release verifier
+        run: python3 tool/verify_postpatch_release_20260825.py
+
+      - name: Test TestFlight source guards
+        run: |
+          grep -F "require_source_token lib/registry_verify_page.dart \"ml?['tfliteRuntimeVersion']\"" tool/build_testflight_ipa_rc2_20260825.sh
+          grep -F 'require_source_token lib/registry_verify_page.dart "pixelGridUniformityScore"' tool/build_testflight_ipa_rc2_20260825.sh
+          grep -F 'require_source_token lib/registry_verify_page.dart "liveProbeFineStripeScore"' tool/build_testflight_ipa_rc2_20260825.sh
+          ! grep -F 'require_source_token lib/registry_verify_page.dart "TFLite runtime:"' tool/build_testflight_ipa_rc2_20260825.sh
+          grep -F "tflite_version = '2.17.0'" "$(python3 - <<'PY'
+          from pathlib import Path
+          import json
+          from urllib.parse import unquote, urlparse
+          c=Path('.dart_tool/package_config.json'); d=json.loads(c.read_text())
+          p=next(x for x in d['packages'] if x.get('name')=='tflite_flutter')
+          u=p['rootUri']; q=urlparse(u)
+          r=Path(unquote(q.path)) if q.scheme=='file' else (c.parent / unquote(u)).resolve()
+          print(r/'ios'/'tflite_flutter.podspec')
+          PY
+          )"
+
+      - name: Ensure release-tool-only diff
+        run: |
+          CHANGED="$(git diff --name-only)"
+          EXPECTED=$'tool/build_testflight_ipa_rc2_20260825.sh\ntool/verify_postpatch_release_20260825.py'
+          test "$CHANGED" = "$EXPECTED"
+
+      - name: Commit tested release guard fix
+        run: |
+          git add tool/build_testflight_ipa_rc2_20260825.sh tool/verify_postpatch_release_20260825.py
+          git commit -m 'fix(build114): align release guards with localized diagnostics'
+          git push origin HEAD:fix/build114-release-guards-final-20260916
