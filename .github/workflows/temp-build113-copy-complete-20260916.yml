@@ -71,7 +71,38 @@ jobs:
         run: flutter test test/hcvpack_integrity_release_gate_test.dart
 
       - name: Full Flutter suite
-        run: flutter test
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded > full-flutter.log 2>&1
+          TEST_EXIT=$?
+          if [ "$TEST_EXIT" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          lines = Path('full-flutter.log').read_text(encoding='utf-8', errors='replace').splitlines()
+          needles = (
+              'Expected:', 'Actual:', 'Which:', 'Test failed', 'Some tests failed',
+              'EXCEPTION CAUGHT', '══╡', 'Error:', 'Failure:', 'FAILED',
+          )
+          hits = [i for i, line in enumerate(lines) if any(n in line for n in needles)]
+          if not hits:
+              print('\n'.join(lines[-200:]))
+          else:
+              ranges = []
+              for i in hits:
+                  a, b = max(0, i - 30), min(len(lines), i + 45)
+                  if ranges and a <= ranges[-1][1]:
+                      ranges[-1] = (ranges[-1][0], max(ranges[-1][1], b))
+                  else:
+                      ranges.append((a, b))
+              for a, b in ranges[-6:]:
+                  print(f'--- failure context lines {a+1}-{b} ---')
+                  print('\n'.join(lines[a:b]))
+          PY
+          else
+            tail -n 25 full-flutter.log
+          fi
+          exit "$TEST_EXIT"
 
       - name: Commit tested app copy
         run: |
