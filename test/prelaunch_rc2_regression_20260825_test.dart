@@ -51,7 +51,7 @@ void main() {
     final registry = File('lib/registry_verify_page.dart').readAsStringSync();
     expect(registry, contains('String get _fullTechnicalDiagnostics'));
     expect(registry, contains("claims['mlScreenReplayAnalysis']"));
-    expect(registry, contains('TFLite runtime:'));
+    expect(registry, contains("ml?['tfliteRuntimeVersion']"));
     expect(registry, contains('Pixel-grid uniformity:'));
     expect(registry, contains('Fine stripe:'));
     expect(registry, contains('_fullTechnicalDiagnostics,'));
