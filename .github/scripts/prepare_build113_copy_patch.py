@@ -12,6 +12,15 @@ text = text.replace(
     "'es': \"      'recording': 'GRABACIÓN EN CURSO',\\n\"",
     "'es': \"      'recording': 'GRABANDO',\\n\"",
 )
+# Camera copy wording in the clean BUILD113 source differs from older anchors.
+text = text.replace(
+    "'physicalProbe': 'MUEVE LIGERAMENTE EL TELÉFONO LATERALMENTE...'",
+    "'physicalProbe': 'MUEVE LIGERAMENTE EL TELÉFONO HACIA UN LADO...'",
+)
+text = text.replace(
+    "'physicalProbe': 'СЛЕГКА ПЕРЕМЕЩАЙТЕ ТЕЛЕФОН В СТОРОНУ...'",
+    "'physicalProbe': 'СЛЕГКА ПЕРЕМЕСТИТЕ ТЕЛЕФОН В СТОРОНУ...'",
+)
 
 # Avoid consuming HUMAN VERIFIED before the deliberate four-language block.
 text = text.replace(
