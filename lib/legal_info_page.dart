@@ -31,7 +31,7 @@ class LegalInfoPage extends StatelessWidget {
     );
     if (opened || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Impossibile aprire questa risorsa.')),
+      SnackBar(content: Text(_t('openResourceFailed'))),
     );
   }
 

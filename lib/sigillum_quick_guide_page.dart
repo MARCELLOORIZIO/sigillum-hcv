@@ -184,7 +184,7 @@ const _guideCopies = <String, _GuideCopy>{
         icon: Icons.videocam_outlined,
         title: '2. Camera: coordinate, flash e zoom',
         text:
-            'Nella schermata camera, prima di scattare o avviare il video, puoi scegliere se aggiungere oppure no le coordinate GPS. Puoi inoltre usare il flash e regolare lo zoom. Durante il controllo della scena muovi leggermente il telefono come indicato; quando compare PROSEGUI torna all’inquadratura desiderata e, per il video, premi REC.',
+            'Nella schermata camera, prima di scattare o avviare il video, puoi scegliere se aggiungere oppure no le coordinate GPS. Puoi inoltre usare il flash e regolare lo zoom. SIGILLUM esegue automaticamente i controlli tecnici della scena quando previsti: non è richiesto alcun movimento manuale. Quando la camera è pronta, inquadra e scatta oppure, per il video, premi REC.',
       ),
       _GuideStep(
         icon: Icons.folder_outlined,
@@ -223,7 +223,7 @@ const _guideCopies = <String, _GuideCopy>{
         icon: Icons.videocam_outlined,
         title: '2. Camera: coordinates, flash and zoom',
         text:
-            'On the camera screen, before taking a photo or starting a video, you can choose whether to include GPS coordinates. You can also use the flash and adjust zoom. During the scene check, move the phone slightly as instructed; when CONTINUE appears, return to your preferred framing and, for video, tap REC.',
+            'On the camera screen, before taking a photo or starting a video, you can choose whether to include GPS coordinates. You can also use the flash and adjust zoom. SIGILLUM runs the required technical scene checks automatically: no manual phone movement is required. When the camera is ready, compose and capture or, for video, tap REC.',
       ),
       _GuideStep(
         icon: Icons.folder_outlined,
@@ -262,7 +262,7 @@ const _guideCopies = <String, _GuideCopy>{
         icon: Icons.videocam_outlined,
         title: '2. Cámara: coordenadas, flash y zoom',
         text:
-            'En la pantalla de cámara, antes de hacer una foto o iniciar un vídeo, puedes elegir si incluir o no las coordenadas GPS. También puedes usar el flash y ajustar el zoom. Durante el control de la escena mueve ligeramente el teléfono como se indica; cuando aparezca CONTINUAR vuelve al encuadre deseado y, para vídeo, pulsa REC.',
+            'En la pantalla de cámara, antes de hacer una foto o iniciar un vídeo, puedes elegir si incluir o no las coordenadas GPS. También puedes usar el flash y ajustar el zoom. SIGILLUM ejecuta automáticamente los controles técnicos de la escena cuando son necesarios: no se requiere mover manualmente el teléfono. Cuando la cámara esté lista, encuadra y captura o, para vídeo, pulsa REC.',
       ),
       _GuideStep(
         icon: Icons.folder_outlined,
@@ -301,7 +301,7 @@ const _guideCopies = <String, _GuideCopy>{
         icon: Icons.videocam_outlined,
         title: '2. Камера: координаты, вспышка и зум',
         text:
-            'На экране камеры перед съемкой фото или запуском видео можно выбрать, добавлять ли GPS-координаты. Также можно использовать вспышку и менять зум. Во время проверки сцены слегка перемещайте телефон по инструкции; когда появится ПРОДОЛЖИТЬ, вернитесь к нужному кадру и для видео нажмите REC.',
+            'На экране камеры перед съемкой фото или запуском видео можно выбрать, добавлять ли GPS-координаты. Также можно использовать вспышку и менять зум. SIGILLUM автоматически выполняет необходимые технические проверки сцены: вручную перемещать телефон не требуется. Когда камера готова, выберите кадр и снимайте либо для видео нажмите REC.',
       ),
       _GuideStep(
         icon: Icons.folder_outlined,

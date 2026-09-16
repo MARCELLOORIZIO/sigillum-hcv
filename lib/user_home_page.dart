@@ -448,7 +448,7 @@ class _Header extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Account',
+              tooltip: _t('account'),
               onPressed: onIdentity,
               icon: const Icon(Icons.manage_accounts_outlined),
             ),

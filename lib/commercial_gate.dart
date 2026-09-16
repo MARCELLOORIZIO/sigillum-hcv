@@ -94,6 +94,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'L’abbonamento non risulta attivo sul server.',
     'subscriptionVerified': 'Abbonamento verificato.',
     'subscriptionFailed': 'Verifica abbonamento non riuscita',
+    'accountExists': 'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.',
+    'accountNotFoundCreate': 'Non esiste un account con questa email. Puoi crearne uno nuovo.',
+    'kycProcessingNotice': 'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',
+    'refreshVerification': 'AGGIORNA STATO VERIFICA',
     'purchaseFailed': 'Acquisto non completato.',
     'openResourceFailed': 'Impossibile aprire questa risorsa.',
   },
@@ -167,6 +171,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'The subscription is not active on the server.',
     'subscriptionVerified': 'Subscription verified.',
     'subscriptionFailed': 'Subscription verification failed',
+    'accountExists': 'This email is already linked to an account. Sign in or use Forgot password.',
+    'accountNotFoundCreate': 'No account exists with this email. You can create a new one.',
+    'kycProcessingNotice': 'The verification was submitted to Stripe. Wait for the result before starting another procedure.',
+    'refreshVerification': 'REFRESH VERIFICATION STATUS',
     'purchaseFailed': 'Purchase not completed.',
     'openResourceFailed': 'Unable to open this resource.',
   },
@@ -241,6 +249,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'La suscripción no está activa en el servidor.',
     'subscriptionVerified': 'Suscripción verificada.',
     'subscriptionFailed': 'Error al verificar la suscripción',
+    'accountExists': 'Este correo ya está asociado a una cuenta. Inicia sesión o usa ¿Olvidaste la contraseña?.',
+    'accountNotFoundCreate': 'No existe una cuenta con este correo. Puedes crear una nueva.',
+    'kycProcessingNotice': 'La verificación se envió a Stripe. Espera el resultado antes de iniciar otro procedimiento.',
+    'refreshVerification': 'ACTUALIZAR ESTADO DE VERIFICACIÓN',
     'purchaseFailed': 'Compra no completada.',
     'openResourceFailed': 'No se puede abrir este recurso.',
   },
@@ -315,6 +327,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'Подписка не активна на сервере.',
     'subscriptionVerified': 'Подписка подтверждена.',
     'subscriptionFailed': 'Ошибка проверки подписки',
+    'accountExists': 'Этот email уже связан с аккаунтом. Войдите или используйте восстановление пароля.',
+    'accountNotFoundCreate': 'Аккаунта с этим email нет. Можно создать новый.',
+    'kycProcessingNotice': 'Проверка отправлена в Stripe. Дождитесь результата перед запуском новой процедуры.',
+    'refreshVerification': 'ОБНОВИТЬ СТАТУС ПРОВЕРКИ',
     'purchaseFailed': 'Покупка не завершена.',
     'openResourceFailed': 'Не удалось открыть ресурс.',
   },
@@ -915,7 +931,7 @@ class _CommercialGateState extends State<CommercialGate> {
           _loginMode = true;
           _forgotMode = false;
           _password.clear();
-          _message = 'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.';
+          _message = _t('accountExists');
         });
         return;
       }
@@ -976,7 +992,7 @@ class _CommercialGateState extends State<CommercialGate> {
             _loginMode = false;
             _forgotMode = false;
             _password.clear();
-            _message = 'Non esiste un account con questa email. Puoi crearne uno nuovo.';
+            _message = _t('accountNotFoundCreate');
           });
           return;
         }
@@ -2040,8 +2056,8 @@ class _CommercialGateState extends State<CommercialGate> {
         ),
         if (processing) ...[
           const SizedBox(height: 10),
-          const Text(
-            'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',
+          Text(
+            _t('kycProcessingNotice'),
             textAlign: TextAlign.center,
             style: TextStyle(color: SigillumTheme.muted),
           ),
@@ -2049,7 +2065,7 @@ class _CommercialGateState extends State<CommercialGate> {
         const SizedBox(height: 10),
         OutlinedButton(
           onPressed: _busy ? null : _refreshAfterKyc,
-          child: const Text('AGGIORNA STATO VERIFICA'),
+          child: Text(_t('refreshVerification')),
         ),
         if (_busy)
           const Padding(

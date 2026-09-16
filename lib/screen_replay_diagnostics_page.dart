@@ -10,9 +10,11 @@ import 'package:share_plus/share_plus.dart';
 
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
+import 'lab_ui_copy.dart';
 
 class ScreenReplayDiagnosticsPage extends StatefulWidget {
-  const ScreenReplayDiagnosticsPage({super.key});
+  const ScreenReplayDiagnosticsPage({super.key, this.languageCode = 'it'});
+  final String languageCode;
 
   @override
   State<ScreenReplayDiagnosticsPage> createState() =>
@@ -22,10 +24,17 @@ class ScreenReplayDiagnosticsPage extends StatefulWidget {
 class _ScreenReplayDiagnosticsPageState
     extends State<ScreenReplayDiagnosticsPage> {
   bool loading = false;
-  String status = 'Seleziona una foto o un video di test.';
+  String _l(String key) => LabUiCopy.t(widget.languageCode, key);
+  late String status;
   String? selectedPath;
   Map<String, dynamic>? analysis;
   final List<Map<String, dynamic>> batchResults = [];
+
+  @override
+  void initState() {
+    super.initState();
+    status = _l('diagInitial');
+  }
 
   Future<void> pickAndAnalyze() async {
     final result = await FilePicker.platform.pickFiles(
@@ -42,7 +51,7 @@ class _ScreenReplayDiagnosticsPageState
       loading = true;
       selectedPath = path;
       analysis = null;
-      status = 'Analisi in corso...';
+      status = _l('diagRunning');
     });
 
     try {
@@ -96,7 +105,7 @@ class _ScreenReplayDiagnosticsPageState
             'refreshBandScore',
           ),
         });
-        status = 'Analisi completata.';
+        status = _l('diagComplete');
       });
     } catch (e) {
       if (!mounted) return;
@@ -120,7 +129,7 @@ class _ScreenReplayDiagnosticsPageState
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Report copiato')),
+      SnackBar(content: Text(_l('diagCopied'))),
     );
   }
 
@@ -132,7 +141,7 @@ class _ScreenReplayDiagnosticsPageState
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Report sessione copiato')),
+      SnackBar(content: Text(_l('diagSessionCopied'))),
     );
   }
 
@@ -342,7 +351,7 @@ class _ScreenReplayDiagnosticsPageState
     final score = _value('screenReplayRiskScore');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Diagnostica schermo')),
+      appBar: AppBar(title: Text(_l('diagTitle'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -352,7 +361,7 @@ class _ScreenReplayDiagnosticsPageState
               ElevatedButton.icon(
                 onPressed: loading ? null : pickAndAnalyze,
                 icon: const Icon(Icons.folder_open),
-                label: const Text('SELEZIONA FOTO O VIDEO'),
+                label: Text(_l('diagSelect')),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
@@ -367,7 +376,7 @@ class _ScreenReplayDiagnosticsPageState
                       onPressed:
                           batchResults.isEmpty ? null : saveBatchReport,
                       icon: const Icon(Icons.save_alt),
-                      label: const Text('SALVA'),
+                      label: Text(_l('save')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -376,7 +385,7 @@ class _ScreenReplayDiagnosticsPageState
                       onPressed:
                           batchResults.isEmpty ? null : shareBatchReport,
                       icon: const Icon(Icons.ios_share),
-                      label: const Text('CONDIVIDI'),
+                      label: Text(_l('share')),
                     ),
                   ),
                 ],
@@ -384,7 +393,7 @@ class _ScreenReplayDiagnosticsPageState
               TextButton.icon(
                 onPressed: batchResults.isEmpty ? null : clearBatch,
                 icon: const Icon(Icons.delete_outline),
-                label: const Text('AZZERA SESSIONE'),
+                label: Text(_l('reset')),
               ),
               const SizedBox(height: 16),
               if (batchResults.isNotEmpty) ...[
@@ -480,7 +489,7 @@ class _ScreenReplayDiagnosticsPageState
                 OutlinedButton.icon(
                   onPressed: copyReport,
                   icon: const Icon(Icons.copy),
-                  label: const Text('COPIA REPORT'),
+                  label: Text(_l('copyReport')),
                 ),
               ],
             ],

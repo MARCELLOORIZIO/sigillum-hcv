@@ -1785,7 +1785,7 @@ class _CameraPageState extends State<CameraPage> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Video sottotitolato creato'),
+          title: Text(_c('captionedCreatedTitle')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2475,7 +2475,7 @@ class _CameraPageState extends State<CameraPage> {
                             });
                           },
                           icon: const Icon(Icons.refresh),
-                          label: const Text('TORNA ALLA CAMERA'),
+                          label: Text(_c('backToCamera')),
                         ),
                       ),
                     ],

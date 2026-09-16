@@ -447,7 +447,7 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     final uri = Uri.parse('https://apps.apple.com/account/subscriptions');
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      setState(() => _message = 'Impossibile aprire la gestione abbonamento.');
+      setState(() => _message = _t('subscriptionOpenFailed'));
     }
   }
 
