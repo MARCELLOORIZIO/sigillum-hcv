@@ -52,8 +52,8 @@ void main() {
     expect(registry, contains('String get _fullTechnicalDiagnostics'));
     expect(registry, contains("claims['mlScreenReplayAnalysis']"));
     expect(registry, contains("ml?['tfliteRuntimeVersion']"));
-    expect(registry, contains('Pixel-grid uniformity:'));
-    expect(registry, contains('Fine stripe:'));
+    expect(registry, contains('pixelGridUniformityScore'));
+    expect(registry, contains('liveProbeFineStripeScore'));
     expect(registry, contains('_fullTechnicalDiagnostics,'));
   });
 
