@@ -38,7 +38,7 @@ jobs:
           git diff --check
           git status --short
           CHANGED="$(git status --porcelain | awk '{print $2}' | sort)"
-          EXPECTED=$'lib/camera_page.dart\nlib/camera_ui_copy.dart\nlib/camera_ui_extended_copy.dart\nlib/commercial_gate.dart\nlib/commercial_profile_page.dart\nlib/hcvpack_player_page.dart\nlib/home_page.dart\nlib/lab_ui_copy.dart\nlib/legal_info_page.dart\nlib/registry_verify_copy.dart\nlib/registry_verify_page.dart\nlib/screen_replay_calibration_page.dart\nlib/screen_replay_diagnostics_page.dart\nlib/sigillum_localization.dart\nlib/sigillum_quick_guide_page.dart\nlib/text_cert_page.dart\nlib/user_home_page.dart\nlib/verification_ui_copy.dart\nlib/video_player_verify_page.dart\nlib/video_verify_page.dart\ntest/build113_audio_fingerprint_test.dart\ntest/build113_copy_localization_contract_test.dart'
+          EXPECTED=$'lib/camera_page.dart\nlib/camera_ui_copy.dart\nlib/camera_ui_extended_copy.dart\nlib/commercial_gate.dart\nlib/commercial_profile_page.dart\nlib/hcvpack_player_page.dart\nlib/home_page.dart\nlib/lab_ui_copy.dart\nlib/legal_info_page.dart\nlib/registry_verify_copy.dart\nlib/registry_verify_page.dart\nlib/screen_replay_calibration_page.dart\nlib/screen_replay_diagnostics_page.dart\nlib/sigillum_localization.dart\nlib/sigillum_quick_guide_page.dart\nlib/text_cert_page.dart\nlib/user_home_page.dart\nlib/verification_ui_copy.dart\nlib/video_player_verify_page.dart\nlib/video_verify_page.dart\ntest/build113_copy_localization_contract_test.dart'
           test "$CHANGED" = "$EXPECTED"
 
       - name: Set up Flutter
@@ -82,6 +82,6 @@ jobs:
             lib/screen_replay_diagnostics_page.dart lib/sigillum_localization.dart \
             lib/sigillum_quick_guide_page.dart lib/text_cert_page.dart lib/user_home_page.dart \
             lib/verification_ui_copy.dart lib/video_player_verify_page.dart lib/video_verify_page.dart \
-            test/build113_audio_fingerprint_test.dart test/build113_copy_localization_contract_test.dart
+            test/build113_copy_localization_contract_test.dart
           git commit -m "fix(copy): align all app pages with BUILD113 in four languages [skip ci]"
           git push origin HEAD:fix/build113-copy-complete-20260916
