@@ -12,6 +12,15 @@ text = text.replace(
     "'es': \"      'recording': 'GRABACIÓN EN CURSO',\\n\"",
     "'es': \"      'recording': 'GRABANDO',\\n\"",
 )
+# BUILD113 source uses slightly different Spanish/Russian manual-probe strings.
+text = text.replace(
+    "'physicalProbe': 'MUEVE LIGERAMENTE EL TELÉFONO LATERALMENTE...'",
+    "'physicalProbe': 'MUEVE LIGERAMENTE EL TELÉFONO HACIA UN LADO...'",
+)
+text = text.replace(
+    "'physicalProbe': 'СЛЕГКА ПЕРЕМЕЩАЙТЕ ТЕЛЕФОН В СТОРОНУ...'",
+    "'physicalProbe': 'СЛЕГКА ПЕРЕМЕСТИТЕ ТЕЛЕФОН В СТОРОНУ...'",
+)
 
 # Avoid consuming HUMAN VERIFIED before the deliberate four-language block.
 text = text.replace(
@@ -67,10 +76,10 @@ text = text.replace(video_anchor, video_prep, 1)
 central_anchor = "# -----------------------------------------------------------------------------\n# 2. Camera copy: neutral result labels; remove manual movement language."
 central_insert = '''s=read('sigillum_localization.dart')
 for anchor, addition in [
-    ("      'audio': 'Audio',\\n", "      'videoPlayerTitle': 'Player SIGILLUM',\\n      'selectVideoPrompt': 'Seleziona un video',\\n      'loadVideo': 'CARICA VIDEO',\\n      'loadHcv': 'CARICA HCV',\\n      'videoLoaded': 'Video caricato',\\n      'certificateLoaded': 'Certificato caricato',\\n      'noCertificate': 'Nessun certificato',\\n      'invalidCertificate': 'Certificato non valido',\\n      'hcvNotCompatible': 'HCV non compatibile con questo video',\\n      'videoModified': 'Video modificato',\\n"),
-    ("      'audio': 'Audio',\\n", "      'videoPlayerTitle': 'SIGILLUM Player',\\n      'selectVideoPrompt': 'Select a video',\\n      'loadVideo': 'LOAD VIDEO',\\n      'loadHcv': 'LOAD HCV',\\n      'videoLoaded': 'Video loaded',\\n      'certificateLoaded': 'Certificate loaded',\\n      'noCertificate': 'No certificate selected',\\n      'invalidCertificate': 'Invalid certificate',\\n      'hcvNotCompatible': 'HCV is not compatible with this video',\\n      'videoModified': 'Video has been modified',\\n"),
-    ("      'audio': 'Audio',\\n", "      'videoPlayerTitle': 'Reproductor SIGILLUM',\\n      'selectVideoPrompt': 'Selecciona un vídeo',\\n      'loadVideo': 'CARGAR VÍDEO',\\n      'loadHcv': 'CARGAR HCV',\\n      'videoLoaded': 'Vídeo cargado',\\n      'certificateLoaded': 'Certificado cargado',\\n      'noCertificate': 'No se ha seleccionado un certificado',\\n      'invalidCertificate': 'Certificado no válido',\\n      'hcvNotCompatible': 'El HCV no es compatible con este vídeo',\\n      'videoModified': 'El vídeo ha sido modificado',\\n"),
-    ("      'audio': 'Аудио',\\n", "      'videoPlayerTitle': 'Проигрыватель SIGILLUM',\\n      'selectVideoPrompt': 'Выберите видео',\\n      'loadVideo': 'ЗАГРУЗИТЬ ВИДЕО',\\n      'loadHcv': 'ЗАГРУЗИТЬ HCV',\\n      'videoLoaded': 'Видео загружено',\\n      'certificateLoaded': 'Сертификат загружен',\\n      'noCertificate': 'Сертификат не выбран',\\n      'invalidCertificate': 'Недействительный сертификат',\\n      'hcvNotCompatible': 'HCV не соответствует этому видео',\\n      'videoModified': 'Видео было изменено',\\n"),
+    ("      'audioTrust': 'Fiducia audio',\\n", "      'videoPlayerTitle': 'Player SIGILLUM',\\n      'selectVideoPrompt': 'Seleziona un video',\\n      'loadVideo': 'CARICA VIDEO',\\n      'loadHcv': 'CARICA HCV',\\n      'videoLoaded': 'Video caricato',\\n      'certificateLoaded': 'Certificato caricato',\\n      'noCertificate': 'Nessun certificato',\\n      'invalidCertificate': 'Certificato non valido',\\n      'hcvNotCompatible': 'HCV non compatibile con questo video',\\n      'videoModified': 'Video modificato',\\n"),
+    ("      'audioTrust': 'Audio trust',\\n", "      'videoPlayerTitle': 'SIGILLUM Player',\\n      'selectVideoPrompt': 'Select a video',\\n      'loadVideo': 'LOAD VIDEO',\\n      'loadHcv': 'LOAD HCV',\\n      'videoLoaded': 'Video loaded',\\n      'certificateLoaded': 'Certificate loaded',\\n      'noCertificate': 'No certificate selected',\\n      'invalidCertificate': 'Invalid certificate',\\n      'hcvNotCompatible': 'HCV is not compatible with this video',\\n      'videoModified': 'Video has been modified',\\n"),
+    ("      'audioTrust': 'Confianza audio',\\n", "      'videoPlayerTitle': 'Reproductor SIGILLUM',\\n      'selectVideoPrompt': 'Selecciona un vídeo',\\n      'loadVideo': 'CARGAR VÍDEO',\\n      'loadHcv': 'CARGAR HCV',\\n      'videoLoaded': 'Vídeo cargado',\\n      'certificateLoaded': 'Certificado cargado',\\n      'noCertificate': 'No se ha seleccionado un certificado',\\n      'invalidCertificate': 'Certificado no válido',\\n      'hcvNotCompatible': 'El HCV no es compatible con este vídeo',\\n      'videoModified': 'El vídeo ha sido modificado',\\n"),
+    ("      'audioTrust': 'Доверие к аудио',\\n", "      'videoPlayerTitle': 'Проигрыватель SIGILLUM',\\n      'selectVideoPrompt': 'Выберите видео',\\n      'loadVideo': 'ЗАГРУЗИТЬ ВИДЕО',\\n      'loadHcv': 'ЗАГРУЗИТЬ HCV',\\n      'videoLoaded': 'Видео загружено',\\n      'certificateLoaded': 'Сертификат загружен',\\n      'noCertificate': 'Сертификат не выбран',\\n      'invalidCertificate': 'Недействительный сертификат',\\n      'hcvNotCompatible': 'HCV не соответствует этому видео',\\n      'videoModified': 'Видео было изменено',\\n"),
 ]:
     if anchor not in s:
         raise RuntimeError(f'central legacy-video anchor missing: {anchor!r}')
