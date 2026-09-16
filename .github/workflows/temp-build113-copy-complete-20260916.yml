@@ -1,9 +1,9 @@
-name: TEMP BUILD113 complete copy validation
+name: TEMP BUILD114 final copy validation
 
 on:
   push:
     branches:
-      - fix/build113-copy-complete-20260916
+      - fix/build114-copy-final-20260916
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout candidate
         uses: actions/checkout@v4
         with:
-          ref: fix/build113-copy-complete-20260916
+          ref: fix/build114-copy-final-20260916
           fetch-depth: 0
 
       - name: Configure git
@@ -84,4 +84,4 @@ jobs:
             lib/verification_ui_copy.dart lib/video_player_verify_page.dart lib/video_verify_page.dart \
             test/build113_copy_localization_contract_test.dart
           git commit -m "fix(copy): align all app pages with BUILD113 in four languages [skip ci]"
-          git push origin HEAD:fix/build113-copy-complete-20260916
+          git push origin HEAD:fix/build114-copy-final-20260916
