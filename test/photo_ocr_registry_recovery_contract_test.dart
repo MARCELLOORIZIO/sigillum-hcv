@@ -3,27 +3,29 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('photo verification retries alternate OCR IDs only after Registry 404', () {
+  test('photo Registry recovery is 404-driven, OCR-first and bounded', () {
     final registry = File('lib/registry_verify_page.dart').readAsStringSync();
     final ocr = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
 
     expect(ocr, contains('extractCandidatesFromImage(String path)'));
-    expect(ocr, contains('rankConsensusCandidates(detections)'));
+    expect(ocr, contains('buildRegistryRecoveryVariants('));
+    expect(ocr, contains("'0' => 'C'"));
+    expect(ocr, contains("'C' => '0'"));
+    expect(ocr, contains('maxVariants = 16'));
 
+    expect(registry, contains('_fetchCertificateExact('));
     expect(
       registry,
       contains('_fetchCertificateWithPhotoOcrRecovery(String hcvId)'),
     );
     expect(
       registry,
-      contains('originalError.kind != HCVRegistryFailureKind.notFound'),
+      contains('await HCVMediaIdOcr.extractCandidatesFromImage(path)'),
     );
     expect(
       registry,
-      contains('await HCVMediaIdOcr.extractCandidatesFromImage(path)'),
+      contains('HCVMediaIdOcr.buildRegistryRecoveryVariants('),
     );
-    expect(registry, contains('if (candidate == hcvId) continue;'));
-    expect(registry, contains('return await _fetchCertificate(candidate);'));
     expect(
       registry,
       contains(
@@ -43,5 +45,25 @@ void main() {
     expect(helper, contains("lower.endsWith('.jpeg')"));
     expect(helper, contains("lower.endsWith('.png')"));
     expect(helper, isNot(contains("lower.endsWith('.mp4')")));
+    expect(helper, contains('return await _fetchCertificateExact(hcvId);'));
+    expect(helper, contains('candidateError.kind == HCVRegistryFailureKind.notFound'));
+    expect(helper, contains('maxVariants: 16'));
+    expect(helper, isNot(contains('_b8Variants(')));
+    expect(helper, isNot(contains('_fetchCertificate(candidate)')));
+
+    final firstExact = helper.indexOf('_fetchCertificateExact(hcvId)');
+    final robustOcr = helper.indexOf('extractCandidatesFromImage(path)');
+    final boundedVariants = helper.indexOf('buildRegistryRecoveryVariants(');
+    final pendingRetry = helper.indexOf('registry.retryPendingUploads()');
+    expect(firstExact, greaterThanOrEqualTo(0));
+    expect(robustOcr, greaterThan(firstExact));
+    expect(boundedVariants, greaterThan(robustOcr));
+    expect(pendingRetry, greaterThan(boundedVariants));
+
+    // Video/text keep their existing path; this fix is PHOTO-only.
+    expect(
+      helper,
+      contains('return await _fetchCertificateWithLocalRecovery(hcvId);'),
+    );
   });
 }

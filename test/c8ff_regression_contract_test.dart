@@ -40,7 +40,7 @@ void main() {
     );
     expect(
       registry,
-      contains('originalError.kind != HCVRegistryFailureKind.notFound'),
+      contains('HCVRegistryFailureKind.notFound'),
     );
   });
 }

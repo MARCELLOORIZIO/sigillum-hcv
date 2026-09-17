@@ -410,6 +410,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  Future<MapEntry<String, Map<String, dynamic>>> _fetchCertificateExact(
+    String hcvId,
+  ) async {
+    return MapEntry(hcvId, await registry.fetchCertificate(hcvId));
+  }
+
   Future<File?> _findLocalCertificate(String hcvId) async {
     final root = await getApplicationDocumentsDirectory();
     await for (final entity in root.list(recursive: true, followLinks: false)) {
@@ -455,37 +461,91 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   Future<MapEntry<String, Map<String, dynamic>>>
   _fetchCertificateWithPhotoOcrRecovery(String hcvId) async {
-    try {
+    final path = mediaPath;
+    if (path == null) {
       return await _fetchCertificateWithLocalRecovery(hcvId);
-    } on HCVRegistryException catch (originalError) {
-      final path = mediaPath;
-      if (originalError.kind != HCVRegistryFailureKind.notFound ||
-          path == null) {
+    }
+
+    final lower = path.toLowerCase();
+    final isPhoto =
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
+    if (!isPhoto) {
+      return await _fetchCertificateWithLocalRecovery(hcvId);
+    }
+
+    late HCVRegistryException originalNotFound;
+    try {
+      return await _fetchCertificateExact(hcvId);
+    } on HCVRegistryException catch (error) {
+      if (error.kind != HCVRegistryFailureKind.notFound) rethrow;
+      originalNotFound = error;
+    }
+
+    // A Registry 404 from the first OCR reading is the only condition that
+    // enables deeper PHOTO recovery. Re-read independent crops first because
+    // they can directly recover the correct visible ID without guessing.
+    final rankedCandidates =
+        await HCVMediaIdOcr.extractCandidatesFromImage(path);
+    final attemptedIds = <String>{hcvId};
+    final recoveryBases = <String>[hcvId];
+
+    for (final rawCandidate in rankedCandidates) {
+      final candidate = rawCandidate.trim().toUpperCase();
+      if (!RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(candidate)) continue;
+      if (!recoveryBases.contains(candidate)) recoveryBases.add(candidate);
+      if (!attemptedIds.add(candidate)) continue;
+      try {
+        return await _fetchCertificateExact(candidate);
+      } on HCVRegistryException catch (candidateError) {
+        if (candidateError.kind == HCVRegistryFailureKind.notFound) continue;
         rethrow;
       }
+    }
 
-      final lower = path.toLowerCase();
-      final isPhoto =
-          lower.endsWith('.jpg') ||
-          lower.endsWith('.jpeg') ||
-          lower.endsWith('.png');
-      if (!isPhoto) rethrow;
+    // Only after ranked OCR candidates are absent online, try a bounded set of
+    // single-character alternatives. This covers the physical Messenger case
+    // C -> 0 without the previous Cartesian B/8 explosion.
+    final variants = HCVMediaIdOcr.buildRegistryRecoveryVariants(
+      recoveryBases,
+      maxVariants: 16,
+    );
+    for (final candidate in variants) {
+      if (!attemptedIds.add(candidate)) continue;
+      try {
+        return await _fetchCertificateExact(candidate);
+      } on HCVRegistryException catch (candidateError) {
+        if (candidateError.kind == HCVRegistryFailureKind.notFound) continue;
+        rethrow;
+      }
+    }
 
-      final candidates = await HCVMediaIdOcr.extractCandidatesFromImage(path);
-      for (final candidate in candidates) {
-        if (candidate == hcvId) continue;
+    // Preserve pending/local-certificate recovery, but only after the bounded
+    // online PHOTO search. Retry the queue once, then re-check exactly the IDs
+    // already attempted; never re-enter the generic combinatorial fallback.
+    try {
+      await registry.retryPendingUploads();
+      for (final candidate in attemptedIds) {
         try {
-          return await _fetchCertificate(candidate);
+          return await _fetchCertificateExact(candidate);
         } on HCVRegistryException catch (candidateError) {
-          if (candidateError.kind == HCVRegistryFailureKind.notFound) {
-            continue;
-          }
+          if (candidateError.kind == HCVRegistryFailureKind.notFound) continue;
           rethrow;
         }
       }
+    } catch (_) {}
 
-      throw originalError;
+    for (final candidate in attemptedIds) {
+      final localCertificate = await _findLocalCertificate(candidate);
+      if (localCertificate == null) continue;
+      try {
+        await registry.uploadCertificateFile(localCertificate.path);
+        return await _fetchCertificateExact(candidate);
+      } catch (_) {}
     }
+
+    throw originalNotFound;
   }
 
   int _hexDistance(String left, String right) {
