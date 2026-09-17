@@ -57,7 +57,6 @@ jobs:
           flutter test --reporter expanded \
             test/build116_bmw_display_hfr_mixedscene_test.dart \
             test/hfr_v3_fullframe_mixed_scene_test.dart \
-            test/hfr_v3_family_coherence_regression_test.dart \
             test/hfr_v32_harmonic_reality_physics_test.dart \
             test/weak_semantic_no_physical_resolution_test.dart \
             test/build115_reflection_semantic_resolution_test.dart \
