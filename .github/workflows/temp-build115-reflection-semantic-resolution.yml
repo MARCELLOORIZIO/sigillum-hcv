@@ -28,6 +28,13 @@ jobs:
       - name: Apply bounded BUILD115 fusion fix
         run: python3 .github/scripts/apply_build115_reflection_semantic_resolution.py
 
+      - name: Set up Flutter 3.47.1
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
       - name: Format and enforce scoped diff
         run: |
           dart format lib/hcv_display_risk_fusion.dart test/build115_reflection_semantic_resolution_test.dart
@@ -35,13 +42,6 @@ jobs:
           changed="$(git diff --name-only | sort)"
           expected="$(printf '%s\n' lib/hcv_display_risk_fusion.dart test/build115_reflection_semantic_resolution_test.dart | sort)"
           test "$changed" = "$expected"
-
-      - name: Set up Flutter 3.47.1
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.1'
-          channel: stable
-          cache: true
 
       - name: Resolve dependencies and pin iOS TFLite runtime
         run: |
