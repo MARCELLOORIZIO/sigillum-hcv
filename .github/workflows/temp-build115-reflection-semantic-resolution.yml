@@ -35,19 +35,20 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Format and enforce scoped diff
-        run: |
-          dart format lib/hcv_display_risk_fusion.dart test/build115_reflection_semantic_resolution_test.dart
-          git diff --check
-          changed="$(git diff --name-only | sort)"
-          expected="$(printf '%s\n' lib/hcv_display_risk_fusion.dart test/build115_reflection_semantic_resolution_test.dart | sort)"
-          test "$changed" = "$expected"
-
       - name: Resolve dependencies and pin iOS TFLite runtime
         run: |
           flutter pub get
           bash tool/pin_tflite_ios_runtime_20260826.sh
           git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Format and enforce scoped diff
+        run: |
+          dart format lib/hcv_display_risk_fusion.dart test/build115_reflection_semantic_resolution_test.dart
+          git diff --check
+          changed="$({ git diff --name-only; git ls-files --others --exclude-standard; } | sort -u)"
+          expected="$(printf '%s\n' lib/hcv_display_risk_fusion.dart test/build115_reflection_semantic_resolution_test.dart | sort)"
+          printf 'changed files:\n%s\n' "$changed"
+          test "$changed" = "$expected"
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -71,8 +72,9 @@ jobs:
       - name: Final scoped diff guard
         run: |
           git diff --check
-          changed="$(git diff --name-only | sort)"
+          changed="$({ git diff --name-only; git ls-files --others --exclude-standard; } | sort -u)"
           expected="$(printf '%s\n' lib/hcv_display_risk_fusion.dart test/build115_reflection_semantic_resolution_test.dart | sort)"
+          printf 'changed files:\n%s\n' "$changed"
           test "$changed" = "$expected"
           git diff --exit-code -- ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml
 
