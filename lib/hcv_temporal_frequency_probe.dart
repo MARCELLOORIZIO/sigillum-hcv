@@ -352,11 +352,10 @@ class HCVTemporalFrequencyProbe {
         (spatialFamilyCellCount == 9 ||
             harmonicAwareSpatialFamilyCellCount == 9);
 
-    // BUILD116: mixedSceneDetected must mean actual mixed spatial coverage, not
-    // merely "some cells did not clear the local display threshold". When no
-    // cell contains reality evidence and the entire 3x3 grid shares the same
-    // spatial and row-time family, retain the uncertainty but do not assert a
-    // real-scene veto. Strong ML/optical evidence may then resolve the sample.
+    // Scene-context correction: HFR cell labels describe temporal-display
+    // physics only. A cell that does not look display-like is not positive
+    // geometric reality evidence. Retain the BUILD116 full-grid coverage
+    // diagnostic, but never infer a real scene from DISPLAY + UNKNOWN.
     final displayOnlyFullGridCoverageBuild116 =
         qualifiesDisplayOnlyFullGridCoverageBuild116(
       actualFps: actualFps,
@@ -375,7 +374,12 @@ class HCVTemporalFrequencyProbe {
       rowTimeFamilyCellCount: rowTimeFamilyCellCount,
       medianRowTimeCoherence: medianRowTimeCoherence,
     );
+    // "mixedSceneDetected" remains a compatibility diagnostic for genuinely
+    // heterogeneous HFR cell responses. It requires both display-like and
+    // low-display-signature cells. It is NOT positive evidence that the device
+    // is embedded in a real 3D scene and must not be used as a REALITY veto.
     final mixedSceneDetected = displayLikeCellCount > 0 &&
+        realityLikeCellCount > 0 &&
         !fullFrameDisplayV3 &&
         !displayOnlyFullGridCoverageBuild116;
     final noTemporalDisplaySignatureV31 =
@@ -448,6 +452,7 @@ class HCVTemporalFrequencyProbe {
         'noTemporalDisplaySignature': noTemporalDisplaySignatureV31,
         'noTemporalDisplaySignatureIsRealityEvidence': false,
         'mixedSceneDetected': mixedSceneDetected,
+        'mixedSceneIsPositiveRealityEvidence': false,
         'allNineCellsSameDisplayFamily': allNineCellsSameDisplayFamily,
         'displayLikeCellCount': displayLikeCellCount,
         'realityLikeCellCount': realityLikeCellCount,
