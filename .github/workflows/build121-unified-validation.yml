@@ -1,0 +1,77 @@
+name: BUILD121 unified photo scene context validation
+
+on:
+  pull_request:
+    branches:
+      - feat/passive-scene-context-build120-20260918
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-analyze-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout BUILD121 candidate
+        uses: actions/checkout@v4
+
+      - name: Set up validated Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Verify BUILD121 formatting
+        run: |
+          dart format --output=none --set-exit-if-changed lib/camera_page.dart
+          dart format --output=none --set-exit-if-changed lib/hcv_display_risk_fusion.dart
+          dart format --output=none --set-exit-if-changed lib/hcv_live_screen_probe_core.dart
+          dart format --output=none --set-exit-if-changed test/build121_unified_photo_scene_context_test.dart
+
+      - name: Flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Flutter tests
+        run: flutter test --reporter expanded
+
+  ios-unsigned-release:
+    runs-on: macos-15
+    timeout-minutes: 80
+
+    steps:
+      - name: Checkout BUILD121 candidate
+        uses: actions/checkout@v4
+
+      - name: Set up validated Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Pin validated TensorFlow Lite iOS runtime
+        run: bash tool/pin_tflite_ios_runtime_20260826.sh
+
+      - name: Resolve CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build unsigned iOS Release
+        run: flutter build ios --release --no-codesign --no-pub --dart-define=SIGILLUM_EDITION=user --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com --dart-define=GIT_COMMIT="$GITHUB_SHA"
+
+      - name: Verify built app
+        run: |
+          APP='build/ios/iphoneos/Runner.app'
+          test -d "$APP"
+          test -f "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -Fx 'com.sigillum.hcv'
+          echo 'BUILD121_IOS_UNSIGNED_RELEASE=PASS'
