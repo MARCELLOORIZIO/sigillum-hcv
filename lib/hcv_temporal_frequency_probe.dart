@@ -350,28 +350,27 @@ class HCVTemporalFrequencyProbe {
     // a strict negative HFR result. No reality-like cell is allowed.
     final nearFullGridDisplayRecoveryBuild122 =
         !strictFullFrameDisplayV3 &&
-            !harmonicFullFrameDisplayRecovery &&
-            !lowModulationDisplayRecoveryBuild109 &&
-            !displayOnlyFullGridRecoveryBuild116 &&
-            qualifiesNearFullGridDisplayRecoveryBuild122(
-              actualFps: actualFps,
-              framesAnalyzed: acceptedFrames,
-              shortExposureVerified: raw['shortExposureVerified'] == true,
-              exposureLocked:
-                  raw['exposureLockedForEntireNativeCapture'] == true,
-              displayLikeCellCount: displayLikeCellCount,
-              realityLikeCellCount: realityLikeCellCount,
-              periodicCellCount: periodicCellCount,
-              stableCellCount: stableCellCount,
-              medianCellPeriodicityStrength: medianCellPeriodicity,
-              medianCellFrequencyStability: medianCellStability,
-              medianCellPhaseStepConsistency: medianCellPhase,
-              spatialFamilyCellCount: spatialFamilyCellCount,
-              harmonicAwareSpatialFamilyCellCount:
-                  harmonicAwareSpatialFamilyCellCount,
-              rowTimeFamilyCellCount: rowTimeFamilyCellCount,
-              medianRowTimeCoherence: medianRowTimeCoherence,
-            );
+        !harmonicFullFrameDisplayRecovery &&
+        !lowModulationDisplayRecoveryBuild109 &&
+        !displayOnlyFullGridRecoveryBuild116 &&
+        qualifiesNearFullGridDisplayRecoveryBuild122(
+          actualFps: actualFps,
+          framesAnalyzed: acceptedFrames,
+          shortExposureVerified: raw['shortExposureVerified'] == true,
+          exposureLocked: raw['exposureLockedForEntireNativeCapture'] == true,
+          displayLikeCellCount: displayLikeCellCount,
+          realityLikeCellCount: realityLikeCellCount,
+          periodicCellCount: periodicCellCount,
+          stableCellCount: stableCellCount,
+          medianCellPeriodicityStrength: medianCellPeriodicity,
+          medianCellFrequencyStability: medianCellStability,
+          medianCellPhaseStepConsistency: medianCellPhase,
+          spatialFamilyCellCount: spatialFamilyCellCount,
+          harmonicAwareSpatialFamilyCellCount:
+              harmonicAwareSpatialFamilyCellCount,
+          rowTimeFamilyCellCount: rowTimeFamilyCellCount,
+          medianRowTimeCoherence: medianRowTimeCoherence,
+        );
     final fullFrameDisplayV3 = strictFullFrameDisplayV3 ||
         harmonicFullFrameDisplayRecovery ||
         lowModulationDisplayRecoveryBuild109 ||
@@ -501,12 +500,12 @@ class HCVTemporalFrequencyProbe {
         'displayFamilyMode': nearFullGridDisplayRecoveryBuild122
             ? 'NEAR_FULL_8_OF_9_CORROBORATED'
             : harmonicFullFrameDisplayRecovery
-            ? 'HARMONIC_2_TO_1_CORROBORATED'
-            : lowModulationDisplayRecoveryBuild109
-                ? 'LOW_MODULATION_MULTI_AXIS_CORROBORATED'
-                : displayOnlyFullGridRecoveryBuild116
-                    ? 'DISPLAY_ONLY_FULL_GRID_CORROBORATED'
-                    : 'STRICT_SINGLE_FAMILY',
+                ? 'HARMONIC_2_TO_1_CORROBORATED'
+                : lowModulationDisplayRecoveryBuild109
+                    ? 'LOW_MODULATION_MULTI_AXIS_CORROBORATED'
+                    : displayOnlyFullGridRecoveryBuild116
+                        ? 'DISPLAY_ONLY_FULL_GRID_CORROBORATED'
+                        : 'STRICT_SINGLE_FAMILY',
         'classificationPolicy':
             'BUILD122_PRESERVES_VALIDATED_V3_BUILD109_BUILD116_GATES;NEAR_FULL_8_OF_9_RECOVERY_REQUIRES_ZERO_REALITY_CELLS_AND_9_OF_9_PERIODIC_STABLE_SPATIAL_ROW_TIME_FAMILIES;DISPLAY_ONLY_PARTIAL_LOCAL_CELLS_WITH_9_OF_9_SPATIAL_AND_ROW_TIME_COVERAGE_DO_NOT_ASSERT_MIXED_REALITY;NO_TEMPORAL_SIGNATURE_IS_NOT_REALITY;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY',
       },
@@ -726,9 +725,11 @@ class HCVTemporalFrequencyProbe {
         exposureCorroborationStageCount >= 2;
   }
 
-  /// BUILD116 narrow physical recovery for modern displays whose global
-  /// frame-luma rhythm is weak/slow but whose complete 3x3 grid is independently
-  /// and persistently display-like. This never accepts partial display coverage.
+  /// BUILD122 corpus-verified physical recovery for a near-full display.
+  ///
+  /// Eight display-like cells are accepted only when no reality-like cell
+  /// survives and all nine cells share periodic/stable spatial + row-time
+  /// families. This remains a narrow full-grid physical gate.
   static bool qualifiesNearFullGridDisplayRecoveryBuild122({
     required double? actualFps,
     required int framesAnalyzed,
@@ -763,6 +764,9 @@ class HCVTemporalFrequencyProbe {
         medianRowTimeCoherence >= 0.25;
   }
 
+  /// BUILD116 narrow physical recovery for modern displays whose global
+  /// frame-luma rhythm is weak/slow but whose complete 3x3 grid is independently
+  /// and persistently display-like. This never accepts partial display coverage.
   static bool qualifiesDisplayOnlyFullGridRecoveryBuild116({
     required double? actualFps,
     required int framesAnalyzed,
