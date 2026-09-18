@@ -153,12 +153,12 @@ void main() {
     expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
   });
 
-  test('optical trace cannot override mixed real scene', () {
+  test('mixed HFR alone cannot erase corroborated photo display evidence', () {
     final result = _resolve(hfr: _quietHfr(mixedScene: true));
 
-    expect(result.risk, 'LOW');
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.risk, 'HIGH');
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
   });
 
   test('positive physical reality veto blocks A6 recovery', () {
