@@ -522,10 +522,7 @@ class HCVDisplayRiskFusion {
         probe['exposureLockedForEntireNativeCapture'] != true) {
       return false;
     }
-    final frames = (probe['framesAnalyzed'] as num?)?.toInt() ?? 0;
-    final fps =
-        (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
-    if (frames < 60 || fps < 120.0) return false;
+    if (!_isCompleteHfrCapture(probe)) return false;
     if (_isV3OrLater(probe['type'])) {
       final v3 = _v3Evidence(probe);
       final strictSpatialFamily =
@@ -539,6 +536,27 @@ class HCVDisplayRiskFusion {
           (v3?['rowTimeFamilyCellCount'] as num?)?.toInt() == 9;
     }
     return true;
+  }
+
+  static bool _isCompleteHfrCapture(Map<String, dynamic>? probe) {
+    if (probe == null) return false;
+    final frames = (probe['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final actualFps =
+        (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
+    final targetFrames = (probe['targetFrameCount'] as num?)?.toInt();
+    final configuredFps =
+        (probe['configuredFrameRate'] as num?)?.toDouble();
+
+    if (targetFrames != null &&
+        targetFrames > 0 &&
+        configuredFps != null &&
+        configuredFps > 0) {
+      return frames >= targetFrames && actualFps >= configuredFps * 0.98;
+    }
+
+    // Compatibility with older signed probes that predate target/configured
+    // capture metadata.
+    return frames >= 60 && actualFps >= 120.0;
   }
 
   static bool _isV3OrLater(Object? type) =>
@@ -698,13 +716,29 @@ class HCVDisplayRiskFusion {
         probe['analysisStatus'] != 'ANALYZED' ||
         probe['coherentDisplayPeriodicity'] != false ||
         probe['shortExposureVerified'] != true ||
-        probe['exposureLockedForEntireNativeCapture'] != true) {
+        probe['exposureLockedForEntireNativeCapture'] != true ||
+        !_isCompleteHfrCapture(probe)) {
       return false;
     }
-    final frames = (probe['framesAnalyzed'] as num?)?.toInt() ?? 0;
-    final fps =
-        (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
-    return frames >= 60 && fps >= 120.0;
+
+    if (_isV3OrLater(probe['type'])) {
+      final v3 = _v3Evidence(probe);
+      if (v3 == null ||
+          v3['fullFrameDisplay'] == true ||
+          v3['mixedSceneDetected'] == true) {
+        return false;
+      }
+
+      // BUILD122 epistemic guard: "coherentDisplayPeriodicity == false" is not
+      // a strict negative when local physical display cells survived. This
+      // prevents an 8/9 full-grid display signature from being reinterpreted
+      // as absence of display by the semantic-only resolver.
+      final displayLikeCells =
+          (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
+      if (displayLikeCells != 0) return false;
+    }
+
+    return true;
   }
 
   static bool _hasNoPhysicalDisplayTrace(Map<String, dynamic>? optical) {
@@ -781,6 +815,10 @@ class HCVDisplayRiskFusion {
         (temporalMl['maxFrameScreenReplayRiskScore'] as num?)?.toInt() ?? 100;
     final screenProbability =
         (temporalMl['screenProbability'] as num?)?.toDouble() ?? 1.0;
+
+    if (!isPhoto && hasRawFullVideoScreenRecoveryBuild122(temporalMl)) {
+      return false;
+    }
 
     if (frames < (isPhoto ? 3 : 2) ||
         strong > 1 ||
@@ -951,6 +989,81 @@ class HCVDisplayRiskFusion {
     return null;
   }
 
+  /// BUILD122 corpus-wide VIDEO recovery.
+  ///
+  /// The watermark/overlay crop can lower the final per-frame semantic score
+  /// even when the uncropped frame remains strongly screen-like. Require a
+  /// repeated full-frame pattern across at least two frames, one >=90 anchor,
+  /// and an independently strong SCREEN semantic/confidence anchor. New
+  /// payloads use the preserved raw-full diagnostics; older compatible
+  /// certificates fall back only to an uncorrected SCREEN frame.
+  static bool hasRawFullVideoScreenRecoveryBuild122(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
+    final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (framesAnalyzed < 2 ||
+        rawFrames is! List ||
+        rawFrames.length != framesAnalyzed) {
+      return false;
+    }
+
+    var full80 = 0;
+    var full90 = 0;
+    var rawScreenAnchor = 0;
+
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! Map) continue;
+      final frame = Map<String, dynamic>.from(rawFrame);
+      final signals = _signals(frame);
+      final fullScore = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      if (fullScore >= 80) full80++;
+      if (fullScore >= 90) full90++;
+
+      final preservedRawClass =
+          signals['rawFullFramePredictedClass']?.toString();
+      final rawClass = preservedRawClass ??
+          (signals['sigillumOverlayCorrected'] == true
+              ? ''
+              : frame['predictedClass']?.toString() ?? '');
+      final rawProbability =
+          (signals['rawFullFrameScreenProbability'] as num?)?.toDouble() ??
+              (signals['sigillumOverlayCorrected'] == true
+                  ? fullScore / 100.0
+                  : (frame['screenProbability'] as num?)?.toDouble() ??
+                      fullScore / 100.0);
+      final rawConfidence =
+          (signals['rawFullFramePredictedClassConfidence'] as num?)
+                  ?.toDouble() ??
+              (signals['sigillumOverlayCorrected'] == true
+                  ? 0.0
+                  : (frame['predictedClassConfidence'] as num?)?.toDouble() ??
+                      0.0);
+
+      if (rawClass.startsWith('SCREEN_') &&
+          rawProbability >= 0.84 &&
+          rawConfidence >= 0.80) {
+        rawScreenAnchor++;
+      }
+    }
+
+    return full80 >= 2 && full90 >= 1 && rawScreenAnchor >= 1;
+  }
+
+  static int _maxRawFullFrameRiskScore(Map<String, dynamic>? ml) {
+    final rawFrames = ml?['videoFrameAnalyses'];
+    if (rawFrames is! List) return 0;
+    var maxScore = 0;
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! Map) continue;
+      final signals = _signals(Map<String, dynamic>.from(rawFrame));
+      final score = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      if (score > maxScore) maxScore = score;
+    }
+    return maxScore;
+  }
+
   static HCVDisplayRiskResult? mlFirstVideoDecision(Map<String, dynamic>? ml) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
     final screenProbability = (ml['screenProbability'] as num?)?.toDouble();
@@ -961,6 +1074,26 @@ class HCVDisplayRiskFusion {
         rawFrames is! List ||
         rawFrames.length != framesAnalyzed) {
       return null;
+    }
+
+    if (hasRawFullVideoScreenRecoveryBuild122(ml)) {
+      final score = max(95, _maxRawFullFrameRiskScore(ml)).clamp(95, 100);
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: score,
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const <String>[
+          'ML_RAW_FULL_FRAME_SCREEN_RECOVERY',
+        ],
+        strongSources: const <String>[
+          'ML_RAW_FULL_FRAME_SCREEN_RECOVERY',
+        ],
+        reasons: const <String>[
+          'ML_RAW_FULL_FRAME_MULTI_SAMPLE_SCREEN_RECOVERY_BUILD122',
+          'ML_OVERLAY_CORRECTION_CANNOT_ERASE_RAW_FULL_SCREEN_EVIDENCE',
+        ],
+      );
     }
 
     final screenFrames = rawFrames.where((frame) {
