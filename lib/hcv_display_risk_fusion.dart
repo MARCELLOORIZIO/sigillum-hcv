@@ -46,6 +46,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? ml,
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
+    Map<String, dynamic>? photoTemporalOptical,
   }) {
     final dualEvidence = _resolveDualEvidenceV3(
       base: base,
@@ -53,6 +54,7 @@ class HCVDisplayRiskFusion {
       ml: ml,
       temporalFrequencyProbe: temporalFrequencyProbe,
       photoTemporalMl: photoTemporalMl,
+      photoTemporalOptical: photoTemporalOptical,
     );
     if (dualEvidence != null) return dualEvidence;
 
@@ -159,6 +161,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? ml,
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
+    Map<String, dynamic>? photoTemporalOptical,
   }) {
     final temporalMl = photoTemporalMl ?? ml;
     final temporalFrames = _temporalFrameCount(temporalMl);
@@ -268,6 +271,11 @@ class HCVDisplayRiskFusion {
     final opticalRisk = passiveOptical?['screenReplayRisk']?.toString() ?? '';
     final opticalScore =
         (passiveOptical?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+    final temporalOpticalSignals = _signals(photoTemporalOptical);
+    final temporalOpticalRisk =
+        photoTemporalOptical?['screenReplayRisk']?.toString() ?? '';
+    final temporalOpticalScore =
+        (photoTemporalOptical?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
     final temporalFrameAnalyses = temporalMl?['videoFrameAnalyses'];
     var temporalScreenClassFrames = 0;
     var temporalRisk80Frames = 0;
@@ -298,12 +306,13 @@ class HCVDisplayRiskFusion {
         !physicalDisplay &&
         !positivePhysicalReality &&
         base.decision == 'NON_CONCLUSIVE' &&
-        passiveOptical?['captureSource'] == 'PHOTO_TECHNICAL_MINI_VIDEO_V2' &&
-        opticalRisk == 'HIGH' &&
-        opticalScore >= 80 &&
-        opticalSignals['strongDisplayTrace'] == true &&
-        opticalSignals['temporalScreenPulse'] == true &&
-        opticalSignals['localRefreshFlicker'] == true &&
+        photoTemporalOptical?['captureSource'] ==
+            'PHOTO_TECHNICAL_MINI_VIDEO_V2' &&
+        temporalOpticalRisk == 'HIGH' &&
+        temporalOpticalScore >= 80 &&
+        temporalOpticalSignals['strongDisplayTrace'] == true &&
+        temporalOpticalSignals['temporalScreenPulse'] == true &&
+        temporalOpticalSignals['localRefreshFlicker'] == true &&
         stillPredictedClass.startsWith('SCREEN_') &&
         stillScreenProbability >= 0.88 &&
         stillScreenRisk >= 88 &&
@@ -336,7 +345,10 @@ class HCVDisplayRiskFusion {
         ..add('DUAL_EVIDENCE_V3_ACTIVE');
       final corroboratedScore = max(
         base.score,
-        max(opticalScore, max(stillScreenRisk, mlAverageScreenRisk.round())),
+        max(
+          temporalOpticalScore,
+          max(stillScreenRisk, mlAverageScreenRisk.round()),
+        ),
       );
       return HCVDisplayRiskResult(
         risk: 'HIGH',
