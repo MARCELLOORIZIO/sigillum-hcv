@@ -430,6 +430,87 @@ class _CameraPageState extends State<CameraPage> {
     Future.microtask(_retryPendingRegistryUploads);
   }
 
+  ResolutionPreset _resolutionPresetForMode(bool isPhotoMode) {
+    return isPhotoMode ? ResolutionPreset.high : ResolutionPreset.medium;
+  }
+
+  Future<void> _setCaptureMode(bool nextPhotoMode) async {
+    if (photoMode == nextPhotoMode) return;
+    if (recording || _videoFinalizeInProgress) return;
+
+    final active = controller;
+    final available = cameras;
+    final savedZoom = currentZoom;
+    final savedFlash = currentFlashMode;
+
+    photoMode = nextPhotoMode;
+    pendingLiveScreenProbe = null;
+    pendingVideoLocation = null;
+
+    if (active == null ||
+        !active.value.isInitialized ||
+        available == null ||
+        selectedCameraIndex < 0 ||
+        selectedCameraIndex >= available.length) {
+      if (mounted) setState(() {});
+      return;
+    }
+
+    controller = null;
+    if (mounted) {
+      setState(() {
+        ready = false;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+    }
+
+    try {
+      await active.dispose();
+    } catch (_) {}
+
+    final replacement = CameraController(
+      available[selectedCameraIndex],
+      _resolutionPresetForMode(nextPhotoMode),
+      enableAudio: true,
+    );
+
+    try {
+      await replacement.initialize();
+      final newMinZoom = await replacement.getMinZoomLevel();
+      final deviceMaxZoom = await replacement.getMaxZoomLevel();
+      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 10.0).toDouble();
+      final restoredZoom = savedZoom.clamp(newMinZoom, newMaxZoom).toDouble();
+
+      await replacement.setZoomLevel(restoredZoom);
+      try {
+        await replacement.setFlashMode(savedFlash);
+      } catch (_) {}
+
+      controller = replacement;
+      minZoom = newMinZoom;
+      maxZoom = newMaxZoom;
+      currentZoom = restoredZoom;
+
+      if (mounted) {
+        setState(() {
+          ready = true;
+          status = _c('ready');
+        });
+      }
+    } catch (error) {
+      try {
+        await replacement.dispose();
+      } catch (_) {}
+      controller = null;
+      if (mounted) {
+        setState(() {
+          ready = false;
+          status = '${_c('error')}: CAMERA_MODE_REINITIALIZATION_FAILED';
+        });
+      }
+    }
+  }
+
   Future<void> initCamera() async {
     try {
       cameras = await availableCameras();
@@ -441,7 +522,7 @@ class _CameraPageState extends State<CameraPage> {
 
       controller = CameraController(
         cameras![selectedCameraIndex],
-        ResolutionPreset.medium,
+        _resolutionPresetForMode(photoMode),
         enableAudio: true,
       );
 
@@ -473,8 +554,8 @@ class _CameraPageState extends State<CameraPage> {
 
     controller = CameraController(
       cameras![selectedCameraIndex],
-      ResolutionPreset.high,
-      enableAudio: !photoMode,
+      _resolutionPresetForMode(photoMode),
+      enableAudio: true,
     );
 
     await controller!.initialize();
@@ -554,7 +635,7 @@ class _CameraPageState extends State<CameraPage> {
     await Future.delayed(const Duration(milliseconds: 220));
     final replacement = CameraController(
       description,
-      ResolutionPreset.medium,
+      _resolutionPresetForMode(photoMode),
       enableAudio: true,
     );
     try {
@@ -2207,7 +2288,7 @@ class _CameraPageState extends State<CameraPage> {
                 maxWidth: double.infinity,
                 maxHeight: double.infinity,
                 child: FittedBox(
-                  fit: BoxFit.cover,
+                  fit: photoMode ? BoxFit.contain : BoxFit.cover,
                   child: SizedBox(
                     width: controller!.value.previewSize!.height,
                     height: controller!.value.previewSize!.width,
@@ -2331,10 +2412,8 @@ class _CameraPageState extends State<CameraPage> {
                               color: !photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
-                            onSelected: (_) {
-                              setState(() {
-                                photoMode = false;
-                              });
+                            onSelected: (_) async {
+                              await _setCaptureMode(false);
                             },
                           ),
                           const SizedBox(width: 14),
@@ -2349,12 +2428,8 @@ class _CameraPageState extends State<CameraPage> {
                               color: photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
-                            onSelected: (_) {
-                              pendingLiveScreenProbe = null;
-                              pendingVideoLocation = null;
-                              setState(() {
-                                photoMode = true;
-                              });
+                            onSelected: (_) async {
+                              await _setCaptureMode(true);
                             },
                           ),
                         ],
