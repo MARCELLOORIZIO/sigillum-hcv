@@ -2284,13 +2284,21 @@ class _CameraPageState extends State<CameraPage> {
         children: [
           if (ok && photoMode)
             Positioned.fill(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: SizedBox(
-                  width: controller!.value.previewSize!.height,
-                  height: controller!.value.previewSize!.width,
-                  child: CameraPreview(controller!),
-                ),
+              child: OrientationBuilder(
+                builder: (context, orientation) {
+                  final previewSize = controller!.value.previewSize!;
+                  final isPortrait = orientation == Orientation.portrait;
+                  return FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width:
+                          isPortrait ? previewSize.height : previewSize.width,
+                      height:
+                          isPortrait ? previewSize.width : previewSize.height,
+                      child: CameraPreview(controller!),
+                    ),
+                  );
+                },
               ),
             ),
           if (ok && !photoMode)
