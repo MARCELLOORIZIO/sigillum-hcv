@@ -36,7 +36,8 @@ jobs:
           dart format --output=none --set-exit-if-changed lib/hcv_live_screen_probe.dart
           dart format --output=none --set-exit-if-changed lib/hcv_live_screen_probe_core.dart
           dart format --output=none --set-exit-if-changed test/build117_scene_context_architecture_test.dart
-          dart format --output=none --set-exit-if-changed test/build109_ml_fullframe_recovery_test.dart
+          dart format test/build109_ml_fullframe_recovery_test.dart
+          git diff -- test/build109_ml_fullframe_recovery_test.dart
           dart format --output=none --set-exit-if-changed test/build112_photo_optical_corroboration_test.dart
           dart format --output=none --set-exit-if-changed test/hfr_v3_fullframe_mixed_scene_test.dart
           dart format --output=none --set-exit-if-changed test/build111_photo_monitor_regression_test.dart
