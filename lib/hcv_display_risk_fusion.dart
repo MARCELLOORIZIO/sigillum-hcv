@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'hcv_scene_context_evidence.dart';
+
 class HCVDisplayRiskResult {
   const HCVDisplayRiskResult({
     required this.risk,
@@ -47,6 +49,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
     Map<String, dynamic>? photoTemporalOptical,
+    HCVSceneContextEvidence? sceneContextEvidence,
   }) {
     final dualEvidence = _resolveDualEvidenceV3(
       base: base,
@@ -55,6 +58,7 @@ class HCVDisplayRiskFusion {
       temporalFrequencyProbe: temporalFrequencyProbe,
       photoTemporalMl: photoTemporalMl,
       photoTemporalOptical: photoTemporalOptical,
+      sceneContextEvidence: sceneContextEvidence,
     );
     if (dualEvidence != null) return dualEvidence;
 
@@ -162,6 +166,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
     Map<String, dynamic>? photoTemporalOptical,
+    HCVSceneContextEvidence? sceneContextEvidence,
   }) {
     final temporalMl = photoTemporalMl ?? ml;
     final temporalFrames = _temporalFrameCount(temporalMl);
@@ -175,32 +180,9 @@ class HCVDisplayRiskFusion {
     final v3Analyzed = _isV3OrLater(temporalFrequencyProbe?['type']) &&
         temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
 
-    // A monitor/TV inside a wider real scene is reality for SIGILLUM. This
-    // veto runs before any inherited STRONG ML decision so semantic screen
-    // presence can never turn a mixed physical scene into a screen recapture.
-    if (mixedScene) {
-      final reasons = base.reasons
-          .where(
-            (reason) =>
-                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
-                reason != 'LIVE_PROBE_MISSING',
-          )
-          .toList()
-        ..add('HFR_V3_MIXED_REAL_SCENE')
-        ..add('HFR_V3_PARTIAL_DISPLAY_COVERAGE_IS_REALITY')
-        ..add('DUAL_EVIDENCE_V3_ACTIVE');
-      return HCVDisplayRiskResult(
-        risk: 'LOW',
-        score: min(base.score, 20),
-        decision: 'NO_DISPLAY_EVIDENCE',
-        analysisStatus: 'COMPLETE',
-        evidenceSources: base.evidenceSources
-            .where((source) => !source.contains('SCREEN'))
-            .toList(),
-        strongSources: const <String>[],
-        reasons: reasons,
-      );
-    }
+    // HFR mixed coverage is a temporal-physics heterogeneity diagnostic only.
+    // It is not geometric proof that a display is embedded in a real scene.
+    // Scene-context decisions are handled independently below.
 
     final physicalDisplay = _isCompleteStrictPositiveHfr(
       temporalFrequencyProbe,
@@ -361,7 +343,7 @@ class HCVDisplayRiskFusion {
       );
     }
 
-    final screenPresentButNotFullFrame = v3Analyzed &&
+    final screenSemanticWithoutValidatedContext = v3Analyzed &&
         !physicalDisplay &&
         !narrowThreeFrameFullFrameRecoveryV109 &&
         !videoPhotoSpatialFullFrameCorroboration &&
@@ -369,7 +351,8 @@ class HCVDisplayRiskFusion {
         temporalFrames >= 2 &&
         highAnyScreenFrames >= 2 &&
         highFullFrameScreenFrames == 0;
-    if (screenPresentButNotFullFrame) {
+    if (screenSemanticWithoutValidatedContext &&
+        sceneContextEvidence?.positiveRealityContext != true) {
       final reasons = base.reasons
           .where(
             (reason) =>
@@ -377,18 +360,19 @@ class HCVDisplayRiskFusion {
                 reason != 'LIVE_PROBE_MISSING',
           )
           .toList()
-        ..add('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')
-        ..add('DISPLAY_PRESENCE_IS_NOT_DISPLAY_CAPTURE')
+        ..add('SCREEN_SEMANTIC_WITHOUT_VALIDATED_SCENE_CONTEXT')
+        ..add('ML_FULL_FRAME_SCORE_IS_NOT_GEOMETRY')
         ..add('DUAL_EVIDENCE_V3_ACTIVE');
+      if (mixedScene) {
+        reasons.add('HFR_HETEROGENEOUS_COVERAGE_DIAGNOSTIC_ONLY');
+      }
       return HCVDisplayRiskResult(
-        risk: 'LOW',
-        score: min(base.score, 20),
-        decision: 'NO_DISPLAY_EVIDENCE',
+        risk: 'MEDIUM',
+        score: base.score.clamp(45, 69),
+        decision: 'NON_CONCLUSIVE',
         analysisStatus: 'COMPLETE',
-        evidenceSources: base.evidenceSources
-            .where((source) => !source.contains('SCREEN'))
-            .toList(),
-        strongSources: const <String>[],
+        evidenceSources: base.evidenceSources,
+        strongSources: base.strongSources,
         reasons: reasons,
       );
     }
@@ -399,6 +383,39 @@ class HCVDisplayRiskFusion {
         narrowThreeFrameFullFrameRecoveryV109 ||
         videoPhotoSpatialFullFrameCorroboration ||
         photoStillTemporalScreenCorroboration;
+
+    final positiveRealityContext =
+        sceneContextEvidence?.positiveRealityContext == true;
+    if (positiveRealityContext) {
+      final reasons = base.reasons
+          .where(
+            (reason) =>
+                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                reason != 'LIVE_PROBE_MISSING',
+          )
+          .toList()
+        ..addAll(sceneContextEvidence!.reasons);
+      if (physicalDisplay ||
+          persistentVisualDisplay ||
+          base.decision == 'STRONG_DISPLAY_RISK') {
+        reasons.add('DISPLAY_PHYSICS_EMBEDDED_IN_POSITIVE_REALITY_CONTEXT');
+      } else {
+        reasons.add('POSITIVE_REALITY_CONTEXT_WITHOUT_DOMINANT_DISPLAY_PROOF');
+      }
+      if (mixedScene) {
+        reasons.add('HFR_HETEROGENEOUS_COVERAGE_DIAGNOSTIC_ONLY');
+      }
+      reasons.add('SCENE_CONTEXT_POLICY_V1');
+      return HCVDisplayRiskResult(
+        risk: 'LOW',
+        score: min(base.score, 20),
+        decision: 'NO_DISPLAY_EVIDENCE',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: base.evidenceSources,
+        strongSources: base.strongSources,
+        reasons: reasons,
+      );
+    }
 
     if (physicalDisplay || persistentVisualDisplay) {
       final evidenceSources = <String>{...base.evidenceSources};
@@ -439,6 +456,9 @@ class HCVDisplayRiskFusion {
           reasons
               .add('PHOTO_STILL_STRONG_SCREEN_WITH_TEMPORAL_SCREEN_SEQUENCE');
         }
+      }
+      if (mixedScene) {
+        reasons.add('HFR_HETEROGENEOUS_COVERAGE_DIAGNOSTIC_ONLY');
       }
       reasons.add('DUAL_EVIDENCE_V3_ACTIVE');
 
