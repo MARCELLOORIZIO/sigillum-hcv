@@ -135,7 +135,8 @@ void main() {
     );
   });
 
-  test('BUILD109 narrow recovery still requires two content-area samples at least 75', () {
+  test('BUILD109 narrow recovery still requires two content-area samples at least 75',
+      () {
     final result = _resolve(_ml(content: const <int>[75, 74, 59]));
     expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(
@@ -158,7 +159,8 @@ void main() {
     },
   );
 
-  test('BUILD109 narrow recovery still requires two full-frame scores at least 90', () {
+  test('BUILD109 narrow recovery still requires two full-frame scores at least 90',
+      () {
     final result = _resolve(_ml(fullFrame: const <int>[96, 89, 89]));
     expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(
@@ -179,7 +181,8 @@ void main() {
     },
   );
 
-  test('BUILD117 mixed HFR is descriptive and cannot veto strong display evidence', () {
+  test('BUILD117 mixed HFR is descriptive and cannot veto strong display evidence',
+      () {
     final result = _resolve(_ml(), mixed: true);
     expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
