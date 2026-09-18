@@ -800,8 +800,7 @@ class _CameraPageState extends State<CameraPage> {
         ? rawReasons.map((item) => item.toString()).toList()
         : const <String>['SCENE_CONTEXT_NOT_POSITIVELY_ESTABLISHED'];
     return HCVSceneContextEvidence(
-      contextClass:
-          map['contextClass']?.toString() ??
+      contextClass: map['contextClass']?.toString() ??
           HCVSceneContextEvidence.sceneContextUnknown,
       analysisStatus: map['analysisStatus']?.toString() ?? 'INDETERMINATE',
       positiveRealityEvidence: map['positiveRealityEvidence'] == true,
@@ -1285,8 +1284,8 @@ class _CameraPageState extends State<CameraPage> {
         "locationPrinted": captureLocation != null,
         "liveScreenProbe": liveScreenProbe,
         "temporalFrequencyProbe": temporalFrequencyProbe,
-        "physicalSceneClass":
-            sceneContextProbe?["geometryChallenge"]?["sceneClass"] ??
+        "physicalSceneClass": sceneContextProbe?["geometryChallenge"]
+                ?["sceneClass"] ??
             liveScreenProbe["sceneClass"] ??
             "UNKNOWN",
         "geometryChallenge":
@@ -1693,8 +1692,8 @@ class _CameraPageState extends State<CameraPage> {
       "locationPrinted": captureLocation != null,
       "liveScreenProbe": liveScreenProbe,
       "temporalFrequencyProbe": temporalFrequencyProbe,
-      "physicalSceneClass":
-          sceneContextProbe?["geometryChallenge"]?["sceneClass"] ??
+      "physicalSceneClass": sceneContextProbe?["geometryChallenge"]
+              ?["sceneClass"] ??
           liveScreenProbe?["sceneClass"] ??
           "UNKNOWN",
       "geometryChallenge":
