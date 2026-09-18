@@ -172,7 +172,6 @@ class HCVDisplayRiskFusion {
     );
     final recoveredFullFrameScreenFrames =
         _temporalRecoveredFullFrameScreenFrameCountV109(temporalMl);
-    final mixedScene = _isV3MixedRealScene(temporalFrequencyProbe);
     final v3Analyzed = _isV3OrLater(temporalFrequencyProbe?['type']) &&
         temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
     final positivePhysicalReality = _v3Evidence(
