@@ -262,10 +262,11 @@ void main() {
     );
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: unresolved(),
-      passiveOptical: optical,
+      passiveOptical: cleanOptical(),
       ml: stillMl(p: 0.895, score: 89, full: 89, content: 94),
       temporalFrequencyProbe: negativeV32(),
       photoTemporalMl: temporal,
+      photoTemporalOptical: optical,
     );
     expect(result.decision, isNot('NO_DISPLAY_EVIDENCE'));
   });
