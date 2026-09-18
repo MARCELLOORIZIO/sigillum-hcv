@@ -8,8 +8,8 @@ class HCVLiveScreenProbe {
   /// illumination classifier and cannot classify a display by itself.
   Future<Map<String, dynamic>> analyzePassiveSceneGeometry(
     CameraController controller, {
-    Duration duration = const Duration(milliseconds: 900),
-    int maxFrames = 18,
+    Duration duration = const Duration(milliseconds: 1200),
+    int maxFrames = 60,
   }) async {
     if (!controller.value.isInitialized) {
       return _unknownGeometry('CAMERA_NOT_READY');
@@ -48,7 +48,11 @@ class HCVLiveScreenProbe {
         }
       });
 
-      while (frames.length < maxFrames && DateTime.now().isBefore(deadline)) {
+      // BUILD121: keep the probe alive for the full time window even when the
+      // preview stream reaches maxFrames early. Sensor corroboration is sampled
+      // in the same interval and needs a real temporal baseline; ending on the
+      // frame-count cap made PHOTO probes stop around 0.65-0.70 s on iPhone.
+      while (DateTime.now().isBefore(deadline)) {
         await Future.delayed(const Duration(milliseconds: 20));
       }
     } catch (e) {
