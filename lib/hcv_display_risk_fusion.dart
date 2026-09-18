@@ -224,7 +224,6 @@ class HCVDisplayRiskFusion {
         (temporalMl?['averageScreenReplayRiskScore'] as num?)?.toDouble() ??
             0.0;
     final narrowThreeFrameFullFrameRecoveryV109 = v3Analyzed &&
-        !mixedScene &&
         !physicalDisplay &&
         temporalFrames == 3 &&
         highAnyScreenFrames == 3 &&
@@ -239,7 +238,6 @@ class HCVDisplayRiskFusion {
         ) &&
         base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
     final videoPhotoSpatialFullFrameCorroboration = v3Analyzed &&
-        !mixedScene &&
         !physicalDisplay &&
         temporalFrames >= 3 &&
         _hasStableVideoPhotoSpatialFullFrameCorroboration(temporalMl) &&
@@ -261,7 +259,6 @@ class HCVDisplayRiskFusion {
         (stillSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
     final photoStillTemporalScreenCorroboration = photoTemporalMl != null &&
         v3Analyzed &&
-        !mixedScene &&
         !physicalDisplay &&
         temporalFrames >= 3 &&
         highAnyScreenFrames == temporalFrames &&
@@ -315,7 +312,6 @@ class HCVDisplayRiskFusion {
         true;
     final photoModerateScreenOpticalCorroboration = photoTemporalMl != null &&
         v3Analyzed &&
-        !mixedScene &&
         !physicalDisplay &&
         !positivePhysicalReality &&
         base.decision == 'NON_CONCLUSIVE' &&
