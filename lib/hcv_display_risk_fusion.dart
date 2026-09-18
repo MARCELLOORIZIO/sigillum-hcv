@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'hcv_scene_context_evidence.dart';
+
 class HCVDisplayRiskResult {
   const HCVDisplayRiskResult({
     required this.risk,
@@ -47,7 +49,14 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
     Map<String, dynamic>? photoTemporalOptical,
+    HCVSceneContextEvidence? sceneContextEvidence,
   }) {
+    final contextResolution = _resolvePositiveSceneContext(
+      base: base,
+      sceneContextEvidence: sceneContextEvidence,
+    );
+    if (contextResolution != null) return contextResolution;
+
     final dualEvidence = _resolveDualEvidenceV3(
       base: base,
       passiveOptical: passiveOptical,
@@ -144,6 +153,37 @@ class HCVDisplayRiskFusion {
               : 'WEAK_MULTI_FRAME_SCREEN_SEMANTICS_UNCORROBORATED',
     );
 
+    return HCVDisplayRiskResult(
+      risk: 'LOW',
+      score: min(base.score, 20),
+      decision: 'NO_DISPLAY_EVIDENCE',
+      analysisStatus: 'COMPLETE',
+      evidenceSources: base.evidenceSources,
+      strongSources: base.strongSources,
+      reasons: reasons,
+    );
+  }
+
+  static HCVDisplayRiskResult? _resolvePositiveSceneContext({
+    required HCVDisplayRiskResult base,
+    required HCVSceneContextEvidence? sceneContextEvidence,
+  }) {
+    if (sceneContextEvidence == null ||
+        !sceneContextEvidence.isDisplayEmbeddedInReality) {
+      return null;
+    }
+
+    final reasons = <String>[
+      ...base.reasons.where(
+        (reason) => reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED',
+      ),
+      ...sceneContextEvidence.reasons,
+      'POSITIVE_SCENE_CONTEXT_OVERRIDES_DISPLAY_PRESENCE',
+    ];
+
+    // Preserve the display evidence ledger for auditability. The final product
+    // decision changes because the display is positively established as an
+    // object inside physical reality, not because display evidence vanished.
     return HCVDisplayRiskResult(
       risk: 'LOW',
       score: min(base.score, 20),
