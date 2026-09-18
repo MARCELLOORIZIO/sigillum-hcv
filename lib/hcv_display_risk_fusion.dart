@@ -168,14 +168,16 @@ class HCVDisplayRiskFusion {
     );
     final recoveredFullFrameScreenFrames =
         _temporalRecoveredFullFrameScreenFrameCountV109(temporalMl);
-    final mixedScene = _isV3MixedRealScene(temporalFrequencyProbe);
+    final coverageConflict =
+        _hasV3DisplayRealityCoverageConflict(temporalFrequencyProbe);
     final v3Analyzed = _isV3OrLater(temporalFrequencyProbe?['type']) &&
         temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
 
-    // A monitor/TV inside a wider real scene is reality for SIGILLUM. This
-    // veto runs before any inherited STRONG ML decision so semantic screen
-    // presence can never turn a mixed physical scene into a screen recapture.
-    if (mixedScene) {
+    // BUILD117: HFR coverage is not scene-context evidence. A combination of
+    // DISPLAY-like and reality-like cells is treated only as an unresolved
+    // coverage conflict. UNKNOWN cells never become REALITY, and a coverage
+    // conflict must never silently rewrite strong display evidence to LOW.
+    if (coverageConflict && base.decision == 'STRONG_DISPLAY_RISK') {
       final reasons = base.reasons
           .where(
             (reason) =>
@@ -183,18 +185,16 @@ class HCVDisplayRiskFusion {
                 reason != 'LIVE_PROBE_MISSING',
           )
           .toList()
-        ..add('HFR_V3_MIXED_REAL_SCENE')
-        ..add('HFR_V3_PARTIAL_DISPLAY_COVERAGE_IS_REALITY')
+        ..add('HFR_V3_DISPLAY_REALITY_COVERAGE_CONFLICT')
+        ..add('HFR_V3_COVERAGE_CONFLICT_IS_NOT_REALITY')
         ..add('DUAL_EVIDENCE_V3_ACTIVE');
       return HCVDisplayRiskResult(
-        risk: 'LOW',
-        score: min(base.score, 20),
-        decision: 'NO_DISPLAY_EVIDENCE',
+        risk: 'MEDIUM',
+        score: min(base.score, 45),
+        decision: 'NON_CONCLUSIVE',
         analysisStatus: 'COMPLETE',
-        evidenceSources: base.evidenceSources
-            .where((source) => !source.contains('SCREEN'))
-            .toList(),
-        strongSources: const <String>[],
+        evidenceSources: base.evidenceSources,
+        strongSources: base.strongSources,
         reasons: reasons,
       );
     }
@@ -208,7 +208,7 @@ class HCVDisplayRiskFusion {
         (temporalMl?['averageScreenReplayRiskScore'] as num?)?.toDouble() ??
             0.0;
     final narrowThreeFrameFullFrameRecoveryV109 = v3Analyzed &&
-        !mixedScene &&
+        !coverageConflict &&
         !physicalDisplay &&
         temporalFrames == 3 &&
         highAnyScreenFrames == 3 &&
@@ -223,7 +223,7 @@ class HCVDisplayRiskFusion {
         ) &&
         base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
     final videoPhotoSpatialFullFrameCorroboration = v3Analyzed &&
-        !mixedScene &&
+        !coverageConflict &&
         !physicalDisplay &&
         temporalFrames >= 3 &&
         _hasStableVideoPhotoSpatialFullFrameCorroboration(temporalMl) &&
@@ -245,7 +245,7 @@ class HCVDisplayRiskFusion {
         (stillSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
     final photoStillTemporalScreenCorroboration = photoTemporalMl != null &&
         v3Analyzed &&
-        !mixedScene &&
+        !coverageConflict &&
         !physicalDisplay &&
         temporalFrames >= 3 &&
         highAnyScreenFrames == temporalFrames &&
@@ -294,7 +294,7 @@ class HCVDisplayRiskFusion {
         true;
     final photoModerateScreenOpticalCorroboration = photoTemporalMl != null &&
         v3Analyzed &&
-        !mixedScene &&
+        !coverageConflict &&
         !physicalDisplay &&
         !positivePhysicalReality &&
         base.decision == 'NON_CONCLUSIVE' &&
@@ -521,12 +521,18 @@ class HCVDisplayRiskFusion {
     return raw is Map ? Map<String, dynamic>.from(raw) : null;
   }
 
-  static bool _isV3MixedRealScene(Map<String, dynamic>? probe) {
+  static bool _hasV3DisplayRealityCoverageConflict(
+    Map<String, dynamic>? probe,
+  ) {
     if (!_isV3OrLater(probe?['type']) ||
         probe?['analysisStatus'] != 'ANALYZED') {
       return false;
     }
-    return _v3Evidence(probe)?['mixedSceneDetected'] == true;
+    final v3 = _v3Evidence(probe);
+    if (v3 == null || v3['mixedSceneDetected'] != true) return false;
+    final displayCells = (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
+    final realityCells = (v3['realityLikeCellCount'] as num?)?.toInt() ?? 0;
+    return displayCells > 0 && realityCells > 0;
   }
 
   static bool _isStrictPhysicalRealityHfr(Map<String, dynamic>? probe) {
