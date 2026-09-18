@@ -9,8 +9,8 @@ import 'package:sigillum_iphone/hcv_temporal_frequency_probe.dart';
 void main() {
   group('BUILD122 corpus-wide regressions', () {
     test('26C near-full 8-of-9 HFR recovery qualifies', () {
-      final result =
-          HCVTemporalFrequencyProbe.qualifiesNearFullGridDisplayRecoveryBuild122(
+      final result = HCVTemporalFrequencyProbe
+          .qualifiesNearFullGridDisplayRecoveryBuild122(
         actualFps: 240.630453,
         framesAnalyzed: 84,
         shortExposureVerified: true,
@@ -39,22 +39,22 @@ void main() {
       }) =>
           HCVTemporalFrequencyProbe
               .qualifiesNearFullGridDisplayRecoveryBuild122(
-        actualFps: 240.630453,
-        framesAnalyzed: 84,
-        shortExposureVerified: true,
-        exposureLocked: true,
-        displayLikeCellCount: displayCells,
-        realityLikeCellCount: realityCells,
-        periodicCellCount: 9,
-        stableCellCount: 9,
-        medianCellPeriodicityStrength: 0.588377,
-        medianCellFrequencyStability: 1.0,
-        medianCellPhaseStepConsistency: 0.995185,
-        spatialFamilyCellCount: 9,
-        harmonicAwareSpatialFamilyCellCount: 9,
-        rowTimeFamilyCellCount: 9,
-        medianRowTimeCoherence: rowTime,
-      );
+            actualFps: 240.630453,
+            framesAnalyzed: 84,
+            shortExposureVerified: true,
+            exposureLocked: true,
+            displayLikeCellCount: displayCells,
+            realityLikeCellCount: realityCells,
+            periodicCellCount: 9,
+            stableCellCount: 9,
+            medianCellPeriodicityStrength: 0.588377,
+            medianCellFrequencyStability: 1.0,
+            medianCellPhaseStepConsistency: 0.995185,
+            spatialFamilyCellCount: 9,
+            harmonicAwareSpatialFamilyCellCount: 9,
+            rowTimeFamilyCellCount: 9,
+            medianRowTimeCoherence: rowTime,
+          );
 
       expect(qualifies(displayCells: 7), isFalse);
       expect(qualifies(realityCells: 1), isFalse);
@@ -208,7 +208,8 @@ void main() {
       );
     });
 
-    test('embedded context still resolves semantic-only display appearance', () {
+    test('embedded context still resolves semantic-only display appearance',
+        () {
       final result = HCVDisplayFinalPolicy.resolve(
         displayPhysics: const HCVDisplayRiskResult(
           risk: 'HIGH',
@@ -515,8 +516,7 @@ Map<String, dynamic> _weakVideoMl() => <String, dynamic>{
       ],
     };
 
-Map<String, dynamic> _cleanOptical({required int frames}) =>
-    <String, dynamic>{
+Map<String, dynamic> _cleanOptical({required int frames}) => <String, dynamic>{
       'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
       'analysisStatus': 'ANALYZED',
       'framesAnalyzed': frames,
