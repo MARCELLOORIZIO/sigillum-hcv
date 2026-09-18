@@ -84,9 +84,8 @@ class HCVSceneContextEvidence {
     required Map<String, dynamic>? sensorSignals,
   }) {
     final rawGeometry = geometryProbe?['geometryChallenge'];
-    final geometry = rawGeometry is Map
-        ? Map<String, dynamic>.from(rawGeometry)
-        : null;
+    final geometry =
+        rawGeometry is Map ? Map<String, dynamic>.from(rawGeometry) : null;
     final geometryEvidence = fromGeometry(geometry);
 
     if (!geometryEvidence.positiveRealityEvidence) {
