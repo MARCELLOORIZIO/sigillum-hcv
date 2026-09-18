@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_display_risk_fusion.dart';
+import 'package:sigillum_iphone/hcv_scene_context_evidence.dart';
 
 void main() {
   group('BUILD117 display physics / scene context separation', () {
@@ -34,6 +35,75 @@ void main() {
         result.reasons,
         isNot(contains('HFR_V3_PARTIAL_DISPLAY_COVERAGE_IS_REALITY')),
       );
+    });
+
+    test('positive multi-depth context resolves an embedded display as reality', () {
+      final base = HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: 98,
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const <String>['HFR_DISPLAY', 'ML_SCREEN'],
+        strongSources: const <String>['HFR_DISPLAY', 'ML_SCREEN'],
+        reasons: const <String>['DISPLAY_PHYSICS_STRONG'],
+      );
+      final context = HCVSceneContextEvidence.fromGeometry(
+        <String, dynamic>{
+          'sceneClass': 'REALITY',
+          'realityEvidence': true,
+          'planarEvidence': false,
+        },
+      );
+
+      final result =
+          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+        base: base,
+        passiveOptical: null,
+        ml: null,
+        temporalFrequencyProbe: null,
+        sceneContextEvidence: context,
+      );
+
+      expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+      expect(result.risk, 'LOW');
+      expect(result.evidenceSources, contains('HFR_DISPLAY'));
+      expect(result.strongSources, contains('ML_SCREEN'));
+      expect(
+        result.reasons,
+        contains('POSITIVE_SCENE_CONTEXT_OVERRIDES_DISPLAY_PRESENCE'),
+      );
+    });
+
+    test('planarity alone cannot turn a strong display into reality', () {
+      final base = HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: 96,
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const <String>['ML_SCREEN'],
+        strongSources: const <String>['ML_SCREEN'],
+        reasons: const <String>['DISPLAY_PHYSICS_STRONG'],
+      );
+      final context = HCVSceneContextEvidence.fromGeometry(
+        <String, dynamic>{
+          'sceneClass': 'PLANAR',
+          'realityEvidence': false,
+          'planarEvidence': true,
+        },
+      );
+
+      final result =
+          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+        base: base,
+        passiveOptical: null,
+        ml: null,
+        temporalFrequencyProbe: null,
+        sceneContextEvidence: context,
+      );
+
+      expect(context.contextClass, HCVSceneContextEvidence.sceneContextUnknown);
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(result.score, 96);
     });
 
     test('still optical trace is not replaced by clean temporal optical', () {
