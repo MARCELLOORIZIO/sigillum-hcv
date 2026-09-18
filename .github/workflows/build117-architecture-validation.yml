@@ -27,9 +27,16 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Verify BUILD117 source formatting
+      - name: Format BUILD117 source and print exact diff
         run: |
-          dart format --output=none --set-exit-if-changed             lib/camera_page.dart             lib/hcv_display_risk_fusion.dart             lib/hcv_display_final_policy.dart             lib/hcv_scene_context_evidence.dart             lib/hcv_live_screen_probe.dart             lib/hcv_live_screen_probe_core.dart             test/build117_scene_context_architecture_test.dart
+          dart format lib/camera_page.dart
+          dart format lib/hcv_display_risk_fusion.dart
+          dart format lib/hcv_display_final_policy.dart
+          dart format lib/hcv_scene_context_evidence.dart
+          dart format lib/hcv_live_screen_probe.dart
+          dart format lib/hcv_live_screen_probe_core.dart
+          dart format test/build117_scene_context_architecture_test.dart
+          git diff -- lib/camera_page.dart lib/hcv_display_risk_fusion.dart lib/hcv_display_final_policy.dart lib/hcv_scene_context_evidence.dart lib/hcv_live_screen_probe.dart lib/hcv_live_screen_probe_core.dart test/build117_scene_context_architecture_test.dart
 
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -63,8 +70,7 @@ jobs:
           pod install --repo-update
 
       - name: Build unsigned iOS Release
-        run: |
-          flutter build ios --release --no-codesign --no-pub             --dart-define=SIGILLUM_EDITION=user             --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com             --dart-define=GIT_COMMIT="$GITHUB_SHA"
+        run: flutter build ios --release --no-codesign --no-pub --dart-define=SIGILLUM_EDITION=user --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com --dart-define=GIT_COMMIT="$GITHUB_SHA"
 
       - name: Verify built app
         run: |
