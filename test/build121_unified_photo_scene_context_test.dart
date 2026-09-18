@@ -30,12 +30,17 @@ void main() {
 
     test('PHOTO settles AUTO camera state before the 1.5 s temporal clip', () {
       final source = File('lib/camera_page.dart').readAsStringSync();
-      final contextIndex =
-          source.indexOf('sceneContextProbe = await _capturePassiveSceneContext();');
-      final settleIndex =
-          source.indexOf('await _settleCameraAfterLiveProbe();', contextIndex);
-      final temporalIndex =
-          source.indexOf('temporalClip = await temporalProbeEngine.capture(', contextIndex);
+      final contextIndex = source.indexOf(
+        'sceneContextProbe = await _capturePassiveSceneContext();',
+      );
+      final settleIndex = source.indexOf(
+        'await _settleCameraAfterLiveProbe();',
+        contextIndex,
+      );
+      final temporalIndex = source.indexOf(
+        'temporalClip = await temporalProbeEngine.capture(',
+        contextIndex,
+      );
 
       expect(contextIndex, greaterThanOrEqualTo(0));
       expect(settleIndex, greaterThan(contextIndex));
@@ -53,7 +58,8 @@ void main() {
         ),
       );
 
-      final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      final result =
+          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: _nonConclusiveBase(),
         passiveOptical: _optical(frames: 1, score: 0),
         ml: _stillRealityMl(
@@ -104,7 +110,8 @@ void main() {
       );
     });
 
-    test('strict positive HFR still preserves STRONG display in same ML conflict',
+    test(
+        'strict positive HFR still preserves STRONG display in same ML conflict',
         () {
       final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: _strongTemporalBase(),
