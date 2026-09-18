@@ -399,7 +399,7 @@ class HCVDisplayRiskFusion {
       }
       return HCVDisplayRiskResult(
         risk: 'MEDIUM',
-        score: base.score.clamp(45, 69),
+        score: base.score.clamp(45, 69).toInt(),
         decision: 'NON_CONCLUSIVE',
         analysisStatus: 'COMPLETE',
         evidenceSources: base.evidenceSources,
