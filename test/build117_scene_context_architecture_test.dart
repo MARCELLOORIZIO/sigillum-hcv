@@ -38,7 +38,8 @@ void main() {
       );
     });
 
-    test('corroborated embedded context resolves display presence as reality', () {
+    test('corroborated embedded context resolves display presence as reality',
+        () {
       final base = HCVDisplayRiskResult(
         risk: 'HIGH',
         score: 98,
@@ -127,7 +128,8 @@ void main() {
       expect(result.score, 96);
     });
 
-    test('still optical and existing photo ML gate recover E6AD-style display', () {
+    test('still optical and existing photo ML gate recover E6AD-style display',
+        () {
       final base = HCVDisplayRiskResult(
         risk: 'MEDIUM',
         score: 45,
