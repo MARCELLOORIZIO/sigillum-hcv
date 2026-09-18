@@ -348,8 +348,7 @@ class HCVTemporalFrequencyProbe {
     // entire 3x3 grid still shares one periodic/stable spatial + row-time
     // family. One indeterminate cell must not turn this physical signature into
     // a strict negative HFR result. No reality-like cell is allowed.
-    final nearFullGridDisplayRecoveryBuild122 =
-        !strictFullFrameDisplayV3 &&
+    final nearFullGridDisplayRecoveryBuild122 = !strictFullFrameDisplayV3 &&
         !harmonicFullFrameDisplayRecovery &&
         !lowModulationDisplayRecoveryBuild109 &&
         !displayOnlyFullGridRecoveryBuild116 &&
