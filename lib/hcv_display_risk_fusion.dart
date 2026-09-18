@@ -278,7 +278,6 @@ class HCVDisplayRiskFusion {
         v3Analyzed &&
         !positivePhysicalReality &&
         !physicalDisplay &&
-        !positivePhysicalReality &&
         base.decision == 'NON_CONCLUSIVE' &&
         temporalOptical?['captureSource'] == 'PHOTO_TECHNICAL_MINI_VIDEO_V2' &&
         opticalRisk == 'HIGH' &&
