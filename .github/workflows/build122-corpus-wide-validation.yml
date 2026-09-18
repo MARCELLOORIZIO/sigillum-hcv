@@ -1,0 +1,80 @@
+name: BUILD122 corpus wide display reality validation
+
+on:
+  pull_request:
+    branches:
+      - fix/photo-preview-rotation-build119-20260918
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-analyze-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout BUILD122 candidate
+        uses: actions/checkout@v4
+
+      - name: Set up validated Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Verify BUILD122 formatting
+        run: |
+          dart format --output=none --set-exit-if-changed lib/hcv_temporal_frequency_probe.dart
+          dart format --output=none --set-exit-if-changed lib/hcv_ml_screen_replay_classifier.dart
+          dart format --output=none --set-exit-if-changed lib/hcv_display_risk_fusion.dart
+          dart format --output=none --set-exit-if-changed lib/hcv_scene_context_evidence.dart
+          dart format --output=none --set-exit-if-changed lib/hcv_display_final_policy.dart
+          dart format --output=none --set-exit-if-changed test/build120_passive_scene_context_activation_test.dart
+          dart format --output=none --set-exit-if-changed test/build122_corpus_wide_regression_test.dart
+
+      - name: Flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Flutter tests
+        run: flutter test --reporter expanded
+
+  ios-unsigned-release:
+    runs-on: macos-15
+    timeout-minutes: 80
+
+    steps:
+      - name: Checkout BUILD122 candidate
+        uses: actions/checkout@v4
+
+      - name: Set up validated Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Pin validated TensorFlow Lite iOS runtime
+        run: bash tool/pin_tflite_ios_runtime_20260826.sh
+
+      - name: Resolve CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build unsigned iOS Release
+        run: flutter build ios --release --no-codesign --no-pub --dart-define=SIGILLUM_EDITION=user --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com --dart-define=GIT_COMMIT="$GITHUB_SHA"
+
+      - name: Verify built app
+        run: |
+          APP='build/ios/iphoneos/Runner.app'
+          test -d "$APP"
+          test -f "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -Fx 'com.sigillum.hcv'
+          echo 'BUILD122_IOS_UNSIGNED_RELEASE=PASS'
