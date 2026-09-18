@@ -37,7 +37,7 @@ void main() {
       );
     });
 
-    test('positive multi-depth context resolves an embedded display as reality', () {
+    test('corroborated embedded context resolves display presence as reality', () {
       final base = HCVDisplayRiskResult(
         risk: 'HIGH',
         score: 98,
@@ -47,12 +47,8 @@ void main() {
         strongSources: const <String>['HFR_DISPLAY', 'ML_SCREEN'],
         reasons: const <String>['DISPLAY_PHYSICS_STRONG'],
       );
-      final context = HCVSceneContextEvidence.fromGeometry(
-        <String, dynamic>{
-          'sceneClass': 'REALITY',
-          'realityEvidence': true,
-          'planarEvidence': false,
-        },
+      final context = HCVSceneContextEvidence.confirmedEmbedded(
+        reasons: const <String>['TEST_INDEPENDENT_CONTEXT_CORROBORATION'],
       );
 
       final result =
@@ -71,6 +67,23 @@ void main() {
       expect(
         result.reasons,
         contains('POSITIVE_SCENE_CONTEXT_OVERRIDES_DISPLAY_PRESENCE'),
+      );
+    });
+
+    test('geometry reality alone remains a context candidate', () {
+      final context = HCVSceneContextEvidence.fromGeometry(
+        <String, dynamic>{
+          'sceneClass': 'REALITY',
+          'realityEvidence': true,
+          'planarEvidence': false,
+        },
+      );
+
+      expect(context.contextClass, HCVSceneContextEvidence.sceneContextUnknown);
+      expect(context.positiveRealityEvidence, isTrue);
+      expect(
+        context.reasons,
+        contains('GEOMETRY_REQUIRES_INDEPENDENT_CONTEXT_CORROBORATION'),
       );
     });
 
