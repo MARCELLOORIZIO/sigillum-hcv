@@ -1073,6 +1073,12 @@ class _CameraPageState extends State<CameraPage> {
       temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
       sceneContextProbe = await _capturePassiveSceneContext();
 
+      // BUILD121: the passive context probe temporarily locks focus/exposure.
+      // Let the restored AUTO camera state converge before the technical PHOTO
+      // mini-video starts, so its ML frames and the final still see the same
+      // stabilized optical state.
+      await _settleCameraAfterLiveProbe();
+
       try {
         temporalClip = await temporalProbeEngine.capture(
           controller!,
