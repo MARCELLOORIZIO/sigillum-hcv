@@ -10,6 +10,7 @@ import 'hcv_display_risk_fusion.dart';
 import 'hcv_projective_motion_model.dart';
 import 'hcv_scene_geometry_classifier.dart';
 import 'hcv_scene_decision_fusion.dart';
+import 'hcv_scene_context_evidence.dart';
 import 'hcv_temporal_capture_probe.dart';
 
 part 'hcv_live_screen_probe_core.dart';

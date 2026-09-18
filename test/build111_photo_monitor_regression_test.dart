@@ -108,7 +108,7 @@ void main() {
     expect(r.risk, 'HIGH');
   });
 
-  test('weak or non-full-frame still does not bypass real-scene veto', () {
+  test('weak later photo diagnostics cannot erase inherited strong evidence', () {
     final r = _resolve(
       _still(0.91, 91, 70),
       _temporal(<Map<String, dynamic>>[
@@ -117,7 +117,10 @@ void main() {
         _frame(0.93, 93, 73),
       ]),
     );
-    expect(r.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(r.reasons, contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'));
+    expect(r.decision, 'STRONG_DISPLAY_RISK');
+    expect(
+      r.reasons,
+      isNot(contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')),
+    );
   });
 }

@@ -2,45 +2,45 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_display_risk_fusion.dart';
 
 Map<String, dynamic> _opticalClean() => <String, dynamic>{
-  'analysisStatus': 'ANALYZED',
-  'framesAnalyzed': 15,
-  'screenReplayRiskScore': 20,
-  'signals': <String, dynamic>{
-    'displayFlicker': false,
-    'pixelGridOrMoireHint': false,
-    'uniformPixelGrid': false,
-    'localRefreshFlicker': false,
-    'horizontalRefreshBands': false,
-    'pairedLocalRefresh': false,
-    'temporalScreenPulse': false,
-    'structuralDisplayTrace': false,
-    'strongDisplayTrace': false,
-    'confirmedDisplayTrace': false,
-    'periodicLightTrace': false,
-    'opticalCorroboratedTrace': false,
-  },
-};
+      'analysisStatus': 'ANALYZED',
+      'framesAnalyzed': 15,
+      'screenReplayRiskScore': 20,
+      'signals': <String, dynamic>{
+        'displayFlicker': false,
+        'pixelGridOrMoireHint': false,
+        'uniformPixelGrid': false,
+        'localRefreshFlicker': false,
+        'horizontalRefreshBands': false,
+        'pairedLocalRefresh': false,
+        'temporalScreenPulse': false,
+        'structuralDisplayTrace': false,
+        'strongDisplayTrace': false,
+        'confirmedDisplayTrace': false,
+        'periodicLightTrace': false,
+        'opticalCorroboratedTrace': false,
+      },
+    };
 
 Map<String, dynamic> _quietV32({bool mixed = false}) => <String, dynamic>{
-  'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
-  'analysisStatus': 'ANALYZED',
-  'coherentDisplayPeriodicity': false,
-  'shortExposureVerified': true,
-  'exposureLockedForEntireNativeCapture': true,
-  'framesAnalyzed': 84,
-  'actualFrameRateFromTimestamps': 240.62,
-  'displayRealityEvidenceV3': <String, dynamic>{
-    'fullFrameDisplay': false,
-    'fullFrameReality': false,
-    'positivePhysicalRealityEvidence': false,
-    'mixedSceneDetected': mixed,
-    'allNineCellsSameDisplayFamily': false,
-    'displayLikeCellCount': mixed ? 4 : 0,
-    'spatialFamilyCellCount': mixed ? 4 : 0,
-    'harmonicAwareSpatialFamilyCellCount': mixed ? 4 : 0,
-    'rowTimeFamilyCellCount': mixed ? 4 : 0,
-  },
-};
+      'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
+      'analysisStatus': 'ANALYZED',
+      'coherentDisplayPeriodicity': false,
+      'shortExposureVerified': true,
+      'exposureLockedForEntireNativeCapture': true,
+      'framesAnalyzed': 84,
+      'actualFrameRateFromTimestamps': 240.62,
+      'displayRealityEvidenceV3': <String, dynamic>{
+        'fullFrameDisplay': false,
+        'fullFrameReality': false,
+        'positivePhysicalRealityEvidence': false,
+        'mixedSceneDetected': mixed,
+        'allNineCellsSameDisplayFamily': false,
+        'displayLikeCellCount': mixed ? 4 : 0,
+        'spatialFamilyCellCount': mixed ? 4 : 0,
+        'harmonicAwareSpatialFamilyCellCount': mixed ? 4 : 0,
+        'rowTimeFamilyCellCount': mixed ? 4 : 0,
+      },
+    };
 
 Map<String, dynamic> _ml({
   List<double> probabilities = const <double>[0.9578, 0.9225, 0.9179],
@@ -135,57 +135,59 @@ void main() {
     );
   });
 
-  test('BUILD109 recovery requires two content-area samples at least 75', () {
+  test(
+    'BUILD109 narrow recovery still requires two content-area samples at least 75',
+    () {
     final result = _resolve(_ml(content: const <int>[75, 74, 59]));
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(
-      result.reasons,
-      contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
-    );
-  });
-
-  test(
-    'BUILD109 recovery requires all three frame probabilities at least 0.90',
-    () {
-      final result = _resolve(
-        _ml(probabilities: const <double>[0.9578, 0.899, 0.9179]),
-      );
-      expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-      expect(
-        result.reasons,
-        contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
-      );
-    },
-  );
-
-  test('BUILD109 recovery requires two full-frame scores at least 90', () {
-    final result = _resolve(_ml(fullFrame: const <int>[96, 89, 89]));
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(
-      result.reasons,
-      contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
-    );
-  });
-
-  test(
-    'BUILD109 recovery requires all three aggregate strong screen frames',
-    () {
-      final result = _resolve(_ml(strongScreenFrames: 2));
-      expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-      expect(
-        result.reasons,
-        contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
-      );
-    },
-  );
-
-  test('BUILD109 mixed scene veto remains absolute', () {
-    final result = _resolve(_ml(), mixed: true);
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(
       result.reasons,
       isNot(contains('ML_THREE_FRAME_FULL_FRAME_SCREEN_RECOVERY_V109')),
     );
+  });
+
+  test(
+    'BUILD109 narrow recovery still requires all three frame probabilities at least 0.90',
+    () {
+      final result = _resolve(
+        _ml(probabilities: const <double>[0.9578, 0.899, 0.9179]),
+      );
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(
+        result.reasons,
+        isNot(contains('ML_THREE_FRAME_FULL_FRAME_SCREEN_RECOVERY_V109')),
+      );
+    },
+  );
+
+  test(
+    'BUILD109 narrow recovery still requires two full-frame scores at least 90',
+    () {
+    final result = _resolve(_ml(fullFrame: const <int>[96, 89, 89]));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(
+      result.reasons,
+      isNot(contains('ML_THREE_FRAME_FULL_FRAME_SCREEN_RECOVERY_V109')),
+    );
+  });
+
+  test(
+    'BUILD109 narrow recovery still requires all three aggregate strong screen frames',
+    () {
+      final result = _resolve(_ml(strongScreenFrames: 2));
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(
+        result.reasons,
+        isNot(contains('ML_THREE_FRAME_FULL_FRAME_SCREEN_RECOVERY_V109')),
+      );
+    },
+  );
+
+  test(
+    'BUILD117 mixed HFR is descriptive and cannot veto strong display evidence',
+    () {
+    final result = _resolve(_ml(), mixed: true);
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
   });
 }
