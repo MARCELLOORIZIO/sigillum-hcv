@@ -44,6 +44,15 @@ void main() {
 
     test('PHOTO negative optical resolver uses the multi-frame technical clip',
         () {
+      final fusionSource =
+          File('lib/hcv_display_risk_fusion.dart').readAsStringSync();
+      expect(
+        fusionSource,
+        contains(
+          'final negativeOptical = photoTemporalOptical ?? passiveOptical;',
+        ),
+      );
+
       final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: _nonConclusiveBase(),
         passiveOptical: _optical(frames: 1, score: 0),
