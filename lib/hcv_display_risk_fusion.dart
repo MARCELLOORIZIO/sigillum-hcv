@@ -206,6 +206,9 @@ class HCVDisplayRiskFusion {
       );
     }
 
+    final physicalDisplay = _isCompleteStrictPositiveHfr(
+      temporalFrequencyProbe,
+    );
     final postCaptureOpticalSignals = _signals(postCaptureOptical);
     final postCaptureOpticalStrong =
         postCaptureOptical?['screenReplayRisk'] == 'HIGH' &&
@@ -248,9 +251,6 @@ class HCVDisplayRiskFusion {
       );
     }
 
-    final physicalDisplay = _isCompleteStrictPositiveHfr(
-      temporalFrequencyProbe,
-    );
     final mlStrongScreenFrames =
         (temporalMl?['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
     final mlAverageScreenRisk =
