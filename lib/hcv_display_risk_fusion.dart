@@ -58,6 +58,12 @@ class HCVDisplayRiskFusion {
     );
     if (dualEvidence != null) return dualEvidence;
 
+    // PHOTO has two optical sources: the actual still and the 1.5 s technical
+    // clip. Negative/corroboration checks that require a multi-frame optical
+    // trace must use the technical clip; the single still remains independent
+    // positive evidence elsewhere in the fusion.
+    final negativeOptical = photoTemporalOptical ?? passiveOptical;
+
     if (base.decision == 'STRONG_DISPLAY_RISK') return base;
 
     if (base.decision != 'NON_CONCLUSIVE' ||
@@ -81,7 +87,7 @@ class HCVDisplayRiskFusion {
     final v3SemanticOnlyResolution =
         _isV3OrLater(temporalFrequencyProbe?['type']) &&
             _hasNoCorroboratedPhysicalDisplayTraceForSemanticResolution(
-              passiveOptical,
+              negativeOptical,
             ) &&
             _isBoundedV3SemanticOnlyUnresolved(
               ml: ml,
@@ -110,7 +116,7 @@ class HCVDisplayRiskFusion {
       );
     }
 
-    if (!_hasNoPhysicalDisplayTrace(passiveOptical)) {
+    if (!_hasNoPhysicalDisplayTrace(negativeOptical)) {
       return base;
     }
 
@@ -197,6 +203,37 @@ class HCVDisplayRiskFusion {
             stillOpticalSignals['structuralDisplayTrace'] == true);
     final stillMlDecision =
         photoTemporalMl == null ? null : mlFirstPhotoDecision(ml);
+
+    // BUILD121: a PHOTO technical clip can be semantically screen-like while
+    // the actual still immediately captured afterwards is confidently REALITY.
+    // When HFR is not a strict positive and the multi-frame optical trace has
+    // no corroborated display physics, that same-family ML disagreement is a
+    // genuine conflict, not STRONG display proof. Resolve only to NC, never to
+    // REALITY; independent physical evidence can still restore STRONG.
+    final photoTemporalStillSemanticConflict = photoTemporalMl != null &&
+        base.decision == 'STRONG_DISPLAY_RISK' &&
+        stillMlDecision?.decision == 'NO_DISPLAY_EVIDENCE' &&
+        !physicalDisplay &&
+        !stillOpticalStrong &&
+        _hasNoCorroboratedPhysicalDisplayTraceForSemanticResolution(
+          temporalOptical,
+        );
+    if (photoTemporalStillSemanticConflict) {
+      return HCVDisplayRiskResult(
+        risk: 'MEDIUM',
+        score: 45,
+        decision: 'NON_CONCLUSIVE',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: base.evidenceSources,
+        strongSources: base.strongSources,
+        reasons: <String>[
+          ...base.reasons,
+          'PHOTO_TEMPORAL_STRONG_STILL_REALITY_CONFLICT',
+          'NO_INDEPENDENT_PHYSICAL_DISPLAY_CORROBORATION',
+        ],
+      );
+    }
+
     if (!positivePhysicalReality &&
         !physicalDisplay &&
         stillOpticalStrong &&
