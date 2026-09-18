@@ -1,0 +1,42 @@
+name: BUILD117 Temporary Validation
+
+on:
+  push:
+    branches:
+      - refactor/display-physics-scene-context-build117-20260918
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib/hcv_display_risk_fusion.dart lib/hcv_scene_context_evidence.dart lib/hcv_display_final_policy.dart lib/camera_page.dart test/build117_display_physics_scene_context_test.dart test/hfr_v3_fullframe_mixed_scene_test.dart
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Focused tests
+        run: flutter test test/build117_display_physics_scene_context_test.dart test/hfr_v3_fullframe_mixed_scene_test.dart test/build116_bmw_display_hfr_mixedscene_test.dart test/build115_reflection_semantic_resolution_test.dart
+      - name: Full test suite
+        run: flutter test
+
+  ios-no-codesign:
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: iOS device build
+        run: flutter build ios --release --no-codesign
