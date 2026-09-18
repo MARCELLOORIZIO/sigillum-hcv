@@ -67,6 +67,23 @@ Map<String, dynamic> _optical({
       },
     };
 
+Map<String, dynamic> _stillOptical({
+  int score = 20,
+  bool structuralDisplayTrace = false,
+  bool strongDisplayTrace = false,
+}) =>
+    <String, dynamic>{
+      'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
+      'analysisStatus': 'ANALYZED',
+      'framesAnalyzed': 1,
+      'screenReplayRisk': score >= 70 ? 'HIGH' : 'LOW',
+      'screenReplayRiskScore': score,
+      'signals': <String, dynamic>{
+        'structuralDisplayTrace': structuralDisplayTrace,
+        'strongDisplayTrace': strongDisplayTrace,
+      },
+    };
+
 Map<String, dynamic> _quietHfr({
   bool mixedScene = false,
   bool positivePhysicalReality = false,
@@ -110,7 +127,7 @@ HCVDisplayRiskResult _resolve({
 }) =>
     HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: _baseA6,
-      passiveOptical: optical ?? _optical(),
+      passiveOptical: _stillOptical(),
       ml: still ?? _still(),
       temporalFrequencyProbe: hfr ?? _quietHfr(),
       photoTemporalMl: temporal ??
@@ -119,6 +136,7 @@ HCVDisplayRiskResult _resolve({
             _frame(probability: 0.8293, risk: 83, fullFrame: 83, contentArea: 72),
             _frame(probability: 0.8109, risk: 81, fullFrame: 81, contentArea: 84),
           ]),
+      photoTemporalOptical: optical ?? _optical(),
     );
 
 void main() {
@@ -153,12 +171,11 @@ void main() {
     expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
   });
 
-  test('optical trace cannot override mixed real scene', () {
+  test('HFR mixed coverage alone is not positive REALITY evidence', () {
     final result = _resolve(hfr: _quietHfr(mixedScene: true));
 
-    expect(result.risk, 'LOW');
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.decision, isNot('NO_DISPLAY_EVIDENCE'));
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
   });
 
   test('positive physical reality veto blocks A6 recovery', () {
