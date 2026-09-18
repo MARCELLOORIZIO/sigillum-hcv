@@ -46,6 +46,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? ml,
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
+    Map<String, dynamic>? photoTemporalOptical,
   }) {
     final dualEvidence = _resolveDualEvidenceV3(
       base: base,
@@ -53,6 +54,7 @@ class HCVDisplayRiskFusion {
       ml: ml,
       temporalFrequencyProbe: temporalFrequencyProbe,
       photoTemporalMl: photoTemporalMl,
+      photoTemporalOptical: photoTemporalOptical,
     );
     if (dualEvidence != null) return dualEvidence;
 
@@ -159,8 +161,10 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? ml,
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
+    Map<String, dynamic>? photoTemporalOptical,
   }) {
     final temporalMl = photoTemporalMl ?? ml;
+    final temporalOptical = photoTemporalOptical ?? passiveOptical;
     final temporalFrames = _temporalFrameCount(temporalMl);
     final highAnyScreenFrames = _temporalHighAnyScreenFrameCount(temporalMl);
     final highFullFrameScreenFrames = _temporalHighFullFrameScreenFrameCount(
@@ -171,33 +175,14 @@ class HCVDisplayRiskFusion {
     final mixedScene = _isV3MixedRealScene(temporalFrequencyProbe);
     final v3Analyzed = _isV3OrLater(temporalFrequencyProbe?['type']) &&
         temporalFrequencyProbe?['analysisStatus'] == 'ANALYZED';
+    final positivePhysicalReality = _v3Evidence(
+          temporalFrequencyProbe,
+        )?['positivePhysicalRealityEvidence'] ==
+        true;
 
-    // A monitor/TV inside a wider real scene is reality for SIGILLUM. This
-    // veto runs before any inherited STRONG ML decision so semantic screen
-    // presence can never turn a mixed physical scene into a screen recapture.
-    if (mixedScene) {
-      final reasons = base.reasons
-          .where(
-            (reason) =>
-                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
-                reason != 'LIVE_PROBE_MISSING',
-          )
-          .toList()
-        ..add('HFR_V3_MIXED_REAL_SCENE')
-        ..add('HFR_V3_PARTIAL_DISPLAY_COVERAGE_IS_REALITY')
-        ..add('DUAL_EVIDENCE_V3_ACTIVE');
-      return HCVDisplayRiskResult(
-        risk: 'LOW',
-        score: min(base.score, 20),
-        decision: 'NO_DISPLAY_EVIDENCE',
-        analysisStatus: 'COMPLETE',
-        evidenceSources: base.evidenceSources
-            .where((source) => !source.contains('SCREEN'))
-            .toList(),
-        strongSources: const <String>[],
-        reasons: reasons,
-      );
-    }
+    // BUILD117 architecture: HFR mixed/partial coverage is descriptive display
+    // physics only. It is not positive scene-context evidence and therefore
+    // cannot erase stronger display evidence or force REALITY.
 
     final physicalDisplay = _isCompleteStrictPositiveHfr(
       temporalFrequencyProbe,
@@ -208,7 +193,7 @@ class HCVDisplayRiskFusion {
         (temporalMl?['averageScreenReplayRiskScore'] as num?)?.toDouble() ??
             0.0;
     final narrowThreeFrameFullFrameRecoveryV109 = v3Analyzed &&
-        !mixedScene &&
+        !positivePhysicalReality &&
         !physicalDisplay &&
         temporalFrames == 3 &&
         highAnyScreenFrames == 3 &&
@@ -223,7 +208,7 @@ class HCVDisplayRiskFusion {
         ) &&
         base.reasons.contains('ML_FIRST_VIDEO_FRAME_DIAGNOSTIC_CORROBORATION');
     final videoPhotoSpatialFullFrameCorroboration = v3Analyzed &&
-        !mixedScene &&
+        !positivePhysicalReality &&
         !physicalDisplay &&
         temporalFrames >= 3 &&
         _hasStableVideoPhotoSpatialFullFrameCorroboration(temporalMl) &&
@@ -245,7 +230,7 @@ class HCVDisplayRiskFusion {
         (stillSignals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
     final photoStillTemporalScreenCorroboration = photoTemporalMl != null &&
         v3Analyzed &&
-        !mixedScene &&
+        !positivePhysicalReality &&
         !physicalDisplay &&
         temporalFrames >= 3 &&
         highAnyScreenFrames == temporalFrames &&
@@ -264,10 +249,10 @@ class HCVDisplayRiskFusion {
     // three-frame SCREEN_* temporal sequence, and a strong passive optical
     // refresh trace from the technical mini-video. Mixed/physical-reality HFR
     // evidence remains an explicit veto.
-    final opticalSignals = _signals(passiveOptical);
-    final opticalRisk = passiveOptical?['screenReplayRisk']?.toString() ?? '';
+    final opticalSignals = _signals(temporalOptical);
+    final opticalRisk = temporalOptical?['screenReplayRisk']?.toString() ?? '';
     final opticalScore =
-        (passiveOptical?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+        (temporalOptical?['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
     final temporalFrameAnalyses = temporalMl?['videoFrameAnalyses'];
     var temporalScreenClassFrames = 0;
     var temporalRisk80Frames = 0;
@@ -289,16 +274,13 @@ class HCVDisplayRiskFusion {
         }
       }
     }
-    final positivePhysicalReality = _v3Evidence(
-            temporalFrequencyProbe)?['positivePhysicalRealityEvidence'] ==
-        true;
     final photoModerateScreenOpticalCorroboration = photoTemporalMl != null &&
         v3Analyzed &&
-        !mixedScene &&
+        !positivePhysicalReality &&
         !physicalDisplay &&
         !positivePhysicalReality &&
         base.decision == 'NON_CONCLUSIVE' &&
-        passiveOptical?['captureSource'] == 'PHOTO_TECHNICAL_MINI_VIDEO_V2' &&
+        temporalOptical?['captureSource'] == 'PHOTO_TECHNICAL_MINI_VIDEO_V2' &&
         opticalRisk == 'HIGH' &&
         opticalScore >= 80 &&
         opticalSignals['strongDisplayTrace'] == true &&
@@ -349,37 +331,8 @@ class HCVDisplayRiskFusion {
       );
     }
 
-    final screenPresentButNotFullFrame = v3Analyzed &&
-        !physicalDisplay &&
-        !narrowThreeFrameFullFrameRecoveryV109 &&
-        !videoPhotoSpatialFullFrameCorroboration &&
-        !photoStillTemporalScreenCorroboration &&
-        temporalFrames >= 2 &&
-        highAnyScreenFrames >= 2 &&
-        highFullFrameScreenFrames == 0;
-    if (screenPresentButNotFullFrame) {
-      final reasons = base.reasons
-          .where(
-            (reason) =>
-                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
-                reason != 'LIVE_PROBE_MISSING',
-          )
-          .toList()
-        ..add('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')
-        ..add('DISPLAY_PRESENCE_IS_NOT_DISPLAY_CAPTURE')
-        ..add('DUAL_EVIDENCE_V3_ACTIVE');
-      return HCVDisplayRiskResult(
-        risk: 'LOW',
-        score: min(base.score, 20),
-        decision: 'NO_DISPLAY_EVIDENCE',
-        analysisStatus: 'COMPLETE',
-        evidenceSources: base.evidenceSources
-            .where((source) => !source.contains('SCREEN'))
-            .toList(),
-        strongSources: const <String>[],
-        reasons: reasons,
-      );
-    }
+    // BUILD117: ML fullFrame/contentArea scores describe screen-likeness, not
+    // physical screen occupancy. They must not be converted into REALITY.
 
     final strictPersistentVisualDisplay =
         temporalFrames >= 2 && highFullFrameScreenFrames >= 2;
