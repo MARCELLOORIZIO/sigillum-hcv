@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sigillum_iphone/hcv_display_final_policy.dart';
 import 'package:sigillum_iphone/hcv_display_risk_fusion.dart';
 import 'package:sigillum_iphone/hcv_scene_context_evidence.dart';
 
@@ -51,13 +52,9 @@ void main() {
         reasons: const <String>['TEST_INDEPENDENT_CONTEXT_CORROBORATION'],
       );
 
-      final result =
-          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
-        base: base,
-        passiveOptical: null,
-        ml: null,
-        temporalFrequencyProbe: null,
-        sceneContextEvidence: context,
+      final result = HCVDisplayFinalPolicy.resolve(
+        displayPhysics: base,
+        sceneContext: context,
       );
 
       expect(result.decision, 'NO_DISPLAY_EVIDENCE');
@@ -85,6 +82,21 @@ void main() {
         context.reasons,
         contains('GEOMETRY_REQUIRES_INDEPENDENT_CONTEXT_CORROBORATION'),
       );
+
+      final displayPhysics = HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: 96,
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const <String>['ML_SCREEN'],
+        strongSources: const <String>['ML_SCREEN'],
+        reasons: const <String>['DISPLAY_PHYSICS_STRONG'],
+      );
+      final finalResult = HCVDisplayFinalPolicy.resolve(
+        displayPhysics: displayPhysics,
+        sceneContext: context,
+      );
+      expect(finalResult.decision, 'STRONG_DISPLAY_RISK');
     });
 
     test('planarity alone cannot turn a strong display into reality', () {
@@ -105,13 +117,9 @@ void main() {
         },
       );
 
-      final result =
-          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
-        base: base,
-        passiveOptical: null,
-        ml: null,
-        temporalFrequencyProbe: null,
-        sceneContextEvidence: context,
+      final result = HCVDisplayFinalPolicy.resolve(
+        displayPhysics: base,
+        sceneContext: context,
       );
 
       expect(context.contextClass, HCVSceneContextEvidence.sceneContextUnknown);
@@ -119,7 +127,7 @@ void main() {
       expect(result.score, 96);
     });
 
-    test('still optical trace is not replaced by clean temporal optical', () {
+    test('still optical and existing photo ML gate recover E6AD-style display', () {
       final base = HCVDisplayRiskResult(
         risk: 'MEDIUM',
         score: 45,
@@ -140,15 +148,11 @@ void main() {
         photoTemporalMl: _weakTemporalScreenMl(),
       );
 
-      expect(result.decision, 'NON_CONCLUSIVE');
-      expect(result.score, 45);
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(result.risk, 'HIGH');
       expect(
         result.reasons,
-        isNot(contains('V3_BOUNDED_SEMANTIC_ONLY_DISPLAY_APPEARANCE')),
-      );
-      expect(
-        result.reasons,
-        isNot(contains('WEAK_PHOTO_AND_TEMPORAL_SCREEN_SEMANTICS_UNCORROBORATED')),
+        contains('PHOTO_STILL_ML_OPTICAL_CORROBORATION'),
       );
     });
   });
@@ -214,10 +218,11 @@ Map<String, dynamic> _moderateStillScreenMl() => <String, dynamic>{
       'analysisStatus': 'ANALYZED',
       'predictedClass': 'SCREEN_MONITOR',
       'screenProbability': 0.877,
+      'predictedClassConfidence': 0.80,
       'screenReplayRiskScore': 88,
       'signals': <String, dynamic>{
-        'fullFrameRiskScore': 88,
-        'contentAreaRiskScore': 88,
+        'fullFrameRiskScore': 95,
+        'contentAreaRiskScore': 90,
       },
     };
 
