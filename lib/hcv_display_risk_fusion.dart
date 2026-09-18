@@ -187,6 +187,37 @@ class HCVDisplayRiskFusion {
     final physicalDisplay = _isCompleteStrictPositiveHfr(
       temporalFrequencyProbe,
     );
+    final positiveRealityContext =
+        sceneContextEvidence?.positiveRealityContext == true;
+    if (positiveRealityContext) {
+      final reasons = base.reasons
+          .where(
+            (reason) =>
+                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
+                reason != 'LIVE_PROBE_MISSING',
+          )
+          .toList()
+        ..addAll(sceneContextEvidence!.reasons)
+        ..add('SCENE_CONTEXT_POLICY_V1');
+      if (base.decision == 'STRONG_DISPLAY_RISK' || physicalDisplay) {
+        reasons.add('DISPLAY_PHYSICS_EMBEDDED_IN_POSITIVE_REALITY_CONTEXT');
+      } else {
+        reasons.add('POSITIVE_REALITY_CONTEXT_WITHOUT_DOMINANT_DISPLAY_PROOF');
+      }
+      if (mixedScene) {
+        reasons.add('HFR_HETEROGENEOUS_COVERAGE_DIAGNOSTIC_ONLY');
+      }
+      return HCVDisplayRiskResult(
+        risk: 'LOW',
+        score: min(base.score, 20),
+        decision: 'NO_DISPLAY_EVIDENCE',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: base.evidenceSources,
+        strongSources: base.strongSources,
+        reasons: reasons,
+      );
+    }
+
     final mlStrongScreenFrames =
         (temporalMl?['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
     final mlAverageScreenRisk =
@@ -383,39 +414,6 @@ class HCVDisplayRiskFusion {
         narrowThreeFrameFullFrameRecoveryV109 ||
         videoPhotoSpatialFullFrameCorroboration ||
         photoStillTemporalScreenCorroboration;
-
-    final positiveRealityContext =
-        sceneContextEvidence?.positiveRealityContext == true;
-    if (positiveRealityContext) {
-      final reasons = base.reasons
-          .where(
-            (reason) =>
-                reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED' &&
-                reason != 'LIVE_PROBE_MISSING',
-          )
-          .toList()
-        ..addAll(sceneContextEvidence!.reasons);
-      if (physicalDisplay ||
-          persistentVisualDisplay ||
-          base.decision == 'STRONG_DISPLAY_RISK') {
-        reasons.add('DISPLAY_PHYSICS_EMBEDDED_IN_POSITIVE_REALITY_CONTEXT');
-      } else {
-        reasons.add('POSITIVE_REALITY_CONTEXT_WITHOUT_DOMINANT_DISPLAY_PROOF');
-      }
-      if (mixedScene) {
-        reasons.add('HFR_HETEROGENEOUS_COVERAGE_DIAGNOSTIC_ONLY');
-      }
-      reasons.add('SCENE_CONTEXT_POLICY_V1');
-      return HCVDisplayRiskResult(
-        risk: 'LOW',
-        score: min(base.score, 20),
-        decision: 'NO_DISPLAY_EVIDENCE',
-        analysisStatus: 'COMPLETE',
-        evidenceSources: base.evidenceSources,
-        strongSources: base.strongSources,
-        reasons: reasons,
-      );
-    }
 
     if (physicalDisplay || persistentVisualDisplay) {
       final evidenceSources = <String>{...base.evidenceSources};
