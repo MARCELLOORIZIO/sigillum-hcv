@@ -46,6 +46,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? ml,
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
+    Map<String, dynamic>? postCaptureOptical,
   }) {
     final dualEvidence = _resolveDualEvidenceV3(
       base: base,
@@ -53,10 +54,15 @@ class HCVDisplayRiskFusion {
       ml: ml,
       temporalFrequencyProbe: temporalFrequencyProbe,
       photoTemporalMl: photoTemporalMl,
+      postCaptureOptical: postCaptureOptical,
     );
     if (dualEvidence != null) return dualEvidence;
 
     if (base.decision == 'STRONG_DISPLAY_RISK') return base;
+
+    if (_hasCorroboratedPhysicalDisplayTrace(postCaptureOptical)) {
+      return base;
+    }
 
     if (base.decision != 'NON_CONCLUSIVE' ||
         base.evidenceSources.isNotEmpty ||
@@ -159,6 +165,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? ml,
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
+    Map<String, dynamic>? postCaptureOptical,
   }) {
     final temporalMl = photoTemporalMl ?? ml;
     final temporalFrames = _temporalFrameCount(temporalMl);
@@ -196,6 +203,48 @@ class HCVDisplayRiskFusion {
         evidenceSources: base.evidenceSources,
         strongSources: base.strongSources,
         reasons: reasons,
+      );
+    }
+
+    final postCaptureOpticalSignals = _signals(postCaptureOptical);
+    final postCaptureOpticalStrong =
+        postCaptureOptical?['screenReplayRisk'] == 'HIGH' &&
+        (postCaptureOpticalSignals['strongDisplayTrace'] == true ||
+            postCaptureOpticalSignals['structuralDisplayTrace'] == true);
+    final postCaptureMlDecision =
+        photoTemporalMl == null ? null : mlFirstPhotoDecision(ml);
+    if (!coverageConflict &&
+        !physicalDisplay &&
+        postCaptureOpticalStrong &&
+        postCaptureMlDecision?.decision == 'STRONG_DISPLAY_RISK') {
+      final evidenceSources = <String>{
+        ...base.evidenceSources,
+        ...postCaptureMlDecision!.evidenceSources,
+        'PHOTO_STILL_OPTICAL_CORROBORATION',
+      };
+      final strongSources = <String>{
+        ...base.strongSources,
+        ...postCaptureMlDecision.strongSources,
+        'PHOTO_STILL_OPTICAL_CORROBORATION',
+      };
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: max(
+          max(base.score, postCaptureMlDecision.score),
+          (postCaptureOptical?['screenReplayRiskScore'] as num?)?.toInt() ?? 0,
+        ),
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: evidenceSources.toList(),
+        strongSources: strongSources.toList(),
+        reasons: <String>[
+          ...base.reasons.where(
+            (reason) => reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED',
+          ),
+          ...postCaptureMlDecision.reasons,
+          'PHOTO_STILL_OPTICAL_DISPLAY_TRACE_CONFIRMED',
+          'PHOTO_STILL_ML_OPTICAL_CORROBORATION',
+        ],
       );
     }
 
@@ -686,6 +735,29 @@ class HCVDisplayRiskFusion {
     final fps =
         (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
     return frames >= 60 && fps >= 120.0;
+  }
+
+  static bool _hasCorroboratedPhysicalDisplayTrace(
+    Map<String, dynamic>? optical,
+  ) {
+    if (optical == null || optical['analysisStatus'] == 'NOT_ANALYZED') {
+      return false;
+    }
+    final signals = _signals(optical);
+    const corroboratedSignalKeys = <String>[
+      'displayFlicker',
+      'pixelGridOrMoireHint',
+      'uniformPixelGrid',
+      'horizontalRefreshBands',
+      'pairedLocalRefresh',
+      'temporalScreenPulse',
+      'structuralDisplayTrace',
+      'strongDisplayTrace',
+      'confirmedDisplayTrace',
+      'periodicLightTrace',
+      'opticalCorroboratedTrace',
+    ];
+    return corroboratedSignalKeys.any((key) => signals[key] == true);
   }
 
   static bool _hasNoPhysicalDisplayTrace(Map<String, dynamic>? optical) {
