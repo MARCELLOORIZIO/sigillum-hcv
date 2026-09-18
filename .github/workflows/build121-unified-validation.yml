@@ -3,7 +3,7 @@ name: BUILD121 unified photo scene context validation
 on:
   pull_request:
     branches:
-      - feat/passive-scene-context-build120-20260918
+      - fix/photo-preview-rotation-build119-20260918
   workflow_dispatch:
 
 permissions:
