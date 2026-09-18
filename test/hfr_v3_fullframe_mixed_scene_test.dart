@@ -189,7 +189,7 @@ void main() {
     expect((result['rowTimeCoherenceScore'] as num).toDouble(), greaterThan(0.50));
   });
 
-  test('mixed monitor plus room is reality even with strong screen ML', () {
+  test('HFR mixed coverage alone cannot override strong persistent display evidence', () {
     final strongBase = const HCVDisplayRiskResult(
       risk: 'HIGH',
       score: 98,
@@ -212,8 +212,11 @@ void main() {
         rowTimeFamilyCells: 4,
       ),
     );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(
+      result.reasons,
+      contains('HFR_HETEROGENEOUS_COVERAGE_DIAGNOSTIC_ONLY'),
+    );
   });
 
   test('full-frame text monitor can use repeated full-frame ML when HFR is quiet', () {
@@ -231,7 +234,7 @@ void main() {
     expect(result.reasons, contains('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES'));
   });
 
-  test('inherited strong screen ML is vetoed when screen is not full-frame', () {
+  test('screen semantics without validated context remain non-conclusive', () {
     final strongBase = const HCVDisplayRiskResult(
       risk: 'HIGH',
       score: 98,
@@ -255,11 +258,12 @@ void main() {
         mixed: false,
       ),
     );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(result.decision, 'NON_CONCLUSIVE');
     expect(
       result.reasons,
-      contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
+      contains('SCREEN_SEMANTIC_WITHOUT_VALIDATED_SCENE_CONTEXT'),
     );
+    expect(result.reasons, contains('ML_FULL_FRAME_SCORE_IS_NOT_GEOMETRY'));
   });
 
   test('screen presence without full-frame support cannot promote a real room', () {
