@@ -990,13 +990,11 @@ class _CameraPageState extends State<CameraPage> {
         baseDisplayRisk,
         temporalFrequencyProbe,
       );
-      final photoTemporalProbeRaw =
-          liveScreenProbe['photoTemporalVideoProbe'];
+      final photoTemporalProbeRaw = liveScreenProbe['photoTemporalVideoProbe'];
       final photoTemporalProbe = photoTemporalProbeRaw is Map
           ? Map<String, dynamic>.from(photoTemporalProbeRaw)
           : null;
-      final photoTemporalMlRaw =
-          photoTemporalProbe?['mlScreenReplayAnalysis'];
+      final photoTemporalMlRaw = photoTemporalProbe?['mlScreenReplayAnalysis'];
       final photoTemporalOpticalRaw =
           photoTemporalProbe?['screenReplayAnalysis'];
       final photoTemporalMl = photoTemporalMlRaw is Map

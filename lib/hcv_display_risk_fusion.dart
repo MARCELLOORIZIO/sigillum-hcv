@@ -212,8 +212,8 @@ class HCVDisplayRiskFusion {
     final postCaptureOpticalSignals = _signals(postCaptureOptical);
     final postCaptureOpticalStrong =
         postCaptureOptical?['screenReplayRisk'] == 'HIGH' &&
-        (postCaptureOpticalSignals['strongDisplayTrace'] == true ||
-            postCaptureOpticalSignals['structuralDisplayTrace'] == true);
+            (postCaptureOpticalSignals['strongDisplayTrace'] == true ||
+                postCaptureOpticalSignals['structuralDisplayTrace'] == true);
     final postCaptureMlDecision =
         photoTemporalMl == null ? null : mlFirstPhotoDecision(ml);
     if (!coverageConflict &&

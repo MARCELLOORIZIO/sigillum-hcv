@@ -57,11 +57,10 @@ Map<String, dynamic> v3Probe({
         'fullFrameDisplay': fullFrameDisplay,
         'fullFrameReality': fullFrameReality,
         'mixedSceneDetected': mixed,
-        'allNineCellsSameDisplayFamily':
-            allNineSameFamily ??
-                (fullFrameDisplay &&
-                    spatialFamilyCells == 9 &&
-                    rowTimeFamilyCells == 9),
+        'allNineCellsSameDisplayFamily': allNineSameFamily ??
+            (fullFrameDisplay &&
+                spatialFamilyCells == 9 &&
+                rowTimeFamilyCells == 9),
         'displayLikeCellCount': displayCells,
         'realityLikeCellCount': realityCells,
         'indeterminateCellCount': indeterminateCells,
@@ -91,7 +90,8 @@ Map<String, dynamic> temporalV3(
     };
 
 void main() {
-  test('V3 full-frame display requires all nine cells in one physical family', () {
+  test('V3 full-frame display requires all nine cells in one physical family',
+      () {
     expect(
       HCVTemporalFrequencyProbe.qualifiesFullFrameDisplayV3(
         legacyHfrCandidate: true,
@@ -157,7 +157,9 @@ void main() {
     );
   });
 
-  test('fusion accepts BUILD104 recovered full-frame family with 7 local display cells', () {
+  test(
+      'fusion accepts BUILD104 recovered full-frame family with 7 local display cells',
+      () {
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: unresolvedV3(),
       passiveOptical: opticalCleanV3(),
@@ -190,7 +192,8 @@ void main() {
     }
     final result = HCVTemporalFrequencyMath.analyzeRowTimeMatrix(frames);
     expect(result['rowTimeAnalysisStatus'], 'ANALYZED');
-    expect((result['rowTimeCoherenceScore'] as num).toDouble(), greaterThan(0.50));
+    expect(
+        (result['rowTimeCoherenceScore'] as num).toDouble(), greaterThan(0.50));
   });
 
   test('mixed flag with DISPLAY plus UNKNOWN cannot erase strong display', () {
@@ -248,11 +251,14 @@ void main() {
       ),
     );
     expect(result.decision, 'NON_CONCLUSIVE');
-    expect(result.reasons, contains('HFR_V3_DISPLAY_REALITY_COVERAGE_CONFLICT'));
+    expect(
+        result.reasons, contains('HFR_V3_DISPLAY_REALITY_COVERAGE_CONFLICT'));
     expect(result.reasons, contains('HFR_V3_COVERAGE_CONFLICT_IS_NOT_REALITY'));
   });
 
-  test('full-frame text monitor can use repeated full-frame ML when HFR is quiet', () {
+  test(
+      'full-frame text monitor can use repeated full-frame ML when HFR is quiet',
+      () {
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: unresolvedV3(),
       passiveOptical: opticalCleanV3(),
@@ -264,10 +270,12 @@ void main() {
       ),
     );
     expect(result.decision, 'STRONG_DISPLAY_RISK');
-    expect(result.reasons, contains('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES'));
+    expect(result.reasons,
+        contains('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES'));
   });
 
-  test('inherited strong screen ML is vetoed when screen is not full-frame', () {
+  test('inherited strong screen ML is vetoed when screen is not full-frame',
+      () {
     final strongBase = const HCVDisplayRiskResult(
       risk: 'HIGH',
       score: 98,
@@ -298,7 +306,8 @@ void main() {
     );
   });
 
-  test('screen presence without full-frame support cannot promote a real room', () {
+  test('screen presence without full-frame support cannot promote a real room',
+      () {
     final base = unresolvedV3();
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: base,
@@ -317,7 +326,9 @@ void main() {
     expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
   });
 
-  test('BUILD105 full-frame photo passes V3 family gate despite five locally stable cells', () {
+  test(
+      'BUILD105 full-frame photo passes V3 family gate despite five locally stable cells',
+      () {
     expect(
       HCVTemporalFrequencyProbe.qualifiesDisplayFamilyGlobalHfrV3(
         actualFps: 240.62,
@@ -336,7 +347,9 @@ void main() {
     );
   });
 
-  test('V3 family gate does not weaken global median stability or periodic-cell requirements', () {
+  test(
+      'V3 family gate does not weaken global median stability or periodic-cell requirements',
+      () {
     expect(
       HCVTemporalFrequencyProbe.qualifiesDisplayFamilyGlobalHfrV3(
         actualFps: 240.62,
@@ -371,7 +384,9 @@ void main() {
     );
   });
 
-  test('BUILD105 framed artwork video is quiet temporal signature, not positive Reality', () {
+  test(
+      'BUILD105 framed artwork video is quiet temporal signature, not positive Reality',
+      () {
     expect(
       HCVTemporalFrequencyProbe.qualifiesNoTemporalDisplaySignatureV31(
         actualFps: 240.62,
@@ -391,7 +406,9 @@ void main() {
     );
   });
 
-  test('BUILD105 desk video is quiet temporal signature despite one weak periodic cell', () {
+  test(
+      'BUILD105 desk video is quiet temporal signature despite one weak periodic cell',
+      () {
     expect(
       HCVTemporalFrequencyProbe.qualifiesNoTemporalDisplaySignatureV31(
         actualFps: 240.62,
@@ -411,7 +428,9 @@ void main() {
     );
   });
 
-  test('Reality V3 rejects mixed scenes and true high-frequency display signatures', () {
+  test(
+      'Reality V3 rejects mixed scenes and true high-frequency display signatures',
+      () {
     expect(
       HCVTemporalFrequencyProbe.qualifiesNoTemporalDisplaySignatureV31(
         actualFps: 240.62,
@@ -448,7 +467,8 @@ void main() {
     );
   });
 
-  test('quiet HFR alone does not resolve weak artwork semantics as reality', () {
+  test('quiet HFR alone does not resolve weak artwork semantics as reality',
+      () {
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: unresolvedV3(),
       passiveOptical: opticalCleanV3(),
@@ -463,10 +483,13 @@ void main() {
       ),
     );
     expect(result.decision, 'NON_CONCLUSIVE');
-    expect(result.reasons, isNot(contains('HFR_V3_FULL_FRAME_REALITY_SIGNATURE')));
+    expect(
+        result.reasons, isNot(contains('HFR_V3_FULL_FRAME_REALITY_SIGNATURE')));
   });
 
-  test('quiet HFR cannot override temporal-only passive optical false positive on desk', () {
+  test(
+      'quiet HFR cannot override temporal-only passive optical false positive on desk',
+      () {
     final temporalOnlyOptical = <String, dynamic>{
       'analysisStatus': 'ANALYZED',
       'framesAnalyzed': 15,
@@ -502,13 +525,15 @@ void main() {
     expect(result.decision, 'NON_CONCLUSIVE');
     expect(
       result.reasons,
-      isNot(contains('HFR_V3_REALITY_OVERRIDES_TEMPORAL_ONLY_PASSIVE_OPTICAL_CUE')),
+      isNot(contains(
+          'HFR_V3_REALITY_OVERRIDES_TEMPORAL_ONLY_PASSIVE_OPTICAL_CUE')),
     );
   });
 
   test('Reality V3 cannot override structural optical screen evidence', () {
     final structuralOptical = opticalCleanV3();
-    final signals = Map<String, dynamic>.from(structuralOptical['signals'] as Map);
+    final signals =
+        Map<String, dynamic>.from(structuralOptical['signals'] as Map);
     signals['pixelGridOrMoireHint'] = true;
     structuralOptical['signals'] = signals;
     final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
@@ -523,5 +548,4 @@ void main() {
     );
     expect(result.decision, 'NON_CONCLUSIVE');
   });
-
 }

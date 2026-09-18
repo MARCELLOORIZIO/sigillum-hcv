@@ -85,7 +85,9 @@ void main() {
     expect(result.decision, 'STRONG_DISPLAY_RISK');
   });
 
-  test('photo still optical remains decision evidence after temporal mini-video', () {
+  test(
+      'photo still optical remains decision evidence after temporal mini-video',
+      () {
     final unresolved = const HCVDisplayRiskResult(
       risk: 'MEDIUM',
       score: 45,

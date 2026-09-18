@@ -4,8 +4,7 @@ class HCVSceneContextResult {
     required this.reasons,
   });
 
-  static const String displayEmbeddedInReality =
-      'DISPLAY_EMBEDDED_IN_REALITY';
+  static const String displayEmbeddedInReality = 'DISPLAY_EMBEDDED_IN_REALITY';
   static const String displayDominant = 'DISPLAY_DOMINANT';
   static const String unknown = 'SCENE_CONTEXT_UNKNOWN';
 
@@ -40,8 +39,7 @@ class HCVSceneContextEvidence {
     final geometry = geometryRaw is Map
         ? Map<String, dynamic>.from(geometryRaw)
         : const <String, dynamic>{};
-    final geometrySceneClass =
-        geometry['sceneClass']?.toString() ??
+    final geometrySceneClass = geometry['sceneClass']?.toString() ??
         liveScreenProbe?['sceneClass']?.toString() ??
         'UNKNOWN';
     final geometryReality =
@@ -66,7 +64,7 @@ class HCVSceneContextEvidence {
         : const <String, dynamic>{};
     final positivePhysicalReality =
         v3['positivePhysicalRealityEvidence'] == true &&
-        v3['fullFrameReality'] == true;
+            v3['fullFrameReality'] == true;
     if (positivePhysicalReality) {
       reasons.add('POSITIVE_PHYSICAL_REALITY_CONTEXT');
     }
