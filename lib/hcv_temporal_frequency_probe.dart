@@ -378,10 +378,12 @@ class HCVTemporalFrequencyProbe {
     // heterogeneous HFR cell responses. It requires both display-like and
     // low-display-signature cells. It is NOT positive evidence that the device
     // is embedded in a real 3D scene and must not be used as a REALITY veto.
-    final mixedSceneDetected = displayLikeCellCount > 0 &&
-        realityLikeCellCount > 0 &&
-        !fullFrameDisplayV3 &&
-        !displayOnlyFullGridCoverageBuild116;
+    final mixedSceneDetected = qualifiesHfrHeterogeneousCoverage(
+      displayLikeCellCount: displayLikeCellCount,
+      realityLikeCellCount: realityLikeCellCount,
+      fullFrameDisplay: fullFrameDisplayV3,
+      displayOnlyFullGridCoverage: displayOnlyFullGridCoverageBuild116,
+    );
     final noTemporalDisplaySignatureV31 =
         qualifiesNoTemporalDisplaySignatureV31(
       actualFps: actualFps,
@@ -769,6 +771,21 @@ class HCVTemporalFrequencyProbe {
         harmonicAwareSpatialFamilyCellCount == 9 &&
         rowTimeFamilyCellCount == 9 &&
         medianRowTimeCoherence >= 0.40;
+  }
+
+  /// HFR-only heterogeneity diagnostic. This says that the 3x3 grid contains
+  /// both cells with display-like temporal physics and cells with a weak
+  /// display signature. It deliberately does NOT claim geometric reality.
+  static bool qualifiesHfrHeterogeneousCoverage({
+    required int displayLikeCellCount,
+    required int realityLikeCellCount,
+    required bool fullFrameDisplay,
+    required bool displayOnlyFullGridCoverage,
+  }) {
+    return displayLikeCellCount > 0 &&
+        realityLikeCellCount > 0 &&
+        !fullFrameDisplay &&
+        !displayOnlyFullGridCoverage;
   }
 
   static bool qualifiesNoTemporalDisplaySignatureV31({
