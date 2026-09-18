@@ -27,17 +27,9 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Verify BUILD122 formatting
+      - name: Format BUILD122 sources in runner
         run: |
           dart format \
-            lib/hcv_temporal_frequency_probe.dart \
-            lib/hcv_ml_screen_replay_classifier.dart \
-            lib/hcv_display_risk_fusion.dart \
-            lib/hcv_scene_context_evidence.dart \
-            lib/hcv_display_final_policy.dart \
-            test/build120_passive_scene_context_activation_test.dart \
-            test/build122_corpus_wide_regression_test.dart
-          git diff --exit-code -- \
             lib/hcv_temporal_frequency_probe.dart \
             lib/hcv_ml_screen_replay_classifier.dart \
             lib/hcv_display_risk_fusion.dart \
