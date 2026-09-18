@@ -25,10 +25,10 @@ void main() {
   test('BUILD118 photo preview shows the complete frame instead of cover crop', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
 
-    expect(
-      source,
-      contains('fit: photoMode ? BoxFit.contain : BoxFit.cover'),
-    );
+    expect(source, contains('if (ok && photoMode)'));
+    expect(source, contains('fit: BoxFit.contain'));
+    expect(source, contains('if (ok && !photoMode)'));
+    expect(source, contains('fit: BoxFit.cover'));
   });
 
   test('BUILD118 mode switch reinitializes the controller before composition', () {
