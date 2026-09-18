@@ -744,11 +744,10 @@ class _CameraPageState extends State<CameraPage> {
       }
     }
 
-    final sceneContext =
-        HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
-          geometryProbe: geometryProbe,
-          sensorSignals: sensorSignals,
-        );
+    final sceneContext = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+      geometryProbe: geometryProbe,
+      sensorSignals: sensorSignals,
+    );
 
     // The passive probe owns only a short preview stream. Restore the user's
     // capture state before the normal PHOTO/VIDEO pipeline resumes.
