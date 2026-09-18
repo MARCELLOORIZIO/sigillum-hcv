@@ -29,13 +29,22 @@ jobs:
 
       - name: Verify BUILD122 formatting
         run: |
-          dart format --output=none --set-exit-if-changed lib/hcv_temporal_frequency_probe.dart
-          dart format --output=none --set-exit-if-changed lib/hcv_ml_screen_replay_classifier.dart
-          dart format --output=none --set-exit-if-changed lib/hcv_display_risk_fusion.dart
-          dart format --output=none --set-exit-if-changed lib/hcv_scene_context_evidence.dart
-          dart format --output=none --set-exit-if-changed lib/hcv_display_final_policy.dart
-          dart format --output=none --set-exit-if-changed test/build120_passive_scene_context_activation_test.dart
-          dart format --output=none --set-exit-if-changed test/build122_corpus_wide_regression_test.dart
+          dart format \
+            lib/hcv_temporal_frequency_probe.dart \
+            lib/hcv_ml_screen_replay_classifier.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_scene_context_evidence.dart \
+            lib/hcv_display_final_policy.dart \
+            test/build120_passive_scene_context_activation_test.dart \
+            test/build122_corpus_wide_regression_test.dart
+          git diff --exit-code -- \
+            lib/hcv_temporal_frequency_probe.dart \
+            lib/hcv_ml_screen_replay_classifier.dart \
+            lib/hcv_display_risk_fusion.dart \
+            lib/hcv_scene_context_evidence.dart \
+            lib/hcv_display_final_policy.dart \
+            test/build120_passive_scene_context_activation_test.dart \
+            test/build122_corpus_wide_regression_test.dart
 
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
