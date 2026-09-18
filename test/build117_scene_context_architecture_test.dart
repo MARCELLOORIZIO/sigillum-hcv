@@ -63,7 +63,7 @@ void main() {
       expect(result.strongSources, contains('ML_SCREEN'));
       expect(
         result.reasons,
-        contains('POSITIVE_SCENE_CONTEXT_OVERRIDES_DISPLAY_PRESENCE'),
+        contains('DISPLAY_EMBEDDED_IN_REALITY_FINAL_POLICY'),
       );
     });
 
