@@ -363,8 +363,7 @@ class HCVLiveScreenProbe {
         'displayBandTrace':
             passive.localFlicker > 0.34 && passive.refreshBand > 0.18,
         'opticalStripeTrace': passive.fineStripe > 0.30,
-        'opticalCorroboratedTrace':
-            passive.fineStripe > 0.30 &&
+        'opticalCorroboratedTrace': passive.fineStripe > 0.30 &&
             (passive.refreshBand > 0.14 || passive.localFlicker > 0.34),
         'moireFrequencyTrace': passive.moire > 0.42,
         'globalDisplayPulse':
@@ -381,7 +380,8 @@ class HCVLiveScreenProbe {
       },
       'activeReasons': finalReasons,
       'geometryReasons': geometry.reasons,
-      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response and low-resolution camera-motion geometry; still-photo capture can additionally use a disposable pre-capture mini-video for temporal evidence.',
+      'note':
+          'Active display probe V5 combines OFF/ON/OFF illumination response and low-resolution camera-motion geometry; still-photo capture can additionally use a disposable pre-capture mini-video for temporal evidence.',
     };
 
     final temporalProbe = includeTemporalVideoProbe
@@ -414,8 +414,8 @@ class HCVLiveScreenProbe {
     activeLiveAnalysis['videoEquivalentAvailable'] =
         includeTemporalVideoProbe && videoEquivalentRisk != null;
     if (videoEquivalentRisk != null) {
-      activeLiveAnalysis['videoEquivalentDisplayRisk'] = videoEquivalentRisk
-          .toJson();
+      activeLiveAnalysis['videoEquivalentDisplayRisk'] =
+          videoEquivalentRisk.toJson();
     }
 
     final signals = activeLiveAnalysis['signals'];
@@ -450,8 +450,7 @@ class HCVLiveScreenProbe {
         'realityEvidence': false,
         'planarEvidence': false,
       },
-      'sceneContextEvidence':
-          HCVSceneContextEvidence.unknown(reason).toJson(),
+      'sceneContextEvidence': HCVSceneContextEvidence.unknown(reason).toJson(),
       'reason': reason,
       if (error != null && error.isNotEmpty) 'error': error,
     };
