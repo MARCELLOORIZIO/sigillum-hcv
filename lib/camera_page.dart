@@ -1006,10 +1006,11 @@ class _CameraPageState extends State<CameraPage> {
       final displayRisk =
           HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: hfrDisplayRisk,
-        passiveOptical: photoTemporalOptical,
+        passiveOptical: screenReplayAnalysis,
         ml: mlScreenReplayAnalysis,
         temporalFrequencyProbe: temporalFrequencyProbe,
         photoTemporalMl: photoTemporalMl,
+        photoTemporalOptical: photoTemporalOptical,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
