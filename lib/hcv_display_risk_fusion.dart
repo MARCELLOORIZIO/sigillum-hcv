@@ -517,14 +517,6 @@ class HCVDisplayRiskFusion {
     return raw is Map ? Map<String, dynamic>.from(raw) : null;
   }
 
-  static bool _isV3MixedRealScene(Map<String, dynamic>? probe) {
-    if (!_isV3OrLater(probe?['type']) ||
-        probe?['analysisStatus'] != 'ANALYZED') {
-      return false;
-    }
-    return _v3Evidence(probe)?['mixedSceneDetected'] == true;
-  }
-
   static bool _isStrictPhysicalRealityHfr(Map<String, dynamic>? probe) {
     if (!_isCompleteStrictNegativeHfr(probe)) return false;
     if (_isV3OrLater(probe?['type'])) {
