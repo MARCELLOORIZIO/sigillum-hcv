@@ -19,6 +19,8 @@ class HCVSceneContextEvidence {
   bool get isDisplayEmbeddedInReality =>
       contextClass == displayEmbeddedInReality && positiveRealityEvidence;
 
+  bool get isDisplayDominant => contextClass == displayDominant;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'type': 'SIGILLUM_SCENE_CONTEXT_EVIDENCE_V1',
         'contextClass': contextClass,
@@ -44,6 +46,19 @@ class HCVSceneContextEvidence {
   /// artwork, walls and physical screens can all be planar. UNKNOWN remains
   /// UNKNOWN. This keeps geometry as a positive-context sensor rather than an
   /// absence-of-display shortcut.
+  static HCVSceneContextEvidence confirmedDominant({
+    required List<String> reasons,
+  }) =>
+      HCVSceneContextEvidence(
+        contextClass: displayDominant,
+        analysisStatus: 'ANALYZED',
+        positiveRealityEvidence: false,
+        reasons: <String>[
+          ...reasons,
+          'DISPLAY_DOMINANT_CONTEXT_CORROBORATED',
+        ],
+      );
+
   static HCVSceneContextEvidence confirmedEmbedded({
     required List<String> reasons,
   }) =>
