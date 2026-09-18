@@ -1288,8 +1288,7 @@ class _CameraPageState extends State<CameraPage> {
                 ?["sceneClass"] ??
             liveScreenProbe["sceneClass"] ??
             "UNKNOWN",
-        "geometryChallenge":
-            sceneContextProbe?["geometryChallenge"] ??
+        "geometryChallenge": sceneContextProbe?["geometryChallenge"] ??
             liveScreenProbe["geometryChallenge"],
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
@@ -1696,8 +1695,7 @@ class _CameraPageState extends State<CameraPage> {
               ?["sceneClass"] ??
           liveScreenProbe?["sceneClass"] ??
           "UNKNOWN",
-      "geometryChallenge":
-          sceneContextProbe?["geometryChallenge"] ??
+      "geometryChallenge": sceneContextProbe?["geometryChallenge"] ??
           liveScreenProbe?["geometryChallenge"],
       "screenReplayAnalysis": screenReplayAnalysis,
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
