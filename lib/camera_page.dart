@@ -13,6 +13,7 @@ import 'hcv_verifier.dart';
 import 'hcv_package.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_live_signals.dart';
+import 'hcv_live_screen_probe.dart';
 import 'hcv_trust_analyzer.dart';
 import 'hcv_location_video_watermark.dart';
 
@@ -324,6 +325,7 @@ class _CameraPageState extends State<CameraPage> {
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
   Map<String, dynamic>? pendingTemporalFrequencyProbe;
+  Map<String, dynamic>? pendingSceneContextProbe;
   HCVCaptureLocation? pendingVideoLocation;
   HCVCaptureLocation? _lastCaptureLocation;
   DateTime? pendingVideoCapturedAt;
@@ -696,6 +698,117 @@ class _CameraPageState extends State<CameraPage> {
     return probe;
   }
 
+  Future<Map<String, dynamic>> _capturePassiveSceneContext() async {
+    final camera = controller;
+    if (camera == null || !camera.value.isInitialized) {
+      final context = HCVSceneContextEvidence.unknown(
+        'CAMERA_NOT_READY_FOR_PASSIVE_SCENE_CONTEXT',
+      );
+      return <String, dynamic>{
+        'type': 'SIGILLUM_PASSIVE_SCENE_CONTEXT_CAPTURE_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'sceneContextEvidence': context.toJson(),
+        'reason': 'CAMERA_NOT_READY_FOR_PASSIVE_SCENE_CONTEXT',
+      };
+    }
+
+    final sensorCapture = HCVLiveSignals();
+    Map<String, dynamic>? sensorSignals;
+    Map<String, dynamic> geometryProbe;
+    var sensorsStarted = false;
+
+    try {
+      await sensorCapture.start();
+      sensorsStarted = true;
+      geometryProbe = await HCVLiveScreenProbe().analyzePassiveSceneGeometry(
+        camera,
+      );
+    } catch (error) {
+      geometryProbe = <String, dynamic>{
+        'type': 'SIGILLUM_PASSIVE_SCENE_GEOMETRY_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'geometryChallenge': const <String, dynamic>{
+          'sceneClass': 'UNKNOWN',
+          'realityEvidence': false,
+          'planarEvidence': false,
+        },
+        'reason': 'PASSIVE_SCENE_CONTEXT_CAPTURE_FAILED',
+        'error': error.toString(),
+      };
+    } finally {
+      if (sensorsStarted) {
+        try {
+          sensorSignals = await sensorCapture.stopAndBuildSummary();
+        } catch (_) {
+          sensorSignals = null;
+        }
+      }
+    }
+
+    final sceneContext = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+      geometryProbe: geometryProbe,
+      sensorSignals: sensorSignals,
+    );
+
+    // The passive probe owns only a short preview stream. Restore the user's
+    // capture state before the normal PHOTO/VIDEO pipeline resumes.
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setZoomLevel(
+          currentZoom.clamp(minZoom, maxZoom).toDouble(),
+        );
+      }
+    } catch (_) {}
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setFlashMode(currentFlashMode);
+      }
+    } catch (_) {}
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setExposureMode(ExposureMode.auto);
+      }
+    } catch (_) {}
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setFocusMode(FocusMode.auto);
+      }
+    } catch (_) {}
+
+    return <String, dynamic>{
+      'type': 'SIGILLUM_PASSIVE_SCENE_CONTEXT_CAPTURE_V1',
+      'analysisStatus': geometryProbe['analysisStatus'] ?? 'NOT_ANALYZED',
+      'geometryProbe': geometryProbe,
+      'geometryChallenge': geometryProbe['geometryChallenge'],
+      'sensorSignals': sensorSignals,
+      'sceneContextEvidence': sceneContext.toJson(),
+      'reason': sceneContext.reasons.join('|'),
+    };
+  }
+
+  HCVSceneContextEvidence _sceneContextFromProbe(
+    Map<String, dynamic>? probe,
+  ) {
+    final raw = probe?['sceneContextEvidence'];
+    if (raw is! Map) {
+      return HCVSceneContextEvidence.unknown(
+        'PASSIVE_SCENE_CONTEXT_NOT_CAPTURED',
+      );
+    }
+    final map = Map<String, dynamic>.from(raw);
+    final rawReasons = map['reasons'];
+    final reasons = rawReasons is List
+        ? rawReasons.map((item) => item.toString()).toList()
+        : const <String>['SCENE_CONTEXT_NOT_POSITIVELY_ESTABLISHED'];
+    return HCVSceneContextEvidence(
+      contextClass: map['contextClass']?.toString() ??
+          HCVSceneContextEvidence.sceneContextUnknown,
+      analysisStatus: map['analysisStatus']?.toString() ?? 'INDETERMINATE',
+      positiveRealityEvidence: map['positiveRealityEvidence'] == true,
+      reasons: reasons,
+    );
+  }
+
   Future<void> _settleCameraAfterLiveProbe() async {
     final camera = controller;
     if (camera == null || !camera.value.isInitialized) return;
@@ -736,6 +849,7 @@ class _CameraPageState extends State<CameraPage> {
 
     pendingLiveScreenProbe = null;
     pendingTemporalFrequencyProbe = null;
+    pendingSceneContextProbe = null;
     pendingVideoLocation = captureLocation;
     lastLiveSignals = null;
 
@@ -756,6 +870,7 @@ class _CameraPageState extends State<CameraPage> {
       // its own native AVCaptureSession while Flutter camera is released.
       pendingTemporalFrequencyProbe =
           await _captureTemporalFrequencyNativeIsolated();
+      pendingSceneContextProbe = await _capturePassiveSceneContext();
 
       await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
@@ -773,6 +888,7 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
       pendingTemporalFrequencyProbe = null;
+      pendingSceneContextProbe = null;
       setState(() {
         recording = false;
         status = '${_c('startError')}: $e';
@@ -847,6 +963,7 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
       pendingTemporalFrequencyProbe = null;
+      pendingSceneContextProbe = null;
       try {
         lastLiveSignals = await liveSignals.stopAndBuildSummary();
       } catch (_) {
@@ -943,6 +1060,7 @@ class _CameraPageState extends State<CameraPage> {
     HCVTemporalCaptureClip? temporalClip;
     Map<String, dynamic>? temporalProbe;
     Map<String, dynamic>? temporalFrequencyProbe;
+    Map<String, dynamic>? sceneContextProbe;
 
     try {
       // One user tap starts the technical clip and automatically finishes with
@@ -953,6 +1071,13 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
+      sceneContextProbe = await _capturePassiveSceneContext();
+
+      // BUILD121: the passive context probe temporarily locks focus/exposure.
+      // Let the restored AUTO camera state converge before the technical PHOTO
+      // mini-video starts, so its ML frames and the final still see the same
+      // stabilized optical state.
+      await _settleCameraAfterLiveProbe();
 
       try {
         temporalClip = await temporalProbeEngine.capture(
@@ -1093,9 +1218,7 @@ class _CameraPageState extends State<CameraPage> {
         photoTemporalMl: photoTemporalMl,
         photoTemporalOptical: photoTemporalOptical,
       );
-      final sceneContext = HCVSceneContextEvidence.unknown(
-        'PASSIVE_SCENE_CONTEXT_NOT_CAPTURED',
-      );
+      final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final displayRisk = HCVDisplayFinalPolicy.resolve(
         displayPhysics: displayPhysics,
         sceneContext: sceneContext,
@@ -1160,6 +1283,7 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
         "sceneContextEvidence": sceneContext.toJson(),
+        "passiveSceneContextProbe": sceneContextProbe,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
@@ -1167,8 +1291,12 @@ class _CameraPageState extends State<CameraPage> {
         "locationPrinted": captureLocation != null,
         "liveScreenProbe": liveScreenProbe,
         "temporalFrequencyProbe": temporalFrequencyProbe,
-        "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",
-        "geometryChallenge": liveScreenProbe["geometryChallenge"],
+        "physicalSceneClass": sceneContextProbe?["geometryChallenge"]
+                ?["sceneClass"] ??
+            liveScreenProbe["sceneClass"] ??
+            "UNKNOWN",
+        "geometryChallenge": sceneContextProbe?["geometryChallenge"] ??
+            liveScreenProbe["geometryChallenge"],
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
         "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(
@@ -1406,6 +1534,8 @@ class _CameraPageState extends State<CameraPage> {
     pendingLiveScreenProbe = null;
     final temporalFrequencyProbe = pendingTemporalFrequencyProbe;
     pendingTemporalFrequencyProbe = null;
+    final sceneContextProbe = pendingSceneContextProbe;
+    pendingSceneContextProbe = null;
     final effectiveCapturedAt = capturedAt ?? DateTime.now();
 
     setState(() {
@@ -1477,9 +1607,7 @@ class _CameraPageState extends State<CameraPage> {
       ml: mlScreenReplayAnalysis,
       temporalFrequencyProbe: temporalFrequencyProbe,
     );
-    final sceneContext = HCVSceneContextEvidence.unknown(
-      'PASSIVE_SCENE_CONTEXT_NOT_CAPTURED',
-    );
+    final sceneContext = _sceneContextFromProbe(sceneContextProbe);
     final displayRisk = HCVDisplayFinalPolicy.resolve(
       displayPhysics: displayPhysics,
       sceneContext: sceneContext,
@@ -1558,6 +1686,7 @@ class _CameraPageState extends State<CameraPage> {
       "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
       "displayRiskEvidence": displayRisk.toJson(),
       "sceneContextEvidence": sceneContext.toJson(),
+      "passiveSceneContextProbe": sceneContextProbe,
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
@@ -1569,8 +1698,12 @@ class _CameraPageState extends State<CameraPage> {
       "locationPrinted": captureLocation != null,
       "liveScreenProbe": liveScreenProbe,
       "temporalFrequencyProbe": temporalFrequencyProbe,
-      "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",
-      "geometryChallenge": liveScreenProbe?["geometryChallenge"],
+      "physicalSceneClass": sceneContextProbe?["geometryChallenge"]
+              ?["sceneClass"] ??
+          liveScreenProbe?["sceneClass"] ??
+          "UNKNOWN",
+      "geometryChallenge": sceneContextProbe?["geometryChallenge"] ??
+          liveScreenProbe?["geometryChallenge"],
       "screenReplayAnalysis": screenReplayAnalysis,
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
       "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(mlScreenReplayAnalysis),

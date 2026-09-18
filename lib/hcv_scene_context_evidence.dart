@@ -71,6 +71,112 @@ class HCVSceneContextEvidence {
         ],
       );
 
+  /// BUILD120 passive scene-context corroboration.
+  ///
+  /// Multi-depth geometry is necessary but not sufficient. It becomes
+  /// DISPLAY_EMBEDDED_IN_REALITY only when the device sensors independently
+  /// confirm real camera motion during the same capture window. The motion
+  /// cutoffs reuse the existing HCVTrustAnalyzer thresholds; no HFR or ML
+  /// score participates in this decision.
+  static HCVSceneContextEvidence fromPassiveGeometryAndSensors({
+    required Map<String, dynamic>? geometryProbe,
+    required Map<String, dynamic>? sensorSignals,
+  }) {
+    final rawGeometry = geometryProbe?['geometryChallenge'];
+    final geometry =
+        rawGeometry is Map ? Map<String, dynamic>.from(rawGeometry) : null;
+    final geometryEvidence = fromGeometry(geometry);
+
+    if (!geometryEvidence.positiveRealityEvidence) {
+      return geometryEvidence;
+    }
+
+    // BUILD122: ordinary multi-depth classification remains useful diagnostic
+    // context, but only a high-confidence 3D response may become an embedded
+    // REALITY override. The archive 71 wallpaper false positive had moderate
+    // depth dispersion (0.6164); validated embedded scenes occupy a materially
+    // stronger envelope. This gate does not create DISPLAY evidence.
+    final depthDispersion =
+        (geometry?['depthDispersion'] as num?)?.toDouble() ?? 0.0;
+    final planarCoherence =
+        (geometry?['planarCoherence'] as num?)?.toDouble() ?? 1.0;
+    final flowReliability =
+        (geometry?['flowReliability'] as num?)?.toDouble() ?? 0.0;
+    final motionMagnitude =
+        (geometry?['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
+    final matchedRegions = (geometry?['matchedRegions'] as num?)?.toInt() ?? 0;
+    final highConfidenceMultiDepth = depthDispersion >= 0.70 &&
+        planarCoherence <= 0.25 &&
+        flowReliability >= 0.55 &&
+        motionMagnitude >= 0.16 &&
+        matchedRegions >= 5;
+
+    if (!highConfidenceMultiDepth) {
+      return const HCVSceneContextEvidence(
+        contextClass: sceneContextUnknown,
+        analysisStatus: 'ANALYZED',
+        positiveRealityEvidence: true,
+        reasons: <String>[
+          'POSITIVE_MULTI_DEPTH_SCENE_GEOMETRY',
+          'PASSIVE_GEOMETRY_HIGH_CONFIDENCE_NOT_MET',
+          'SCENE_CONTEXT_NOT_FULLY_CORROBORATED',
+        ],
+      );
+    }
+
+    if (sensorSignals == null || sensorSignals['signalsRecorded'] != true) {
+      return HCVSceneContextEvidence(
+        contextClass: sceneContextUnknown,
+        analysisStatus: 'ANALYZED',
+        positiveRealityEvidence: true,
+        reasons: const <String>[
+          'POSITIVE_MULTI_DEPTH_SCENE_GEOMETRY',
+          'DEVICE_MOTION_SENSOR_CORROBORATION_MISSING',
+          'SCENE_CONTEXT_NOT_FULLY_CORROBORATED',
+        ],
+      );
+    }
+
+    final accelerometerSamples =
+        (sensorSignals['accelerometerSamples'] as num?)?.toInt() ?? 0;
+    final gyroscopeSamples =
+        (sensorSignals['gyroscopeSamples'] as num?)?.toInt() ?? 0;
+    final accelerometerMotion =
+        (sensorSignals['accelerometerMotionScore'] as num?)?.toDouble() ?? 0.0;
+    final gyroscopeMotion =
+        (sensorSignals['gyroscopeMotionScore'] as num?)?.toDouble() ?? 0.0;
+
+    final accelerometerCorroborated =
+        accelerometerSamples >= 5 && accelerometerMotion > 0.05;
+    final gyroscopeCorroborated =
+        gyroscopeSamples >= 5 && gyroscopeMotion > 0.02;
+    final deviceMotionCorroborated =
+        accelerometerCorroborated || gyroscopeCorroborated;
+
+    if (!deviceMotionCorroborated) {
+      return HCVSceneContextEvidence(
+        contextClass: sceneContextUnknown,
+        analysisStatus: 'ANALYZED',
+        positiveRealityEvidence: true,
+        reasons: const <String>[
+          'POSITIVE_MULTI_DEPTH_SCENE_GEOMETRY',
+          'DEVICE_MOTION_SENSOR_CORROBORATION_INSUFFICIENT',
+          'SCENE_CONTEXT_NOT_FULLY_CORROBORATED',
+        ],
+      );
+    }
+
+    return confirmedEmbedded(
+      reasons: <String>[
+        'POSITIVE_MULTI_DEPTH_SCENE_GEOMETRY',
+        if (accelerometerCorroborated)
+          'ACCELEROMETER_CAMERA_MOTION_CORROBORATED',
+        if (gyroscopeCorroborated) 'GYROSCOPE_CAMERA_MOTION_CORROBORATED',
+        'PASSIVE_GEOMETRY_SENSOR_CORROBORATION_V1',
+      ],
+    );
+  }
+
   static HCVSceneContextEvidence fromGeometry(
     Map<String, dynamic>? geometry,
   ) {

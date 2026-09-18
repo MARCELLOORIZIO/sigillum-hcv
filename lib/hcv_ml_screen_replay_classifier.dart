@@ -233,13 +233,14 @@ class HCVMLScreenReplayClassifier {
         return _unknown('MODEL_NOT_LOADED', _modelLoadError);
       }
 
-      var result = _runImageAnalysis(interpreter, classes, decoded);
+      final fullResult = _runImageAnalysis(interpreter, classes, decoded);
+      var result = fullResult;
       final cropped = _runImageAnalysis(
         interpreter,
         classes,
         _cropTop(decoded, 0.24),
       );
-      final fullScore = result.riskScore;
+      final fullScore = fullResult.riskScore;
       final croppedScore = cropped.riskScore;
       final overlayCorrected = fullScore >= 70 && croppedScore <= 55;
       if (overlayCorrected) {
@@ -275,6 +276,18 @@ class HCVMLScreenReplayClassifier {
           'sigillumOverlayCorrected': overlayCorrected,
           'fullFrameRiskScore': fullScore,
           'contentAreaRiskScore': croppedScore,
+          // BUILD122: overlay correction may legitimately reduce a watermark
+          // false positive, but it must not erase the original full-frame ML
+          // observation. Keep both views as diagnostics so VIDEO fusion can
+          // require persistent raw-full screen evidence across frames.
+          'rawFullFramePredictedClass': classes[fullResult.topIndex],
+          'rawFullFramePredictedClassConfidence': _round(
+            fullResult.probabilities[fullResult.topIndex],
+          ),
+          'rawFullFrameScreenProbability':
+              _round(fullResult.screenProbability),
+          'rawFullFrameMlScreenClass':
+              classes[fullResult.topIndex].startsWith('SCREEN_'),
         },
         'note': 'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',
       };

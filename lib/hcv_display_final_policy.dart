@@ -15,6 +15,35 @@ class HCVDisplayFinalPolicy {
     required HCVSceneContextEvidence sceneContext,
   }) {
     if (sceneContext.isDisplayEmbeddedInReality) {
+      final fullFrameHfrDisplay =
+          displayPhysics.decision == 'STRONG_DISPLAY_RISK' &&
+              (displayPhysics.strongSources.contains(
+                    'HFR_COHERENT_DISPLAY_PERIODICITY',
+                  ) ||
+                  displayPhysics.strongSources.contains(
+                    'HFR_V3_FULL_FRAME_DISPLAY_PHYSICS',
+                  ));
+
+      // BUILD122: high-confidence embedded context can resolve semantic/optical
+      // display appearance, but it cannot absolve strict or near-full full-grid
+      // HFR display physics. This is the final monotonicity guard against a
+      // geometry false positive erasing stronger physical evidence.
+      if (fullFrameHfrDisplay) {
+        return HCVDisplayRiskResult(
+          risk: displayPhysics.risk,
+          score: displayPhysics.score,
+          decision: displayPhysics.decision,
+          analysisStatus: displayPhysics.analysisStatus,
+          evidenceSources: displayPhysics.evidenceSources,
+          strongSources: displayPhysics.strongSources,
+          reasons: <String>[
+            ...displayPhysics.reasons,
+            ...sceneContext.reasons,
+            'FULL_FRAME_HFR_DISPLAY_PHYSICS_OVERRIDES_EMBEDDED_CONTEXT',
+          ],
+        );
+      }
+
       return HCVDisplayRiskResult(
         risk: 'LOW',
         score: min(displayPhysics.score, 20),

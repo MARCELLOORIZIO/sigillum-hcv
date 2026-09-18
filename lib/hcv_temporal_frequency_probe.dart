@@ -343,10 +343,38 @@ class HCVTemporalFrequencyProbe {
           rowTimeFamilyCellCount: rowTimeFamilyCellCount,
           medianRowTimeCoherence: medianRowTimeCoherence,
         );
+    // BUILD122: recover the corpus-verified near-full display case where eight
+    // of nine cells independently satisfy the display physics gate and the
+    // entire 3x3 grid still shares one periodic/stable spatial + row-time
+    // family. One indeterminate cell must not turn this physical signature into
+    // a strict negative HFR result. No reality-like cell is allowed.
+    final nearFullGridDisplayRecoveryBuild122 = !strictFullFrameDisplayV3 &&
+        !harmonicFullFrameDisplayRecovery &&
+        !lowModulationDisplayRecoveryBuild109 &&
+        !displayOnlyFullGridRecoveryBuild116 &&
+        qualifiesNearFullGridDisplayRecoveryBuild122(
+          actualFps: actualFps,
+          framesAnalyzed: acceptedFrames,
+          shortExposureVerified: raw['shortExposureVerified'] == true,
+          exposureLocked: raw['exposureLockedForEntireNativeCapture'] == true,
+          displayLikeCellCount: displayLikeCellCount,
+          realityLikeCellCount: realityLikeCellCount,
+          periodicCellCount: periodicCellCount,
+          stableCellCount: stableCellCount,
+          medianCellPeriodicityStrength: medianCellPeriodicity,
+          medianCellFrequencyStability: medianCellStability,
+          medianCellPhaseStepConsistency: medianCellPhase,
+          spatialFamilyCellCount: spatialFamilyCellCount,
+          harmonicAwareSpatialFamilyCellCount:
+              harmonicAwareSpatialFamilyCellCount,
+          rowTimeFamilyCellCount: rowTimeFamilyCellCount,
+          medianRowTimeCoherence: medianRowTimeCoherence,
+        );
     final fullFrameDisplayV3 = strictFullFrameDisplayV3 ||
         harmonicFullFrameDisplayRecovery ||
         lowModulationDisplayRecoveryBuild109 ||
-        displayOnlyFullGridRecoveryBuild116;
+        displayOnlyFullGridRecoveryBuild116 ||
+        nearFullGridDisplayRecoveryBuild122;
     final allNineCellsSameDisplayFamily = fullFrameDisplayV3 &&
         rowTimeFamilyCellCount == 9 &&
         (spatialFamilyCellCount == 9 ||
@@ -435,6 +463,8 @@ class HCVTemporalFrequencyProbe {
             lowModulationDisplayRecoveryBuild109,
         'displayOnlyFullGridRecoveryBuild116':
             displayOnlyFullGridRecoveryBuild116,
+        'nearFullGridDisplayRecoveryBuild122':
+            nearFullGridDisplayRecoveryBuild122,
         'displayOnlyFullGridCoverageBuild116':
             displayOnlyFullGridCoverageBuild116,
         'harmonicAwareSpatialFamilyCellCount':
@@ -462,17 +492,21 @@ class HCVTemporalFrequencyProbe {
             lowModulationDisplayRecoveryBuild109,
         'displayOnlyFullGridRecoveryBuild116':
             displayOnlyFullGridRecoveryBuild116,
+        'nearFullGridDisplayRecoveryBuild122':
+            nearFullGridDisplayRecoveryBuild122,
         'displayOnlyFullGridCoverageBuild116':
             displayOnlyFullGridCoverageBuild116,
-        'displayFamilyMode': harmonicFullFrameDisplayRecovery
-            ? 'HARMONIC_2_TO_1_CORROBORATED'
-            : lowModulationDisplayRecoveryBuild109
-                ? 'LOW_MODULATION_MULTI_AXIS_CORROBORATED'
-                : displayOnlyFullGridRecoveryBuild116
-                    ? 'DISPLAY_ONLY_FULL_GRID_CORROBORATED'
-                    : 'STRICT_SINGLE_FAMILY',
+        'displayFamilyMode': nearFullGridDisplayRecoveryBuild122
+            ? 'NEAR_FULL_8_OF_9_CORROBORATED'
+            : harmonicFullFrameDisplayRecovery
+                ? 'HARMONIC_2_TO_1_CORROBORATED'
+                : lowModulationDisplayRecoveryBuild109
+                    ? 'LOW_MODULATION_MULTI_AXIS_CORROBORATED'
+                    : displayOnlyFullGridRecoveryBuild116
+                        ? 'DISPLAY_ONLY_FULL_GRID_CORROBORATED'
+                        : 'STRICT_SINGLE_FAMILY',
         'classificationPolicy':
-            'BUILD116_PRESERVES_VALIDATED_V3_AND_BUILD109_GATES;DISPLAY_ONLY_9_OF_9_RECOVERY_REQUIRES_PERIODIC_STABLE_FULL_GRID_PHYSICS;DISPLAY_ONLY_PARTIAL_LOCAL_CELLS_WITH_9_OF_9_SPATIAL_AND_ROW_TIME_COVERAGE_DO_NOT_ASSERT_MIXED_REALITY;NO_TEMPORAL_SIGNATURE_IS_NOT_REALITY;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY',
+            'BUILD122_PRESERVES_VALIDATED_V3_BUILD109_BUILD116_GATES;NEAR_FULL_8_OF_9_RECOVERY_REQUIRES_ZERO_REALITY_CELLS_AND_9_OF_9_PERIODIC_STABLE_SPATIAL_ROW_TIME_FAMILIES;DISPLAY_ONLY_PARTIAL_LOCAL_CELLS_WITH_9_OF_9_SPATIAL_AND_ROW_TIME_COVERAGE_DO_NOT_ASSERT_MIXED_REALITY;NO_TEMPORAL_SIGNATURE_IS_NOT_REALITY;V32_REALITY_PHYSICS_DIAGNOSTIC_ONLY',
       },
       'advancedDisplayPhysicsV32': advancedPhysicsV32,
       'activeIlluminationRealityV32': activeIlluminationV32,
@@ -688,6 +722,45 @@ class HCVTemporalFrequencyProbe {
         rowTimeFamilyCellCount == 9 &&
         medianRowTimeCoherence >= 0.75 &&
         exposureCorroborationStageCount >= 2;
+  }
+
+  /// BUILD122 corpus-verified physical recovery for a near-full display.
+  ///
+  /// Eight display-like cells are accepted only when no reality-like cell
+  /// survives and all nine cells share periodic/stable spatial + row-time
+  /// families. This remains a narrow full-grid physical gate.
+  static bool qualifiesNearFullGridDisplayRecoveryBuild122({
+    required double? actualFps,
+    required int framesAnalyzed,
+    required bool shortExposureVerified,
+    required bool exposureLocked,
+    required int displayLikeCellCount,
+    required int realityLikeCellCount,
+    required int periodicCellCount,
+    required int stableCellCount,
+    required double medianCellPeriodicityStrength,
+    required double medianCellFrequencyStability,
+    required double medianCellPhaseStepConsistency,
+    required int spatialFamilyCellCount,
+    required int harmonicAwareSpatialFamilyCellCount,
+    required int rowTimeFamilyCellCount,
+    required double medianRowTimeCoherence,
+  }) {
+    if (actualFps == null || actualFps < 120.0) return false;
+    if (framesAnalyzed < 60 || !shortExposureVerified || !exposureLocked) {
+      return false;
+    }
+    return displayLikeCellCount >= 8 &&
+        realityLikeCellCount == 0 &&
+        periodicCellCount == 9 &&
+        stableCellCount == 9 &&
+        medianCellPeriodicityStrength >= 0.50 &&
+        medianCellFrequencyStability >= 0.95 &&
+        medianCellPhaseStepConsistency >= 0.90 &&
+        spatialFamilyCellCount == 9 &&
+        harmonicAwareSpatialFamilyCellCount == 9 &&
+        rowTimeFamilyCellCount == 9 &&
+        medianRowTimeCoherence >= 0.25;
   }
 
   /// BUILD116 narrow physical recovery for modern displays whose global
