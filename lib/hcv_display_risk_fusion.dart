@@ -1,7 +1,5 @@
 import 'dart:math';
 
-import 'hcv_scene_context_evidence.dart';
-
 class HCVDisplayRiskResult {
   const HCVDisplayRiskResult({
     required this.risk,
@@ -49,14 +47,7 @@ class HCVDisplayRiskFusion {
     required Map<String, dynamic>? temporalFrequencyProbe,
     Map<String, dynamic>? photoTemporalMl,
     Map<String, dynamic>? photoTemporalOptical,
-    HCVSceneContextEvidence? sceneContextEvidence,
   }) {
-    final contextResolution = _resolvePositiveSceneContext(
-      base: base,
-      sceneContextEvidence: sceneContextEvidence,
-    );
-    if (contextResolution != null) return contextResolution;
-
     final dualEvidence = _resolveDualEvidenceV3(
       base: base,
       passiveOptical: passiveOptical,
@@ -164,37 +155,6 @@ class HCVDisplayRiskFusion {
     );
   }
 
-  static HCVDisplayRiskResult? _resolvePositiveSceneContext({
-    required HCVDisplayRiskResult base,
-    required HCVSceneContextEvidence? sceneContextEvidence,
-  }) {
-    if (sceneContextEvidence == null ||
-        !sceneContextEvidence.isDisplayEmbeddedInReality) {
-      return null;
-    }
-
-    final reasons = <String>[
-      ...base.reasons.where(
-        (reason) => reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED',
-      ),
-      ...sceneContextEvidence.reasons,
-      'POSITIVE_SCENE_CONTEXT_OVERRIDES_DISPLAY_PRESENCE',
-    ];
-
-    // Preserve the display evidence ledger for auditability. The final product
-    // decision changes because the display is positively established as an
-    // object inside physical reality, not because display evidence vanished.
-    return HCVDisplayRiskResult(
-      risk: 'LOW',
-      score: min(base.score, 20),
-      decision: 'NO_DISPLAY_EVIDENCE',
-      analysisStatus: 'COMPLETE',
-      evidenceSources: base.evidenceSources,
-      strongSources: base.strongSources,
-      reasons: reasons,
-    );
-  }
-
   static HCVDisplayRiskResult? _resolveDualEvidenceV3({
     required HCVDisplayRiskResult base,
     required Map<String, dynamic>? passiveOptical,
@@ -226,6 +186,51 @@ class HCVDisplayRiskFusion {
     final physicalDisplay = _isCompleteStrictPositiveHfr(
       temporalFrequencyProbe,
     );
+
+    // BUILD117 PHOTO: the optical analysis of the actual still is independent
+    // evidence and must not be replaced by the technical mini-video optical.
+    // Reuse the existing ML-first photo gate; no new ML threshold is added.
+    final stillOpticalSignals = _signals(passiveOptical);
+    final stillOpticalStrong = photoTemporalMl != null &&
+        passiveOptical?['screenReplayRisk'] == 'HIGH' &&
+        (stillOpticalSignals['strongDisplayTrace'] == true ||
+            stillOpticalSignals['structuralDisplayTrace'] == true);
+    final stillMlDecision =
+        photoTemporalMl == null ? null : mlFirstPhotoDecision(ml);
+    if (!positivePhysicalReality &&
+        !physicalDisplay &&
+        stillOpticalStrong &&
+        stillMlDecision?.decision == 'STRONG_DISPLAY_RISK') {
+      final evidenceSources = <String>{
+        ...base.evidenceSources,
+        ...stillMlDecision!.evidenceSources,
+        'PHOTO_STILL_OPTICAL_CORROBORATION',
+      };
+      final strongSources = <String>{
+        ...base.strongSources,
+        ...stillMlDecision.strongSources,
+        'PHOTO_STILL_OPTICAL_CORROBORATION',
+      };
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: max(
+          max(base.score, stillMlDecision.score),
+          (passiveOptical?['screenReplayRiskScore'] as num?)?.toInt() ?? 0,
+        ),
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: evidenceSources.toList(),
+        strongSources: strongSources.toList(),
+        reasons: <String>[
+          ...base.reasons.where(
+            (reason) => reason != 'DISPLAY_CLASSIFICATION_NOT_RESOLVED',
+          ),
+          ...stillMlDecision.reasons,
+          'PHOTO_STILL_OPTICAL_DISPLAY_TRACE_CONFIRMED',
+          'PHOTO_STILL_ML_OPTICAL_CORROBORATION',
+        ],
+      );
+    }
     final mlStrongScreenFrames =
         (temporalMl?['strongScreenFrameCount'] as num?)?.toInt() ?? 0;
     final mlAverageScreenRisk =
