@@ -26,6 +26,8 @@ import 'hcv_temporal_capture_probe.dart';
 import 'hcv_temporal_frequency_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
+import 'hcv_display_final_policy.dart';
+import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
@@ -1003,7 +1005,7 @@ class _CameraPageState extends State<CameraPage> {
       final photoTemporalOptical = photoTemporalOpticalRaw is Map
           ? Map<String, dynamic>.from(photoTemporalOpticalRaw)
           : null;
-      final displayRisk =
+      final displayPhysics =
           HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: hfrDisplayRisk,
         passiveOptical: screenReplayAnalysis,
@@ -1011,6 +1013,13 @@ class _CameraPageState extends State<CameraPage> {
         temporalFrequencyProbe: temporalFrequencyProbe,
         photoTemporalMl: photoTemporalMl,
         photoTemporalOptical: photoTemporalOptical,
+      );
+      final sceneContext = HCVSceneContextEvidence.unknown(
+        'PASSIVE_SCENE_CONTEXT_NOT_CAPTURED',
+      );
+      final displayRisk = HCVDisplayFinalPolicy.resolve(
+        displayPhysics: displayPhysics,
+        sceneContext: sceneContext,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -1071,6 +1080,7 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskDecision": displayRiskDecision,
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
+        "sceneContextEvidence": sceneContext.toJson(),
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
@@ -1381,12 +1391,19 @@ class _CameraPageState extends State<CameraPage> {
       baseDisplayRisk,
       temporalFrequencyProbe,
     );
-    final displayRisk =
+    final displayPhysics =
         HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: hfrDisplayRisk,
       passiveOptical: screenReplayAnalysis,
       ml: mlScreenReplayAnalysis,
       temporalFrequencyProbe: temporalFrequencyProbe,
+    );
+    final sceneContext = HCVSceneContextEvidence.unknown(
+      'PASSIVE_SCENE_CONTEXT_NOT_CAPTURED',
+    );
+    final displayRisk = HCVDisplayFinalPolicy.resolve(
+      displayPhysics: displayPhysics,
+      sceneContext: sceneContext,
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
@@ -1461,6 +1478,7 @@ class _CameraPageState extends State<CameraPage> {
       "displayRiskDecision": displayRiskDecision,
       "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
       "displayRiskEvidence": displayRisk.toJson(),
+        "sceneContextEvidence": sceneContext.toJson(),
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
