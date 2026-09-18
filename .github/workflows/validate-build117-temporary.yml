@@ -6,7 +6,7 @@ on:
       - refactor/display-physics-scene-context-build117-20260918
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter-validation:
@@ -21,6 +21,16 @@ jobs:
       - run: flutter pub get
       - name: Format candidate sources
         run: dart format lib/hcv_display_risk_fusion.dart lib/hcv_scene_context_evidence.dart lib/hcv_display_final_policy.dart lib/camera_page.dart test/build117_display_physics_scene_context_test.dart test/hfr_v3_fullframe_mixed_scene_test.dart
+      - name: Commit formatter output on BUILD117 branch
+        shell: bash
+        run: |
+          if ! git diff --quiet -- lib test; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add lib/hcv_display_risk_fusion.dart lib/hcv_scene_context_evidence.dart lib/hcv_display_final_policy.dart lib/camera_page.dart test/build117_display_physics_scene_context_test.dart test/hfr_v3_fullframe_mixed_scene_test.dart
+            git commit -m "style(build117): apply dart format"
+            git push origin HEAD:refactor/display-physics-scene-context-build117-20260918
+          fi
       - name: Upload formatted sources
         uses: actions/upload-artifact@v4
         with:
