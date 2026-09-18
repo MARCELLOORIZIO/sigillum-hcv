@@ -39,6 +39,8 @@ Map<String, dynamic> v3Probe({
   required bool fullFrameReality,
   required bool mixed,
   int displayCells = 0,
+  int realityCells = 0,
+  int indeterminateCells = 0,
   int spatialFamilyCells = 0,
   int rowTimeFamilyCells = 0,
   bool? allNineSameFamily,
@@ -61,6 +63,8 @@ Map<String, dynamic> v3Probe({
                     spatialFamilyCells == 9 &&
                     rowTimeFamilyCells == 9),
         'displayLikeCellCount': displayCells,
+        'realityLikeCellCount': realityCells,
+        'indeterminateCellCount': indeterminateCells,
         'spatialFamilyCellCount': spatialFamilyCells,
         'rowTimeFamilyCellCount': rowTimeFamilyCells,
       },
@@ -189,7 +193,7 @@ void main() {
     expect((result['rowTimeCoherenceScore'] as num).toDouble(), greaterThan(0.50));
   });
 
-  test('mixed monitor plus room is reality even with strong screen ML', () {
+  test('mixed flag with DISPLAY plus UNKNOWN cannot erase strong display', () {
     final strongBase = const HCVDisplayRiskResult(
       risk: 'HIGH',
       score: 98,
@@ -208,12 +212,44 @@ void main() {
         fullFrameReality: false,
         mixed: true,
         displayCells: 4,
-        spatialFamilyCells: 4,
-        rowTimeFamilyCells: 4,
+        realityCells: 0,
+        indeterminateCells: 5,
+        spatialFamilyCells: 9,
+        rowTimeFamilyCells: 9,
       ),
     );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
+  });
+
+  test('DISPLAY plus reality-like HFR coverage is conflict, not REALITY', () {
+    final strongBase = const HCVDisplayRiskResult(
+      risk: 'HIGH',
+      score: 98,
+      decision: 'STRONG_DISPLAY_RISK',
+      analysisStatus: 'COMPLETE',
+      evidenceSources: <String>['ML_SCREEN'],
+      strongSources: <String>['ML_SCREEN'],
+      reasons: <String>['ML_SCREEN_STRONG'],
+    );
+    final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      base: strongBase,
+      passiveOptical: opticalCleanV3(),
+      ml: temporalV3(<double>[0.98, 0.97, 0.96]),
+      temporalFrequencyProbe: v3Probe(
+        fullFrameDisplay: false,
+        fullFrameReality: false,
+        mixed: true,
+        displayCells: 3,
+        realityCells: 1,
+        indeterminateCells: 5,
+        spatialFamilyCells: 7,
+        rowTimeFamilyCells: 5,
+      ),
+    );
+    expect(result.decision, 'NON_CONCLUSIVE');
+    expect(result.reasons, contains('HFR_V3_DISPLAY_REALITY_COVERAGE_CONFLICT'));
+    expect(result.reasons, contains('HFR_V3_COVERAGE_CONFLICT_IS_NOT_REALITY'));
   });
 
   test('full-frame text monitor can use repeated full-frame ML when HFR is quiet', () {
