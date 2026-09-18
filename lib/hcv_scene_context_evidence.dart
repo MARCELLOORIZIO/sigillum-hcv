@@ -91,6 +91,40 @@ class HCVSceneContextEvidence {
       return geometryEvidence;
     }
 
+    // BUILD122: ordinary multi-depth classification remains useful diagnostic
+    // context, but only a high-confidence 3D response may become an embedded
+    // REALITY override. The archive 71 wallpaper false positive had moderate
+    // depth dispersion (0.6164); validated embedded scenes occupy a materially
+    // stronger envelope. This gate does not create DISPLAY evidence.
+    final depthDispersion =
+        (geometry?['depthDispersion'] as num?)?.toDouble() ?? 0.0;
+    final planarCoherence =
+        (geometry?['planarCoherence'] as num?)?.toDouble() ?? 1.0;
+    final flowReliability =
+        (geometry?['flowReliability'] as num?)?.toDouble() ?? 0.0;
+    final motionMagnitude =
+        (geometry?['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
+    final matchedRegions =
+        (geometry?['matchedRegions'] as num?)?.toInt() ?? 0;
+    final highConfidenceMultiDepth = depthDispersion >= 0.70 &&
+        planarCoherence <= 0.25 &&
+        flowReliability >= 0.55 &&
+        motionMagnitude >= 0.16 &&
+        matchedRegions >= 5;
+
+    if (!highConfidenceMultiDepth) {
+      return const HCVSceneContextEvidence(
+        contextClass: sceneContextUnknown,
+        analysisStatus: 'ANALYZED',
+        positiveRealityEvidence: true,
+        reasons: <String>[
+          'POSITIVE_MULTI_DEPTH_SCENE_GEOMETRY',
+          'PASSIVE_GEOMETRY_HIGH_CONFIDENCE_NOT_MET',
+          'SCENE_CONTEXT_NOT_FULLY_CORROBORATED',
+        ],
+      );
+    }
+
     if (sensorSignals == null || sensorSignals['signalsRecorded'] != true) {
       return HCVSceneContextEvidence(
         contextClass: sceneContextUnknown,
