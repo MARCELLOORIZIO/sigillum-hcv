@@ -181,8 +181,8 @@ Map<String, dynamic> _realityGeometryProbe() => <String, dynamic>{
         'motionMagnitude': 0.25,
         'flowReliability': 0.72,
         'directionCoherence': 0.58,
-        'depthDispersion': 0.44,
-        'planarCoherence': 0.40,
+        'depthDispersion': 0.80,
+        'planarCoherence': 0.10,
         'matchedRegions': 8,
       },
     };
