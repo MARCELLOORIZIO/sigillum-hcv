@@ -248,7 +248,7 @@ void main() {
     },
   );
 
-  test('mixed-scene HFR veto remains absolute', () {
+  test('legacy mixed flag without reality cells preserves spatial display evidence', () {
     final frames = <Map<String, dynamic>>[
       for (var i = 0; i < 4; i++)
         _frame(
@@ -261,11 +261,11 @@ void main() {
     ];
 
     final result = _resolve(_ml(frames), mixed: true);
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(
       result.evidenceSources,
-      isNot(contains('VIDEO_PHOTO_SPATIAL_CORROBORATION')),
+      contains('VIDEO_PHOTO_SPATIAL_CORROBORATION'),
     );
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
   });
 }

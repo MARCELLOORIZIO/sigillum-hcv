@@ -26,6 +26,8 @@ import 'hcv_temporal_capture_probe.dart';
 import 'hcv_temporal_frequency_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
+import 'hcv_display_final_policy.dart';
+import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
@@ -988,13 +990,11 @@ class _CameraPageState extends State<CameraPage> {
         baseDisplayRisk,
         temporalFrequencyProbe,
       );
-      final photoTemporalProbeRaw =
-          liveScreenProbe['photoTemporalVideoProbe'];
+      final photoTemporalProbeRaw = liveScreenProbe['photoTemporalVideoProbe'];
       final photoTemporalProbe = photoTemporalProbeRaw is Map
           ? Map<String, dynamic>.from(photoTemporalProbeRaw)
           : null;
-      final photoTemporalMlRaw =
-          photoTemporalProbe?['mlScreenReplayAnalysis'];
+      final photoTemporalMlRaw = photoTemporalProbe?['mlScreenReplayAnalysis'];
       final photoTemporalOpticalRaw =
           photoTemporalProbe?['screenReplayAnalysis'];
       final photoTemporalMl = photoTemporalMlRaw is Map
@@ -1003,13 +1003,22 @@ class _CameraPageState extends State<CameraPage> {
       final photoTemporalOptical = photoTemporalOpticalRaw is Map
           ? Map<String, dynamic>.from(photoTemporalOpticalRaw)
           : null;
-      final displayRisk =
+      final displayPhysics =
           HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: hfrDisplayRisk,
         passiveOptical: photoTemporalOptical,
+        postCaptureOptical: screenReplayAnalysis,
         ml: mlScreenReplayAnalysis,
         temporalFrequencyProbe: temporalFrequencyProbe,
         photoTemporalMl: photoTemporalMl,
+      );
+      final sceneContext = HCVSceneContextEvidence.assess(
+        liveScreenProbe: liveScreenProbe,
+        temporalFrequencyProbe: temporalFrequencyProbe,
+      );
+      final displayRisk = HCVDisplayFinalPolicy.resolve(
+        displayPhysics: displayPhysics,
+        sceneContext: sceneContext,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -1070,6 +1079,9 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskDecision": displayRiskDecision,
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
+        "displayPhysicsEvidence": displayPhysics.toJson(),
+        "sceneContextEvidence": sceneContext.toJson(),
+        "sceneContextDecision": sceneContext.context,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
@@ -1380,12 +1392,21 @@ class _CameraPageState extends State<CameraPage> {
       baseDisplayRisk,
       temporalFrequencyProbe,
     );
-    final displayRisk =
+    final displayPhysics =
         HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
       base: hfrDisplayRisk,
       passiveOptical: screenReplayAnalysis,
+      postCaptureOptical: null,
       ml: mlScreenReplayAnalysis,
       temporalFrequencyProbe: temporalFrequencyProbe,
+    );
+    final sceneContext = HCVSceneContextEvidence.assess(
+      liveScreenProbe: liveScreenProbe,
+      temporalFrequencyProbe: temporalFrequencyProbe,
+    );
+    final displayRisk = HCVDisplayFinalPolicy.resolve(
+      displayPhysics: displayPhysics,
+      sceneContext: sceneContext,
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
