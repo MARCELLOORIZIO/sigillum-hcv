@@ -29,9 +29,7 @@ jobs:
 
       - name: Verify BUILD120 formatting
         run: |
-          dart format lib/camera_page.dart
-          git diff -- lib/camera_page.dart
-          git diff --exit-code -- lib/camera_page.dart
+          dart format --output=none --set-exit-if-changed lib/camera_page.dart
           dart format --output=none --set-exit-if-changed lib/hcv_scene_context_evidence.dart
           dart format --output=none --set-exit-if-changed test/build120_passive_scene_context_activation_test.dart
 
