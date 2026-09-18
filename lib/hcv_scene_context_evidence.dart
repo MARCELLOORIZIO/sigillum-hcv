@@ -71,7 +71,6 @@ class HCVSceneContextEvidence {
         ],
       );
 
-
   /// BUILD120 passive scene-context corroboration.
   ///
   /// Multi-depth geometry is necessary but not sufficient. It becomes
