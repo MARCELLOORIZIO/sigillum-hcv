@@ -7,9 +7,10 @@ import 'package:sigillum_iphone/hcv_scene_context_evidence.dart';
 
 void main() {
   group('BUILD120 passive scene context', () {
-    test('multi-depth geometry plus accelerometer motion confirms embedded reality', () {
-      final context =
-          HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+    test(
+        'multi-depth geometry plus accelerometer motion confirms embedded reality',
+        () {
+      final context = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
         geometryProbe: _realityGeometryProbe(),
         sensorSignals: _sensorSignals(
           accelerometerSamples: 12,
@@ -34,9 +35,9 @@ void main() {
       );
     });
 
-    test('multi-depth geometry plus gyroscope motion confirms embedded reality', () {
-      final context =
-          HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+    test('multi-depth geometry plus gyroscope motion confirms embedded reality',
+        () {
+      final context = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
         geometryProbe: _realityGeometryProbe(),
         sensorSignals: _sensorSignals(
           accelerometerSamples: 4,
@@ -57,8 +58,7 @@ void main() {
     });
 
     test('geometry alone remains unknown', () {
-      final context =
-          HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+      final context = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
         geometryProbe: _realityGeometryProbe(),
         sensorSignals: _sensorSignals(
           accelerometerSamples: 12,
@@ -80,8 +80,7 @@ void main() {
     });
 
     test('planar geometry remains unknown even with strong device motion', () {
-      final context =
-          HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+      final context = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
         geometryProbe: _planarGeometryProbe(),
         sensorSignals: _sensorSignals(
           accelerometerSamples: 20,
@@ -102,9 +101,9 @@ void main() {
       );
     });
 
-    test('confirmed embedded physical context resolves strong display physics', () {
-      final context =
-          HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+    test('confirmed embedded physical context resolves strong display physics',
+        () {
+      final context = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
         geometryProbe: _realityGeometryProbe(),
         sensorSignals: _sensorSignals(
           accelerometerSamples: 12,
@@ -157,7 +156,8 @@ void main() {
       );
     });
 
-    test('accepted photo temporal cycle remains 1.5 seconds and 3 ML frames', () {
+    test('accepted photo temporal cycle remains 1.5 seconds and 3 ML frames',
+        () {
       final source =
           File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();
 
