@@ -179,13 +179,9 @@ void main() {
     },
   );
 
-  test('BUILD109 mixed scene veto remains absolute', () {
+  test('BUILD109 legacy mixed flag without reality cells cannot veto display', () {
     final result = _resolve(_ml(), mixed: true);
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
-    expect(
-      result.reasons,
-      isNot(contains('ML_THREE_FRAME_FULL_FRAME_SCREEN_RECOVERY_V109')),
-    );
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
   });
 }
