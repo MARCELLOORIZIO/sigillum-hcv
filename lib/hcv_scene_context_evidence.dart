@@ -7,8 +7,7 @@ class HCVSceneContextEvidence {
   });
 
   static const String displayDominant = 'DISPLAY_DOMINANT';
-  static const String displayEmbeddedInReality =
-      'DISPLAY_EMBEDDED_IN_REALITY';
+  static const String displayEmbeddedInReality = 'DISPLAY_EMBEDDED_IN_REALITY';
   static const String sceneContextUnknown = 'SCENE_CONTEXT_UNKNOWN';
 
   final String contextClass;
