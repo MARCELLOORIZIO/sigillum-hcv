@@ -2282,13 +2282,24 @@ class _CameraPageState extends State<CameraPage> {
       ),
       body: Stack(
         children: [
-          if (ok)
+          if (ok && photoMode)
+            Positioned.fill(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: controller!.value.previewSize!.height,
+                  height: controller!.value.previewSize!.width,
+                  child: CameraPreview(controller!),
+                ),
+              ),
+            ),
+          if (ok && !photoMode)
             Positioned.fill(
               child: OverflowBox(
                 maxWidth: double.infinity,
                 maxHeight: double.infinity,
                 child: FittedBox(
-                  fit: photoMode ? BoxFit.contain : BoxFit.cover,
+                  fit: BoxFit.cover,
                   child: SizedBox(
                     width: controller!.value.previewSize!.height,
                     height: controller!.value.previewSize!.width,
