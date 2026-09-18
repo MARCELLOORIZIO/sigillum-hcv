@@ -189,7 +189,7 @@ void main() {
     expect((result['rowTimeCoherenceScore'] as num).toDouble(), greaterThan(0.50));
   });
 
-  test('mixed monitor plus room is reality even with strong screen ML', () {
+  test('mixed HFR cannot erase already-strong screen evidence', () {
     final strongBase = const HCVDisplayRiskResult(
       risk: 'HIGH',
       score: 98,
@@ -212,8 +212,8 @@ void main() {
         rowTimeFamilyCells: 4,
       ),
     );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
   });
 
   test('full-frame text monitor can use repeated full-frame ML when HFR is quiet', () {
@@ -231,7 +231,7 @@ void main() {
     expect(result.reasons, contains('TWO_HIGH_FULL_FRAME_SCREEN_TEMPORAL_SAMPLES'));
   });
 
-  test('inherited strong screen ML is vetoed when screen is not full-frame', () {
+  test('non-full-frame ML diagnostics cannot erase inherited strong screen evidence', () {
     final strongBase = const HCVDisplayRiskResult(
       risk: 'HIGH',
       score: 98,
@@ -255,10 +255,10 @@ void main() {
         mixed: false,
       ),
     );
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(
       result.reasons,
-      contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
+      isNot(contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')),
     );
   });
 
