@@ -1077,7 +1077,7 @@ class HCVDisplayRiskFusion {
     }
 
     if (hasRawFullVideoScreenRecoveryBuild122(ml)) {
-      final score = max(95, _maxRawFullFrameRiskScore(ml)).clamp(95, 100);
+      final score = max(95, _maxRawFullFrameRiskScore(ml)).clamp(95, 100).toInt();
       return HCVDisplayRiskResult(
         risk: 'HIGH',
         score: score,
