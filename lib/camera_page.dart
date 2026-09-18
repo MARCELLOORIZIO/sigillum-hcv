@@ -13,6 +13,7 @@ import 'hcv_verifier.dart';
 import 'hcv_package.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_live_signals.dart';
+import 'hcv_live_screen_probe.dart';
 import 'hcv_trust_analyzer.dart';
 import 'hcv_location_video_watermark.dart';
 
