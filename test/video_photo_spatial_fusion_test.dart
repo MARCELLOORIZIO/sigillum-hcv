@@ -157,7 +157,7 @@ void main() {
     },
   );
 
-  test('absence of the new evidence preserves BUILD109 behavior', () {
+  test('absence of spatial corroboration cannot erase inherited strong evidence', () {
     final frames = <Map<String, dynamic>>[
       _frame(
         index: 0,
@@ -190,10 +190,10 @@ void main() {
     ];
 
     final result = _resolve(_ml(frames, includePhotoSpatial: false));
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
     expect(
       result.reasons,
-      contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE'),
+      isNot(contains('SCREEN_PRESENT_BUT_NOT_FULL_FRAME_REAL_SCENE')),
     );
     expect(
       result.evidenceSources,
@@ -240,7 +240,7 @@ void main() {
       expect(evidence['stableFullFrameScreenCorroboration'], false);
 
       final result = _resolve(ml);
-      expect(result.decision, isNot('STRONG_DISPLAY_RISK'));
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
         result.evidenceSources,
         isNot(contains('VIDEO_PHOTO_SPATIAL_CORROBORATION')),
@@ -248,7 +248,7 @@ void main() {
     },
   );
 
-  test('mixed-scene HFR veto remains absolute', () {
+  test('mixed-scene HFR is descriptive and cannot veto spatial display evidence', () {
     final frames = <Map<String, dynamic>>[
       for (var i = 0; i < 4; i++)
         _frame(
@@ -261,11 +261,11 @@ void main() {
     ];
 
     final result = _resolve(_ml(frames), mixed: true);
-    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
-    expect(result.reasons, contains('HFR_V3_MIXED_REAL_SCENE'));
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+    expect(result.reasons, isNot(contains('HFR_V3_MIXED_REAL_SCENE')));
     expect(
       result.evidenceSources,
-      isNot(contains('VIDEO_PHOTO_SPATIAL_CORROBORATION')),
+      contains('VIDEO_PHOTO_SPATIAL_CORROBORATION'),
     );
   });
 }
