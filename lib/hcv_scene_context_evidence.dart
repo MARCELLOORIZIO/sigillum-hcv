@@ -44,6 +44,19 @@ class HCVSceneContextEvidence {
   /// artwork, walls and physical screens can all be planar. UNKNOWN remains
   /// UNKNOWN. This keeps geometry as a positive-context sensor rather than an
   /// absence-of-display shortcut.
+  static HCVSceneContextEvidence confirmedEmbedded({
+    required List<String> reasons,
+  }) =>
+      HCVSceneContextEvidence(
+        contextClass: displayEmbeddedInReality,
+        analysisStatus: 'ANALYZED',
+        positiveRealityEvidence: true,
+        reasons: <String>[
+          ...reasons,
+          'DISPLAY_EMBEDDED_CONTEXT_CORROBORATED',
+        ],
+      );
+
   static HCVSceneContextEvidence fromGeometry(
     Map<String, dynamic>? geometry,
   ) {
@@ -53,13 +66,17 @@ class HCVSceneContextEvidence {
     final sceneClass = geometry['sceneClass']?.toString() ?? 'UNKNOWN';
     final realityEvidence = geometry['realityEvidence'] == true;
     if (sceneClass == 'REALITY' && realityEvidence) {
+      // Geometry is positive context evidence, but historical physical tests
+      // showed that geometry alone can occasionally label a real display as
+      // REALITY. Keep it as a candidate until an independent context family
+      // corroborates that the display is embedded in the physical scene.
       return const HCVSceneContextEvidence(
-        contextClass: displayEmbeddedInReality,
+        contextClass: sceneContextUnknown,
         analysisStatus: 'ANALYZED',
         positiveRealityEvidence: true,
         reasons: <String>[
           'POSITIVE_MULTI_DEPTH_SCENE_GEOMETRY',
-          'DISPLAY_CAN_BE_EMBEDDED_IN_PHYSICAL_REALITY',
+          'GEOMETRY_REQUIRES_INDEPENDENT_CONTEXT_CORROBORATION',
         ],
       );
     }
