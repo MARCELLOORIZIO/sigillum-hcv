@@ -964,6 +964,7 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
       pendingTemporalFrequencyProbe = null;
+      pendingSceneContextProbe = null;
       try {
         lastLiveSignals = await liveSignals.stopAndBuildSummary();
       } catch (_) {
