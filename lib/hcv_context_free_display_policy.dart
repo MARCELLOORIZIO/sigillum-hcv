@@ -67,10 +67,7 @@ class HCVContextFreeDisplayPolicy {
       }
       final sustained = frameScores.where((value) => value >= 80).length >= 2;
       final hasHigh = frameScores.any((value) => value >= 90);
-      if (screenClass &&
-          screenProbability >= 0.80 &&
-          sustained &&
-          hasHigh) {
+      if (screenClass && screenProbability >= 0.80 && sustained && hasHigh) {
         return _display(
           score: max(95, frameScores.reduce(max).round()),
           source: 'BUILD123_VIDEO_ML_PERSISTENCE',
@@ -104,9 +101,7 @@ class HCVContextFreeDisplayPolicy {
     final target = _number(probe['targetFrameCount'])?.toInt() ?? 60;
     final actualFps = _number(probe['actualFrameRateFromTimestamps']) ?? 0;
     final configuredFps = _number(probe['configuredFrameRate']) ?? 120;
-    if (target <= 0 ||
-        frames < target ||
-        actualFps < configuredFps * 0.98) {
+    if (target <= 0 || frames < target || actualFps < configuredFps * 0.98) {
       return false;
     }
     final grid = probe['displayRealityEvidenceV3'];

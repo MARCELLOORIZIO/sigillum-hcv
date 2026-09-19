@@ -142,7 +142,8 @@ void main() {
       expect(result.decision, 'NO_DISPLAY_EVIDENCE');
     });
 
-    test('reality still with strong isolated ML full-frame score is not DISPLAY',
+    test(
+        'reality still with strong isolated ML full-frame score is not DISPLAY',
         () {
       final result = HCVContextFreeDisplayPolicy.resolve(
         isPhoto: true,
@@ -169,7 +170,8 @@ void main() {
       expect(result.decision, 'NON_CONCLUSIVE');
     });
 
-    test('both actual PHOTO and VIDEO final decisions bypass Scene Context', () {
+    test('both actual PHOTO and VIDEO final decisions bypass Scene Context',
+        () {
       final source = File('lib/camera_page.dart').readAsStringSync();
       expect(
         'HCVContextFreeDisplayPolicy.resolve('.allMatches(source).length,
