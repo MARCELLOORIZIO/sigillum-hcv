@@ -15,6 +15,26 @@ class HCVDisplayFinalPolicy {
     required HCVSceneContextEvidence sceneContext,
   }) {
     if (sceneContext.isDisplayEmbeddedInReality) {
+      final fullFramePhysicalDisplay =
+          displayPhysics.strongSources.contains(
+            'HFR_V3_FULL_FRAME_DISPLAY_PHYSICS',
+          );
+      if (fullFramePhysicalDisplay &&
+          displayPhysics.decision == 'STRONG_DISPLAY_RISK') {
+        return HCVDisplayRiskResult(
+          risk: displayPhysics.risk,
+          score: displayPhysics.score,
+          decision: displayPhysics.decision,
+          analysisStatus: displayPhysics.analysisStatus,
+          evidenceSources: displayPhysics.evidenceSources,
+          strongSources: displayPhysics.strongSources,
+          reasons: <String>[
+            ...displayPhysics.reasons,
+            ...sceneContext.reasons,
+            'FULL_FRAME_DISPLAY_PHYSICS_VETOES_EMBEDDED_OVERRIDE_BUILD122',
+          ],
+        );
+      }
       return HCVDisplayRiskResult(
         risk: 'LOW',
         score: min(displayPhysics.score, 20),
