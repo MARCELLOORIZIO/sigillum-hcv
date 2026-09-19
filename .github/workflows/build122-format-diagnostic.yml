@@ -20,8 +20,10 @@ jobs:
           flutter-version: '3.47.1'
           cache: true
       - run: flutter pub get
-      - name: Show formatter diff
+      - name: Emit formatted ML file
         run: |
           dart format lib/hcv_ml_screen_replay_classifier.dart
-          git diff -- lib/hcv_ml_screen_replay_classifier.dart
-          git diff --exit-code -- lib/hcv_ml_screen_replay_classifier.dart
+          echo 'FORMATTED_ML_BASE64_BEGIN'
+          base64 -w0 lib/hcv_ml_screen_replay_classifier.dart
+          echo
+          echo 'FORMATTED_ML_BASE64_END'
