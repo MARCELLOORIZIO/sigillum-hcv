@@ -234,6 +234,7 @@ class HCVMLScreenReplayClassifier {
       }
 
       var result = _runImageAnalysis(interpreter, classes, decoded);
+      final fullResult = result;
       final cropped = _runImageAnalysis(
         interpreter,
         classes,
@@ -275,6 +276,12 @@ class HCVMLScreenReplayClassifier {
           'sigillumOverlayCorrected': overlayCorrected,
           'fullFrameRiskScore': fullScore,
           'contentAreaRiskScore': croppedScore,
+          'rawFullFrameScreenProbability':
+              _round(fullResult.screenProbability),
+          'rawFullFramePredictedClass': classes[fullResult.topIndex],
+          'rawFullFramePredictedClassConfidence': _round(
+            fullResult.probabilities[fullResult.topIndex],
+          ),
         },
         'note': 'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',
       };
