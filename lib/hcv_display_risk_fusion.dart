@@ -76,6 +76,13 @@ class HCVDisplayRiskFusion {
       return base;
     }
 
+    // BUILD122: raw full-frame video evidence survives the optional overlay
+    // crop. A semantically weak cropped result must not be used by either
+    // semantic-only downgrade path to erase that independent raw sequence.
+    if (photoTemporalMl == null && _hasRawFullFrameVideoRecoveryBuild122(ml)) {
+      return base;
+    }
+
     // BUILD115: V3/V3.2 can leave reflective planar reality and a display
     // visibly embedded in a real scene at NON_CONCLUSIVE when HFR is fully
     // negative but ML remains moderately screen-like. Resolve only the bounded
