@@ -297,8 +297,7 @@ Map<String, dynamic> _videoScreen({
       'videoFrameAnalyses': <Map<String, dynamic>>[
         for (final score in fullFrameScores)
           <String, dynamic>{
-            'predictedClass':
-                score >= 80 ? 'SCREEN_MONITOR' : 'REALITY_ROOM',
+            'predictedClass': score >= 80 ? 'SCREEN_MONITOR' : 'REALITY_ROOM',
             'screenProbability': score / 100.0,
             'signals': <String, dynamic>{
               'fullFrameRiskScore': score,

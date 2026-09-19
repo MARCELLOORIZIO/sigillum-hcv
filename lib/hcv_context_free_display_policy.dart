@@ -28,8 +28,7 @@ class HCVContextFreeDisplayPolicy {
     if (_photoMlDisplay(ml)) {
       final signals = _signals(ml);
       final probability = (ml?['screenProbability'] as num?)?.toDouble() ?? 0.0;
-      final fullFrame =
-          (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
       final contentArea =
           (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
       final score = max(
@@ -122,20 +121,14 @@ class HCVContextFreeDisplayPolicy {
     final v3 = _v3(probe);
     if (v3 == null) return null;
 
-    final displayLike =
-        (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
-    final realityLike =
-        (v3['realityLikeCellCount'] as num?)?.toInt() ?? 0;
-    final periodic =
-        (v3['periodicCellCount'] as num?)?.toInt() ?? 0;
-    final stable =
-        (v3['stableCellCount'] as num?)?.toInt() ?? 0;
-    final spatial =
-        (v3['spatialFamilyCellCount'] as num?)?.toInt() ?? 0;
+    final displayLike = (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
+    final realityLike = (v3['realityLikeCellCount'] as num?)?.toInt() ?? 0;
+    final periodic = (v3['periodicCellCount'] as num?)?.toInt() ?? 0;
+    final stable = (v3['stableCellCount'] as num?)?.toInt() ?? 0;
+    final spatial = (v3['spatialFamilyCellCount'] as num?)?.toInt() ?? 0;
     final harmonic =
         (v3['harmonicAwareSpatialFamilyCellCount'] as num?)?.toInt() ?? 0;
-    final rowTime =
-        (v3['rowTimeFamilyCellCount'] as num?)?.toInt() ?? 0;
+    final rowTime = (v3['rowTimeFamilyCellCount'] as num?)?.toInt() ?? 0;
 
     final display = displayLike >= 7 &&
         realityLike == 0 &&
@@ -166,13 +159,10 @@ class HCVContextFreeDisplayPolicy {
   static bool _photoMlDisplay(Map<String, dynamic>? ml) {
     if (!_hasUsableMl(ml)) return false;
     final predictedClass = ml?['predictedClass']?.toString() ?? '';
-    final probability =
-        (ml?['screenProbability'] as num?)?.toDouble() ?? 0.0;
+    final probability = (ml?['screenProbability'] as num?)?.toDouble() ?? 0.0;
     final signals = _signals(ml);
-    final fullFrame =
-        (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
-    final contentArea =
-        (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
+    final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+    final contentArea = (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0;
 
     return predictedClass.startsWith('SCREEN_') &&
         probability >= 0.90 &&
@@ -183,8 +173,7 @@ class HCVContextFreeDisplayPolicy {
   static _VideoEvidence _videoMlEvidence(Map<String, dynamic>? ml) {
     if (!_hasUsableMl(ml)) return const _VideoEvidence();
     final predictedClass = ml?['predictedClass']?.toString() ?? '';
-    final probability =
-        (ml?['screenProbability'] as num?)?.toDouble() ?? 0.0;
+    final probability = (ml?['screenProbability'] as num?)?.toDouble() ?? 0.0;
     final frames = ml?['videoFrameAnalyses'];
     if (!predictedClass.startsWith('SCREEN_') ||
         probability < 0.80 ||
@@ -199,8 +188,7 @@ class HCVContextFreeDisplayPolicy {
       if (raw is! Map) continue;
       final signals = raw['signals'];
       if (signals is! Map) continue;
-      final fullFrame =
-          (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      final fullFrame = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
       if (fullFrame >= 80) frames80++;
       if (fullFrame >= 90) frames90++;
       if (fullFrame > maxFullFrame) maxFullFrame = fullFrame;
@@ -233,8 +221,7 @@ class HCVContextFreeDisplayPolicy {
     return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
   }
 
-  static HCVDisplayRiskResult _notAnalyzed() =>
-      const HCVDisplayRiskResult(
+  static HCVDisplayRiskResult _notAnalyzed() => const HCVDisplayRiskResult(
         risk: 'MEDIUM',
         score: 45,
         decision: 'NON_CONCLUSIVE',
