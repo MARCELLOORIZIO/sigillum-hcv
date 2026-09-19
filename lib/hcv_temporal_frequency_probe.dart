@@ -343,10 +343,28 @@ class HCVTemporalFrequencyProbe {
           rowTimeFamilyCellCount: rowTimeFamilyCellCount,
           medianRowTimeCoherence: medianRowTimeCoherence,
         );
+    final nearFullGridDisplayRecoveryBuild122 =
+        !strictFullFrameDisplayV3 &&
+            !harmonicFullFrameDisplayRecovery &&
+            !lowModulationDisplayRecoveryBuild109 &&
+            !displayOnlyFullGridRecoveryBuild116 &&
+            displayLikeCellCount >= 8 &&
+            realityLikeCellCount == 0 &&
+            periodicCellCount == 9 &&
+            stableCellCount == 9 &&
+            medianCellPeriodicity >= 0.50 &&
+            medianCellStability >= 0.95 &&
+            medianCellPhase >= 0.90 &&
+            spatialFamilyCellCount == 9 &&
+            harmonicAwareSpatialFamilyCellCount == 9 &&
+            rowTimeFamilyCellCount == 9 &&
+            medianRowTimeCoherence >= 0.25;
+
     final fullFrameDisplayV3 = strictFullFrameDisplayV3 ||
         harmonicFullFrameDisplayRecovery ||
         lowModulationDisplayRecoveryBuild109 ||
-        displayOnlyFullGridRecoveryBuild116;
+        displayOnlyFullGridRecoveryBuild116 ||
+        nearFullGridDisplayRecoveryBuild122;
     final allNineCellsSameDisplayFamily = fullFrameDisplayV3 &&
         rowTimeFamilyCellCount == 9 &&
         (spatialFamilyCellCount == 9 ||
@@ -435,6 +453,8 @@ class HCVTemporalFrequencyProbe {
             lowModulationDisplayRecoveryBuild109,
         'displayOnlyFullGridRecoveryBuild116':
             displayOnlyFullGridRecoveryBuild116,
+        'nearFullGridDisplayRecoveryBuild122':
+            nearFullGridDisplayRecoveryBuild122,
         'displayOnlyFullGridCoverageBuild116':
             displayOnlyFullGridCoverageBuild116,
         'harmonicAwareSpatialFamilyCellCount':
@@ -462,6 +482,8 @@ class HCVTemporalFrequencyProbe {
             lowModulationDisplayRecoveryBuild109,
         'displayOnlyFullGridRecoveryBuild116':
             displayOnlyFullGridRecoveryBuild116,
+        'nearFullGridDisplayRecoveryBuild122':
+            nearFullGridDisplayRecoveryBuild122,
         'displayOnlyFullGridCoverageBuild116':
             displayOnlyFullGridCoverageBuild116,
         'displayFamilyMode': harmonicFullFrameDisplayRecovery
