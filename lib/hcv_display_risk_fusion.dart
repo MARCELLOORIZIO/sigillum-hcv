@@ -718,7 +718,7 @@ class HCVDisplayRiskFusion {
         : 60;
     final requiredFps = configuredFps != null && configuredFps > 0
         ? configuredFps * 0.98
-        : 117.5;
+        : 120.0;
     return frames >= requiredFrames && actualFps >= requiredFps;
   }
 
