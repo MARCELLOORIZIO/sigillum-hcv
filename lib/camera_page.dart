@@ -27,7 +27,7 @@ import 'hcv_temporal_capture_probe.dart';
 import 'hcv_temporal_frequency_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
-import 'hcv_display_final_policy.dart';
+import 'hcv_context_free_display_policy.dart';
 import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
@@ -1184,44 +1184,13 @@ class _CameraPageState extends State<CameraPage> {
         'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
       };
 
-      final screenReplayAnalyses = [
-        liveScreenProbe,
-        screenReplayAnalysis,
-        mlScreenReplayAnalysis,
-      ];
-      final baseDisplayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
-        screenReplayAnalyses,
-      );
-      final hfrDisplayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
-        baseDisplayRisk,
-        temporalFrequencyProbe,
-      );
-      final photoTemporalProbeRaw = liveScreenProbe['photoTemporalVideoProbe'];
-      final photoTemporalProbe = photoTemporalProbeRaw is Map
-          ? Map<String, dynamic>.from(photoTemporalProbeRaw)
-          : null;
-      final photoTemporalMlRaw = photoTemporalProbe?['mlScreenReplayAnalysis'];
-      final photoTemporalOpticalRaw =
-          photoTemporalProbe?['screenReplayAnalysis'];
-      final photoTemporalMl = photoTemporalMlRaw is Map
-          ? Map<String, dynamic>.from(photoTemporalMlRaw)
-          : null;
-      final photoTemporalOptical = photoTemporalOpticalRaw is Map
-          ? Map<String, dynamic>.from(photoTemporalOpticalRaw)
-          : null;
-      final displayPhysics =
-          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
-        base: hfrDisplayRisk,
-        passiveOptical: screenReplayAnalysis,
-        ml: mlScreenReplayAnalysis,
-        temporalFrequencyProbe: temporalFrequencyProbe,
-        photoTemporalMl: photoTemporalMl,
-        photoTemporalOptical: photoTemporalOptical,
-      );
+      // BUILD123: sole final PHOTO decision. Scene Context remains certificate
+      // diagnostics and cannot promote, veto, or absolve display evidence.
       final sceneContext = _sceneContextFromProbe(sceneContextProbe);
-      final displayRisk = HCVDisplayFinalPolicy.resolve(
-        displayPhysics: displayPhysics,
-        sceneContext: sceneContext,
+      final displayRisk = HCVContextFreeDisplayPolicy.resolve(
+        isPhoto: true,
+        temporalFrequencyProbe: temporalFrequencyProbe,
+        mlScreenReplayAnalysis: mlScreenReplayAnalysis,
       );
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
@@ -1588,29 +1557,12 @@ class _CameraPageState extends State<CameraPage> {
       liveSignals: lastLiveSignals,
       audioCaptured: true,
     );
-    final screenReplayAnalyses = [
-      liveScreenProbe,
-      screenReplayAnalysis,
-      mlScreenReplayAnalysis,
-    ];
-    final baseDisplayRisk = combineVideoDisplayRiskFromCaptureEvidence(
-      screenReplayAnalyses,
-    );
-    final hfrDisplayRisk = _promoteWithCoherentHfrDisplayPeriodicity(
-      baseDisplayRisk,
-      temporalFrequencyProbe,
-    );
-    final displayPhysics =
-        HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
-      base: hfrDisplayRisk,
-      passiveOptical: screenReplayAnalysis,
-      ml: mlScreenReplayAnalysis,
-      temporalFrequencyProbe: temporalFrequencyProbe,
-    );
+    // BUILD123: same context-free physical/ML policy as PHOTO.
     final sceneContext = _sceneContextFromProbe(sceneContextProbe);
-    final displayRisk = HCVDisplayFinalPolicy.resolve(
-      displayPhysics: displayPhysics,
-      sceneContext: sceneContext,
+    final displayRisk = HCVContextFreeDisplayPolicy.resolve(
+      isPhoto: false,
+      temporalFrequencyProbe: temporalFrequencyProbe,
+      mlScreenReplayAnalysis: mlScreenReplayAnalysis,
     );
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
