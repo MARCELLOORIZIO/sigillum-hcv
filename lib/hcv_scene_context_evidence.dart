@@ -91,6 +91,37 @@ class HCVSceneContextEvidence {
       return geometryEvidence;
     }
 
+    // BUILD122: only high-confidence multi-depth geometry may become an
+    // embedded-reality context. This rejects planar/textured surfaces that can
+    // show unstable pseudo-parallax while preserving robust room/cabin depth.
+    final depthDispersion =
+        (geometry?['depthDispersion'] as num?)?.toDouble() ?? 0.0;
+    final planarCoherence =
+        (geometry?['planarCoherence'] as num?)?.toDouble() ?? 1.0;
+    final flowReliability =
+        (geometry?['flowReliability'] as num?)?.toDouble() ?? 0.0;
+    final motionMagnitude =
+        (geometry?['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
+    final matchedRegions =
+        (geometry?['matchedRegions'] as num?)?.toInt() ?? 0;
+    final highConfidenceMultiDepth = depthDispersion >= 0.70 &&
+        planarCoherence <= 0.25 &&
+        flowReliability >= 0.46 &&
+        motionMagnitude >= 0.16 &&
+        matchedRegions >= 5;
+    if (!highConfidenceMultiDepth) {
+      return const HCVSceneContextEvidence(
+        contextClass: sceneContextUnknown,
+        analysisStatus: 'ANALYZED',
+        positiveRealityEvidence: true,
+        reasons: <String>[
+          'POSITIVE_MULTI_DEPTH_SCENE_GEOMETRY',
+          'MULTI_DEPTH_CONFIDENCE_INSUFFICIENT_BUILD122',
+          'SCENE_CONTEXT_NOT_FULLY_CORROBORATED',
+        ],
+      );
+    }
+
     if (sensorSignals == null || sensorSignals['signalsRecorded'] != true) {
       return HCVSceneContextEvidence(
         contextClass: sceneContextUnknown,
