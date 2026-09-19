@@ -692,19 +692,44 @@ class HCVDisplayRiskFusion {
         evidence['sceneTransitionDetected'] != true;
   }
 
-  static bool _isCompleteStrictNegativeHfr(Map<String, dynamic>? probe) {
+  static bool _isCompleteHfrCapture(Map<String, dynamic>? probe) {
     if (probe == null ||
         !_isSupportedHfrType(probe['type']) ||
         probe['analysisStatus'] != 'ANALYZED' ||
-        probe['coherentDisplayPeriodicity'] != false ||
         probe['shortExposureVerified'] != true ||
         probe['exposureLockedForEntireNativeCapture'] != true) {
       return false;
     }
     final frames = (probe['framesAnalyzed'] as num?)?.toInt() ?? 0;
-    final fps =
+    final targetFrames = (probe['targetFrameCount'] as num?)?.toInt();
+    final configuredFps =
+        (probe['configuredFrameRate'] as num?)?.toDouble();
+    final actualFps =
         (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
-    return frames >= 60 && fps >= 120.0;
+    final requiredFrames = targetFrames != null && targetFrames > 0
+        ? targetFrames
+        : 60;
+    final requiredFps = configuredFps != null && configuredFps > 0
+        ? configuredFps * 0.98
+        : 117.5;
+    return frames >= requiredFrames && actualFps >= requiredFps;
+  }
+
+  static bool _isCompleteStrictNegativeHfr(Map<String, dynamic>? probe) {
+    if (!_isCompleteHfrCapture(probe) ||
+        probe?['coherentDisplayPeriodicity'] != false) {
+      return false;
+    }
+    if (_isV3OrLater(probe?['type'])) {
+      final v3 = _v3Evidence(probe);
+      if (v3 == null ||
+          v3['fullFrameDisplay'] == true ||
+          v3['mixedSceneDetected'] == true ||
+          ((v3['displayLikeCellCount'] as num?)?.toInt() ?? 0) != 0) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static bool _hasNoPhysicalDisplayTrace(Map<String, dynamic>? optical) {
@@ -789,6 +814,7 @@ class HCVDisplayRiskFusion {
         maxFrame > 96 ||
         screenProbability > 0.96 ||
         _temporalHighFullFrameScreenFrameCount(temporalMl) >= 2 ||
+        _hasRawFullFrameVideoRecoveryBuild122(temporalMl) ||
         _hasStableVideoPhotoSpatialFullFrameCorroboration(temporalMl)) {
       return false;
     }
@@ -953,6 +979,32 @@ class HCVDisplayRiskFusion {
 
   static HCVDisplayRiskResult? mlFirstVideoDecision(Map<String, dynamic>? ml) {
     if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return null;
+
+    if (_hasRawFullFrameVideoRecoveryBuild122(ml)) {
+      final rawFrames = ml['videoFrameAnalyses'] as List;
+      var maxRawScore = 0;
+      for (final rawFrame in rawFrames) {
+        if (rawFrame is! Map) continue;
+        final rawSignals = rawFrame['signals'];
+        if (rawSignals is! Map) continue;
+        final score =
+            (rawSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+        if (score > maxRawScore) maxRawScore = score;
+      }
+      return HCVDisplayRiskResult(
+        risk: 'HIGH',
+        score: max(90, maxRawScore).clamp(90, 100).toInt(),
+        decision: 'STRONG_DISPLAY_RISK',
+        analysisStatus: 'COMPLETE',
+        evidenceSources: const <String>['ML_RAW_FULL_FRAME_SEQUENCE'],
+        strongSources: const <String>['ML_RAW_FULL_FRAME_SEQUENCE'],
+        reasons: const <String>[
+          'BUILD122_RAW_FULL_FRAME_VIDEO_RECOVERY',
+          'RAW_FULL_FRAME_SCREEN_EVIDENCE_PERSISTS_ACROSS_FRAMES',
+          'OVERLAY_CROP_CANNOT_ERASE_RAW_SCREEN_EVIDENCE',
+        ],
+      );
+    }
     final screenProbability = (ml['screenProbability'] as num?)?.toDouble();
     final framesAnalyzed = (ml['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final rawFrames = ml['videoFrameAnalyses'];
@@ -1031,6 +1083,46 @@ class HCVDisplayRiskFusion {
     }
 
     return null;
+  }
+
+  static bool _hasRawFullFrameVideoRecoveryBuild122(
+    Map<String, dynamic>? ml,
+  ) {
+    if (ml == null || ml['analysisStatus'] == 'NOT_ANALYZED') return false;
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (rawFrames is! List || rawFrames.length < 2) return false;
+    final spatial = ml['videoPhotoSpatialEvidence'];
+    if (spatial is Map && spatial['sceneTransitionDetected'] == true) {
+      return false;
+    }
+
+    var raw80 = 0;
+    var raw90 = 0;
+    var semanticScreen = 0;
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! Map) continue;
+      final rawSignals = rawFrame['signals'];
+      if (rawSignals is! Map) continue;
+      final fullScore =
+          (rawSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+      final rawProbability =
+          (rawSignals['rawFullFrameScreenProbability'] as num?)?.toDouble() ??
+              0.0;
+      final rawClass =
+          rawSignals['rawFullFramePredictedClass']?.toString() ?? '';
+      final rawConfidence =
+          (rawSignals['rawFullFramePredictedClassConfidence'] as num?)
+                  ?.toDouble() ??
+              0.0;
+      if (fullScore >= 80) raw80++;
+      if (fullScore >= 90) raw90++;
+      if (rawClass.startsWith('SCREEN_') &&
+          rawProbability >= 0.84 &&
+          rawConfidence >= 0.80) {
+        semanticScreen++;
+      }
+    }
+    return raw80 >= 2 && raw90 >= 1 && semanticScreen >= 1;
   }
 
   static bool hasSpatialScreenCorroboration(Map<String, dynamic>? ml) {
