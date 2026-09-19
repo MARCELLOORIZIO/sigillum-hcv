@@ -1,0 +1,27 @@
+name: BUILD122 format diagnostic
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - fix/build121-unified-photo-scene-context-20260918
+
+permissions:
+  contents: read
+
+jobs:
+  dart-format-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter pub get
+      - name: Show formatter diff
+        run: |
+          dart format lib/hcv_ml_screen_replay_classifier.dart
+          git diff -- lib/hcv_ml_screen_replay_classifier.dart
+          git diff --exit-code -- lib/hcv_ml_screen_replay_classifier.dart
