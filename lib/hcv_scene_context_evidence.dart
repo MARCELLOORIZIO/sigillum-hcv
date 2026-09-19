@@ -102,8 +102,7 @@ class HCVSceneContextEvidence {
         (geometry?['flowReliability'] as num?)?.toDouble() ?? 0.0;
     final motionMagnitude =
         (geometry?['motionMagnitude'] as num?)?.toDouble() ?? 0.0;
-    final matchedRegions =
-        (geometry?['matchedRegions'] as num?)?.toInt() ?? 0;
+    final matchedRegions = (geometry?['matchedRegions'] as num?)?.toInt() ?? 0;
     final highConfidenceMultiDepth = depthDispersion >= 0.70 &&
         planarCoherence <= 0.25 &&
         flowReliability >= 0.46 &&

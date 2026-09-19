@@ -15,10 +15,9 @@ class HCVDisplayFinalPolicy {
     required HCVSceneContextEvidence sceneContext,
   }) {
     if (sceneContext.isDisplayEmbeddedInReality) {
-      final fullFramePhysicalDisplay =
-          displayPhysics.strongSources.contains(
-            'HFR_V3_FULL_FRAME_DISPLAY_PHYSICS',
-          );
+      final fullFramePhysicalDisplay = displayPhysics.strongSources.contains(
+        'HFR_V3_FULL_FRAME_DISPLAY_PHYSICS',
+      );
       if (fullFramePhysicalDisplay &&
           displayPhysics.decision == 'STRONG_DISPLAY_RISK') {
         return HCVDisplayRiskResult(

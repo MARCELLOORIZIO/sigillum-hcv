@@ -24,7 +24,8 @@ void main() {
     });
 
     test('8-of-9 display-like HFR can never be treated as strict negative', () {
-      final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      final result =
+          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: _nonConclusiveBase(),
         passiveOptical: _cleanOptical(),
         ml: _weakVideoMl(),
@@ -43,7 +44,8 @@ void main() {
 
     test('complete 120 fps front HFR uses target frame count, not fixed 60',
         () {
-      final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      final result =
+          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: _nonConclusiveBase(),
         passiveOptical: _cleanOptical(),
         ml: _weakVideoMl(),
@@ -57,7 +59,8 @@ void main() {
       );
     });
 
-    test('raw full-frame monitor evidence survives overlay crop correction', () {
+    test('raw full-frame monitor evidence survives overlay crop correction',
+        () {
       final result = HCVDisplayRiskFusion.mlFirstVideoDecision(
         _overlayCorrectedMonitorMl(),
       );
@@ -83,7 +86,8 @@ void main() {
         reasons: const <String>['DISPLAY_CLASSIFICATION_NOT_RESOLVED'],
       );
 
-      final result = HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
+      final result =
+          HCVDisplayRiskFusion.resolveWeakSemanticOnlyWithNegativeHfr(
         base: base,
         passiveOptical: _cleanOptical(),
         ml: _overlayCorrectedMonitorMl(),

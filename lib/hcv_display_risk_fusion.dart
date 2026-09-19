@@ -709,13 +709,11 @@ class HCVDisplayRiskFusion {
     }
     final frames = (probe['framesAnalyzed'] as num?)?.toInt() ?? 0;
     final targetFrames = (probe['targetFrameCount'] as num?)?.toInt();
-    final configuredFps =
-        (probe['configuredFrameRate'] as num?)?.toDouble();
+    final configuredFps = (probe['configuredFrameRate'] as num?)?.toDouble();
     final actualFps =
         (probe['actualFrameRateFromTimestamps'] as num?)?.toDouble() ?? 0.0;
-    final requiredFrames = targetFrames != null && targetFrames > 0
-        ? targetFrames
-        : 60;
+    final requiredFrames =
+        targetFrames != null && targetFrames > 0 ? targetFrames : 60;
     final requiredFps = configuredFps != null && configuredFps > 0
         ? configuredFps * 0.98
         : 120.0;
@@ -994,8 +992,7 @@ class HCVDisplayRiskFusion {
         if (rawFrame is! Map) continue;
         final rawSignals = rawFrame['signals'];
         if (rawSignals is! Map) continue;
-        final score =
-            (rawSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
+        final score = (rawSignals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
         if (score > maxRawScore) maxRawScore = score;
       }
       return HCVDisplayRiskResult(
