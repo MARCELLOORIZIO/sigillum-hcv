@@ -343,27 +343,26 @@ class HCVTemporalFrequencyProbe {
           rowTimeFamilyCellCount: rowTimeFamilyCellCount,
           medianRowTimeCoherence: medianRowTimeCoherence,
         );
-    final nearFullGridDisplayRecoveryBuild122 =
-        actualFps != null &&
-            actualFps >= 120.0 &&
-            acceptedFrames >= 60 &&
-            raw['shortExposureVerified'] == true &&
-            raw['exposureLockedForEntireNativeCapture'] == true &&
-            !strictFullFrameDisplayV3 &&
-            !harmonicFullFrameDisplayRecovery &&
-            !lowModulationDisplayRecoveryBuild109 &&
-            !displayOnlyFullGridRecoveryBuild116 &&
-            displayLikeCellCount >= 8 &&
-            realityLikeCellCount == 0 &&
-            periodicCellCount == 9 &&
-            stableCellCount == 9 &&
-            medianCellPeriodicity >= 0.50 &&
-            medianCellStability >= 0.95 &&
-            medianCellPhase >= 0.90 &&
-            spatialFamilyCellCount == 9 &&
-            harmonicAwareSpatialFamilyCellCount == 9 &&
-            rowTimeFamilyCellCount == 9 &&
-            medianRowTimeCoherence >= 0.25;
+    final nearFullGridDisplayRecoveryBuild122 = actualFps != null &&
+        actualFps >= 120.0 &&
+        acceptedFrames >= 60 &&
+        raw['shortExposureVerified'] == true &&
+        raw['exposureLockedForEntireNativeCapture'] == true &&
+        !strictFullFrameDisplayV3 &&
+        !harmonicFullFrameDisplayRecovery &&
+        !lowModulationDisplayRecoveryBuild109 &&
+        !displayOnlyFullGridRecoveryBuild116 &&
+        displayLikeCellCount >= 8 &&
+        realityLikeCellCount == 0 &&
+        periodicCellCount == 9 &&
+        stableCellCount == 9 &&
+        medianCellPeriodicity >= 0.50 &&
+        medianCellStability >= 0.95 &&
+        medianCellPhase >= 0.90 &&
+        spatialFamilyCellCount == 9 &&
+        harmonicAwareSpatialFamilyCellCount == 9 &&
+        rowTimeFamilyCellCount == 9 &&
+        medianRowTimeCoherence >= 0.25;
 
     final fullFrameDisplayV3 = strictFullFrameDisplayV3 ||
         harmonicFullFrameDisplayRecovery ||
