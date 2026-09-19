@@ -344,7 +344,12 @@ class HCVTemporalFrequencyProbe {
           medianRowTimeCoherence: medianRowTimeCoherence,
         );
     final nearFullGridDisplayRecoveryBuild122 =
-        !strictFullFrameDisplayV3 &&
+        actualFps != null &&
+            actualFps >= 120.0 &&
+            acceptedFrames >= 60 &&
+            raw['shortExposureVerified'] == true &&
+            raw['exposureLockedForEntireNativeCapture'] == true &&
+            !strictFullFrameDisplayV3 &&
             !harmonicFullFrameDisplayRecovery &&
             !lowModulationDisplayRecoveryBuild109 &&
             !displayOnlyFullGridRecoveryBuild116 &&
