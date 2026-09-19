@@ -276,8 +276,9 @@ class HCVMLScreenReplayClassifier {
           'sigillumOverlayCorrected': overlayCorrected,
           'fullFrameRiskScore': fullScore,
           'contentAreaRiskScore': croppedScore,
-          'rawFullFrameScreenProbability':
-              _round(fullResult.screenProbability),
+          'rawFullFrameScreenProbability': _round(
+            fullResult.screenProbability,
+          ),
           'rawFullFramePredictedClass': classes[fullResult.topIndex],
           'rawFullFramePredictedClassConfidence': _round(
             fullResult.probabilities[fullResult.topIndex],
