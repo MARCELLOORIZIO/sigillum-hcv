@@ -349,6 +349,10 @@ Map<String, dynamic> _video({
       'predictedClass': predicted,
       'screenProbability': probability,
       'framesAnalyzed': frameScores.length,
+      'signals': <String, dynamic>{
+        'fullFrameRiskScore': frameScores.isEmpty ? 0 : frameScores.first,
+        'contentAreaRiskScore': frameScores.isEmpty ? 0 : frameScores.first,
+      },
       'videoFrameAnalyses': <Map<String, dynamic>>[
         for (final score in frameScores)
           <String, dynamic>{
