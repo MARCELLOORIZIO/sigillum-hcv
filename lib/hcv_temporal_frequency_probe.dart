@@ -515,8 +515,7 @@ class HCVTemporalFrequencyProbe {
       'requestedDeviceUniqueId': raw['requestedDeviceUniqueId'],
       'physicalCaptureDeviceUniqueId': raw['physicalCaptureDeviceUniqueId'],
       'zoomFieldOfViewComparable': raw['zoomFieldOfViewComparable'] == true,
-      'zoomFieldOfViewComparisonReason':
-          raw['zoomFieldOfViewComparisonReason'],
+      'zoomFieldOfViewComparisonReason': raw['zoomFieldOfViewComparisonReason'],
       'flutterCameraDisposedDuringProbe': true,
       'requestedTargetFps': raw['requestedTargetFps'],
       'configuredFrameRate': configuredFps,

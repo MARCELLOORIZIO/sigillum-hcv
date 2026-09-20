@@ -7,7 +7,8 @@ void main() {
   group('BUILD125 zoom/HFR field of view', () {
     test('real native probe channel receives the user requested zoom', () {
       final camera = File('lib/camera_page.dart').readAsStringSync();
-      final probe = File('lib/hcv_temporal_frequency_probe.dart').readAsStringSync();
+      final probe =
+          File('lib/hcv_temporal_frequency_probe.dart').readAsStringSync();
 
       expect(camera, contains('requestedZoomFactor: savedZoom'));
       expect(probe, contains("'requestedZoomFactor': requestedZoomFactor"));
@@ -27,16 +28,23 @@ void main() {
 
     test('native session applies zoom after selecting high speed format', () {
       final native = File('ios/Runner/AppDelegate.swift').readAsStringSync();
-      final format = native.indexOf('captureDevice.activeFormat = selection.format');
-      final apply = native.indexOf('captureDevice.videoZoomFactor = CGFloat(appliedNativeZoom)');
-      final metadata = native.indexOf('"nativeHfrEffectiveZoomFactor": nativeHfrEffectiveZoom');
+      final format =
+          native.indexOf('captureDevice.activeFormat = selection.format');
+      final apply = native.indexOf(
+          'captureDevice.videoZoomFactor = CGFloat(appliedNativeZoom)');
+      final metadata = native
+          .indexOf('"nativeHfrEffectiveZoomFactor": nativeHfrEffectiveZoom');
 
       expect(format, greaterThan(-1));
       expect(apply, greaterThan(format));
       expect(metadata, greaterThan(apply));
-      expect(native, contains('"physicalDeviceSubstitutionUsed": physicalDeviceSubstituted'));
+      expect(
+          native,
+          contains(
+              '"physicalDeviceSubstitutionUsed": physicalDeviceSubstituted'));
       expect(native, contains('"zoomFieldOfViewComparable": zoomComparable'));
-      expect(native, contains('"nativeHfrMaximumZoomFactor": maximumNativeZoom'));
+      expect(
+          native, contains('"nativeHfrMaximumZoomFactor": maximumNativeZoom'));
       expect(native, contains('"nativeHfrZoomClamped"'));
     });
 
@@ -55,7 +63,8 @@ void main() {
         ml: _weakScreenVideo(),
       );
       expect(result.decision, 'NON_CONCLUSIVE');
-      expect(result.reasons, contains('ABSENCE_OF_DISPLAY_PROOF_IS_NOT_POSITIVE_REALITY_PROOF'));
+      expect(result.reasons,
+          contains('ABSENCE_OF_DISPLAY_PROOF_IS_NOT_POSITIVE_REALITY_PROOF'));
     });
 
     test('matched HFR still promotes physical full-frame display', () {
@@ -85,8 +94,7 @@ void main() {
     });
 
     test('baseline historical HFR without zoom metadata is compatible', () {
-      final probe = _hfr(comparable: true)
-        ..remove('zoomFieldOfViewComparable');
+      final probe = _hfr(comparable: true)..remove('zoomFieldOfViewComparable');
       final result = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
         temporalFrequencyProbe: probe,
         stillMl: _stillReality(),
