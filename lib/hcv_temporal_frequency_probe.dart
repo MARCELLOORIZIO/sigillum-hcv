@@ -18,12 +18,16 @@ class HCVTemporalFrequencyProbe {
   static const double targetCaptureDurationSeconds = 0.35;
   static const int rowProfileBins = 96;
 
-  Future<Map<String, dynamic>> captureNative(String deviceUniqueId) async {
+  Future<Map<String, dynamic>> captureNative(
+    String deviceUniqueId, {
+    double requestedZoomFactor = 1.0,
+  }) async {
     try {
       final raw = await _channel.invokeMapMethod<String, dynamic>(
         'captureTemporalFrequencyNative',
         {
           'deviceUniqueId': deviceUniqueId,
+          'requestedZoomFactor': requestedZoomFactor,
           'targetMaxFps': targetMaxFps,
           'targetDurationSeconds': targetCaptureDurationSeconds,
           'targetExposureSeconds': requestedShortExposureSeconds,
@@ -503,6 +507,15 @@ class HCVTemporalFrequencyProbe {
       'advancedDisplayPhysicsV32': advancedPhysicsV32,
       'activeIlluminationRealityV32': activeIlluminationV32,
       'captureSource': 'ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER',
+      'requestedZoomFactor': raw['requestedZoomFactor'],
+      'nativeHfrEffectiveZoomFactor': raw['nativeHfrEffectiveZoomFactor'],
+      'nativeHfrMaximumZoomFactor': raw['nativeHfrMaximumZoomFactor'],
+      'nativeHfrZoomClamped': raw['nativeHfrZoomClamped'],
+      'physicalDeviceSubstitutionUsed': raw['physicalDeviceSubstitutionUsed'],
+      'requestedDeviceUniqueId': raw['requestedDeviceUniqueId'],
+      'physicalCaptureDeviceUniqueId': raw['physicalCaptureDeviceUniqueId'],
+      'zoomFieldOfViewComparable': raw['zoomFieldOfViewComparable'] == true,
+      'zoomFieldOfViewComparisonReason': raw['zoomFieldOfViewComparisonReason'],
       'flutterCameraDisposedDuringProbe': true,
       'requestedTargetFps': raw['requestedTargetFps'],
       'configuredFrameRate': configuredFps,

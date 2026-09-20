@@ -90,9 +90,12 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
-    if (_borderlinePhoto(still, temporal, hfr)) {
+    if (_borderlinePhoto(still, temporal, hfr) ||
+        (temporalFrequencyProbe?['zoomFieldOfViewComparable'] == false &&
+            still.isScreen &&
+            still.probability >= 0.50)) {
       return _nonConclusive(
-        'BUILD124_PHOTO_BORDERLINE_SCREEN_EVIDENCE',
+        'BUILD125_PHOTO_ZOOM_MISMATCH_OR_BORDERLINE_SCREEN_EVIDENCE',
       );
     }
 
@@ -174,9 +177,12 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
-    if (_borderlineVideo(aggregate, video, hfr)) {
+    if (_borderlineVideo(aggregate, video, hfr) ||
+        (temporalFrequencyProbe?['zoomFieldOfViewComparable'] == false &&
+            aggregate.isScreen &&
+            aggregate.probability >= 0.50)) {
       return _nonConclusive(
-        'BUILD124_VIDEO_BORDERLINE_SCREEN_EVIDENCE',
+        'BUILD125_VIDEO_ZOOM_MISMATCH_OR_BORDERLINE_SCREEN_EVIDENCE',
       );
     }
 
@@ -195,7 +201,11 @@ class HCVMultiEvidenceDisplayPolicy {
   }
 
   static _HfrEvidence _hfrEvidence(Map<String, dynamic>? probe) {
-    if (probe == null || probe['analysisStatus'] != 'ANALYZED') {
+    if (probe == null ||
+        probe['analysisStatus'] != 'ANALYZED' ||
+        probe['zoomFieldOfViewComparable'] == false) {
+      // An unmatched native HFR field of view cannot corroborate the later
+      // image/video. Keep its raw evidence in the certificate for diagnosis.
       return const _HfrEvidence();
     }
 
