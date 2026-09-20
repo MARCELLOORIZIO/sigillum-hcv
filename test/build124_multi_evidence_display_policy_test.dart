@@ -210,6 +210,33 @@ void main() {
       expect(source, isNot(contains('DISPLAY_EMBEDDED_IN_REALITY')));
     });
 
+    test('missing PHOTO HFR and both ML inputs is NON_CONCLUSIVE', () {
+      final result = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
+        temporalFrequencyProbe: null,
+        stillMl: null,
+        temporalMl: null,
+      );
+
+      expect(result.decision, 'NON_CONCLUSIVE');
+      expect(
+        result.reasons,
+        contains('BUILD124_PHOTO_DECISION_EVIDENCE_UNAVAILABLE'),
+      );
+    });
+
+    test('missing VIDEO HFR and ML inputs is NON_CONCLUSIVE', () {
+      final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
+        temporalFrequencyProbe: null,
+        ml: null,
+      );
+
+      expect(result.decision, 'NON_CONCLUSIVE');
+      expect(
+        result.reasons,
+        contains('BUILD124_VIDEO_DECISION_EVIDENCE_UNAVAILABLE'),
+      );
+    });
+
     test('PHOTO technical cycle remains 1.5 seconds and three ML frames', () {
       final source =
           File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();
