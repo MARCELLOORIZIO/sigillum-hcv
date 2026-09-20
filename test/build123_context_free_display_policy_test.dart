@@ -182,7 +182,7 @@ void main() {
       );
     });
 
-    test('context-free policy has no scene geometry sensor or optical inputs',
+    test('context-free policy retains optical but excludes scene geometry',
         () {
       final source =
           File('lib/hcv_context_free_display_policy.dart').readAsStringSync();
@@ -190,7 +190,8 @@ void main() {
       expect(source, isNot(contains('HCVSceneContextEvidence')));
       expect(source, isNot(contains('geometryProbe')));
       expect(source, isNot(contains('sensorSignals')));
-      expect(source, isNot(contains('passiveOptical')));
+      expect(source, contains('passiveOptical'));
+      expect(source, contains('photoTemporalMl'));
     });
 
     test('missing both ML and HFR remains NON_CONCLUSIVE', () {
@@ -232,11 +233,15 @@ Map<String, dynamic> _hfr({
       'analysisStatus': 'ANALYZED',
       'shortExposureVerified': true,
       'exposureLockedForEntireNativeCapture': true,
+      'framesAnalyzed': 84,
+      'actualFrameRateFromTimestamps': 240.0,
+      'coherentDisplayPeriodicityEvidence': <String, dynamic>{
+        'periodicCellCount': periodic,
+        'stableCellCount': stable,
+      },
       'displayRealityEvidenceV3': <String, dynamic>{
         'displayLikeCellCount': displayLike,
         'realityLikeCellCount': realityLike,
-        'periodicCellCount': periodic,
-        'stableCellCount': stable,
         'spatialFamilyCellCount': spatial,
         'harmonicAwareSpatialFamilyCellCount': harmonic,
         'rowTimeFamilyCellCount': rowTime,
