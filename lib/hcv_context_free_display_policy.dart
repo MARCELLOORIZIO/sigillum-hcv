@@ -69,8 +69,8 @@ class HCVContextFreeDisplayPolicy {
     // technical mini-video must never promote a REALITY-classified still by
     // itself, even when the legacy base was STRONG.
     if (base?.decision == 'STRONG_DISPLAY_RISK' &&
-        _photoBaseCorroboration(ml, photoTemporalMl, passiveOptical,
-            photoTemporalOptical)) {
+        _photoBaseCorroboration(
+            ml, photoTemporalMl, passiveOptical, photoTemporalOptical)) {
       return _display(
         'BUILD124_RESTORED_PHOTO_FUSION',
         max(90, base!.score),
@@ -164,11 +164,10 @@ class HCVContextFreeDisplayPolicy {
     final harmonic = _i(v3, 'harmonicAwareSpatialFamilyCellCount');
     final rowTime = _i(v3, 'rowTimeFamilyCellCount');
 
-    final physicallyFullFrame =
-        probe?['coherentDisplayPeriodicity'] == true &&
-            v3['fullFrameDisplay'] == true &&
-            v3['mixedSceneDetected'] != true &&
-            v3['allNineCellsSameDisplayFamily'] == true;
+    final physicallyFullFrame = probe?['coherentDisplayPeriodicity'] == true &&
+        v3['fullFrameDisplay'] == true &&
+        v3['mixedSceneDetected'] != true &&
+        v3['allNineCellsSameDisplayFamily'] == true;
     final sevenCellRecovery = displayLike >= 7 &&
         realityLike == 0 &&
         periodic >= 7 &&
@@ -240,8 +239,7 @@ class HCVContextFreeDisplayPolicy {
     for (final frame in frames) {
       if (frame is! Map) continue;
       final frameSignals = frame['signals'];
-      if ((frame['predictedClass']?.toString() ?? '')
-              .startsWith('SCREEN_') &&
+      if ((frame['predictedClass']?.toString() ?? '').startsWith('SCREEN_') &&
           _d(frame, 'screenProbability') >= 0.90 &&
           frameSignals is Map &&
           _i(frameSignals, 'fullFrameRiskScore') >= 90) {
@@ -346,8 +344,7 @@ class HCVContextFreeDisplayPolicy {
     for (final frame in frames) {
       if (frame is! Map) continue;
       final signals = frame['signals'];
-      if (signals is Map &&
-          _i(signals, 'fullFrameRiskScore') >= threshold) {
+      if (signals is Map && _i(signals, 'fullFrameRiskScore') >= threshold) {
         count++;
       }
     }
@@ -376,9 +373,7 @@ class HCVContextFreeDisplayPolicy {
 
   static Map<String, dynamic> _signals(Map<String, dynamic>? ml) {
     final raw = ml?['signals'];
-    return raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : <String, dynamic>{};
+    return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
   }
 
   static bool _hasUsableMl(Map<String, dynamic>? ml) =>
@@ -402,8 +397,7 @@ class HCVContextFreeDisplayPolicy {
     return raw is Map ? Map<String, dynamic>.from(raw) : null;
   }
 
-  static int _i(Map? map, String key) =>
-      (map?[key] as num?)?.toInt() ?? 0;
+  static int _i(Map? map, String key) => (map?[key] as num?)?.toInt() ?? 0;
 
   static double _d(Map? map, String key) =>
       (map?[key] as num?)?.toDouble() ?? 0.0;
@@ -423,8 +417,7 @@ class HCVContextFreeDisplayPolicy {
         reasons: reasons,
       );
 
-  static HCVDisplayRiskResult _reality(String reason) =>
-      HCVDisplayRiskResult(
+  static HCVDisplayRiskResult _reality(String reason) => HCVDisplayRiskResult(
         risk: 'LOW',
         score: 20,
         decision: 'NO_DISPLAY_EVIDENCE',

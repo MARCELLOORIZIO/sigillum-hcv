@@ -23,8 +23,7 @@ void main() {
         isFalse,
       );
       expect(
-        (hfr['coherentDisplayPeriodicityEvidence'] as Map)[
-            'periodicCellCount'],
+        (hfr['coherentDisplayPeriodicityEvidence'] as Map)['periodicCellCount'],
         8,
       );
     });
@@ -58,8 +57,7 @@ void main() {
       expect(result.strongSources, isNotEmpty);
     });
 
-    test('VIDEO CAC6 TV: independently corroborated partial HFR promotes',
-        () {
+    test('VIDEO CAC6 TV: independently corroborated partial HFR promotes', () {
       final result = HCVContextFreeDisplayPolicy.resolveVideo(
         temporalFrequencyProbe: _hfr(
           display: 5,
@@ -132,7 +130,8 @@ void main() {
       expect(result.decision, 'NON_CONCLUSIVE');
     });
 
-    test('D56D fabric: even STRONG old mini-video cannot override REALITY still',
+    test(
+        'D56D fabric: even STRONG old mini-video cannot override REALITY still',
         () {
       final result = HCVContextFreeDisplayPolicy.resolvePhoto(
         temporalFrequencyProbe: _hfr(
@@ -263,9 +262,7 @@ void main() {
         contains('combineVideoDisplayRiskFromCaptureEvidence('),
       );
       expect(
-        RegExp(r'photoTemporalMl: photoTemporalMl,')
-            .allMatches(camera)
-            .length,
+        RegExp(r'photoTemporalMl: photoTemporalMl,').allMatches(camera).length,
         greaterThanOrEqualTo(2),
       );
       expect(camera, contains('photoTemporalOptical: photoTemporalOptical'));
@@ -355,9 +352,8 @@ Map<String, dynamic> _video({
       'videoFrameAnalyses': <Map<String, dynamic>>[
         for (final score in frameScores)
           <String, dynamic>{
-            'predictedClass': allScreen || score >= 60
-                ? 'SCREEN_MONITOR'
-                : 'REALITY_ROOM',
+            'predictedClass':
+                allScreen || score >= 60 ? 'SCREEN_MONITOR' : 'REALITY_ROOM',
             'screenProbability': score / 100.0,
             'signals': <String, dynamic>{
               'fullFrameRiskScore': score,

@@ -182,8 +182,7 @@ void main() {
       );
     });
 
-    test('context-free policy retains optical but excludes scene geometry',
-        () {
+    test('context-free policy retains optical but excludes scene geometry', () {
       final source =
           File('lib/hcv_context_free_display_policy.dart').readAsStringSync();
 
