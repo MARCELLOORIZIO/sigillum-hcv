@@ -96,6 +96,15 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
+    if ((temporalFrequencyProbe == null ||
+            temporalFrequencyProbe['analysisStatus'] != 'ANALYZED') &&
+        !still.available &&
+        (temporalMl == null || temporalMl['analysisStatus'] != 'ANALYZED')) {
+      return _nonConclusive(
+        'BUILD124_PHOTO_DECISION_EVIDENCE_UNAVAILABLE',
+      );
+    }
+
     return _reality(
       stillOptical: stillOptical,
       temporalOptical: temporalOptical,
@@ -168,6 +177,14 @@ class HCVMultiEvidenceDisplayPolicy {
     if (_borderlineVideo(aggregate, video, hfr)) {
       return _nonConclusive(
         'BUILD124_VIDEO_BORDERLINE_SCREEN_EVIDENCE',
+      );
+    }
+
+    if ((temporalFrequencyProbe == null ||
+            temporalFrequencyProbe['analysisStatus'] != 'ANALYZED') &&
+        !aggregate.available) {
+      return _nonConclusive(
+        'BUILD124_VIDEO_DECISION_EVIDENCE_UNAVAILABLE',
       );
     }
 
