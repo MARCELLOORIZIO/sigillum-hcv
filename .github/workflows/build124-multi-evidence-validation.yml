@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - fix/build123-context-free-display-reality-20260919
-      - fix/build124-multi-evidence-display-fusion-20260920
   workflow_dispatch:
 
 permissions:
