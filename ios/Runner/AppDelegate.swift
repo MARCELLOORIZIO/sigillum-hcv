@@ -675,6 +675,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       min(0.004, args?["targetExposureSeconds"] as? Double ?? 0.001)
     )
     let rowBins = max(24, min(128, args?["rowProfileBins"] as? Int ?? 96))
+    let requestedZoom = max(
+      1.0,
+      min(15.0, args?["requestedZoomFactor"] as? Double ?? 1.0)
+    )
 
     temporalFrequencyNativeBusy = true
     temporalFrequencyFinishLock.lock()
@@ -730,6 +734,18 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
         try captureDevice.lockForConfiguration()
         captureDevice.activeFormat = selection.format
+        let hfrZoomMaximum = max(
+          1.0,
+          min(
+            15.0,
+            min(
+              captureDevice.maxAvailableVideoZoomFactor,
+              captureDevice.activeFormat.videoMaxZoomFactor
+            )
+          )
+        )
+        let appliedHfrZoom = min(hfrZoomMaximum, max(1.0, requestedZoom))
+        captureDevice.videoZoomFactor = appliedHfrZoom
         // Use the exact hardware-supported CMTime from AVFrameRateRange.
         // Assigning a reconstructed reciprocal can raise NSInvalidArgumentException.
         let frameDuration = selection.range.minFrameDuration
@@ -840,6 +856,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           "requestedDeviceUniqueId": device.uniqueID,
           "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
           "physicalDeviceSubstitutionUsed": captureDevice.uniqueID != device.uniqueID,
+          "requestedZoomFactor": requestedZoom,
+          "appliedHfrZoomFactor": Double(captureDevice.videoZoomFactor),
+          "hfrZoomMaximum": hfrZoomMaximum,
+          "zoomParityExact": abs(Double(captureDevice.videoZoomFactor) - requestedZoom) <= 0.01,
           "requestedTargetFps": requestedMaxFps,
           "configuredFrameRate": selection.fps,
           "frameRateTier": Int(selection.fps.rounded()),
