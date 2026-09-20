@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('photo and video final decisions both consume HFR physical evidence', () {
+  test('photo and video final decisions both consume HFR physical evidence',
+      () {
     final cameraSource = File('lib/camera_page.dart').readAsStringSync();
     final policySource =
         File('lib/hcv_context_free_display_policy.dart').readAsStringSync();
