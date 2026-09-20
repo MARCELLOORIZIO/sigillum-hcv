@@ -10,8 +10,12 @@ void main() {
       expect(source, isNot(contains('clamp(minZoom, 10.0)')));
       expect(source, isNot(contains('clamp(newMinZoom, 10.0)')));
       expect(
-        RegExp(r'clamp\((?:new)?MinZoom, 15\.0\)').allMatches(source).length,
-        greaterThanOrEqualTo(3),
+        RegExp(r'clamp\(minZoom, 15\.0\)').allMatches(source).length,
+        greaterThanOrEqualTo(2),
+      );
+      expect(
+        RegExp(r'clamp\(newMinZoom, 15\.0\)').allMatches(source).length,
+        greaterThanOrEqualTo(2),
       );
     });
 
