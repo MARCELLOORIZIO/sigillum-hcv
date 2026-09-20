@@ -858,12 +858,20 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         let physicalDeviceSubstituted = captureDevice.uniqueID != device.uniqueID
         let zoomMatched = abs(nativeHfrEffectiveZoom - requestedZoom) <=
           max(0.10, requestedZoom * 0.02)
-        let zoomComparable = !physicalDeviceSubstituted && zoomMatched
-        let zoomComparisonReason = physicalDeviceSubstituted
-          ? "NATIVE_HFR_PHYSICAL_LENS_SUBSTITUTION"
-          : zoomMatched
-            ? "SAME_DEVICE_AND_ZOOM_MATCHED"
-            : "NATIVE_HFR_ZOOM_CLAMPED_OR_NOT_APPLIED"
+        // At baseline 1x, a virtual back camera normally resolves to the
+        // corresponding wide constituent. At elevated zoom, multi-lens
+        // switching makes a numerical factor insufficient to prove same FOV.
+        let substitutedAtBaseZoom = physicalDeviceSubstituted &&
+          requestedZoom <= 1.01
+        let zoomComparable = zoomMatched &&
+          (!physicalDeviceSubstituted || substitutedAtBaseZoom)
+        let zoomComparisonReason = !zoomMatched
+          ? "NATIVE_HFR_ZOOM_CLAMPED_OR_NOT_APPLIED"
+          : physicalDeviceSubstituted && !substitutedAtBaseZoom
+            ? "NATIVE_HFR_PHYSICAL_LENS_SUBSTITUTION_AT_ZOOM"
+            : substitutedAtBaseZoom
+              ? "VIRTUAL_TO_WIDE_BASE_ZOOM_MATCHED"
+              : "SAME_DEVICE_AND_ZOOM_MATCHED"
 
         let metadata: [String: Any] = [
           "analysisStatus": "CAPTURED",
