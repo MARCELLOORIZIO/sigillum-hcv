@@ -168,17 +168,26 @@ void main() {
       expect(result.decision, 'NO_DISPLAY_EVIDENCE');
     });
 
-    test('camera verdict path no longer calls scene-context final policy', () {
+    test('BUILD124 supersedes BUILD123 camera verdict without scene override',
+        () {
       final source = File('lib/camera_page.dart').readAsStringSync();
 
       expect(source, isNot(contains('HCVDisplayFinalPolicy.resolve(')));
       expect(
         source,
-        contains('HCVContextFreeDisplayPolicy.resolvePhoto('),
+        isNot(contains('HCVContextFreeDisplayPolicy.resolvePhoto(')),
       );
       expect(
         source,
-        contains('HCVContextFreeDisplayPolicy.resolveVideo('),
+        isNot(contains('HCVContextFreeDisplayPolicy.resolveVideo(')),
+      );
+      expect(
+        source,
+        contains('HCVMultiEvidenceDisplayPolicy.resolvePhoto('),
+      );
+      expect(
+        source,
+        contains('HCVMultiEvidenceDisplayPolicy.resolveVideo('),
       );
     });
 
