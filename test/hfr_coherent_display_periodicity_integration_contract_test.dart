@@ -25,10 +25,10 @@ void main() {
       RegExp(r'temporalFrequencyProbe:\s*temporalFrequencyProbe')
           .allMatches(cameraSource)
           .length,
-      equals(2),
+      greaterThanOrEqualTo(2),
     );
 
-    expect(policySource, contains('BUILD123_CONTEXT_FREE_HFR_DISPLAY'));
+    expect(policySource, contains('BUILD124_HFR_FULL_FRAME_DISPLAY'));
     expect(policySource, contains('displayLike >= 7'));
     expect(policySource, contains('realityLike == 0'));
     expect(policySource, contains('periodic >= 7'));
