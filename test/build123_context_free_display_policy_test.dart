@@ -22,7 +22,7 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
         result.reasons,
-        contains('BUILD123_CONTEXT_FREE_HFR_DISPLAY'),
+        contains('BUILD124_HFR_FULL_FRAME_DISPLAY'),
       );
     });
 
@@ -73,7 +73,7 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
         result.reasons,
-        contains('BUILD123_CONTEXT_FREE_PHOTO_DISPLAY'),
+        contains('BUILD124_PHOTO_STILL_ML_SPATIAL_PROOF'),
       );
     });
 
@@ -128,7 +128,7 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
         result.reasons,
-        contains('BUILD123_CONTEXT_FREE_VIDEO_DISPLAY'),
+        contains('BUILD124_VIDEO_PERSISTENT_FULL_FRAME_SCREEN'),
       );
     });
 
