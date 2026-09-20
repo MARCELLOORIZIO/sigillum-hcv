@@ -27,7 +27,7 @@ import 'hcv_temporal_capture_probe.dart';
 import 'hcv_temporal_frequency_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_display_risk_fusion.dart';
-import 'hcv_context_free_display_policy.dart';
+import 'hcv_multi_evidence_display_policy.dart';
 import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
@@ -1184,12 +1184,28 @@ class _CameraPageState extends State<CameraPage> {
         'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
       };
 
-      // BUILD123: DISPLAY/REALITY is decided without scene context.
-      // Geometry, sensors and optical analysis remain certificate diagnostics
-      // but cannot alter the binary display classification.
-      final displayRisk = HCVContextFreeDisplayPolicy.resolvePhoto(
+      final photoTemporalProbeRaw = liveScreenProbe['photoTemporalVideoProbe'];
+      final photoTemporalProbe = photoTemporalProbeRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalProbeRaw)
+          : null;
+      final photoTemporalMlRaw = photoTemporalProbe?['mlScreenReplayAnalysis'];
+      final photoTemporalOpticalRaw =
+          photoTemporalProbe?['screenReplayAnalysis'];
+      final photoTemporalMl = photoTemporalMlRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalMlRaw)
+          : null;
+      final photoTemporalOptical = photoTemporalOpticalRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalOpticalRaw)
+          : null;
+
+      // BUILD124: restore multi-evidence fusion. Scene context remains
+      // diagnostic-only and cannot absolve or promote DISPLAY.
+      final displayRisk = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
         temporalFrequencyProbe: temporalFrequencyProbe,
-        ml: mlScreenReplayAnalysis,
+        stillMl: mlScreenReplayAnalysis,
+        temporalMl: photoTemporalMl,
+        stillOptical: screenReplayAnalysis,
+        temporalOptical: photoTemporalOptical,
       );
       final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final detectedScreenReplayRisk = displayRisk.risk;
@@ -1557,11 +1573,12 @@ class _CameraPageState extends State<CameraPage> {
       liveSignals: lastLiveSignals,
       audioCaptured: true,
     );
-    // BUILD123: VIDEO classification uses only HFR physics plus persistent
-    // full-frame ML evidence. Scene context is diagnostic-only.
-    final displayRisk = HCVContextFreeDisplayPolicy.resolveVideo(
+    // BUILD124: VIDEO uses persistent ML plus native HFR corroboration.
+    // Scene context remains diagnostic-only.
+    final displayRisk = HCVMultiEvidenceDisplayPolicy.resolveVideo(
       temporalFrequencyProbe: temporalFrequencyProbe,
       ml: mlScreenReplayAnalysis,
+      passiveOptical: screenReplayAnalysis,
     );
     final sceneContext = _sceneContextFromProbe(sceneContextProbe);
     final detectedScreenReplayRisk = displayRisk.risk;
