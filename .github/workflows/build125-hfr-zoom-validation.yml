@@ -1,4 +1,4 @@
-# BUILD125 validation workflow
+# BUILD125 zoom-parity validation workflow
 name: BUILD125 HFR zoom parity validation
 
 on:
