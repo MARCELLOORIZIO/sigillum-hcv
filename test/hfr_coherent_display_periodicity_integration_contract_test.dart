@@ -20,12 +20,8 @@ void main() {
           .length,
       equals(1),
     );
-    expect(
-      cameraSource.split('temporalFrequencyProbe: temporalFrequencyProbe')
-              .length -
-          1,
-      equals(2),
-    );
+    const hfrBinding = 'temporalFrequencyProbe: temporalFrequencyProbe';
+    expect(cameraSource.split(hfrBinding).length, equals(3));
 
     expect(policySource, contains("probe['displayRealityEvidenceV3']"));
     expect(
