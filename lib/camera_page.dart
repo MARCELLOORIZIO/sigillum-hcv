@@ -563,7 +563,10 @@ class _CameraPageState extends State<CameraPage> {
     await controller!.initialize();
 
     minZoom = await controller!.getMinZoomLevel();
-    maxZoom = await controller!.getMaxZoomLevel();
+    final deviceMaxZoom = await controller!.getMaxZoomLevel();
+    maxZoom = deviceMaxZoom.clamp(minZoom, 15.0).toDouble();
+    currentZoom = currentZoom.clamp(minZoom, maxZoom).toDouble();
+    await controller!.setZoomLevel(currentZoom);
 
     if (!mounted) return;
 
