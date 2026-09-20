@@ -51,7 +51,8 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
     });
 
-    test('BMW PHOTO BA4D uses still plus mini-video plus HFR corroboration', () {
+    test('BMW PHOTO BA4D uses still plus mini-video plus HFR corroboration',
+        () {
       final result = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
         temporalFrequencyProbe: _hfr(
           display: 2,
@@ -168,7 +169,8 @@ void main() {
       );
     });
 
-    test('camera verdict uses BUILD124 and never scene-context final policy', () {
+    test('camera verdict uses BUILD124 and never scene-context final policy',
+        () {
       final source = File('lib/camera_page.dart').readAsStringSync();
 
       expect(
@@ -197,7 +199,8 @@ void main() {
       expect(source, isNot(contains("v3['stableCellCount']")));
     });
 
-    test('scene context geometry and sensors cannot enter BUILD124 verdict', () {
+    test('scene context geometry and sensors cannot enter BUILD124 verdict',
+        () {
       final source =
           File('lib/hcv_multi_evidence_display_policy.dart').readAsStringSync();
 

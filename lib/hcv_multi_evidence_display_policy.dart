@@ -185,20 +185,14 @@ class HCVMultiEvidenceDisplayPolicy {
     final v3 = _map(probe['displayRealityEvidenceV3']);
     final coherent = _map(probe['coherentDisplayPeriodicityEvidence']);
 
-    final displayLike =
-        (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
-    final realityLike =
-        (v3['realityLikeCellCount'] as num?)?.toInt() ?? 0;
-    final periodic =
-        (coherent['periodicCellCount'] as num?)?.toInt() ?? 0;
-    final stable =
-        (coherent['stableCellCount'] as num?)?.toInt() ?? 0;
-    final spatial =
-        (v3['spatialFamilyCellCount'] as num?)?.toInt() ?? 0;
+    final displayLike = (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
+    final realityLike = (v3['realityLikeCellCount'] as num?)?.toInt() ?? 0;
+    final periodic = (coherent['periodicCellCount'] as num?)?.toInt() ?? 0;
+    final stable = (coherent['stableCellCount'] as num?)?.toInt() ?? 0;
+    final spatial = (v3['spatialFamilyCellCount'] as num?)?.toInt() ?? 0;
     final harmonic =
         (v3['harmonicAwareSpatialFamilyCellCount'] as num?)?.toInt() ?? 0;
-    final rowTime =
-        (v3['rowTimeFamilyCellCount'] as num?)?.toInt() ?? 0;
+    final rowTime = (v3['rowTimeFamilyCellCount'] as num?)?.toInt() ?? 0;
     final medianPeriodicity =
         (coherent['medianCellPeriodicityStrength'] as num?)?.toDouble() ?? 0.0;
 
@@ -232,10 +226,8 @@ class HCVMultiEvidenceDisplayPolicy {
       available: true,
       isScreen: predictedClass.startsWith('SCREEN_'),
       probability: (ml['screenProbability'] as num?)?.toDouble() ?? 0.0,
-      fullFrameRisk:
-          (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0,
-      contentAreaRisk:
-          (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0,
+      fullFrameRisk: (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0,
+      contentAreaRisk: (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0,
     );
   }
 
