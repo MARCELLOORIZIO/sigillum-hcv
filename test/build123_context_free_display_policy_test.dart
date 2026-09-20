@@ -22,7 +22,7 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
         result.reasons,
-        contains('BUILD123_CONTEXT_FREE_HFR_DISPLAY'),
+        contains('BUILD124_HFR_FULL_FRAME_DISPLAY'),
       );
     });
 
@@ -73,7 +73,7 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
         result.reasons,
-        contains('BUILD123_CONTEXT_FREE_PHOTO_DISPLAY'),
+        contains('BUILD124_PHOTO_STILL_ML_SPATIAL_PROOF'),
       );
     });
 
@@ -128,7 +128,7 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
         result.reasons,
-        contains('BUILD123_CONTEXT_FREE_VIDEO_DISPLAY'),
+        contains('BUILD124_VIDEO_PERSISTENT_FULL_FRAME_SCREEN'),
       );
     });
 
@@ -182,15 +182,15 @@ void main() {
       );
     });
 
-    test('context-free policy has no scene geometry sensor or optical inputs',
-        () {
+    test('context-free policy retains optical but excludes scene geometry', () {
       final source =
           File('lib/hcv_context_free_display_policy.dart').readAsStringSync();
 
       expect(source, isNot(contains('HCVSceneContextEvidence')));
       expect(source, isNot(contains('geometryProbe')));
       expect(source, isNot(contains('sensorSignals')));
-      expect(source, isNot(contains('passiveOptical')));
+      expect(source, contains('passiveOptical'));
+      expect(source, contains('photoTemporalMl'));
     });
 
     test('missing both ML and HFR remains NON_CONCLUSIVE', () {
@@ -232,11 +232,15 @@ Map<String, dynamic> _hfr({
       'analysisStatus': 'ANALYZED',
       'shortExposureVerified': true,
       'exposureLockedForEntireNativeCapture': true,
+      'framesAnalyzed': 84,
+      'actualFrameRateFromTimestamps': 240.0,
+      'coherentDisplayPeriodicityEvidence': <String, dynamic>{
+        'periodicCellCount': periodic,
+        'stableCellCount': stable,
+      },
       'displayRealityEvidenceV3': <String, dynamic>{
         'displayLikeCellCount': displayLike,
         'realityLikeCellCount': realityLike,
-        'periodicCellCount': periodic,
-        'stableCellCount': stable,
         'spatialFamilyCellCount': spatial,
         'harmonicAwareSpatialFamilyCellCount': harmonic,
         'rowTimeFamilyCellCount': rowTime,
