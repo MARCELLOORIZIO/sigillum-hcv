@@ -1,0 +1,36 @@
+name: BUILD124 temporary Dart format
+
+on:
+  pull_request:
+    branches:
+      - fix/build123-context-free-display-reality-20260919
+
+permissions:
+  contents: write
+
+jobs:
+  dart-format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout BUILD124 head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter pub get
+      - name: Run official formatter and commit formatting only
+        run: |
+          dart format lib/hcv_context_free_display_policy.dart lib/camera_page.dart test/build123_context_free_display_policy_test.dart test/build124_restored_evidence_policy_test.dart
+          if git diff --quiet -- lib/hcv_context_free_display_policy.dart lib/camera_page.dart test/build123_context_free_display_policy_test.dart test/build124_restored_evidence_policy_test.dart; then
+            echo "BUILD124_FORMAT_ALREADY_CLEAN=PASS"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/hcv_context_free_display_policy.dart lib/camera_page.dart test/build123_context_free_display_policy_test.dart test/build124_restored_evidence_policy_test.dart
+          git commit -m "BUILD124 apply official Dart formatter"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
