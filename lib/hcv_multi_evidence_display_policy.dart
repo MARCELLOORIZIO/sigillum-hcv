@@ -279,11 +279,11 @@ class HCVMultiEvidenceDisplayPolicy {
     _VideoEvidence temporal,
     _HfrEvidence hfr,
   ) {
-    return (still.isScreen && still.probability >= 0.85) ||
-        (still.isScreen &&
+    return (still.isScreen &&
             still.probability >= 0.50 &&
             temporal.screenClassFrames >= 2 &&
-            hfr.displayLikeCells >= 1) ||
+            hfr.displayLikeCells >= 1 &&
+            hfr.realityLikeCells == 0) ||
         (hfr.realityLikeCells == 0 &&
             hfr.displayLikeCells >= 5 &&
             hfr.periodicCells >= 5 &&
@@ -296,11 +296,11 @@ class HCVMultiEvidenceDisplayPolicy {
     _VideoEvidence video,
     _HfrEvidence hfr,
   ) {
-    return (aggregate.isScreen && aggregate.probability >= 0.85) ||
-        (aggregate.isScreen &&
+    return (aggregate.isScreen &&
             aggregate.probability >= 0.60 &&
             video.framesAtLeast60 >= 2 &&
-            hfr.displayLikeCells >= 1) ||
+            hfr.displayLikeCells >= 1 &&
+            hfr.realityLikeCells == 0) ||
         (hfr.realityLikeCells == 0 &&
             hfr.displayLikeCells >= 5 &&
             hfr.periodicCells >= 5 &&
