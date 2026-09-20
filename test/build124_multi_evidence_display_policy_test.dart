@@ -146,19 +146,18 @@ void main() {
       expect(result.decision, 'NO_DISPLAY_EVIDENCE');
     });
 
-    test('future strong screen semantic without corroboration is inconclusive',
-        () {
+    test('future corroborated borderline evidence remains inconclusive', () {
       final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
         temporalFrequencyProbe: _hfr(
-          display: 0,
+          display: 1,
           reality: 0,
-          periodic: 0,
-          stable: 0,
-          medianPeriodicity: 0.01,
+          periodic: 1,
+          stable: 1,
+          medianPeriodicity: 0.03,
         ),
         ml: _videoMl(
-          probability: 0.88,
-          scores: const <int>[72, 40],
+          probability: 0.64,
+          scores: const <int>[68, 63, 40],
         ),
       );
 
