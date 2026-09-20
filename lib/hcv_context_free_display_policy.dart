@@ -432,7 +432,9 @@ class HCVContextFreeDisplayPolicy {
         risk: 'MEDIUM',
         score: 45,
         decision: 'NON_CONCLUSIVE',
-        analysisStatus: 'COMPLETE',
+        analysisStatus: reason == 'BUILD124_DECISION_EVIDENCE_UNAVAILABLE'
+            ? 'NOT_ANALYZED'
+            : 'COMPLETE',
         evidenceSources: const <String>['BUILD124_EVIDENCE_RESOLVER'],
         strongSources: const <String>[],
         reasons: <String>[reason],
