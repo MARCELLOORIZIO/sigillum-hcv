@@ -675,6 +675,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       min(0.004, args?["targetExposureSeconds"] as? Double ?? 0.001)
     )
     let rowBins = max(24, min(128, args?["rowProfileBins"] as? Int ?? 96))
+    let requestedZoomRaw = args?["requestedZoomFactor"] as? Double ?? 1.0
+    let requestedZoom = requestedZoomRaw.isFinite
+      ? max(1.0, requestedZoomRaw)
+      : 1.0
 
     temporalFrequencyNativeBusy = true
     temporalFrequencyFinishLock.lock()
@@ -730,6 +734,20 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
         try captureDevice.lockForConfiguration()
         captureDevice.activeFormat = selection.format
+        // The Flutter camera was disposed before this isolated HFR session.
+        // Reapply the requested zoom on the *actual* physical high-speed
+        // camera after selecting its activeFormat: format changes can reset
+        // device zoom limits and virtual multi-lens devices can be substituted.
+        let maximumNativeZoom = max(
+          1.0,
+          min(
+            Double(captureDevice.activeFormat.videoMaxZoomFactor),
+            Double(captureDevice.maxAvailableVideoZoomFactor),
+            15.0
+          )
+        )
+        let appliedNativeZoom = min(requestedZoom, maximumNativeZoom)
+        captureDevice.videoZoomFactor = CGFloat(appliedNativeZoom)
         // Use the exact hardware-supported CMTime from AVFrameRateRange.
         // Assigning a reconstructed reciprocal can raise NSInvalidArgumentException.
         let frameDuration = selection.range.minFrameDuration
@@ -834,12 +852,31 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           min(120, Int((requestedDuration * selection.fps).rounded()))
         )
 
+        // Verify zoom after the HFR format/exposure setup, rather than
+        // assuming a successful property assignment implies matching FOV.
+        let nativeHfrEffectiveZoom = Double(captureDevice.videoZoomFactor)
+        let physicalDeviceSubstituted = captureDevice.uniqueID != device.uniqueID
+        let zoomMatched = abs(nativeHfrEffectiveZoom - requestedZoom) <=
+          max(0.10, requestedZoom * 0.02)
+        let zoomComparable = !physicalDeviceSubstituted && zoomMatched
+        let zoomComparisonReason = physicalDeviceSubstituted
+          ? "NATIVE_HFR_PHYSICAL_LENS_SUBSTITUTION"
+          : zoomMatched
+            ? "SAME_DEVICE_AND_ZOOM_MATCHED"
+            : "NATIVE_HFR_ZOOM_CLAMPED_OR_NOT_APPLIED"
+
         let metadata: [String: Any] = [
           "analysisStatus": "CAPTURED",
           "captureMode": "ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER",
           "requestedDeviceUniqueId": device.uniqueID,
           "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
-          "physicalDeviceSubstitutionUsed": captureDevice.uniqueID != device.uniqueID,
+          "physicalDeviceSubstitutionUsed": physicalDeviceSubstituted,
+          "requestedZoomFactor": requestedZoom,
+          "nativeHfrEffectiveZoomFactor": nativeHfrEffectiveZoom,
+          "nativeHfrMaximumZoomFactor": maximumNativeZoom,
+          "nativeHfrZoomClamped": requestedZoom > maximumNativeZoom + 0.001,
+          "zoomFieldOfViewComparable": zoomComparable,
+          "zoomFieldOfViewComparisonReason": zoomComparisonReason,
           "requestedTargetFps": requestedMaxFps,
           "configuredFrameRate": selection.fps,
           "frameRateTier": Int(selection.fps.rounded()),
@@ -1002,9 +1039,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
     switch call.method {
     case "captureTemporalFrequencyNative":
-      let physicalDevice = temporalFrequencyPhysicalDevice(for: device)
+      // Preserve the original virtual-device identity. The capture routine
+      // performs and records any physical high-speed lens substitution.
       captureTemporalFrequencyNative(
-        device: physicalDevice,
+        device: device,
         call: call,
         result: result
       )
