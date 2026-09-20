@@ -10,9 +10,7 @@ void main() {
       expect(source, isNot(contains('clamp(minZoom, 10.0)')));
       expect(source, isNot(contains('clamp(newMinZoom, 10.0)')));
       expect(
-        RegExp(r'clamp\((?:new)?MinZoom, 15\.0\)')
-            .allMatches(source)
-            .length,
+        RegExp(r'clamp\((?:new)?MinZoom, 15\.0\)').allMatches(source).length,
         greaterThanOrEqualTo(3),
       );
     });
@@ -49,7 +47,8 @@ void main() {
       );
       expect(source, contains('captureDevice.maxAvailableVideoZoomFactor'));
       expect(source, contains('captureDevice.activeFormat.videoMaxZoomFactor'));
-      expect(source, contains('captureDevice.videoZoomFactor = appliedHfrZoom'));
+      expect(
+          source, contains('captureDevice.videoZoomFactor = appliedHfrZoom'));
       expect(source, contains('min(15.0,'));
     });
 
@@ -59,7 +58,8 @@ void main() {
       expect(source, contains('"requestedZoomFactor": requestedZoom'));
       expect(
         source,
-        contains('"appliedHfrZoomFactor": Double(captureDevice.videoZoomFactor)'),
+        contains(
+            '"appliedHfrZoomFactor": Double(captureDevice.videoZoomFactor)'),
       );
       expect(source, contains('"hfrZoomMaximum": hfrZoomMaximum'));
       expect(source, contains('"zoomParityExact":'));
@@ -72,7 +72,8 @@ void main() {
       expect(source, contains('BUILD124_HFR_FULL_FRAME_DISPLAY'));
       expect(source, contains('BUILD124_PHOTO_MULTI_EVIDENCE_DISPLAY'));
       expect(source, contains('BUILD124_VIDEO_MULTI_EVIDENCE_DISPLAY'));
-      expect(source, contains('ABSENCE_OF_DISPLAY_PROOF_IS_NOT_POSITIVE_REALITY_PROOF'));
+      expect(source,
+          contains('ABSENCE_OF_DISPLAY_PROOF_IS_NOT_POSITIVE_REALITY_PROOF'));
     });
   });
 }
