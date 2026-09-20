@@ -9,11 +9,15 @@ void main() {
         File('lib/hcv_multi_evidence_display_policy.dart').readAsStringSync();
 
     expect(
-      'HCVMultiEvidenceDisplayPolicy.resolvePhoto('.allMatches(cameraSource).length,
+      'HCVMultiEvidenceDisplayPolicy.resolvePhoto('
+          .allMatches(cameraSource)
+          .length,
       equals(1),
     );
     expect(
-      'HCVMultiEvidenceDisplayPolicy.resolveVideo('.allMatches(cameraSource).length,
+      'HCVMultiEvidenceDisplayPolicy.resolveVideo('
+          .allMatches(cameraSource)
+          .length,
       equals(1),
     );
     expect(
