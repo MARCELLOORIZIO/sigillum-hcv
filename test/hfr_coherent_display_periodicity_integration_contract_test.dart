@@ -21,9 +21,10 @@ void main() {
       equals(1),
     );
     expect(
-      RegExp(r'temporalFrequencyProbe:\\s*temporalFrequencyProbe')
-          .allMatches(cameraSource)
-          .length,
+      cameraSource
+          .split('temporalFrequencyProbe: temporalFrequencyProbe')
+          .length -
+          1,
       equals(2),
     );
 
