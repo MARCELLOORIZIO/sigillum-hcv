@@ -21,9 +21,8 @@ void main() {
       equals(1),
     );
     expect(
-      cameraSource
-          .split('temporalFrequencyProbe: temporalFrequencyProbe')
-          .length -
+      cameraSource.split('temporalFrequencyProbe: temporalFrequencyProbe')
+              .length -
           1,
       equals(2),
     );
