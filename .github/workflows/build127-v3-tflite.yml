@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   convert-and-verify:
@@ -38,3 +38,18 @@ jobs:
             ml/v3/out/manifest.json
           if-no-files-found: error
           retention-days: 14
+      - name: Commit parity-verified V3 asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp ml/v3/out/sigillum_screen_replay_v3_multihead.tflite assets/ml/sigillum_screen_replay_v3_multihead.tflite
+          cp ml/v3/out/manifest.json ml/v3/v3_multihead_tflite_manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/ml/sigillum_screen_replay_v3_multihead.tflite ml/v3/v3_multihead_tflite_manifest.json
+          if git diff --cached --quiet; then
+            echo "Verified V3 asset already committed"
+            exit 0
+          fi
+          git commit -m "BUILD127: commit parity-verified V3 multi-head TFLite"
+          git push origin HEAD:fix/build127-ml-hard-negatives-20260921
