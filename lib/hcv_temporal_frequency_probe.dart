@@ -55,10 +55,8 @@ class HCVTemporalFrequencyProbe {
     }
 
     final hfrDevice = attested['physicalCaptureDeviceUniqueId'];
-    final hfrFov =
-        (attested['hfrVideoFieldOfView'] as num?)?.toDouble();
-    final hfrZoom =
-        (attested['effectiveZoomFactor'] as num?)?.toDouble();
+    final hfrFov = (attested['hfrVideoFieldOfView'] as num?)?.toDouble();
+    final hfrZoom = (attested['effectiveZoomFactor'] as num?)?.toDouble();
     final hfrWidth =
         (attested['configuredHighSpeedFormatWidth'] as num?)?.toInt();
     final hfrHeight =
@@ -74,18 +72,14 @@ class HCVTemporalFrequencyProbe {
     final recordingHeight =
         (recordingCameraState?['activeFormatHeight'] as num?)?.toInt();
 
-    final fovDelta =
-        hfrFov != null && recordingFov != null
-            ? (hfrFov - recordingFov).abs()
-            : null;
+    final fovDelta = hfrFov != null && recordingFov != null
+        ? (hfrFov - recordingFov).abs()
+        : null;
     final fovMatched = fovDelta == 0.0;
-    final zoomMatched =
-        hfrZoom != null &&
+    final zoomMatched = hfrZoom != null &&
         recordingZoom != null &&
-        (hfrZoom - recordingZoom).abs() <=
-            max(0.02, hfrZoom * 0.02);
-    final aspectMatched =
-        hfrWidth != null &&
+        (hfrZoom - recordingZoom).abs() <= max(0.02, hfrZoom * 0.02);
+    final aspectMatched = hfrWidth != null &&
         hfrHeight != null &&
         recordingWidth != null &&
         recordingHeight != null &&
@@ -100,8 +94,7 @@ class HCVTemporalFrequencyProbe {
     attested['recordingZoomMatchWithinTolerance'] = zoomMatched;
     attested['recordingAspectRatioMatch'] = aspectMatched;
 
-    final complete =
-        hfrDevice is String &&
+    final complete = hfrDevice is String &&
         hfrDevice.isNotEmpty &&
         recordingDevice is String &&
         recordingDevice.isNotEmpty &&
