@@ -3,6 +3,9 @@ name: BUILD125 zoom coherent HFR validation
 # isolated CI base active
 
 on:
+  push:
+    branches:
+      - fix/build125-zoom-coherent-hfr-20260921
   pull_request:
     branches:
       - fix/build124-multi-evidence-display-fusion-20260920
