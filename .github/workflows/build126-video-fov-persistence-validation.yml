@@ -75,4 +75,5 @@ jobs:
           test -d "$APP"
           test -f "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -Fx 'com.sigillum.hcv'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist" | grep -Fx '126'
           echo 'BUILD126_IOS_UNSIGNED_RELEASE=PASS'
