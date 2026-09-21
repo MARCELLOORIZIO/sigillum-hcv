@@ -911,13 +911,18 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
             Int64(dimensions.width) * Int64(preHeight)
         }
 
+        let preHfrFieldOfViewKnown =
+          preHfrVideoFieldOfView.map { $0.isFinite && $0 > 0.0 } ?? false
+        let hfrFieldOfViewKnown =
+          hfrVideoFieldOfView.isFinite && hfrVideoFieldOfView > 0.0
         let preHfrStateComplete =
           preHfrDeviceUniqueId != nil &&
           preHfrNativeZoomFactor != nil &&
           preHfrActiveFormatIndex != nil &&
           preHfrFormatWidth != nil &&
           preHfrFormatHeight != nil &&
-          preHfrVideoFieldOfView != nil
+          preHfrFieldOfViewKnown &&
+          hfrFieldOfViewKnown
 
         let hfrSpatialComparability: String
         let hfrSpatialComparabilityReason: String
