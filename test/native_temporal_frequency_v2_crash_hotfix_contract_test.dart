@@ -14,15 +14,26 @@ void main() {
     expect(source, contains('Duration(milliseconds: 650)'));
   });
 
-  test('native V2 high speed capture resolves physical camera device', () {
+  test('native V2 high speed capture resolves and attests physical camera device',
+      () {
     final source = File('ios/Runner/AppDelegate.swift').readAsStringSync();
     expect(source, contains('temporalFrequencyPhysicalDevice'));
     expect(source, contains('device.isVirtualDevice'));
     expect(source, contains('.builtInWideAngleCamera'));
     expect(
-        source,
-        contains(
-            'let physicalDevice = temporalFrequencyPhysicalDevice(for: device)'));
+      source,
+      contains(
+        'let captureDevice = self.temporalFrequencyPhysicalDevice(for: device)',
+      ),
+    );
+    expect(
+      source,
+      contains('captureDevice.uniqueID != device.uniqueID'),
+    );
+    expect(
+      source,
+      contains('captureTemporalFrequencyNative(\n        device: device,'),
+    );
   });
 
   test(
