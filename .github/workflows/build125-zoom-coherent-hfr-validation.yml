@@ -1,11 +1,11 @@
-name: BUILD125 zoom coherent HFR validation
+name: BUILD125 final FOV comparability validation
 # BUILD125 final validation trigger
 # isolated CI base active
 
 on:
   push:
     branches:
-      - fix/build125-zoom-coherent-hfr-20260921
+      - fix/build125-final-fov-comparability-20260921
   pull_request:
     branches:
       - fix/build124-multi-evidence-display-fusion-20260920
@@ -32,7 +32,10 @@ jobs:
         run: |
           dart format --output=none --set-exit-if-changed lib/camera_page.dart
           dart format --output=none --set-exit-if-changed lib/hcv_temporal_frequency_probe.dart
+          dart format --output=none --set-exit-if-changed lib/hcv_multi_evidence_display_policy.dart
+          dart format --output=none --set-exit-if-changed test/build124_multi_evidence_display_policy_test.dart
           dart format --output=none --set-exit-if-changed test/build125_zoom_coherent_hfr_test.dart
+          dart format --output=none --set-exit-if-changed test/build125_fov_comparability_guard_test.dart
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Flutter tests
