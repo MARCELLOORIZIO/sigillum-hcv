@@ -1,0 +1,78 @@
+name: BUILD126 video FOV and persistence validation
+# BUILD126 isolated video regression validation
+
+on:
+  push:
+    branches:
+      - fix/build126-video-fov-persistence-20260921
+  pull_request:
+    branches:
+      - fix/build126-video-fov-comparability-20260921
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build125-final-fov-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-analyze-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout BUILD126 candidate
+        uses: actions/checkout@v4
+      - name: Set up validated Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Verify BUILD126 formatting
+        run: |
+          dart format \
+            lib/camera_page.dart \
+            lib/hcv_temporal_frequency_probe.dart \
+            lib/hcv_multi_evidence_display_policy.dart \
+            test/build124_multi_evidence_display_policy_test.dart \
+            test/build125_zoom_coherent_hfr_test.dart \
+            test/build125_fov_comparability_guard_test.dart \
+            test/build126_video_fov_persistence_test.dart
+          git diff -- lib/camera_page.dart lib/hcv_temporal_frequency_probe.dart lib/hcv_multi_evidence_display_policy.dart test/build126_video_fov_persistence_test.dart
+          git diff --exit-code
+      - name: Flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Flutter tests
+        run: flutter test --reporter expanded
+
+  ios-unsigned-release:
+    runs-on: macos-15
+    timeout-minutes: 80
+    steps:
+      - name: Checkout BUILD126 candidate
+        uses: actions/checkout@v4
+      - name: Set up validated Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Pin validated TensorFlow Lite iOS runtime
+        run: bash tool/pin_tflite_ios_runtime_20260826.sh
+      - name: Resolve CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+      - name: Build unsigned iOS Release
+        run: flutter build ios --release --no-codesign --no-pub --dart-define=SIGILLUM_EDITION=user --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com --dart-define=GIT_COMMIT="$GITHUB_SHA"
+      - name: Verify built app
+        run: |
+          APP='build/ios/iphoneos/Runner.app'
+          test -d "$APP"
+          test -f "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -Fx 'com.sigillum.hcv'
+          echo 'BUILD126_IOS_UNSIGNED_RELEASE=PASS'
