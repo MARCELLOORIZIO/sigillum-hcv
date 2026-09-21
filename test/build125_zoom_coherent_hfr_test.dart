@@ -89,14 +89,17 @@ void main() {
       );
     });
 
-    test('BUILD124 display fusion is unchanged by BUILD125 zoom work', () {
+    test('BUILD124 thresholds remain while HFR gains a final FOV guard', () {
       final source =
           File('lib/hcv_multi_evidence_display_policy.dart').readAsStringSync();
 
       expect(source, contains('BUILD124_HFR_PARTIAL_CORROBORATED_DISPLAY'));
       expect(source, contains('BUILD124_PHOTO_MULTI_EVIDENCE_DISPLAY'));
       expect(source, contains('BUILD124_VIDEO_MULTI_EVIDENCE_DISPLAY'));
-      expect(source, isNot(contains('BUILD125_')));
+      expect(source, contains('still.probability >= 0.90'));
+      expect(source, contains('aggregate.probability >= 0.80'));
+      expect(source, contains('aggregate.probability >= 0.65'));
+      expect(source, contains("probe['hfrSpatialComparability'] == 'COMPARABLE'"));
     });
   });
 }
