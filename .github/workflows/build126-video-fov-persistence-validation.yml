@@ -7,14 +7,14 @@ on:
       - fix/build126-video-fov-persistence-20260921
   pull_request:
     branches:
-      - fix/build126-video-fov-comparability-20260921
+      - fix/build125-final-fov-comparability-20260921
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: build125-final-fov-${{ github.ref }}
+  group: build126-video-fov-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
