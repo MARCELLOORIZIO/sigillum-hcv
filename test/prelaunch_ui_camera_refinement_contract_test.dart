@@ -11,9 +11,9 @@ void main() {
     expect(source, contains('TextInput.finishAutofillContext(shouldSave: true)'));
   });
 
-  test('camera UX is capped at 10x and video starts on the first REC tap', () {
+  test('camera UX is capped at 15x and video starts on the first REC tap', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
-    expect(source, contains('deviceMaxZoom.clamp(minZoom, 10.0)'));
+    expect(source, contains('deviceMaxZoom.clamp(minZoom, 15.0)'));
     expect(source, isNot(contains("_c('armedVideoReady')")));
     expect(source, isNot(contains('bool _videoArmed = false;')));
     expect(source, isNot(contains('_analyzeLiveScreenProbeWithoutFlash')));
