@@ -24,6 +24,8 @@ class HCVMultiEvidenceDisplayPolicy {
     Map<String, dynamic>? temporalOptical,
   }) {
     final hfr = _hfrEvidence(temporalFrequencyProbe);
+    final hfrDecisionEligible = _hfrDecisionEligible(temporalFrequencyProbe);
+    final hfrNonDecisionable = _hfrNonDecisionable(temporalFrequencyProbe);
     final still = _mlEvidence(stillMl);
     final temporal = _videoMlEvidence(temporalMl);
 
@@ -90,14 +92,18 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
-    if (_borderlinePhoto(still, temporal, hfr)) {
+    if (_borderlinePhoto(still, temporal, hfr) ||
+        (hfrNonDecisionable &&
+            still.isScreen &&
+            still.probability >= 0.50)) {
       return _nonConclusive(
-        'BUILD124_PHOTO_BORDERLINE_SCREEN_EVIDENCE',
+        hfrNonDecisionable
+            ? 'BUILD125_PHOTO_HFR_FOV_NOT_DECISIONABLE'
+            : 'BUILD124_PHOTO_BORDERLINE_SCREEN_EVIDENCE',
       );
     }
 
-    if ((temporalFrequencyProbe == null ||
-            temporalFrequencyProbe['analysisStatus'] != 'ANALYZED') &&
+    if (!hfrDecisionEligible &&
         !still.available &&
         (temporalMl == null || temporalMl['analysisStatus'] != 'ANALYZED')) {
       return _nonConclusive(
@@ -118,6 +124,8 @@ class HCVMultiEvidenceDisplayPolicy {
     Map<String, dynamic>? passiveOptical,
   }) {
     final hfr = _hfrEvidence(temporalFrequencyProbe);
+    final hfrDecisionEligible = _hfrDecisionEligible(temporalFrequencyProbe);
+    final hfrNonDecisionable = _hfrNonDecisionable(temporalFrequencyProbe);
     final video = _videoMlEvidence(ml);
     final aggregate = _mlEvidence(ml);
 
@@ -174,15 +182,18 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
-    if (_borderlineVideo(aggregate, video, hfr)) {
+    if (_borderlineVideo(aggregate, video, hfr) ||
+        (hfrNonDecisionable &&
+            aggregate.isScreen &&
+            aggregate.probability >= 0.50)) {
       return _nonConclusive(
-        'BUILD124_VIDEO_BORDERLINE_SCREEN_EVIDENCE',
+        hfrNonDecisionable
+            ? 'BUILD125_VIDEO_HFR_FOV_NOT_DECISIONABLE'
+            : 'BUILD124_VIDEO_BORDERLINE_SCREEN_EVIDENCE',
       );
     }
 
-    if ((temporalFrequencyProbe == null ||
-            temporalFrequencyProbe['analysisStatus'] != 'ANALYZED') &&
-        !aggregate.available) {
+    if (!hfrDecisionEligible && !aggregate.available) {
       return _nonConclusive(
         'BUILD124_VIDEO_DECISION_EVIDENCE_UNAVAILABLE',
       );
@@ -194,8 +205,20 @@ class HCVMultiEvidenceDisplayPolicy {
     );
   }
 
+  static bool _hfrDecisionEligible(Map<String, dynamic>? probe) =>
+      probe != null &&
+      probe['analysisStatus'] == 'ANALYZED' &&
+      probe['hfrSpatialComparability'] == 'COMPARABLE';
+
+  static bool _hfrNonDecisionable(Map<String, dynamic>? probe) =>
+      probe != null &&
+      probe['analysisStatus'] == 'ANALYZED' &&
+      probe['hfrSpatialComparability'] != 'COMPARABLE';
+
   static _HfrEvidence _hfrEvidence(Map<String, dynamic>? probe) {
-    if (probe == null || probe['analysisStatus'] != 'ANALYZED') {
+    if (!_hfrDecisionEligible(probe)) {
+      // HFR is preserved in the certificate for diagnostics but may
+      // corroborate DISPLAY only when its FOV equivalence is demonstrated.
       return const _HfrEvidence();
     }
 
