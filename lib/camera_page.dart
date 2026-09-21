@@ -433,7 +433,10 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   ResolutionPreset _resolutionPresetForMode(bool isPhotoMode) {
-    return isPhotoMode ? ResolutionPreset.high : ResolutionPreset.medium;
+    // BUILD126: the observed medium video format was 4:3 / 640x480 while
+    // native HFR used 16:9 / 1280x720. Use the same high preset for both
+    // modes; runtime native FOV attestation still determines eligibility.
+    return ResolutionPreset.high;
   }
 
   Future<void> _setCaptureMode(bool nextPhotoMode) async {
@@ -888,6 +891,26 @@ class _CameraPageState extends State<CameraPage> {
       await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
+
+      // Check the device actually used for REC, not merely the Flutter
+      // preview before the isolated HFR handoff. A changed recording format,
+      // zoom or physical lens makes HFR diagnostic-only even when the
+      // pre-HFR snapshot was comparable.
+      final recordingCameras = cameras;
+      Map<String, dynamic>? recordingCameraState;
+      if (recordingCameras != null &&
+          selectedCameraIndex >= 0 &&
+          selectedCameraIndex < recordingCameras.length) {
+        recordingCameraState =
+            await const HCVTemporalFrequencyProbe().snapshotNativeCameraState(
+          recordingCameras[selectedCameraIndex].name,
+        );
+      }
+      pendingTemporalFrequencyProbe =
+          HCVTemporalFrequencyProbe.attestVideoRecordingGeometry(
+        pendingTemporalFrequencyProbe,
+        recordingCameraState,
+      );
 
       try {
         await liveSignals.start();
@@ -1659,11 +1682,16 @@ class _CameraPageState extends State<CameraPage> {
       "audioCaptured": true,
       "audioIncludedInVideoContainer": true,
       "sensorIntegrity": lastLiveSignals == null ? "NOT_RECORDED" : "RECORDED",
-      "syntheticRisk":
-          detectedScreenReplay ? "POSSIBLE_SCREEN_REPLAY" : "REDUCED",
+      "syntheticRisk": detectedScreenReplay
+          ? "POSSIBLE_SCREEN_REPLAY"
+          : displayRiskDecision == "NON_CONCLUSIVE"
+              ? "UNKNOWN"
+              : "REDUCED",
       "sceneAuthenticity": detectedScreenReplay
           ? "LIVE_CAPTURE_WITH_SCREEN_REPLAY_RISK"
-          : "LIVE_CAPTURE",
+          : displayRiskDecision == "NON_CONCLUSIVE"
+              ? "LIVE_CAPTURE_SCENE_INCONCLUSIVE"
+              : "LIVE_CAPTURE",
       "displayRiskDecision": displayRiskDecision,
       "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
       "displayRiskEvidence": displayRisk.toJson(),

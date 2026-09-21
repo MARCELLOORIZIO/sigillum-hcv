@@ -32,6 +32,122 @@ class HCVTemporalFrequencyProbe {
     }
   }
 
+  /// BUILD126: the actual REC session may use a different AVFoundation
+  /// activeFormat from the preview snapshotted before HFR. Never promote a
+  /// previously non-comparable probe; additionally fail closed if REC changes
+  /// the physical device, effective zoom, format FOV or aspect ratio.
+  static Map<String, dynamic> attestVideoRecordingGeometry(
+    Map<String, dynamic>? probe,
+    Map<String, dynamic>? recordingCameraState,
+  ) {
+    final attested = Map<String, dynamic>.from(
+      probe ?? unavailable('VIDEO_TEMPORAL_FREQUENCY_NOT_AVAILABLE'),
+    );
+    attested['recordingCameraState'] = recordingCameraState;
+
+    final prior = attested['hfrSpatialComparability'];
+    if (prior != 'COMPARABLE') {
+      attested['videoRecordingSpatialComparability'] =
+          prior == 'NOT_COMPARABLE' ? 'NOT_COMPARABLE' : 'UNKNOWN';
+      attested['videoRecordingSpatialComparabilityReason'] =
+          'PRE_HFR_FOV_NOT_COMPARABLE_OR_UNKNOWN';
+      return attested;
+    }
+
+    final hfrDevice = attested['physicalCaptureDeviceUniqueId'];
+    final hfrFov = (attested['hfrVideoFieldOfView'] as num?)?.toDouble();
+    final hfrZoom = (attested['effectiveZoomFactor'] as num?)?.toDouble();
+    final hfrWidth =
+        (attested['configuredHighSpeedFormatWidth'] as num?)?.toInt();
+    final hfrHeight =
+        (attested['configuredHighSpeedFormatHeight'] as num?)?.toInt();
+    final recordingDevice = recordingCameraState?['deviceUniqueId'];
+    final recordingFov =
+        (recordingCameraState?['activeFormatVideoFieldOfView'] as num?)
+            ?.toDouble();
+    final recordingZoom =
+        (recordingCameraState?['zoomFactor'] as num?)?.toDouble();
+    final recordingWidth =
+        (recordingCameraState?['activeFormatWidth'] as num?)?.toInt();
+    final recordingHeight =
+        (recordingCameraState?['activeFormatHeight'] as num?)?.toInt();
+
+    final fovDelta = hfrFov != null && recordingFov != null
+        ? (hfrFov - recordingFov).abs()
+        : null;
+    final fovMatched = fovDelta == 0.0;
+    final zoomMatched = hfrZoom != null &&
+        recordingZoom != null &&
+        (hfrZoom - recordingZoom).abs() <= max(0.02, hfrZoom * 0.02);
+    final aspectMatched = hfrWidth != null &&
+        hfrHeight != null &&
+        recordingWidth != null &&
+        recordingHeight != null &&
+        hfrWidth > 0 &&
+        hfrHeight > 0 &&
+        recordingWidth > 0 &&
+        recordingHeight > 0 &&
+        hfrWidth * recordingHeight == recordingWidth * hfrHeight;
+
+    attested['recordingFieldOfViewDelta'] = fovDelta;
+    attested['recordingFieldOfViewMatchWithinTolerance'] = fovMatched;
+    attested['recordingZoomMatchWithinTolerance'] = zoomMatched;
+    attested['recordingAspectRatioMatch'] = aspectMatched;
+
+    final complete = hfrDevice is String &&
+        hfrDevice.isNotEmpty &&
+        recordingDevice is String &&
+        recordingDevice.isNotEmpty &&
+        hfrFov != null &&
+        hfrFov.isFinite &&
+        hfrFov > 0 &&
+        recordingFov != null &&
+        recordingFov.isFinite &&
+        recordingFov > 0 &&
+        hfrZoom != null &&
+        hfrZoom.isFinite &&
+        hfrZoom > 0 &&
+        recordingZoom != null &&
+        recordingZoom.isFinite &&
+        recordingZoom > 0 &&
+        hfrWidth != null &&
+        hfrHeight != null &&
+        recordingWidth != null &&
+        recordingHeight != null &&
+        hfrWidth > 0 &&
+        hfrHeight > 0 &&
+        recordingWidth > 0 &&
+        recordingHeight > 0;
+
+    String state;
+    String reason;
+    if (!complete) {
+      state = 'UNKNOWN';
+      reason = 'RECORDING_CAMERA_STATE_MISSING_OR_INCOMPLETE';
+    } else if (hfrDevice != recordingDevice) {
+      state = 'NOT_COMPARABLE';
+      reason = 'RECORDING_PHYSICAL_DEVICE_MISMATCH';
+    } else if (!zoomMatched) {
+      state = 'NOT_COMPARABLE';
+      reason = 'RECORDING_NATIVE_ZOOM_MISMATCH';
+    } else if (!fovMatched) {
+      state = 'NOT_COMPARABLE';
+      reason = 'RECORDING_ACTIVE_FORMAT_FOV_MISMATCH';
+    } else if (!aspectMatched) {
+      state = 'NOT_COMPARABLE';
+      reason = 'RECORDING_ACTIVE_FORMAT_ASPECT_RATIO_MISMATCH';
+    } else {
+      state = 'COMPARABLE';
+      reason = 'PRE_HFR_AND_RECORDING_NATIVE_GEOMETRY_MATCHED';
+    }
+
+    attested['videoRecordingSpatialComparability'] = state;
+    attested['videoRecordingSpatialComparabilityReason'] = reason;
+    attested['hfrSpatialComparability'] = state;
+    attested['hfrSpatialComparabilityReason'] = reason;
+    return attested;
+  }
+
   Future<Map<String, dynamic>> captureNative(
     String deviceUniqueId, {
     double requestedZoomFactor = 1.0,
