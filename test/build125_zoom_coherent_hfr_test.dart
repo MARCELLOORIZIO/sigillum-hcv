@@ -99,7 +99,8 @@ void main() {
       expect(source, contains('still.probability >= 0.90'));
       expect(source, contains('aggregate.probability >= 0.80'));
       expect(source, contains('aggregate.probability >= 0.65'));
-      expect(source, contains("probe['hfrSpatialComparability'] == 'COMPARABLE'"));
+      expect(
+          source, contains("probe['hfrSpatialComparability'] == 'COMPARABLE'"));
     });
   });
 }
