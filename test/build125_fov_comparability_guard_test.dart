@@ -8,10 +8,13 @@ void main() {
     test('pre-HFR native state is snapshotted before Flutter camera dispose',
         () {
       final camera = File('lib/camera_page.dart').readAsStringSync();
-      final snapshot = camera.indexOf('snapshotNativeCameraState(');
-      final dispose = camera.indexOf('await active.dispose()');
+      final handoff =
+          camera.indexOf('_captureTemporalFrequencyNativeIsolated() async');
+      final snapshot = camera.indexOf('snapshotNativeCameraState(', handoff);
+      final dispose = camera.indexOf('await active.dispose()', snapshot);
 
-      expect(snapshot, greaterThanOrEqualTo(0));
+      expect(handoff, greaterThanOrEqualTo(0));
+      expect(snapshot, greaterThan(handoff));
       expect(dispose, greaterThan(snapshot));
       expect(camera, contains('preHfrCameraState: preHfrCameraState'));
     });
