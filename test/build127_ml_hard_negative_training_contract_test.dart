@@ -27,7 +27,8 @@ void main() {
     expect(manifest, contains('HCV-5C3AC7391A834F99'));
   });
 
-  test('BUILD127 does not change the bundled model before balanced retraining', () {
+  test('BUILD127 does not change the bundled model before balanced retraining',
+      () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     expect(pubspec, contains('version: 1.0.0+126'));
   });
