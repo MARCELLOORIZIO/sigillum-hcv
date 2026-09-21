@@ -1232,7 +1232,11 @@ class _CameraPageState extends State<CameraPage> {
         };
         mlScreenReplayAnalysis =
             HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
-          mlScreenReplayAnalysis,
+          mlScreenReplayAnalysis ?? <String, dynamic>{
+            'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+            'analysisStatus': 'NOT_ANALYZED',
+            'reason': 'V2_PHOTO_ANALYSIS_MISSING',
+          },
           v3PhotoResidualAnalysis,
         );
       }
