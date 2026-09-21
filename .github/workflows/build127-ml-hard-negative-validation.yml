@@ -23,6 +23,12 @@ jobs:
     steps:
       - name: Checkout BUILD127 candidate
         uses: actions/checkout@v4
+      - name: Inspect bundled stable model manifest
+        run: |
+          echo "MODEL_BUNDLE_MANIFEST_BEGIN"
+          unzip -p assets/ml/sigillum_screen_replay_model_update.zip manifest.json || true
+          echo
+          echo "MODEL_BUNDLE_MANIFEST_END"
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
