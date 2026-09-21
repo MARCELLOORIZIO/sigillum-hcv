@@ -111,8 +111,7 @@ void main() {
       expect(result.decision, 'STRONG_DISPLAY_RISK');
     });
 
-    test('TV: three persistent suspicious frames with FOV mismatch are NC',
-        () {
+    test('TV: three persistent suspicious frames with FOV mismatch are NC', () {
       final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
         temporalFrequencyProbe: _hfr()
           ..['hfrSpatialComparability'] = 'NOT_COMPARABLE',
@@ -142,8 +141,7 @@ void main() {
       final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
         temporalFrequencyProbe: _hfr()
           ..['hfrSpatialComparability'] = 'NOT_COMPARABLE',
-        ml: _videoMl(<double>[0.9668, 0.9701, 0.9612],
-            fullFrameRisk: 97),
+        ml: _videoMl(<double>[0.9668, 0.9701, 0.9612], fullFrameRisk: 97),
       );
       expect(result.decision, 'STRONG_DISPLAY_RISK');
       expect(
@@ -165,9 +163,9 @@ void main() {
         camera,
         isNot(contains('ResolutionPreset.high : ResolutionPreset.medium')),
       );
-      final recording = camera.indexOf('await controller!.startVideoRecording()');
-      final snapshot =
-          camera.indexOf('snapshotNativeCameraState(', recording);
+      final recording =
+          camera.indexOf('await controller!.startVideoRecording()');
+      final snapshot = camera.indexOf('snapshotNativeCameraState(', recording);
       final attestation =
           camera.indexOf('attestVideoRecordingGeometry(', recording);
       expect(recording, greaterThanOrEqualTo(0));
@@ -187,27 +185,27 @@ void main() {
 }
 
 Map<String, dynamic> _hfr() => <String, dynamic>{
-  'analysisStatus': 'ANALYZED',
-  'hfrSpatialComparability': 'COMPARABLE',
-  'physicalCaptureDeviceUniqueId': 'camera-A',
-  'hfrVideoFieldOfView': 70.29109191894531,
-  'effectiveZoomFactor': 8.564003944396973,
-  'configuredHighSpeedFormatWidth': 1280,
-  'configuredHighSpeedFormatHeight': 720,
-  'displayRealityEvidenceV3': <String, dynamic>{
-    'fullFrameDisplay': false,
-    'displayLikeCellCount': 6,
-    'realityLikeCellCount': 0,
-    'spatialFamilyCellCount': 9,
-    'harmonicAwareSpatialFamilyCellCount': 9,
-    'rowTimeFamilyCellCount': 9,
-  },
-  'coherentDisplayPeriodicityEvidence': <String, dynamic>{
-    'periodicCellCount': 6,
-    'stableCellCount': 5,
-    'medianCellPeriodicityStrength': 0.20,
-  },
-};
+      'analysisStatus': 'ANALYZED',
+      'hfrSpatialComparability': 'COMPARABLE',
+      'physicalCaptureDeviceUniqueId': 'camera-A',
+      'hfrVideoFieldOfView': 70.29109191894531,
+      'effectiveZoomFactor': 8.564003944396973,
+      'configuredHighSpeedFormatWidth': 1280,
+      'configuredHighSpeedFormatHeight': 720,
+      'displayRealityEvidenceV3': <String, dynamic>{
+        'fullFrameDisplay': false,
+        'displayLikeCellCount': 6,
+        'realityLikeCellCount': 0,
+        'spatialFamilyCellCount': 9,
+        'harmonicAwareSpatialFamilyCellCount': 9,
+        'rowTimeFamilyCellCount': 9,
+      },
+      'coherentDisplayPeriodicityEvidence': <String, dynamic>{
+        'periodicCellCount': 6,
+        'stableCellCount': 5,
+        'medianCellPeriodicityStrength': 0.20,
+      },
+    };
 
 Map<String, dynamic> _recordingState({
   String device = 'camera-A',
