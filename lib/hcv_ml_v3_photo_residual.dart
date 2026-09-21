@@ -15,7 +15,7 @@ class HCVMLV3PhotoResidual {
       'assets/ml/sigillum_screen_replay_v3_multihead.tflite';
   static const imageSize = 96;
   static const v2HighThreshold = 0.80;
-  static const realityVetoThreshold = 0.25;
+  static const realityVetoThreshold = 0.20;
 
   static const classes = <String>[
     'SCREEN_MONITOR',
