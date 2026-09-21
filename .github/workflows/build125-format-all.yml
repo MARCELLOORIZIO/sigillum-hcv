@@ -1,0 +1,36 @@
+name: BUILD125 format all
+
+on:
+  push:
+    branches:
+      - fix/build125-zoom-coherent-hfr-20260921
+
+permissions:
+  contents: write
+
+jobs:
+  dart-format-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout BUILD125 head
+        uses: actions/checkout@v4
+        with:
+          ref: fix/build125-zoom-coherent-hfr-20260921
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter pub get
+      - name: Format BUILD125 files
+        run: |
+          dart format             lib/camera_page.dart             lib/hcv_temporal_frequency_probe.dart             test/build125_zoom_coherent_hfr_test.dart
+          if git diff --quiet --             lib/camera_page.dart             lib/hcv_temporal_frequency_probe.dart             test/build125_zoom_coherent_hfr_test.dart; then
+            echo "BUILD125_FORMAT_ALREADY_CLEAN=PASS"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             lib/camera_page.dart             lib/hcv_temporal_frequency_probe.dart             test/build125_zoom_coherent_hfr_test.dart
+          git commit -m "BUILD125 apply Dart formatter"
+          git push origin HEAD:fix/build125-zoom-coherent-hfr-20260921
