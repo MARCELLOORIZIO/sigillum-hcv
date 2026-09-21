@@ -37,8 +37,8 @@ void main() {
 
       final formatIndex =
           source.indexOf('captureDevice.activeFormat = selection.format');
-      final zoomIndex =
-          source.indexOf('captureDevice.videoZoomFactor = CGFloat(clampedZoom)');
+      final zoomIndex = source
+          .indexOf('captureDevice.videoZoomFactor = CGFloat(clampedZoom)');
 
       expect(formatIndex, greaterThanOrEqualTo(0));
       expect(zoomIndex, greaterThan(formatIndex));
