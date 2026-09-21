@@ -93,9 +93,17 @@ class DualBranchMobile(nn.Module):
 def load_model(checkpoint: Path) -> DualBranchMobile:
     raw = torch.load(checkpoint, map_location="cpu", weights_only=False)
     model = DualBranchMobile()
-    # Transport checkpoint is fp16; loading into fp32 parameters intentionally
-    # restores fp32 execution with fp16-rounded weights.
-    model.load_state_dict(raw["model"])
+    if "model_q" in raw:
+        state = {}
+        scales = raw["scales"]
+        for key, value in raw["model_q"].items():
+            if value.dtype == torch.int8:
+                state[key] = value.float() * float(scales[key])
+            else:
+                state[key] = value
+    else:
+        state = raw["model"]
+    model.load_state_dict(state)
     return model.eval()
 
 
