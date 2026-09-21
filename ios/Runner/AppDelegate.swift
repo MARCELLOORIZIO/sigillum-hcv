@@ -675,6 +675,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       min(0.004, args?["targetExposureSeconds"] as? Double ?? 0.001)
     )
     let rowBins = max(24, min(128, args?["rowProfileBins"] as? Int ?? 96))
+    let requestedZoomFactor = max(
+      1.0,
+      min(15.0, args?["requestedZoomFactor"] as? Double ?? 1.0)
+    )
 
     temporalFrequencyNativeBusy = true
     temporalFrequencyFinishLock.lock()
@@ -728,8 +732,27 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         }
         session.addOutput(output)
 
+        var hfrMinAvailableZoomFactor = 1.0
+        var hfrMaxAvailableZoomFactor = 1.0
+        var effectiveZoomFactor = 1.0
+
         try captureDevice.lockForConfiguration()
         captureDevice.activeFormat = selection.format
+        // BUILD125: apply the user's requested field-of-view factor after the
+        // high-speed format is selected, because the native HFR session owns a
+        // separate AVCaptureDevice configuration from Flutter.
+        hfrMinAvailableZoomFactor = Double(captureDevice.minAvailableVideoZoomFactor)
+        hfrMaxAvailableZoomFactor = min(
+          15.0,
+          Double(captureDevice.maxAvailableVideoZoomFactor)
+        )
+        let clampedZoom = min(
+          hfrMaxAvailableZoomFactor,
+          max(hfrMinAvailableZoomFactor, requestedZoomFactor)
+        )
+        captureDevice.videoZoomFactor = CGFloat(clampedZoom)
+        effectiveZoomFactor = Double(captureDevice.videoZoomFactor)
+
         // Use the exact hardware-supported CMTime from AVFrameRateRange.
         // Assigning a reconstructed reciprocal can raise NSInvalidArgumentException.
         let frameDuration = selection.range.minFrameDuration
@@ -833,13 +856,33 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           24,
           min(120, Int((requestedDuration * selection.fps).rounded()))
         )
+        let zoomTolerance = max(0.02, requestedZoomFactor * 0.02)
+        let zoomMatchWithinTolerance =
+          abs(effectiveZoomFactor - requestedZoomFactor) <= zoomTolerance
+        let zoomClampedForHfr = !zoomMatchWithinTolerance
+        let physicalDeviceSubstitutionUsed =
+          captureDevice.uniqueID != device.uniqueID
+        let zoomSpatialEquivalence = physicalDeviceSubstitutionUsed
+          ? (zoomMatchWithinTolerance
+              ? "FACTOR_MATCHED_ON_SUBSTITUTED_PHYSICAL_DEVICE_FOV_NOT_GUARANTEED"
+              : "SUBSTITUTED_PHYSICAL_DEVICE_AND_ZOOM_CLAMPED")
+          : (zoomMatchWithinTolerance
+              ? "SAME_DEVICE_ZOOM_MATCHED"
+              : "SAME_DEVICE_ZOOM_CLAMPED")
 
         let metadata: [String: Any] = [
           "analysisStatus": "CAPTURED",
           "captureMode": "ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER",
           "requestedDeviceUniqueId": device.uniqueID,
           "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
-          "physicalDeviceSubstitutionUsed": captureDevice.uniqueID != device.uniqueID,
+          "physicalDeviceSubstitutionUsed": physicalDeviceSubstitutionUsed,
+          "requestedZoomFactor": requestedZoomFactor,
+          "effectiveZoomFactor": effectiveZoomFactor,
+          "hfrMinAvailableZoomFactor": hfrMinAvailableZoomFactor,
+          "hfrMaxAvailableZoomFactor": hfrMaxAvailableZoomFactor,
+          "zoomClampedForHfr": zoomClampedForHfr,
+          "zoomMatchWithinTolerance": zoomMatchWithinTolerance,
+          "zoomSpatialEquivalence": zoomSpatialEquivalence,
           "requestedTargetFps": requestedMaxFps,
           "configuredFrameRate": selection.fps,
           "frameRateTier": Int(selection.fps.rounded()),
@@ -1002,9 +1045,11 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
     switch call.method {
     case "captureTemporalFrequencyNative":
-      let physicalDevice = temporalFrequencyPhysicalDevice(for: device)
+      // Pass the original Flutter-selected device. The native capture method
+      // resolves any required physical high-speed constituent itself, allowing
+      // the certificate to record whether physical-device substitution occurred.
       captureTemporalFrequencyNative(
-        device: physicalDevice,
+        device: device,
         call: call,
         result: result
       )
