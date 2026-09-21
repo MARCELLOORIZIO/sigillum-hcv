@@ -222,8 +222,7 @@ class HCVMultiEvidenceDisplayPolicy {
 
     final analyzedProbe = probe!;
     final v3 = _map(analyzedProbe['displayRealityEvidenceV3']);
-    final coherent =
-        _map(analyzedProbe['coherentDisplayPeriodicityEvidence']);
+    final coherent = _map(analyzedProbe['coherentDisplayPeriodicityEvidence']);
 
     final displayLike = (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
     final realityLike = (v3['realityLikeCellCount'] as num?)?.toInt() ?? 0;
