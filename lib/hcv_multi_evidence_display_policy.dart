@@ -183,7 +183,8 @@ class HCVMultiEvidenceDisplayPolicy {
     if (_borderlineVideo(aggregate, video, hfr) ||
         (hfrNonDecisionable &&
             aggregate.isScreen &&
-            aggregate.probability >= 0.50)) {
+            aggregate.probability >= 0.50 &&
+            video.screenClassFrames >= 2)) {
       return _nonConclusive(
         hfrNonDecisionable
             ? 'BUILD125_VIDEO_HFR_FOV_NOT_DECISIONABLE'
