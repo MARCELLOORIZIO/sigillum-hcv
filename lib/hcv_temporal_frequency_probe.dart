@@ -47,8 +47,7 @@ class HCVTemporalFrequencyProbe {
           'targetExposureSeconds': requestedShortExposureSeconds,
           'rowProfileBins': rowProfileBins,
           'requestedZoomFactor': requestedZoomFactor,
-          if (preHfrCameraState != null)
-            'preHfrCameraState': preHfrCameraState,
+          if (preHfrCameraState != null) 'preHfrCameraState': preHfrCameraState,
         },
       );
       if (raw == null) {
@@ -554,14 +553,12 @@ class HCVTemporalFrequencyProbe {
       'hfrVideoFieldOfView': raw['hfrVideoFieldOfView'],
       'fieldOfViewDelta': raw['fieldOfViewDelta'],
       'fieldOfViewToleranceDegrees': raw['fieldOfViewToleranceDegrees'],
-      'fieldOfViewMatchWithinTolerance':
-          raw['fieldOfViewMatchWithinTolerance'],
+      'fieldOfViewMatchWithinTolerance': raw['fieldOfViewMatchWithinTolerance'],
       'preHfrNativeZoomMatchWithinTolerance':
           raw['preHfrNativeZoomMatchWithinTolerance'],
       'aspectRatioMatch': raw['aspectRatioMatch'],
       'hfrSpatialComparability': raw['hfrSpatialComparability'],
-      'hfrSpatialComparabilityReason':
-          raw['hfrSpatialComparabilityReason'],
+      'hfrSpatialComparabilityReason': raw['hfrSpatialComparabilityReason'],
       'requestedShortExposureSeconds': raw['requestedShortExposureSeconds'],
       'targetShortExposureSecondsAfterClamp':
           raw['targetShortExposureSecondsAfterClamp'],
