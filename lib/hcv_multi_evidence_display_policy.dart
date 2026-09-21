@@ -214,15 +214,14 @@ class HCVMultiEvidenceDisplayPolicy {
       probe['hfrSpatialComparability'] != 'COMPARABLE';
 
   static _HfrEvidence _hfrEvidence(Map<String, dynamic>? probe) {
-    if (!_hfrDecisionEligible(probe)) {
+    if (probe == null || !_hfrDecisionEligible(probe)) {
       // HFR is preserved in the certificate for diagnostics but may
       // corroborate DISPLAY only when its FOV equivalence is demonstrated.
       return const _HfrEvidence();
     }
 
-    final analyzedProbe = probe!;
-    final v3 = _map(analyzedProbe['displayRealityEvidenceV3']);
-    final coherent = _map(analyzedProbe['coherentDisplayPeriodicityEvidence']);
+    final v3 = _map(probe['displayRealityEvidenceV3']);
+    final coherent = _map(probe['coherentDisplayPeriodicityEvidence']);
 
     final displayLike = (v3['displayLikeCellCount'] as num?)?.toInt() ?? 0;
     final realityLike = (v3['realityLikeCellCount'] as num?)?.toInt() ?? 0;
