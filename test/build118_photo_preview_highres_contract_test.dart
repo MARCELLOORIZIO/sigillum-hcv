@@ -3,14 +3,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('BUILD118 keeps photo high resolution and video medium resolution', () {
+  test('BUILD126 retains photo high resolution and aligns video to high for FOV', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
 
     expect(
       source,
-      contains(
-        'return isPhotoMode ? ResolutionPreset.high : ResolutionPreset.medium;',
-      ),
+      contains('return ResolutionPreset.high;'),
     );
     expect(
       source,
