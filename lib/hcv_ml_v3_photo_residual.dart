@@ -169,8 +169,10 @@ class HCVMLV3PhotoResidual {
         (oriented.width > oriented.height
             ? oriented.width
             : oriented.height);
-    final width = (oriented.width * scale).round().clamp(1, imageSize);
-    final height = (oriented.height * scale).round().clamp(1, imageSize);
+    final width =
+        (oriented.width * scale).round().clamp(1, imageSize).toInt();
+    final height =
+        (oriented.height * scale).round().clamp(1, imageSize).toInt();
     final resized = img.copyResize(
       oriented,
       width: width,
