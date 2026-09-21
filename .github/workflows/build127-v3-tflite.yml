@@ -42,6 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git pull --rebase origin fix/build127-ml-hard-negatives-20260921
           cp ml/v3/out/sigillum_screen_replay_v3_multihead.tflite assets/ml/sigillum_screen_replay_v3_multihead.tflite
           cp ml/v3/out/manifest.json ml/v3/v3_multihead_tflite_manifest.json
           git config user.name "github-actions[bot]"
