@@ -5,7 +5,8 @@ import 'package:sigillum_iphone/hcv_multi_evidence_display_policy.dart';
 
 void main() {
   group('BUILD125 final HFR FOV comparability guard', () {
-    test('pre-HFR native state is snapshotted before Flutter camera dispose', () {
+    test('pre-HFR native state is snapshotted before Flutter camera dispose',
+        () {
       final camera = File('lib/camera_page.dart').readAsStringSync();
       final snapshot = camera.indexOf('snapshotNativeCameraState(');
       final dispose = camera.indexOf('await active.dispose()');
@@ -93,7 +94,8 @@ void main() {
     });
 
     test('missing FOV comparability metadata fails closed', () {
-      final hfr = _hfr(comparability: 'COMPARABLE')..remove(
+      final hfr = _hfr(comparability: 'COMPARABLE')
+        ..remove(
           'hfrSpatialComparability',
         );
       final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
