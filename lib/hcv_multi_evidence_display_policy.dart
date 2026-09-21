@@ -113,7 +113,9 @@ class HCVMultiEvidenceDisplayPolicy {
     return _reality(
       stillOptical: stillOptical,
       temporalOptical: temporalOptical,
-      reason: 'BUILD124_PHOTO_NO_CORROBORATED_DISPLAY_EVIDENCE',
+      reason: still.v3RealityVeto
+          ? 'BUILD127_V3_RESIDUAL_VETO_NO_CORROBORATED_DISPLAY_EVIDENCE'
+          : 'BUILD124_PHOTO_NO_CORROBORATED_DISPLAY_EVIDENCE',
     );
   }
 
