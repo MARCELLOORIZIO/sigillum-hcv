@@ -117,7 +117,7 @@ manifest={
  "outputs":order,
  "kerasParityMaxAbs":keras_max,
  "tfliteParityMaxAbs":tflite_max,
- "residualRule":{"v2High":0.80,"v2Low":0.15,"v3Veto":0.25,"v3Screen":0.50},
+ "residualRule":{"v2High":0.80,"v2Low":0.15,"v3Veto":0.20,"v3Screen":0.50},
  "benchmark":{"frozenPhoto":"13/13","build126PhotoHoldout":"15/15","combined":"28/28"},
 }
 (OUT/"manifest.json").write_text(json.dumps(manifest,indent=2))
