@@ -49,6 +49,7 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     if (still.isScreen &&
+        !still.v3RealityVeto &&
         still.probability >= 0.90 &&
         still.fullFrameRisk >= 90 &&
         still.contentAreaRisk >= 75) {
@@ -267,6 +268,8 @@ class HCVMultiEvidenceDisplayPolicy {
       probability: (ml['screenProbability'] as num?)?.toDouble() ?? 0.0,
       fullFrameRisk: (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0,
       contentAreaRisk: (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0,
+      v3RealityVeto: signals['v3RealityVeto'] == true ||
+          ml['v3RealityVeto'] == true,
     );
   }
 
@@ -435,6 +438,7 @@ class _MlEvidence {
     this.probability = 0.0,
     this.fullFrameRisk = 0,
     this.contentAreaRisk = 0,
+    this.v3RealityVeto = false,
   });
 
   final bool available;
@@ -442,6 +446,7 @@ class _MlEvidence {
   final double probability;
   final int fullFrameRisk;
   final int contentAreaRisk;
+  final bool v3RealityVeto;
 }
 
 class _VideoEvidence {
