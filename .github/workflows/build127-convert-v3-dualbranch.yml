@@ -32,13 +32,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Reconstruct fp16 transport checkpoint
+      - name: Reconstruct int8 transport checkpoint
         shell: bash
         run: |
           set -euo pipefail
-          cat ml/v3_export/v3_dualbranch_int8.pt.xz.b64.part*             | base64 --decode > /tmp/v3_dualbranch_fp16.pt.gz
-          gzip -dc /tmp/v3_dualbranch_fp16.pt.gz > /tmp/v3_dualbranch_fp16.pt
-          sha256sum /tmp/v3_dualbranch_fp16.pt
+          cat ml/v3_export/v3_dualbranch_int8.pt.xz.b64.part* \
+            | base64 --decode > /tmp/v3_dualbranch_int8.pt.xz
+          xz -dc /tmp/v3_dualbranch_int8.pt.xz > /tmp/v3_dualbranch_int8.pt
+          test -s /tmp/v3_dualbranch_int8.pt
+          sha256sum /tmp/v3_dualbranch_int8.pt
 
       - name: Install LiteRT conversion runtime
         run: |
@@ -47,7 +49,10 @@ jobs:
 
       - name: Convert and verify PyTorch to LiteRT
         run: |
-          python tool/convert_v3_dualbranch_litert.py             --checkpoint /tmp/v3_dualbranch_int8.pt             --out assets/ml/sigillum_screen_replay_v3_dualbranch.tflite             --report ml/v3_export/v3_dualbranch_litert_parity.json
+          python tool/convert_v3_dualbranch_litert.py \
+            --checkpoint /tmp/v3_dualbranch_int8.pt \
+            --out assets/ml/sigillum_screen_replay_v3_dualbranch.tflite \
+            --report ml/v3_export/v3_dualbranch_litert_parity.json
           sha256sum assets/ml/sigillum_screen_replay_v3_dualbranch.tflite
 
       - name: Upload conversion artifact
@@ -65,8 +70,10 @@ jobs:
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add             assets/ml/sigillum_screen_replay_v3_dualbranch.tflite             ml/v3_export/v3_dualbranch_litert_parity.json
+          git config user.email "4189828+github-actions[bot]@users.noreply.github.com"
+          git add \
+            assets/ml/sigillum_screen_replay_v3_dualbranch.tflite \
+            ml/v3_export/v3_dualbranch_litert_parity.json
           git rm -f ml/v3_export/v3_dualbranch_int8.pt.xz.b64.part* || true
           if git diff --cached --quiet; then
             echo "No conversion changes"
