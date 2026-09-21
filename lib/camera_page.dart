@@ -26,6 +26,7 @@ import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_temporal_capture_probe.dart';
 import 'hcv_temporal_frequency_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
+import 'hcv_ml_v3_photo_residual.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_multi_evidence_display_policy.dart';
 import 'hcv_scene_context_evidence.dart';
@@ -1207,6 +1208,29 @@ class _CameraPageState extends State<CameraPage> {
           'analysisStatus': 'NOT_ANALYZED',
           'error': e.toString(),
         };
+      }
+
+      Map<String, dynamic>? v3PhotoResidualAnalysis;
+      try {
+        v3PhotoResidualAnalysis =
+            await HCVMLV3PhotoResidual.instance.analyzePhoto(savedPhotoPath);
+        mlScreenReplayAnalysis =
+            HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
+          mlScreenReplayAnalysis,
+          v3PhotoResidualAnalysis,
+        );
+      } catch (e) {
+        v3PhotoResidualAnalysis = <String, dynamic>{
+          'type': 'SIGILLUM_V3_PHOTO_RESIDUAL_V1',
+          'analysisStatus': 'NOT_ANALYZED',
+          'reason': 'V3_PHOTO_RESIDUAL_EXCEPTION',
+          'error': e.toString(),
+        };
+        mlScreenReplayAnalysis =
+            HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
+          mlScreenReplayAnalysis,
+          v3PhotoResidualAnalysis,
+        );
       }
 
       if (screenReplayAnalysis != null) {
