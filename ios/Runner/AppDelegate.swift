@@ -282,6 +282,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     let formatMaxFps = device.activeFormat.videoSupportedFrameRateRanges
       .map { $0.maxFrameRate }
       .max() ?? 0.0
+    let activeFormatVideoFieldOfView = Double(device.activeFormat.videoFieldOfView)
     let gains = device.deviceWhiteBalanceGains
     return [
       "deviceUniqueId": device.uniqueID,
@@ -290,6 +291,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       "activeFormatWidth": Int(dimensions.width),
       "activeFormatHeight": Int(dimensions.height),
       "activeFormatMaxSupportedFrameRate": formatMaxFps,
+      "activeFormatVideoFieldOfView": activeFormatVideoFieldOfView,
       "activeVideoMinFrameDurationSeconds": activeMinFrame.isFinite ? activeMinFrame : 0.0,
       "activeVideoMaxFrameDurationSeconds": activeMaxFrame.isFinite ? activeMaxFrame : 0.0,
       "exposureMode": exposureModeName(device.exposureMode),
@@ -662,6 +664,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     }
 
     let args = call.arguments as? [String: Any]
+    let preHfrCameraState = args?["preHfrCameraState"] as? [String: Any]
     let requestedMaxFps = max(
       60.0,
       min(240.0, args?["targetMaxFps"] as? Double ?? 240.0)
@@ -870,7 +873,79 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
               ? "SAME_DEVICE_ZOOM_MATCHED"
               : "SAME_DEVICE_ZOOM_CLAMPED")
 
-        let metadata: [String: Any] = [
+        let preHfrDeviceUniqueId = preHfrCameraState?["deviceUniqueId"] as? String
+        let preHfrNativeZoomFactor =
+          (preHfrCameraState?["zoomFactor"] as? NSNumber)?.doubleValue
+        let preHfrActiveFormatIndex =
+          (preHfrCameraState?["activeFormatIndex"] as? NSNumber)?.intValue
+        let preHfrFormatWidth =
+          (preHfrCameraState?["activeFormatWidth"] as? NSNumber)?.intValue
+        let preHfrFormatHeight =
+          (preHfrCameraState?["activeFormatHeight"] as? NSNumber)?.intValue
+        let preHfrVideoFieldOfView =
+          (preHfrCameraState?["activeFormatVideoFieldOfView"] as? NSNumber)?.doubleValue
+
+        let hfrActiveFormatIndex =
+          captureDevice.formats.firstIndex(where: { $0 === selection.format }) ?? -1
+        let hfrVideoFieldOfView = Double(selection.format.videoFieldOfView)
+        let fieldOfViewToleranceDegrees = 0.0
+        let fieldOfViewDelta = preHfrVideoFieldOfView.map {
+          abs($0 - hfrVideoFieldOfView)
+        }
+        // Until the multi-device physical holdout establishes an optical
+        // tolerance, only exact AVFoundation format-FOV equality is accepted.
+        let fieldOfViewMatchWithinTolerance =
+          fieldOfViewDelta.map { $0 <= fieldOfViewToleranceDegrees } ?? false
+        let preHfrNativeZoomMatchWithinTolerance =
+          preHfrNativeZoomFactor.map {
+            abs(effectiveZoomFactor - $0) <= zoomTolerance
+          } ?? false
+
+        var aspectRatioMatch = false
+        if let preWidth = preHfrFormatWidth,
+           let preHeight = preHfrFormatHeight,
+           preWidth > 0,
+           preHeight > 0 {
+          aspectRatioMatch =
+            Int64(preWidth) * Int64(dimensions.height) ==
+            Int64(dimensions.width) * Int64(preHeight)
+        }
+
+        let preHfrStateComplete =
+          preHfrDeviceUniqueId != nil &&
+          preHfrNativeZoomFactor != nil &&
+          preHfrActiveFormatIndex != nil &&
+          preHfrFormatWidth != nil &&
+          preHfrFormatHeight != nil &&
+          preHfrVideoFieldOfView != nil
+
+        let hfrSpatialComparability: String
+        let hfrSpatialComparabilityReason: String
+        if !preHfrStateComplete {
+          hfrSpatialComparability = "UNKNOWN"
+          hfrSpatialComparabilityReason = "PRE_HFR_CAMERA_STATE_MISSING_OR_INCOMPLETE"
+        } else if physicalDeviceSubstitutionUsed ||
+                    preHfrDeviceUniqueId != captureDevice.uniqueID {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "PHYSICAL_DEVICE_SUBSTITUTION"
+        } else if zoomClampedForHfr ||
+                    !zoomMatchWithinTolerance ||
+                    !preHfrNativeZoomMatchWithinTolerance {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "NATIVE_ZOOM_MISMATCH_OR_CLAMP"
+        } else if !fieldOfViewMatchWithinTolerance {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "ACTIVE_FORMAT_FOV_MISMATCH"
+        } else if !aspectRatioMatch {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "ACTIVE_FORMAT_ASPECT_RATIO_MISMATCH"
+        } else {
+          hfrSpatialComparability = "COMPARABLE"
+          hfrSpatialComparabilityReason =
+            "SAME_DEVICE_NATIVE_ZOOM_AND_FORMAT_FOV_MATCHED"
+        }
+
+        var metadata: [String: Any] = [
           "analysisStatus": "CAPTURED",
           "captureMode": "ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER",
           "requestedDeviceUniqueId": device.uniqueID,
@@ -883,6 +958,15 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           "zoomClampedForHfr": zoomClampedForHfr,
           "zoomMatchWithinTolerance": zoomMatchWithinTolerance,
           "zoomSpatialEquivalence": zoomSpatialEquivalence,
+          "hfrActiveFormatIndex": hfrActiveFormatIndex,
+          "hfrVideoFieldOfView": hfrVideoFieldOfView,
+          "fieldOfViewToleranceDegrees": fieldOfViewToleranceDegrees,
+          "fieldOfViewMatchWithinTolerance": fieldOfViewMatchWithinTolerance,
+          "preHfrNativeZoomMatchWithinTolerance":
+            preHfrNativeZoomMatchWithinTolerance,
+          "aspectRatioMatch": aspectRatioMatch,
+          "hfrSpatialComparability": hfrSpatialComparability,
+          "hfrSpatialComparabilityReason": hfrSpatialComparabilityReason,
           "requestedTargetFps": requestedMaxFps,
           "configuredFrameRate": selection.fps,
           "frameRateTier": Int(selection.fps.rounded()),
@@ -901,6 +985,27 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           "sensorNativeOrientation": true,
           "encodedVideoUsed": false,
         ]
+        if let value = preHfrDeviceUniqueId {
+          metadata["preHfrDeviceUniqueId"] = value
+        }
+        if let value = preHfrNativeZoomFactor {
+          metadata["preHfrNativeZoomFactor"] = value
+        }
+        if let value = preHfrActiveFormatIndex {
+          metadata["preHfrActiveFormatIndex"] = value
+        }
+        if let value = preHfrFormatWidth {
+          metadata["preHfrFormatWidth"] = value
+        }
+        if let value = preHfrFormatHeight {
+          metadata["preHfrFormatHeight"] = value
+        }
+        if let value = preHfrVideoFieldOfView {
+          metadata["preHfrVideoFieldOfView"] = value
+        }
+        if let value = fieldOfViewDelta {
+          metadata["fieldOfViewDelta"] = value
+        }
 
         let collector = HCVTemporalFrequencyNativeCollector(
           targetFrameCount: targetFrameCount,
