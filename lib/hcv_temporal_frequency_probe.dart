@@ -18,9 +18,24 @@ class HCVTemporalFrequencyProbe {
   static const double targetCaptureDurationSeconds = 0.35;
   static const int rowProfileBins = 96;
 
+  Future<Map<String, dynamic>?> snapshotNativeCameraState(
+    String deviceUniqueId,
+  ) async {
+    try {
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+        'snapshotCameraState',
+        <String, dynamic>{'deviceUniqueId': deviceUniqueId},
+      );
+      return raw == null ? null : Map<String, dynamic>.from(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> captureNative(
     String deviceUniqueId, {
     double requestedZoomFactor = 1.0,
+    Map<String, dynamic>? preHfrCameraState,
   }) async {
     try {
       final raw = await _channel.invokeMapMethod<String, dynamic>(
@@ -32,6 +47,8 @@ class HCVTemporalFrequencyProbe {
           'targetExposureSeconds': requestedShortExposureSeconds,
           'rowProfileBins': rowProfileBins,
           'requestedZoomFactor': requestedZoomFactor,
+          if (preHfrCameraState != null)
+            'preHfrCameraState': preHfrCameraState,
         },
       );
       if (raw == null) {
@@ -516,6 +533,10 @@ class HCVTemporalFrequencyProbe {
       'configuredHighSpeedFormatHeight': raw['frameHeight'],
       'configuredFormatMaxSupportedFrameRate':
           raw['configuredFormatMaxSupportedFrameRate'],
+      'requestedDeviceUniqueId': raw['requestedDeviceUniqueId'],
+      'physicalCaptureDeviceUniqueId': raw['physicalCaptureDeviceUniqueId'],
+      'physicalDeviceSubstitutionUsed':
+          raw['physicalDeviceSubstitutionUsed'] == true,
       'requestedZoomFactor': raw['requestedZoomFactor'],
       'effectiveZoomFactor': raw['effectiveZoomFactor'],
       'hfrMinAvailableZoomFactor': raw['hfrMinAvailableZoomFactor'],
@@ -523,6 +544,24 @@ class HCVTemporalFrequencyProbe {
       'zoomClampedForHfr': raw['zoomClampedForHfr'],
       'zoomMatchWithinTolerance': raw['zoomMatchWithinTolerance'],
       'zoomSpatialEquivalence': raw['zoomSpatialEquivalence'],
+      'preHfrDeviceUniqueId': raw['preHfrDeviceUniqueId'],
+      'preHfrNativeZoomFactor': raw['preHfrNativeZoomFactor'],
+      'preHfrActiveFormatIndex': raw['preHfrActiveFormatIndex'],
+      'preHfrFormatWidth': raw['preHfrFormatWidth'],
+      'preHfrFormatHeight': raw['preHfrFormatHeight'],
+      'preHfrVideoFieldOfView': raw['preHfrVideoFieldOfView'],
+      'hfrActiveFormatIndex': raw['hfrActiveFormatIndex'],
+      'hfrVideoFieldOfView': raw['hfrVideoFieldOfView'],
+      'fieldOfViewDelta': raw['fieldOfViewDelta'],
+      'fieldOfViewToleranceDegrees': raw['fieldOfViewToleranceDegrees'],
+      'fieldOfViewMatchWithinTolerance':
+          raw['fieldOfViewMatchWithinTolerance'],
+      'preHfrNativeZoomMatchWithinTolerance':
+          raw['preHfrNativeZoomMatchWithinTolerance'],
+      'aspectRatioMatch': raw['aspectRatioMatch'],
+      'hfrSpatialComparability': raw['hfrSpatialComparability'],
+      'hfrSpatialComparabilityReason':
+          raw['hfrSpatialComparabilityReason'],
       'requestedShortExposureSeconds': raw['requestedShortExposureSeconds'],
       'targetShortExposureSecondsAfterClamp':
           raw['targetShortExposureSecondsAfterClamp'],
