@@ -265,6 +265,7 @@ Map<String, dynamic> _hfr({
     <String, dynamic>{
       'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
       'analysisStatus': 'ANALYZED',
+      'hfrSpatialComparability': 'COMPARABLE',
       'displayRealityEvidenceV3': <String, dynamic>{
         'fullFrameDisplay': fullFrame,
         'displayLikeCellCount': display,

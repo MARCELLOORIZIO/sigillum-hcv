@@ -480,7 +480,7 @@ class _CameraPageState extends State<CameraPage> {
       await replacement.initialize();
       final newMinZoom = await replacement.getMinZoomLevel();
       final deviceMaxZoom = await replacement.getMaxZoomLevel();
-      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 10.0).toDouble();
+      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 15.0).toDouble();
       final restoredZoom = savedZoom.clamp(newMinZoom, newMaxZoom).toDouble();
 
       await replacement.setZoomLevel(restoredZoom);
@@ -532,7 +532,7 @@ class _CameraPageState extends State<CameraPage> {
 
       minZoom = await controller!.getMinZoomLevel();
       final deviceMaxZoom = await controller!.getMaxZoomLevel();
-      maxZoom = deviceMaxZoom.clamp(minZoom, 10.0).toDouble();
+      maxZoom = deviceMaxZoom.clamp(minZoom, 15.0).toDouble();
       currentZoom = currentZoom.clamp(minZoom, maxZoom).toDouble();
       await controller!.setZoomLevel(currentZoom);
 
@@ -563,7 +563,10 @@ class _CameraPageState extends State<CameraPage> {
     await controller!.initialize();
 
     minZoom = await controller!.getMinZoomLevel();
-    maxZoom = await controller!.getMaxZoomLevel();
+    final deviceMaxZoom = await controller!.getMaxZoomLevel();
+    maxZoom = deviceMaxZoom.clamp(minZoom, 15.0).toDouble();
+    currentZoom = currentZoom.clamp(minZoom, maxZoom).toDouble();
+    await controller!.setZoomLevel(currentZoom);
 
     if (!mounted) return;
 
@@ -602,6 +605,14 @@ class _CameraPageState extends State<CameraPage> {
     final savedFlash = currentFlashMode;
     Map<String, dynamic> probe;
 
+    // Snapshot the real native device state while Flutter still owns the
+    // preview session. Reading it after dispose could observe a reset/default
+    // activeFormat rather than the format that produced the user-visible FOV.
+    final preHfrCameraState =
+        await const HCVTemporalFrequencyProbe().snapshotNativeCameraState(
+      description.name,
+    );
+
     // The native high-speed session must own the camera exclusively. Detach
     // CameraPreview from the controller BEFORE disposing its native texture.
     // Keeping a disposed controller mounted during the AVFoundation handoff can
@@ -623,6 +634,8 @@ class _CameraPageState extends State<CameraPage> {
     try {
       probe = await const HCVTemporalFrequencyProbe().captureNative(
         description.name,
+        requestedZoomFactor: savedZoom,
+        preHfrCameraState: preHfrCameraState,
       );
     } catch (error) {
       probe = HCVTemporalFrequencyProbe.unavailable(
@@ -644,7 +657,7 @@ class _CameraPageState extends State<CameraPage> {
       await replacement.initialize();
       final newMinZoom = await replacement.getMinZoomLevel();
       final deviceMaxZoom = await replacement.getMaxZoomLevel();
-      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 10.0).toDouble();
+      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 15.0).toDouble();
       final restoredZoom = savedZoom.clamp(newMinZoom, newMaxZoom).toDouble();
       await replacement.setZoomLevel(restoredZoom);
       try {

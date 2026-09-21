@@ -282,6 +282,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     let formatMaxFps = device.activeFormat.videoSupportedFrameRateRanges
       .map { $0.maxFrameRate }
       .max() ?? 0.0
+    let activeFormatVideoFieldOfView = Double(device.activeFormat.videoFieldOfView)
     let gains = device.deviceWhiteBalanceGains
     return [
       "deviceUniqueId": device.uniqueID,
@@ -290,6 +291,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       "activeFormatWidth": Int(dimensions.width),
       "activeFormatHeight": Int(dimensions.height),
       "activeFormatMaxSupportedFrameRate": formatMaxFps,
+      "activeFormatVideoFieldOfView": activeFormatVideoFieldOfView,
       "activeVideoMinFrameDurationSeconds": activeMinFrame.isFinite ? activeMinFrame : 0.0,
       "activeVideoMaxFrameDurationSeconds": activeMaxFrame.isFinite ? activeMaxFrame : 0.0,
       "exposureMode": exposureModeName(device.exposureMode),
@@ -662,6 +664,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     }
 
     let args = call.arguments as? [String: Any]
+    let preHfrCameraState = args?["preHfrCameraState"] as? [String: Any]
     let requestedMaxFps = max(
       60.0,
       min(240.0, args?["targetMaxFps"] as? Double ?? 240.0)
@@ -675,6 +678,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       min(0.004, args?["targetExposureSeconds"] as? Double ?? 0.001)
     )
     let rowBins = max(24, min(128, args?["rowProfileBins"] as? Int ?? 96))
+    let requestedZoomFactor = max(
+      1.0,
+      min(15.0, args?["requestedZoomFactor"] as? Double ?? 1.0)
+    )
 
     temporalFrequencyNativeBusy = true
     temporalFrequencyFinishLock.lock()
@@ -728,8 +735,27 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         }
         session.addOutput(output)
 
+        var hfrMinAvailableZoomFactor = 1.0
+        var hfrMaxAvailableZoomFactor = 1.0
+        var effectiveZoomFactor = 1.0
+
         try captureDevice.lockForConfiguration()
         captureDevice.activeFormat = selection.format
+        // BUILD125: apply the user's requested field-of-view factor after the
+        // high-speed format is selected, because the native HFR session owns a
+        // separate AVCaptureDevice configuration from Flutter.
+        hfrMinAvailableZoomFactor = Double(captureDevice.minAvailableVideoZoomFactor)
+        hfrMaxAvailableZoomFactor = min(
+          15.0,
+          Double(captureDevice.maxAvailableVideoZoomFactor)
+        )
+        let clampedZoom = min(
+          hfrMaxAvailableZoomFactor,
+          max(hfrMinAvailableZoomFactor, requestedZoomFactor)
+        )
+        captureDevice.videoZoomFactor = CGFloat(clampedZoom)
+        effectiveZoomFactor = Double(captureDevice.videoZoomFactor)
+
         // Use the exact hardware-supported CMTime from AVFrameRateRange.
         // Assigning a reconstructed reciprocal can raise NSInvalidArgumentException.
         let frameDuration = selection.range.minFrameDuration
@@ -833,13 +859,119 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           24,
           min(120, Int((requestedDuration * selection.fps).rounded()))
         )
+        let zoomTolerance = max(0.02, requestedZoomFactor * 0.02)
+        let zoomMatchWithinTolerance =
+          abs(effectiveZoomFactor - requestedZoomFactor) <= zoomTolerance
+        let zoomClampedForHfr = !zoomMatchWithinTolerance
+        let physicalDeviceSubstitutionUsed =
+          captureDevice.uniqueID != device.uniqueID
+        let zoomSpatialEquivalence = physicalDeviceSubstitutionUsed
+          ? (zoomMatchWithinTolerance
+              ? "FACTOR_MATCHED_ON_SUBSTITUTED_PHYSICAL_DEVICE_FOV_NOT_GUARANTEED"
+              : "SUBSTITUTED_PHYSICAL_DEVICE_AND_ZOOM_CLAMPED")
+          : (zoomMatchWithinTolerance
+              ? "SAME_DEVICE_ZOOM_MATCHED"
+              : "SAME_DEVICE_ZOOM_CLAMPED")
 
-        let metadata: [String: Any] = [
+        let preHfrDeviceUniqueId = preHfrCameraState?["deviceUniqueId"] as? String
+        let preHfrNativeZoomFactor =
+          (preHfrCameraState?["zoomFactor"] as? NSNumber)?.doubleValue
+        let preHfrActiveFormatIndex =
+          (preHfrCameraState?["activeFormatIndex"] as? NSNumber)?.intValue
+        let preHfrFormatWidth =
+          (preHfrCameraState?["activeFormatWidth"] as? NSNumber)?.intValue
+        let preHfrFormatHeight =
+          (preHfrCameraState?["activeFormatHeight"] as? NSNumber)?.intValue
+        let preHfrVideoFieldOfView =
+          (preHfrCameraState?["activeFormatVideoFieldOfView"] as? NSNumber)?.doubleValue
+
+        let hfrActiveFormatIndex =
+          captureDevice.formats.firstIndex(where: { $0 === selection.format }) ?? -1
+        let hfrVideoFieldOfView = Double(selection.format.videoFieldOfView)
+        let fieldOfViewToleranceDegrees = 0.0
+        let fieldOfViewDelta = preHfrVideoFieldOfView.map {
+          abs($0 - hfrVideoFieldOfView)
+        }
+        // Until the multi-device physical holdout establishes an optical
+        // tolerance, only exact AVFoundation format-FOV equality is accepted.
+        let fieldOfViewMatchWithinTolerance =
+          fieldOfViewDelta.map { $0 <= fieldOfViewToleranceDegrees } ?? false
+        let preHfrNativeZoomMatchWithinTolerance =
+          preHfrNativeZoomFactor.map {
+            abs(effectiveZoomFactor - $0) <= zoomTolerance
+          } ?? false
+
+        var aspectRatioMatch = false
+        if let preWidth = preHfrFormatWidth,
+           let preHeight = preHfrFormatHeight,
+           preWidth > 0,
+           preHeight > 0 {
+          aspectRatioMatch =
+            Int64(preWidth) * Int64(dimensions.height) ==
+            Int64(dimensions.width) * Int64(preHeight)
+        }
+
+        let preHfrFieldOfViewKnown =
+          preHfrVideoFieldOfView.map { $0.isFinite && $0 > 0.0 } ?? false
+        let hfrFieldOfViewKnown =
+          hfrVideoFieldOfView.isFinite && hfrVideoFieldOfView > 0.0
+        let preHfrStateComplete =
+          preHfrDeviceUniqueId != nil &&
+          preHfrNativeZoomFactor != nil &&
+          preHfrActiveFormatIndex != nil &&
+          preHfrFormatWidth != nil &&
+          preHfrFormatHeight != nil &&
+          preHfrFieldOfViewKnown &&
+          hfrFieldOfViewKnown
+
+        let hfrSpatialComparability: String
+        let hfrSpatialComparabilityReason: String
+        if !preHfrStateComplete {
+          hfrSpatialComparability = "UNKNOWN"
+          hfrSpatialComparabilityReason = "PRE_HFR_CAMERA_STATE_MISSING_OR_INCOMPLETE"
+        } else if physicalDeviceSubstitutionUsed ||
+                    preHfrDeviceUniqueId != captureDevice.uniqueID {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "PHYSICAL_DEVICE_SUBSTITUTION"
+        } else if zoomClampedForHfr ||
+                    !zoomMatchWithinTolerance ||
+                    !preHfrNativeZoomMatchWithinTolerance {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "NATIVE_ZOOM_MISMATCH_OR_CLAMP"
+        } else if !fieldOfViewMatchWithinTolerance {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "ACTIVE_FORMAT_FOV_MISMATCH"
+        } else if !aspectRatioMatch {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "ACTIVE_FORMAT_ASPECT_RATIO_MISMATCH"
+        } else {
+          hfrSpatialComparability = "COMPARABLE"
+          hfrSpatialComparabilityReason =
+            "SAME_DEVICE_NATIVE_ZOOM_AND_FORMAT_FOV_MATCHED"
+        }
+
+        var metadata: [String: Any] = [
           "analysisStatus": "CAPTURED",
           "captureMode": "ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER",
           "requestedDeviceUniqueId": device.uniqueID,
           "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
-          "physicalDeviceSubstitutionUsed": captureDevice.uniqueID != device.uniqueID,
+          "physicalDeviceSubstitutionUsed": physicalDeviceSubstitutionUsed,
+          "requestedZoomFactor": requestedZoomFactor,
+          "effectiveZoomFactor": effectiveZoomFactor,
+          "hfrMinAvailableZoomFactor": hfrMinAvailableZoomFactor,
+          "hfrMaxAvailableZoomFactor": hfrMaxAvailableZoomFactor,
+          "zoomClampedForHfr": zoomClampedForHfr,
+          "zoomMatchWithinTolerance": zoomMatchWithinTolerance,
+          "zoomSpatialEquivalence": zoomSpatialEquivalence,
+          "hfrActiveFormatIndex": hfrActiveFormatIndex,
+          "hfrVideoFieldOfView": hfrVideoFieldOfView,
+          "fieldOfViewToleranceDegrees": fieldOfViewToleranceDegrees,
+          "fieldOfViewMatchWithinTolerance": fieldOfViewMatchWithinTolerance,
+          "preHfrNativeZoomMatchWithinTolerance":
+            preHfrNativeZoomMatchWithinTolerance,
+          "aspectRatioMatch": aspectRatioMatch,
+          "hfrSpatialComparability": hfrSpatialComparability,
+          "hfrSpatialComparabilityReason": hfrSpatialComparabilityReason,
           "requestedTargetFps": requestedMaxFps,
           "configuredFrameRate": selection.fps,
           "frameRateTier": Int(selection.fps.rounded()),
@@ -858,6 +990,27 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           "sensorNativeOrientation": true,
           "encodedVideoUsed": false,
         ]
+        if let value = preHfrDeviceUniqueId {
+          metadata["preHfrDeviceUniqueId"] = value
+        }
+        if let value = preHfrNativeZoomFactor {
+          metadata["preHfrNativeZoomFactor"] = value
+        }
+        if let value = preHfrActiveFormatIndex {
+          metadata["preHfrActiveFormatIndex"] = value
+        }
+        if let value = preHfrFormatWidth {
+          metadata["preHfrFormatWidth"] = value
+        }
+        if let value = preHfrFormatHeight {
+          metadata["preHfrFormatHeight"] = value
+        }
+        if let value = preHfrVideoFieldOfView {
+          metadata["preHfrVideoFieldOfView"] = value
+        }
+        if let value = fieldOfViewDelta {
+          metadata["fieldOfViewDelta"] = value
+        }
 
         let collector = HCVTemporalFrequencyNativeCollector(
           targetFrameCount: targetFrameCount,
@@ -1002,9 +1155,11 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
     switch call.method {
     case "captureTemporalFrequencyNative":
-      let physicalDevice = temporalFrequencyPhysicalDevice(for: device)
+      // Pass the original Flutter-selected device. The native capture method
+      // resolves any required physical high-speed constituent itself, allowing
+      // the certificate to record whether physical-device substitution occurred.
       captureTemporalFrequencyNative(
-        device: physicalDevice,
+        device: device,
         call: call,
         result: result
       )
