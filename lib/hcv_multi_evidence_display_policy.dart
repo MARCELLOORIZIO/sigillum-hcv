@@ -93,9 +93,7 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     if (_borderlinePhoto(still, temporal, hfr) ||
-        (hfrNonDecisionable &&
-            still.isScreen &&
-            still.probability >= 0.50)) {
+        (hfrNonDecisionable && still.isScreen && still.probability >= 0.50)) {
       return _nonConclusive(
         hfrNonDecisionable
             ? 'BUILD125_PHOTO_HFR_FOV_NOT_DECISIONABLE'
