@@ -14,6 +14,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build125-final-fov-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   flutter-analyze-test:
     runs-on: ubuntu-latest
