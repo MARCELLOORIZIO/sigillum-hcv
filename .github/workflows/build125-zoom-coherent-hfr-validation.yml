@@ -1,5 +1,6 @@
 name: BUILD125 zoom coherent HFR validation
 # BUILD125 final validation trigger
+# isolated CI base active
 
 on:
   pull_request:
