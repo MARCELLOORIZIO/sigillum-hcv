@@ -18,7 +18,10 @@ class HCVTemporalFrequencyProbe {
   static const double targetCaptureDurationSeconds = 0.35;
   static const int rowProfileBins = 96;
 
-  Future<Map<String, dynamic>> captureNative(String deviceUniqueId) async {
+  Future<Map<String, dynamic>> captureNative(
+    String deviceUniqueId, {
+    double requestedZoomFactor = 1.0,
+  }) async {
     try {
       final raw = await _channel.invokeMapMethod<String, dynamic>(
         'captureTemporalFrequencyNative',
@@ -28,6 +31,7 @@ class HCVTemporalFrequencyProbe {
           'targetDurationSeconds': targetCaptureDurationSeconds,
           'targetExposureSeconds': requestedShortExposureSeconds,
           'rowProfileBins': rowProfileBins,
+          'requestedZoomFactor': requestedZoomFactor,
         },
       );
       if (raw == null) {
@@ -512,6 +516,13 @@ class HCVTemporalFrequencyProbe {
       'configuredHighSpeedFormatHeight': raw['frameHeight'],
       'configuredFormatMaxSupportedFrameRate':
           raw['configuredFormatMaxSupportedFrameRate'],
+      'requestedZoomFactor': raw['requestedZoomFactor'],
+      'effectiveZoomFactor': raw['effectiveZoomFactor'],
+      'hfrMinAvailableZoomFactor': raw['hfrMinAvailableZoomFactor'],
+      'hfrMaxAvailableZoomFactor': raw['hfrMaxAvailableZoomFactor'],
+      'zoomClampedForHfr': raw['zoomClampedForHfr'],
+      'zoomMatchWithinTolerance': raw['zoomMatchWithinTolerance'],
+      'zoomSpatialEquivalence': raw['zoomSpatialEquivalence'],
       'requestedShortExposureSeconds': raw['requestedShortExposureSeconds'],
       'targetShortExposureSecondsAfterClamp':
           raw['targetShortExposureSecondsAfterClamp'],
