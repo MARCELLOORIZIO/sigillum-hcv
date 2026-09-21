@@ -605,6 +605,14 @@ class _CameraPageState extends State<CameraPage> {
     final savedFlash = currentFlashMode;
     Map<String, dynamic> probe;
 
+    // Snapshot the real native device state while Flutter still owns the
+    // preview session. Reading it after dispose could observe a reset/default
+    // activeFormat rather than the format that produced the user-visible FOV.
+    final preHfrCameraState =
+        await const HCVTemporalFrequencyProbe().snapshotNativeCameraState(
+      description.name,
+    );
+
     // The native high-speed session must own the camera exclusively. Detach
     // CameraPreview from the controller BEFORE disposing its native texture.
     // Keeping a disposed controller mounted during the AVFoundation handoff can
@@ -627,6 +635,7 @@ class _CameraPageState extends State<CameraPage> {
       probe = await const HCVTemporalFrequencyProbe().captureNative(
         description.name,
         requestedZoomFactor: savedZoom,
+        preHfrCameraState: preHfrCameraState,
       );
     } catch (error) {
       probe = HCVTemporalFrequencyProbe.unavailable(
