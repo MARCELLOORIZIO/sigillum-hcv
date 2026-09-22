@@ -459,8 +459,41 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  Future<List<String>> _deepVideoOcrCandidates(String videoPath) async {
+    final detections = <String>[];
+    const times = <double>[0.2, 0.8];
+
+    for (final seconds in times) {
+      String? framePath;
+      try {
+        framePath = Platform.isIOS
+            ? await _extractNativeVideoFrame(videoPath, seconds)
+            : await _extractFfmpegVideoFrame(
+                videoPath,
+                '00:00:0${seconds.toStringAsFixed(1)}',
+              );
+        if (framePath == null || framePath.isEmpty) continue;
+
+        detections.addAll(
+          await HCVMediaIdOcr.extractCandidatesFromImage(framePath),
+        );
+      } catch (_) {
+        // A failed recovery frame must not turn a Registry miss into an error.
+      } finally {
+        if (framePath != null && framePath.isNotEmpty) {
+          try {
+            final frame = File(framePath);
+            if (await frame.exists()) await frame.delete();
+          } catch (_) {}
+        }
+      }
+    }
+
+    return HCVMediaIdOcr.rankConsensusCandidates(detections);
+  }
+
   Future<MapEntry<String, Map<String, dynamic>>>
-  _fetchCertificateWithPhotoOcrRecovery(String hcvId) async {
+  _fetchCertificateWithMediaOcrRecovery(String hcvId) async {
     final path = mediaPath;
     if (path == null) {
       return await _fetchCertificateWithLocalRecovery(hcvId);
@@ -471,7 +504,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.png');
-    if (!isPhoto) {
+    final isVideo =
+        lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v');
+
+    if (!isPhoto && !isVideo) {
       return await _fetchCertificateWithLocalRecovery(hcvId);
     }
 
@@ -483,11 +521,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       originalNotFound = error;
     }
 
-    // A Registry 404 from the first OCR reading is the only condition that
-    // enables deeper PHOTO recovery. Re-read independent crops first because
-    // they can directly recover the correct visible ID without guessing.
-    final rankedCandidates =
-        await HCVMediaIdOcr.extractCandidatesFromImage(path);
+    // The expensive recovery path is enabled only after OCR has already found
+    // a syntactically valid HCV-ID and Registry returned 404 for that exact ID.
+    // This preserves the fast exit for ordinary non-SIGILLUM photos/videos.
+    final rankedCandidates = isPhoto
+        ? await HCVMediaIdOcr.extractCandidatesFromImage(path)
+        : await _deepVideoOcrCandidates(path);
+
     final attemptedIds = <String>{hcvId};
     final recoveryBases = <String>[hcvId];
 
@@ -504,12 +544,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
     }
 
-    // Only after ranked OCR candidates are absent online, try a bounded set of
-    // single-character alternatives. This covers the physical Messenger case
-    // C -> 0 without the previous Cartesian B/8 explosion.
+    // Only after independent OCR readings are absent online, try a bounded set
+    // of single-character alternatives (C/0, B/8, E/6). These substitutions
+    // are never applied during normal parsing, because all are valid hex.
     final variants = HCVMediaIdOcr.buildRegistryRecoveryVariants(
       recoveryBases,
-      maxVariants: 16,
+      maxVariants: 24,
     );
     for (final candidate in variants) {
       if (!attemptedIds.add(candidate)) continue;
@@ -521,9 +561,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
     }
 
-    // Preserve pending/local-certificate recovery, but only after the bounded
-    // online PHOTO search. Retry the queue once, then re-check exactly the IDs
-    // already attempted; never re-enter the generic combinatorial fallback.
+    // Preserve pending/local-certificate recovery only after the bounded online
+    // OCR search. Re-check exactly the IDs already attempted.
     try {
       await registry.retryPendingUploads();
       for (final candidate in attemptedIds) {
@@ -1030,7 +1069,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     });
 
     try {
-      final resolved = await _fetchCertificateWithPhotoOcrRecovery(hcvId);
+      final resolved = await _fetchCertificateWithMediaOcrRecovery(hcvId);
       hcvId = resolved.key;
       final cert = resolved.value;
       idController.text = hcvId;
