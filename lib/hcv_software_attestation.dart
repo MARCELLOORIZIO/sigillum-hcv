@@ -12,6 +12,8 @@ class HCVSoftwareAttestation {
     'SIGILLUM_EDITION',
     defaultValue: 'unknown',
   );
+  static const String _runtimeDeclaredBuildNumber =
+      String.fromEnvironment('SIGILLUM_BUILD_NUMBER');
 
   static Map<String, dynamic> current({
     required String appVersion,
@@ -22,6 +24,7 @@ class HCVSoftwareAttestation {
       edition: _runtimeEdition,
       appVersion: appVersion,
       buildNumber: buildNumber,
+      declaredBuildNumber: _runtimeDeclaredBuildNumber,
     );
   }
 
@@ -30,11 +33,15 @@ class HCVSoftwareAttestation {
     required String edition,
     String appVersion = '',
     String buildNumber = '',
+    String declaredBuildNumber = '',
   }) {
     final cleanCommit = sourceCommit.trim().toLowerCase();
     final cleanEdition = edition.trim();
     final cleanAppVersion = appVersion.trim();
     final cleanBuildNumber = buildNumber.trim();
+    final cleanDeclaredBuildNumber = declaredBuildNumber.trim();
+    final buildNumberMatchesDeclared = cleanDeclaredBuildNumber.isEmpty ||
+        cleanBuildNumber == cleanDeclaredBuildNumber;
     final algorithm = _commitAlgorithm(cleanCommit);
     final bound = algorithm != null;
 
@@ -48,6 +55,10 @@ class HCVSoftwareAttestation {
       if (cleanEdition.isNotEmpty) 'edition': cleanEdition,
       if (cleanAppVersion.isNotEmpty) 'appVersion': cleanAppVersion,
       if (cleanBuildNumber.isNotEmpty) 'buildNumber': cleanBuildNumber,
+      if (cleanDeclaredBuildNumber.isNotEmpty)
+        'declaredBuildNumber': cleanDeclaredBuildNumber,
+      if (cleanDeclaredBuildNumber.isNotEmpty)
+        'buildNumberMatchesDeclared': buildNumberMatchesDeclared,
     };
   }
 
@@ -60,11 +71,24 @@ class HCVSoftwareAttestation {
     final status = value['status'];
     if (status != 'BOUND' && status != 'UNBOUND') return false;
 
-    for (final field in ['edition', 'appVersion', 'buildNumber']) {
+    for (final field in [
+      'edition',
+      'appVersion',
+      'buildNumber',
+      'declaredBuildNumber',
+    ]) {
       final raw = value[field];
       if (raw != null && (raw is! String || raw.trim().isEmpty)) {
         return false;
       }
+    }
+
+    final declaredBuildNumber = value['declaredBuildNumber'];
+    if (declaredBuildNumber != null) {
+      if (value['buildNumberMatchesDeclared'] != true) return false;
+      if (value['buildNumber'] != declaredBuildNumber) return false;
+    } else if (value.containsKey('buildNumberMatchesDeclared')) {
+      return false;
     }
 
     if (status == 'UNBOUND') {
