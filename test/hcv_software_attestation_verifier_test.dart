@@ -128,6 +128,48 @@ void main() {
     );
   });
 
+  test('D1 verifier accepts build number bound to compile-time declaration',
+      () async {
+    final attestation = HCVSoftwareAttestation.fromValues(
+      sourceCommit: '306c6c742bcd225d02b67675881ef9894a84a4aa',
+      edition: 'user',
+      appVersion: '1.0.0',
+      buildNumber: '126',
+      declaredBuildNumber: '126',
+    );
+
+    expect(attestation['buildNumber'], '126');
+    expect(attestation['declaredBuildNumber'], '126');
+    expect(attestation['buildNumberMatchesDeclared'], isTrue);
+    expect(HCVSoftwareAttestation.isValid(attestation), isTrue);
+    expect(
+      await _verifyCertificate(
+        _buildCertificate(softwareAttestation: attestation),
+      ),
+      isTrue,
+    );
+  });
+
+  test('D1 verifier rejects runtime and declared build number mismatch',
+      () async {
+    final attestation = HCVSoftwareAttestation.fromValues(
+      sourceCommit: '306c6c742bcd225d02b67675881ef9894a84a4aa',
+      edition: 'user',
+      appVersion: '1.0.0',
+      buildNumber: '125',
+      declaredBuildNumber: '126',
+    );
+
+    expect(attestation['buildNumberMatchesDeclared'], isFalse);
+    expect(HCVSoftwareAttestation.isValid(attestation), isFalse);
+    expect(
+      await _verifyCertificate(
+        _buildCertificate(softwareAttestation: attestation),
+      ),
+      isFalse,
+    );
+  });
+
   test('D1 verifier accepts structurally valid UNBOUND attestation', () async {
     final attestation = HCVSoftwareAttestation.fromValues(
       sourceCommit: 'local-development-build',
