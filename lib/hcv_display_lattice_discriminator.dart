@@ -299,6 +299,7 @@ class HCVDisplayLatticeDiscriminator {
       if (pixels.length < 40) return;
       final labels = <int>[];
       final present = <int>{};
+      final channelCounts = <int, int>{1: 0, 2: 0, 3: 0};
 
       for (final pixel in pixels) {
         final r = pixel.r.toDouble();
@@ -317,9 +318,19 @@ class HCVDisplayLatticeDiscriminator {
                 : 3;
         labels.add(label);
         present.add(label);
+        channelCounts[label] = (channelCounts[label] ?? 0) + 1;
       }
 
       if (present.length < 2) return;
+      final activeCounts = channelCounts.values
+          .where((count) => count > 0)
+          .toList()
+        ..sort();
+      if (activeCounts.length < 2) return;
+      final channelBalance =
+          activeCounts.first / max(activeCounts.last, 1);
+      if (channelBalance < 0.12) return;
+
       final colored =
           labels.where((label) => label != 0).length / labels.length;
       if (colored < 0.08) return;
