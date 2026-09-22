@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,12 +10,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'commercial_account_service.dart';
 import 'commercial_billing_service.dart';
 import 'hcv_identity.dart';
+import 'hcv_import_router_page.dart';
 import 'import_page.dart';
 import 'legal_info_page.dart';
 import 'sigillum_localization.dart';
 import 'recent_account_service.dart';
 import 'sigillum_quick_guide_page.dart';
 import 'sigillum_theme.dart';
+import 'text_social_verify_page.dart';
 import 'user_home_page.dart';
 
 class CommercialGate extends StatefulWidget {
@@ -436,6 +439,8 @@ enum _GateStage {
 }
 
 class _CommercialGateState extends State<CommercialGate> {
+  static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
+
   final CommercialAccountService _account = const CommercialAccountService();
   final RecentAccountService _recentAccountService =
       const RecentAccountService();
@@ -461,6 +466,9 @@ class _CommercialGateState extends State<CommercialGate> {
   String _message = '';
   String _languageCode = SigillumCopy.initialLanguageCode();
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
+  String? _lastOpenedSharedPath;
+  String? _pendingSharedPath;
+  bool _sharedOpenScheduled = false;
 
   @override
   void initState() {
@@ -469,12 +477,15 @@ class _CommercialGateState extends State<CommercialGate> {
     _purchaseSub = CommercialBillingService.instance.purchases.listen(
       _onPurchases,
     );
+    _intentChannel.setMethodCallHandler(_handleNativeIntent);
+    Future.microtask(_checkInitialIntent);
     Future.microtask(_loadRecentAccounts);
     _bootstrap();
   }
 
   @override
   void dispose() {
+    _intentChannel.setMethodCallHandler(null);
     _purchaseSub?.cancel();
     _name.dispose();
     _email.dispose();
@@ -517,6 +528,87 @@ class _CommercialGateState extends State<CommercialGate> {
       _password.clear();
       _message = '';
     });
+  }
+
+  Future<dynamic> _handleNativeIntent(MethodCall call) async {
+    if (call.method != 'onSharedPath') return null;
+    final path = call.arguments as String?;
+    if (path == null || path.isEmpty) return null;
+
+    _queueImportedPath(path);
+    try {
+      await _intentChannel.invokeMethod<bool>('ackSharedPath', <String, dynamic>{
+        'path': path,
+      });
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _checkInitialIntent() async {
+    try {
+      final path = await _intentChannel.invokeMethod<String>('getSharedPath');
+      if (path != null && path.isNotEmpty) {
+        _queueImportedPath(path);
+      }
+    } catch (error) {
+      debugPrint('Intent error: $error');
+    }
+  }
+
+  void _queueImportedPath(String path) {
+    if (!mounted ||
+        path.isEmpty ||
+        _lastOpenedSharedPath == path ||
+        _pendingSharedPath == path) {
+      return;
+    }
+
+    _pendingSharedPath = path;
+    if (_sharedOpenScheduled) return;
+    _sharedOpenScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sharedOpenScheduled = false;
+      if (!mounted) return;
+      final pending = _pendingSharedPath;
+      _pendingSharedPath = null;
+      if (pending != null && pending.isNotEmpty) {
+        _openImportedPath(pending);
+      }
+    });
+  }
+
+  Future<void> _openImportedPath(String path) async {
+    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
+    if (!await File(path).exists()) return;
+    if (!mounted) return;
+    _lastOpenedSharedPath = path;
+
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.txt')) {
+      try {
+        final sharedText = await File(path).readAsString();
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TextSocialVerifyPage(
+              languageCode: _languageCode,
+              initialText: sharedText,
+            ),
+          ),
+        );
+      } catch (_) {}
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            HCVImportRouterPage(path: path, languageCode: _languageCode),
+      ),
+    );
   }
 
   void _openQuickGuide() {
