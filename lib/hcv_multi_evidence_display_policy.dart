@@ -49,6 +49,17 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     if (still.isScreen &&
+        still.probability >= 0.80 &&
+        _physicalRepeatingTextureGuard(
+          stillOptical: stillOptical,
+          temporalOptical: temporalOptical,
+        )) {
+      return _nonConclusive(
+        'BUILD127_PHOTO_PHYSICAL_REPEATING_TEXTURE_GUARD',
+      );
+    }
+
+    if (still.isScreen &&
         !still.v3RealityVeto &&
         still.probability >= 0.90 &&
         still.fullFrameRisk >= 90 &&
@@ -146,6 +157,16 @@ class HCVMultiEvidenceDisplayPolicy {
           'HFR_ZERO_REALITY_LIKE_CELLS',
           'HFR_PARTIAL_DISPLAY_CELLS_WITH_PERIODIC_STABLE_FULL_GRID_FAMILY',
         ],
+      );
+    }
+
+    if (aggregate.isScreen &&
+        aggregate.probability >= 0.80 &&
+        video.framesAtLeast80 >= 2 &&
+        _hasPhysicalRepeatingTexture(passiveOptical) &&
+        _hasNoStrongOpticalDisplayTrace(passiveOptical)) {
+      return _nonConclusive(
+        'BUILD127_VIDEO_PHYSICAL_REPEATING_TEXTURE_GUARD',
       );
     }
 
@@ -400,6 +421,36 @@ class HCVMultiEvidenceDisplayPolicy {
           'SCENE_CONTEXT_NOT_USED_FOR_DISPLAY_VERDICT',
         ],
       );
+
+  static bool _physicalRepeatingTextureGuard({
+    Map<String, dynamic>? stillOptical,
+    Map<String, dynamic>? temporalOptical,
+  }) {
+    final physicalTexture = _hasPhysicalRepeatingTexture(stillOptical) ||
+        _hasPhysicalRepeatingTexture(temporalOptical);
+    if (!physicalTexture) return false;
+
+    return _hasNoStrongOpticalDisplayTrace(stillOptical) &&
+        _hasNoStrongOpticalDisplayTrace(temporalOptical);
+  }
+
+  static bool _hasPhysicalRepeatingTexture(Map<String, dynamic>? raw) {
+    if (raw == null) return false;
+    final signals = _map(raw['signals']);
+    final repetitive =
+        (signals['repetitiveTextureScore'] as num?)?.toDouble() ?? 0.0;
+    final rgbPhase =
+        (signals['rgbPhaseConsistencyScore'] as num?)?.toDouble() ?? 1.0;
+    final defect =
+        (signals['latticeDefectScore'] as num?)?.toDouble() ?? 0.0;
+    final macro =
+        (signals['macroPatternScore'] as num?)?.toDouble() ?? 0.0;
+
+    return signals['physicalRepeatingTextureLikely'] == true &&
+        repetitive >= 0.55 &&
+        rgbPhase < 0.30 &&
+        (defect >= 0.30 || macro >= 0.65);
+  }
 
   static bool _hasNoStrongOpticalDisplayTrace(Map<String, dynamic>? raw) {
     if (raw == null) return true;
