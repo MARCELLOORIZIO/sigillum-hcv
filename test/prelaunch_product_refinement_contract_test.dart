@@ -31,10 +31,10 @@ void main() {
   });
 
   test('plain text share is routed to the text social verifier', () {
-    final home = File('lib/user_home_page.dart').readAsStringSync();
-    expect(home, contains("lower.endsWith('.txt')"));
-    expect(home, contains('TextSocialVerifyPage('));
-    expect(home, contains('initialText: sharedText'));
+    final gate = File('lib/commercial_gate.dart').readAsStringSync();
+    expect(gate, contains("lower.endsWith('.txt')"));
+    expect(gate, contains('TextSocialVerifyPage('));
+    expect(gate, contains('initialText: sharedText'));
   });
 
   test('video transcription creates a derived captioned copy and leaves HCV engine files untouched', () {
