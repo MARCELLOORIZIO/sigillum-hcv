@@ -254,9 +254,10 @@ class HCVMediaIdOcr {
 
   /// Builds a deterministic, bounded set of one-character alternatives for
   /// Registry recovery after OCR has produced a syntactically valid HCV-ID
-  /// that is absent online. C/0 and B/8 are both valid hexadecimal pairs, so
-  /// changing them during normal OCR parsing would silently rewrite valid IDs.
-  /// Recovery therefore changes exactly one ambiguous character at a time.
+  /// that is absent online. C/0, B/8 and E/6 are all valid hexadecimal pairs,
+  /// so changing them during normal OCR parsing would silently rewrite valid
+  /// IDs. Recovery therefore changes exactly one ambiguous character at a
+  /// time and runs only after Registry has rejected the original reading.
   static List<String> buildRegistryRecoveryVariants(
     Iterable<String> candidateIds, {
     int maxVariants = 16,
@@ -280,6 +281,8 @@ class HCVMediaIdOcr {
           'C' => '0',
           '8' => 'B',
           'B' => '8',
+          '6' => 'E',
+          'E' => '6',
           _ => null,
         };
         if (alternate == null) continue;
