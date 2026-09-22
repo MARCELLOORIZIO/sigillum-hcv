@@ -96,6 +96,13 @@ The difficult SCREEN cases with low or misleading V2 family classification remai
 
 ## TFLite status
 
+After separating the validated benchmark rule from the conservative production
+residual policy in the converter manifest, the BUILD127 TFLite conversion
+workflow was rerun. TensorFlow/Keras/TFLite parity passed and GitHub Actions
+committed the regenerated parity-verified manifest. The bot commit changed only
+manifest serialization/field ordering; the TFLite model asset itself did not
+change.
+
 The committed TFLite is generated from the FP16 multi-head weights and the conversion workflow verifies numerical Keras/TFLite parity on deterministic tensors.
 
 This audit independently verifies the real-image PyTorch checkpoint and FP16 transported weights. It does not claim a separate local 28-image TFLite runtime execution because a native TensorFlow Lite runtime was not available in the audit environment.
