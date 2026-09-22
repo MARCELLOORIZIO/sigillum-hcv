@@ -97,6 +97,17 @@ class HCVScreenReplayAnalyzer {
       final riskScore = worst['screenReplayRiskScore'] as int;
       final risk = _riskLabel(riskScore);
 
+      // Preserve the legacy optical risk path; this bounded secondary probe
+      // measures lattice on up to three original-aspect video frames.
+      final nativeLattice = await _analyzeNativeVideoLattice(
+        videoPath,
+        workDir,
+        worst['startSecond'] as int,
+      );
+      final nativeSignals = nativeLattice == null
+          ? const <String, dynamic>{}
+          : Map<String, dynamic>.from(nativeLattice['signals'] as Map);
+
       return {
         'type': 'SIGILLUM_SCREEN_REPLAY_ANALYSIS_V1',
         'scanMode': 'EVERY_15_SECONDS_FAST_SAMPLE',
@@ -115,15 +126,32 @@ class HCVScreenReplayAnalyzer {
         'gridLikeScore': worst['gridLikeScore'],
         'localTemporalFlickerScore': worst['localTemporalFlickerScore'],
         'refreshBandScore': worst['refreshBandScore'],
-        'repetitiveTextureScore': worst['repetitiveTextureScore'],
+        'legacyPaddedLatticeEvidence': <String, dynamic>{
+          'repetitiveTextureScore': worst['repetitiveTextureScore'],
+          'latticeRegularityScore': nativeSignals['latticeRegularityScore'] ?? worst['latticeRegularityScore'],
+          'latticeDefectScore': nativeSignals['latticeDefectScore'] ?? worst['latticeDefectScore'],
+          'macroPatternScore': nativeSignals['macroPatternScore'] ?? worst['macroPatternScore'],
+          'rgbPhaseConsistencyScore': nativeSignals['rgbPhaseConsistencyScore'] ?? worst['rgbPhaseConsistencyScore'],
+          'dominantPatternPeriodPx': nativeSignals['dominantPatternPeriodPx'] ?? worst['dominantPatternPeriodPx'],
+          'physicalRepeatingTextureLikely':
+              worst['physicalRepeatingTextureLikely'],
+        },
+        'nativeVideoLattice': nativeLattice,
+        'repetitiveTextureScore':
+            nativeSignals['repetitiveTextureScore'] ??
+                worst['repetitiveTextureScore'],
         'latticeRegularityScore': worst['latticeRegularityScore'],
         'latticeDefectScore': worst['latticeDefectScore'],
         'macroPatternScore': worst['macroPatternScore'],
         'rgbPhaseConsistencyScore': worst['rgbPhaseConsistencyScore'],
         'dominantPatternPeriodPx': worst['dominantPatternPeriodPx'],
         'physicalRepeatingTextureLikely':
-            worst['physicalRepeatingTextureLikely'],
-        'signals': worst['signals'],
+            nativeSignals['physicalRepeatingTextureLikely'] ??
+                worst['physicalRepeatingTextureLikely'],
+        'signals': <String, dynamic>{
+          ...Map<String, dynamic>.from(worst['signals'] as Map),
+          ...nativeSignals,
+        },
         'segments': segments.take(12).toList(),
         'note':
             'Passive screen replay analysis sampled every 15 seconds. This lowers or raises risk but is not absolute proof.',
@@ -134,6 +162,57 @@ class HCVScreenReplayAnalyzer {
       try {
         if (await workDir.exists()) {
           await workDir.delete(recursive: true);
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<Map<String, dynamic>?> _analyzeNativeVideoLattice(
+    String videoPath,
+    Directory workDir,
+    int startSecond,
+  ) async {
+    final nativeDir = Directory(p.join(workDir.path, 'native_lattice'));
+    try {
+      await nativeDir.create(recursive: true);
+      final pattern = p.join(nativeDir.path, 'native_%03d.jpg');
+      // No 720x720 padding, no upscaling, and at most three high-quality
+      // decoded frames from the segment used by the optical verdict.
+      final command = "-y -ss $startSecond -i '$videoPath' "
+          "-t 1.5 "
+          "-vf \"fps=2,scale='min(iw,720)':-2:flags=lanczos\" "
+          "-frames:v 3 -q:v 2 '$pattern'";
+      final session = await FFmpegKit.execute(command);
+      final code = await session.getReturnCode();
+      if (code == null || !ReturnCode.isSuccess(code)) return null;
+
+      final frames = nativeDir
+          .listSync()
+          .whereType<File>()
+          .where((file) => file.path.toLowerCase().endsWith('.jpg'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
+      final images = <img.Image>[];
+      for (final frame in frames.take(3)) {
+        final decoded = img.decodeImage(await frame.readAsBytes());
+        if (decoded != null) images.add(decoded);
+      }
+      if (images.length < 2) return null;
+      final evidence =
+          HCVDisplayLatticeDiscriminator.analyzeSequence(images).toJson();
+      return <String, dynamic>{
+        'analysisStatus': 'ANALYZED',
+        'frameMode': 'ORIGINAL_ASPECT_RATIO_NO_LETTERBOX',
+        'framesAnalyzed': images.length,
+        'startSecond': startSecond,
+        'signals': evidence,
+      };
+    } catch (_) {
+      return null; // Never change legacy VIDEO verdict on probe failure.
+    } finally {
+      try {
+        if (await nativeDir.exists()) {
+          await nativeDir.delete(recursive: true);
         }
       } catch (_) {}
     }
