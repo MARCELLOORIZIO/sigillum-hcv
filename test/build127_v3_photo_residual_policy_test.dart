@@ -108,8 +108,8 @@ void main() {
         camera,
         matches(
           RegExp(
-            r'HCVMLScreenReplayClassifier\\.instance\\s*'
-            r'\\.analyzeVideo\\(savedVideoPath\\)',
+            r'HCVMLScreenReplayClassifier\.instance\s*'
+            r'\.analyzeVideo\(savedVideoPath\)',
           ),
         ),
       );
