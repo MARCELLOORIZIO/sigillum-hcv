@@ -64,7 +64,7 @@ void main() {
       'sigillum_screen_replay_v3_multihead.tflite',
       'SOURCE_BUILD_NUMBER=',
       'SELECTED_BUILD_NUMBER=',
-      '--dart-define=SIGILLUM_BUILD_NUMBER="$BUILD_NUMBER"',
+      '--dart-define=SIGILLUM_BUILD_NUMBER="\$BUILD_NUMBER"',
       'ARCHIVED_BUILD_NUMBER=',
       'BUILD_NUMBER_ATTESTATION_MATCH=PASS',
       'TFLITE_SYMBOL_PRESENT=',
