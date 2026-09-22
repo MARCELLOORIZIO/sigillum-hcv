@@ -110,8 +110,8 @@ for token in [
         raise RuntimeError(f'final Registry diagnostic/localization token missing: {token}')
 
 # ---------------------------------------------------------------------------
-# ML: V2 remains primary, V1 remains fallback. RC2 changes only interpreter
-# compatibility/diagnostics; it must not contain a detector-threshold rewrite.
+# ML: V2 remains primary, V1 remains fallback. BUILD127 adds only a bounded
+# PHOTO V3 false-positive residual; VIDEO and HFR/FOV policy remain unchanged.
 # ---------------------------------------------------------------------------
 classifier = text('lib/hcv_ml_screen_replay_classifier.dart')
 for token in [
@@ -123,6 +123,25 @@ for token in [
 ]:
     if token not in classifier:
         raise RuntimeError(f'ML post-patch recovery token missing: {token}')
+
+v3_residual = text('lib/hcv_ml_v3_photo_residual.dart')
+for token in [
+    'PHOTO_V2_FALSE_POSITIVE_VETO_ONLY',
+    'cannotOverrideHfrDisplay',
+    'cannotAffectVideo',
+    'sigillum_screen_replay_v3_multihead.tflite',
+]:
+    if token not in v3_residual:
+        raise RuntimeError(f'BUILD127 V3 residual safety token missing: {token}')
+
+software_attestation = text('lib/hcv_software_attestation.dart')
+for token in [
+    'SIGILLUM_BUILD_NUMBER',
+    'declaredBuildNumber',
+    'buildNumberMatchesDeclared',
+]:
+    if token not in software_attestation:
+        raise RuntimeError(f'BUILD127 software attestation token missing: {token}')
 
 ml_finalizer = text('tool/apply_ml_ios_runtime_finalizer_20260825.py')
 for forbidden in [
@@ -187,7 +206,10 @@ critical_files = [
     'lib/hcv_projective_motion_model.dart',
     'lib/hcv_temporal_capture_probe.dart',
     'lib/hcv_ml_screen_replay_classifier.dart',
+    'lib/hcv_ml_v3_photo_residual.dart',
     'lib/hcv_ml_model_store.dart',
+    'lib/hcv_software_attestation.dart',
+    'assets/ml/sigillum_screen_replay_v3_multihead.tflite',
     'lib/import_page.dart',
     'lib/registry_verify_page.dart',
 ]
