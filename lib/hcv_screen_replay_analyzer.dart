@@ -7,6 +7,8 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hcv_display_lattice_discriminator.dart';
+
 class HCVScreenReplayAnalyzer {
   Future<Map<String, dynamic>> analyzeVideo(String videoPath) async {
     final file = File(videoPath);
@@ -113,6 +115,14 @@ class HCVScreenReplayAnalyzer {
         'gridLikeScore': worst['gridLikeScore'],
         'localTemporalFlickerScore': worst['localTemporalFlickerScore'],
         'refreshBandScore': worst['refreshBandScore'],
+        'repetitiveTextureScore': worst['repetitiveTextureScore'],
+        'latticeRegularityScore': worst['latticeRegularityScore'],
+        'latticeDefectScore': worst['latticeDefectScore'],
+        'macroPatternScore': worst['macroPatternScore'],
+        'rgbPhaseConsistencyScore': worst['rgbPhaseConsistencyScore'],
+        'dominantPatternPeriodPx': worst['dominantPatternPeriodPx'],
+        'physicalRepeatingTextureLikely':
+            worst['physicalRepeatingTextureLikely'],
         'signals': worst['signals'],
         'segments': segments.take(12).toList(),
         'note':
@@ -159,6 +169,8 @@ class HCVScreenReplayAnalyzer {
           _profileContrast(_verticalBandProfile(image, 16));
       final bandScore = max(horizontalBandScore, verticalBandScore);
       final brightUniformStripeScore = _brightUniformStripeScore(contentImage);
+      final latticeEvidence = HCVDisplayLatticeDiscriminator.analyze(contentImage);
+      final lattice = latticeEvidence.toJson();
 
       final flatSceneUniformity = uniformityScore > 0.74;
       final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
@@ -220,6 +232,7 @@ class HCVScreenReplayAnalyzer {
         'horizontalBandScore': _round(horizontalBandScore),
         'verticalBandScore': _round(verticalBandScore),
         'brightUniformStripeScore': _round(brightUniformStripeScore),
+        ...lattice,
         'localTemporalFlickerScore': null,
         'signals': {
           'rectangularDisplayEdges': rectangularDisplayEdges,
@@ -230,6 +243,7 @@ class HCVScreenReplayAnalyzer {
           'horizontalRefreshBands': horizontalBandScore > 0.16,
           'verticalRefreshBands': verticalBandScore > 0.16,
           'structuralDisplayTrace': structuralDisplayTrace,
+          ...lattice,
           'temporalFrequencyUnavailable': true,
         },
         'note':
@@ -276,6 +290,9 @@ class HCVScreenReplayAnalyzer {
             pixelGridImages.length;
     final localTemporalFlickerScore = _localTemporalFlickerScore(images);
     final refreshBandScore = _refreshBandScore(images);
+    final latticeEvidence =
+        HCVDisplayLatticeDiscriminator.analyzeSequence(pixelGridImages);
+    final lattice = latticeEvidence.toJson();
 
     final displayFlicker = flickerScore > 0.12;
     final rectangularDisplayEdges = rectangleEdgeScore > 0.62;
@@ -336,6 +353,7 @@ class HCVScreenReplayAnalyzer {
       'pixelGridUniformityScore': _round(pixelGridUniformityScore),
       'localTemporalFlickerScore': _round(localTemporalFlickerScore),
       'refreshBandScore': _round(refreshBandScore),
+      ...lattice,
       'signals': {
         'displayFlicker': displayFlicker,
         'rectangularDisplayEdges': rectangularDisplayEdges,
@@ -349,6 +367,7 @@ class HCVScreenReplayAnalyzer {
         'temporalScreenPulse': temporalScreenPulse,
         'structuralDisplayTrace': structuralDisplayTrace,
         'strongDisplayTrace': strongDisplayTrace,
+        ...lattice,
       },
     };
   }
