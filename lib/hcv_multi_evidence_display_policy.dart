@@ -170,6 +170,20 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
+    // Archive 90: at extreme zoom a fabric surface can lose the visible
+    // lattice entirely. Do not invent physical-texture evidence when it is
+    // absent; keep the semantic-only verdict NON_CONCLUSIVE when the optical
+    // video is both flat and low-information, without a true display trace.
+    // Confirmed HFR paths above remain authoritative.
+    if (aggregate.isScreen &&
+        aggregate.probability >= 0.80 &&
+        video.framesAtLeast80 >= 2 &&
+        _isLowInformationSemanticOnlyVideo(passiveOptical)) {
+      return _nonConclusive(
+        'BUILD127_VIDEO_LOW_INFORMATION_SEMANTIC_ONLY',
+      );
+    }
+
     if (aggregate.isScreen &&
         aggregate.probability >= 0.80 &&
         video.framesAtLeast80 >= 2 &&
@@ -432,6 +446,25 @@ class HCVMultiEvidenceDisplayPolicy {
 
     return _hasNoStrongOpticalDisplayTrace(stillOptical) &&
         _hasNoStrongOpticalDisplayTrace(temporalOptical);
+  }
+
+  static bool _isLowInformationSemanticOnlyVideo(
+    Map<String, dynamic>? optical,
+  ) {
+    if (optical == null ||
+        optical['scanMode'] != 'EVERY_15_SECONDS_FAST_SAMPLE' ||
+        !_hasNoStrongOpticalDisplayTrace(optical)) {
+      return false;
+    }
+    final signals = _map(optical['signals']);
+    final score =
+        (optical['screenReplayRiskScore'] as num?)?.toInt() ?? 100;
+    final rgbPhase =
+        (signals['rgbPhaseConsistencyScore'] as num?)?.toDouble() ?? 1.0;
+    return score <= 30 &&
+        signals['flatSceneUniformity'] == true &&
+        signals['lowMicroVariation'] == true &&
+        rgbPhase < 0.20;
   }
 
   static bool _hasPhysicalRepeatingTexture(Map<String, dynamic>? raw) {
