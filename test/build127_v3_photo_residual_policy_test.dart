@@ -106,8 +106,11 @@ void main() {
       expect(classifier, isNot(contains('HCVMLV3PhotoResidual')));
       expect(
         camera,
-        contains(
-          'HCVMLScreenReplayClassifier.instance\n            .analyzeVideo(savedVideoPath)',
+        matches(
+          RegExp(
+            r'HCVMLScreenReplayClassifier\\.instance\\s*'
+            r'\\.analyzeVideo\\(savedVideoPath\\)',
+          ),
         ),
       );
     });
