@@ -1,12 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camera_page.dart';
 import 'commercial_account_service.dart';
-import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
 import 'commercial_profile_page.dart';
 import 'import_page.dart';
@@ -15,7 +11,6 @@ import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
 import 'sigillum_quick_guide_page.dart';
 import 'text_cert_page.dart';
-import 'text_social_verify_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key, this.onSessionInvalidated});
@@ -28,12 +23,8 @@ class UserHomePage extends StatefulWidget {
 
 class _UserHomePageState extends State<UserHomePage>
     with WidgetsBindingObserver {
-  static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
   static const CommercialAccountService _account = CommercialAccountService();
 
-  String? _lastOpenedSharedPath;
-  String? _pendingSharedPath;
-  bool _sharedOpenScheduled = false;
   Future<bool>? _entitlementCheckInFlight;
   bool _routingToCommercialGate = false;
   String languageCode = SigillumCopy.initialLanguageCode();
@@ -44,9 +35,7 @@ class _UserHomePageState extends State<UserHomePage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _intentChannel.setMethodCallHandler(_handleNativeIntent);
     Future.microtask(_loadLanguage);
-    Future.microtask(_checkInitialIntent);
     Future.microtask(_bootstrapCreatorSession);
   }
 
@@ -175,87 +164,6 @@ class _UserHomePageState extends State<UserHomePage>
     setState(() {
       languageCode = SigillumCopy.language(code).code;
     });
-  }
-
-  Future<dynamic> _handleNativeIntent(MethodCall call) async {
-    if (call.method == 'onSharedPath') {
-      final path = call.arguments as String?;
-      if (path != null && path.isNotEmpty) {
-        _queueImportedPath(path);
-        try {
-          await _intentChannel.invokeMethod<bool>('ackSharedPath', {
-            'path': path,
-          });
-        } catch (_) {}
-      }
-    }
-  }
-
-  Future<void> _checkInitialIntent() async {
-    try {
-      final path = await _intentChannel.invokeMethod<String>('getSharedPath');
-      if (path != null && path.isNotEmpty) {
-        _queueImportedPath(path);
-      }
-    } catch (e) {
-      debugPrint('Intent error: $e');
-    }
-  }
-
-  void _queueImportedPath(String path) {
-    if (!mounted ||
-        path.isEmpty ||
-        _lastOpenedSharedPath == path ||
-        _pendingSharedPath == path) {
-      return;
-    }
-
-    _pendingSharedPath = path;
-    if (_sharedOpenScheduled) return;
-    _sharedOpenScheduled = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _sharedOpenScheduled = false;
-      if (!mounted) return;
-      final pending = _pendingSharedPath;
-      _pendingSharedPath = null;
-      if (pending != null && pending.isNotEmpty) {
-        _openImportedPath(pending);
-      }
-    });
-  }
-
-  Future<void> _openImportedPath(String path) async {
-    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
-    if (!await File(path).exists()) return;
-    if (!mounted) return;
-    _lastOpenedSharedPath = path;
-
-    final lower = path.toLowerCase();
-    if (lower.endsWith('.txt')) {
-      try {
-        final sharedText = await File(path).readAsString();
-        if (!mounted) return;
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TextSocialVerifyPage(
-              languageCode: languageCode,
-              initialText: sharedText,
-            ),
-          ),
-        );
-      } catch (_) {}
-      return;
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            HCVImportRouterPage(path: path, languageCode: languageCode),
-      ),
-    );
   }
 
   void _open(Widget page) {
