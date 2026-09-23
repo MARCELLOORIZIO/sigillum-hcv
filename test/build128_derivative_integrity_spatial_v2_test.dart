@@ -96,11 +96,14 @@ void main() {
       );
     });
 
-    test('spatial VIDEO extraction preserves RGB and full-size frames on all platforms', () {
+    test(
+        'spatial VIDEO extraction preserves RGB and full-size frames on all platforms',
+        () {
       final source = File('lib/hcv_social_fingerprint.dart').readAsStringSync();
       expect(source, contains('format=rgb24'));
       expect(source, contains("min(iw,640)"));
-      expect(source, isNot(contains('pad=16:16:(ow-iw)/2:(oh-ih)/2,format=gray')));
+      expect(
+          source, isNot(contains('pad=16:16:(ow-iw)/2:(oh-ih)/2,format=gray')));
       expect(source, contains('HCVSpatialFingerprintV2.build(decoded)'));
     });
 
