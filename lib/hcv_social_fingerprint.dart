@@ -15,6 +15,144 @@ import 'hcv_audio_fingerprint.dart';
 class HCVSocialFingerprint {
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
+  static int hexDistance(String left, String right) {
+    final a = left.trim().toLowerCase();
+    final b = right.trim().toLowerCase();
+    var distance = (a.length - b.length).abs() * 4;
+    final count = min(a.length, b.length);
+    for (var i = 0; i < count; i++) {
+      final av = int.tryParse(a[i], radix: 16);
+      final bv = int.tryParse(b[i], radix: 16);
+      if (av == null || bv == null) {
+        distance += 4;
+        continue;
+      }
+      var diff = av ^ bv;
+      while (diff != 0) {
+        distance += diff & 1;
+        diff >>= 1;
+      }
+    }
+    return distance;
+  }
+
+  static bool toneDescriptorMatches(
+    Map<dynamic, dynamic> expected,
+    Map<dynamic, dynamic> actual, {
+    double lumaTolerance = 12.0,
+    double contrastTolerance = 12.0,
+    double chromaTolerance = 12.0,
+    double colorBalanceTolerance = 10.0,
+  }) {
+    double value(Map<dynamic, dynamic> map, String key) =>
+        (map[key] as num?)?.toDouble() ?? double.nan;
+
+    final pairs = <List<dynamic>>[
+      <dynamic>['meanLuma', lumaTolerance],
+      <dynamic>['stdLuma', contrastTolerance],
+      <dynamic>['meanChroma', chromaTolerance],
+      <dynamic>['meanRMinusG', colorBalanceTolerance],
+      <dynamic>['meanBMinusG', colorBalanceTolerance],
+    ];
+    for (final pair in pairs) {
+      final key = pair[0] as String;
+      final tolerance = pair[1] as double;
+      final a = value(expected, key);
+      final b = value(actual, key);
+      if (a.isNaN || b.isNaN || (a - b).abs() > tolerance) return false;
+    }
+    return true;
+  }
+
+  static bool spatialDescriptorMatches(
+    Map<dynamic, dynamic> expected,
+    Map<dynamic, dynamic> actual, {
+    int tileDistance = 48,
+    int globalDistance = 48,
+  }) {
+    final expectedTiles = expected['tileHashes'];
+    final actualTiles = actual['tileHashes'];
+    final expectedTone = expected['tone'];
+    final actualTone = actual['tone'];
+    if (expectedTiles is! List ||
+        actualTiles is! List ||
+        expectedTiles.length != 16 ||
+        actualTiles.length != 16 ||
+        expectedTone is! Map ||
+        actualTone is! Map) {
+      return false;
+    }
+
+    var tileMatches = 0;
+    var severeMismatches = 0;
+    for (var i = 0; i < 16; i++) {
+      final distance = hexDistance(
+        expectedTiles[i].toString(),
+        actualTiles[i].toString(),
+      );
+      if (distance <= tileDistance) tileMatches++;
+      if (distance > 72) severeMismatches++;
+    }
+
+    final expectedGlobal =
+        expected['legacyHash']?.toString() ?? expected['imageHash']?.toString();
+    final actualGlobal =
+        actual['legacyHash']?.toString() ?? actual['imageHash']?.toString();
+    final globalOk = expectedGlobal == null ||
+        actualGlobal == null ||
+        hexDistance(expectedGlobal, actualGlobal) <= globalDistance;
+
+    return globalOk &&
+        tileMatches >= 15 &&
+        severeMismatches == 0 &&
+        toneDescriptorMatches(expectedTone, actualTone);
+  }
+
+  static bool videoSpatialDescriptorsMatch(
+    List storedDescriptors,
+    List currentDescriptors,
+  ) {
+    if (storedDescriptors.isEmpty || currentDescriptors.isEmpty) return false;
+    final comparableCount = min(storedDescriptors.length, currentDescriptors.length);
+    var matched = 0;
+    final used = <int>{};
+
+    for (var expectedIndex = 0;
+        expectedIndex < storedDescriptors.length;
+        expectedIndex++) {
+      final expected = storedDescriptors[expectedIndex];
+      if (expected is! Map) continue;
+
+      var found = -1;
+      for (final delta in <int>[0, -1, 1]) {
+        final currentIndex = expectedIndex + delta;
+        if (currentIndex < 0 ||
+            currentIndex >= currentDescriptors.length ||
+            used.contains(currentIndex)) {
+          continue;
+        }
+        final actual = currentDescriptors[currentIndex];
+        if (actual is! Map) continue;
+        if (spatialDescriptorMatches(
+          expected,
+          actual,
+          tileDistance: 56,
+          globalDistance: 56,
+        )) {
+          found = currentIndex;
+          break;
+        }
+      }
+      if (found >= 0) {
+        used.add(found);
+        matched++;
+      }
+    }
+
+    final required = max(2, (comparableCount * 0.80).ceil());
+    return matched >= required;
+  }
+
   Future<Map<String, dynamic>> buildFromImage(String imagePath) async {
     final file = File(imagePath);
     if (!await file.exists()) {
