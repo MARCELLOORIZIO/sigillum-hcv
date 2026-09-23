@@ -647,141 +647,6 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return distance;
   }
 
-  bool _toneDescriptorMatches(
-    Map<dynamic, dynamic> expected,
-    Map<dynamic, dynamic> actual, {
-    double lumaTolerance = 12.0,
-    double contrastTolerance = 12.0,
-    double chromaTolerance = 12.0,
-    double colorBalanceTolerance = 10.0,
-  }) {
-    double value(Map<dynamic, dynamic> map, String key) =>
-        (map[key] as num?)?.toDouble() ?? double.nan;
-
-    final expectedLuma = value(expected, 'meanLuma');
-    final actualLuma = value(actual, 'meanLuma');
-    final expectedStd = value(expected, 'stdLuma');
-    final actualStd = value(actual, 'stdLuma');
-    final expectedChroma = value(expected, 'meanChroma');
-    final actualChroma = value(actual, 'meanChroma');
-    final expectedRG = value(expected, 'meanRMinusG');
-    final actualRG = value(actual, 'meanRMinusG');
-    final expectedBG = value(expected, 'meanBMinusG');
-    final actualBG = value(actual, 'meanBMinusG');
-
-    if (<double>[
-      expectedLuma,
-      actualLuma,
-      expectedStd,
-      actualStd,
-      expectedChroma,
-      actualChroma,
-      expectedRG,
-      actualRG,
-      expectedBG,
-      actualBG,
-    ].any((v) => v.isNaN)) {
-      return false;
-    }
-
-    return (expectedLuma - actualLuma).abs() <= lumaTolerance &&
-        (expectedStd - actualStd).abs() <= contrastTolerance &&
-        (expectedChroma - actualChroma).abs() <= chromaTolerance &&
-        (expectedRG - actualRG).abs() <= colorBalanceTolerance &&
-        (expectedBG - actualBG).abs() <= colorBalanceTolerance;
-  }
-
-  bool _spatialDescriptorMatches(
-    Map<dynamic, dynamic> expected,
-    Map<dynamic, dynamic> actual, {
-    int tileDistance = 48,
-    int globalDistance = 48,
-  }) {
-    final expectedTiles = expected['tileHashes'];
-    final actualTiles = actual['tileHashes'];
-    final expectedTone = expected['tone'];
-    final actualTone = actual['tone'];
-    if (expectedTiles is! List ||
-        actualTiles is! List ||
-        expectedTiles.length != 16 ||
-        actualTiles.length != 16 ||
-        expectedTone is! Map ||
-        actualTone is! Map) {
-      return false;
-    }
-
-    var tileMatches = 0;
-    var severeMismatches = 0;
-    for (var i = 0; i < 16; i++) {
-      final distance = _hexDistance(
-        expectedTiles[i].toString(),
-        actualTiles[i].toString(),
-      );
-      if (distance <= tileDistance) tileMatches++;
-      if (distance > 72) severeMismatches++;
-    }
-
-    final expectedGlobal =
-        expected['legacyHash']?.toString() ?? expected['imageHash']?.toString();
-    final actualGlobal =
-        actual['legacyHash']?.toString() ?? actual['imageHash']?.toString();
-    final globalOk = expectedGlobal == null ||
-        actualGlobal == null ||
-        _hexDistance(expectedGlobal, actualGlobal) <= globalDistance;
-
-    return globalOk &&
-        tileMatches >= 15 &&
-        severeMismatches == 0 &&
-        _toneDescriptorMatches(expectedTone, actualTone);
-  }
-
-  bool _videoSpatialDescriptorsMatch(
-    List storedDescriptors,
-    List currentDescriptors,
-  ) {
-    if (storedDescriptors.isEmpty || currentDescriptors.isEmpty) return false;
-
-    final comparableCount = min(storedDescriptors.length, currentDescriptors.length);
-    var matched = 0;
-    final used = <int>{};
-
-    for (var expectedIndex = 0;
-        expectedIndex < storedDescriptors.length;
-        expectedIndex++) {
-      final expected = storedDescriptors[expectedIndex];
-      if (expected is! Map) continue;
-
-      var found = -1;
-      for (final delta in <int>[0, -1, 1]) {
-        final currentIndex = expectedIndex + delta;
-        if (currentIndex < 0 ||
-            currentIndex >= currentDescriptors.length ||
-            used.contains(currentIndex)) {
-          continue;
-        }
-        final actual = currentDescriptors[currentIndex];
-        if (actual is! Map) continue;
-        if (_spatialDescriptorMatches(
-          expected,
-          actual,
-          tileDistance: 56,
-          globalDistance: 56,
-        )) {
-          found = currentIndex;
-          break;
-        }
-      }
-
-      if (found >= 0) {
-        used.add(found);
-        matched++;
-      }
-    }
-
-    final required = max(2, (comparableCount * 0.80).ceil());
-    return matched >= required;
-  }
-
   Future<bool?> _matchesCertifiedVideoFingerprint(
     Map<String, dynamic> cert,
   ) async {
@@ -826,7 +691,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (storedDescriptors is! List || currentDescriptors is! List) {
           return false;
         }
-        return _videoSpatialDescriptorsMatch(
+        return HCVSocialFingerprint.videoSpatialDescriptorsMatch(
           storedDescriptors,
           currentDescriptors,
         );
@@ -944,7 +809,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
 
       if (algorithm == 'SIGILLUM_SOCIAL_IMAGE_SPATIAL_V2') {
-        return _spatialDescriptorMatches(
+        return HCVSocialFingerprint.spatialDescriptorMatches(
           <String, dynamic>{
             'imageHash': expected,
             'tileHashes': stored['tileHashes'],
