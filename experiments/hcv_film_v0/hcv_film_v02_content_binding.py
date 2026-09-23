@@ -69,6 +69,9 @@ GRID_Y = 18
 QUANT_STEP = 16.0
 GUARD_MARGIN = 3.0
 MASK_RADIUS_FRAC = 0.014
+CANON_W = 640
+CANON_H = 360
+_MASK_CACHE: dict[tuple[int, int], np.ndarray] = {}
 
 
 def run(cmd: list[str]) -> None:
