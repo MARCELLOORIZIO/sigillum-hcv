@@ -38,6 +38,18 @@ void main() {
     expect(source, contains("if (_isUnprovenDerivative) return 'Non verificata';"));
   });
 
+  test('an altered copy cannot inherit the certified original scene verdict', () {
+    final source = File('lib/registry_verify_page.dart').readAsStringSync();
+    expect(source, contains('scene: unprovenDerivative'));
+    expect(source, contains("if (_isUnprovenDerivative) return false;"));
+    expect(source, contains("if (_isUnprovenDerivative) return 'Non verificata';"));
+    expect(
+      source,
+      contains("(axis == 'integrity' || axis == 'scene')"),
+    );
+    expect(source, contains('color: _isUnprovenDerivative'));
+  });
+
   test('unproven-originality warning exists in all selectable languages', () {
     final copy = File('lib/registry_verify_copy.dart').readAsStringSync();
     for (final key in <String>[
