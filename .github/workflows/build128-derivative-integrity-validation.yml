@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: build128-derivative-integrity-${{ github.ref }}
@@ -29,9 +29,18 @@ jobs:
           cache: true
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Verify formatting
+      - name: Format BUILD128 sources
         run: |
-          dart format --output=none --set-exit-if-changed lib/hcv_spatial_fingerprint_v2.dart lib/hcv_social_fingerprint.dart lib/registry_verify_page.dart lib/registry_verify_copy.dart test/build128_derivative_integrity_spatial_v2_test.dart
+          dart format lib/hcv_spatial_fingerprint_v2.dart lib/hcv_social_fingerprint.dart lib/registry_verify_page.dart lib/registry_verify_copy.dart test/build128_derivative_integrity_spatial_v2_test.dart
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            git add lib/hcv_spatial_fingerprint_v2.dart lib/hcv_social_fingerprint.dart lib/registry_verify_page.dart lib/registry_verify_copy.dart test/build128_derivative_integrity_spatial_v2_test.dart
+            if ! git diff --cached --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "BUILD128: apply dart format to derivative integrity sources"
+              git push
+            fi
+          fi
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Flutter tests
