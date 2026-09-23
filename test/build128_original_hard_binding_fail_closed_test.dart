@@ -41,13 +41,11 @@ void main() {
   test('an altered copy cannot inherit the certified original scene verdict', () {
     final source = File('lib/registry_verify_page.dart').readAsStringSync();
     expect(source, contains('scene: unprovenDerivative'));
-    expect(source, contains("if (_isUnprovenDerivative) return false;"));
-    expect(source, contains("if (_isUnprovenDerivative) return 'Non verificata';"));
-    expect(
-      source,
-      contains("(axis == 'integrity' || axis == 'scene')"),
-    );
-    expect(source, contains('color: _isUnprovenDerivative'));
+    expect(source, contains('bool get _isNonExactPhotoOrVideo'));
+    expect(source, contains("if (_isNonExactPhotoOrVideo) return false;"));
+    expect(source, contains("if (_isNonExactPhotoOrVideo) return 'Non verificata';"));
+    expect(source, contains("if (_isNonExactPhotoOrVideo && axis == 'scene')"));
+    expect(source, contains('color: _isNonExactPhotoOrVideo'));
   });
 
   test('unproven-originality warning exists in all selectable languages', () {
