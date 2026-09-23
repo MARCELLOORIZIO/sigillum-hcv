@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -27,18 +28,32 @@ class HCVSocialFingerprint {
       throw Exception('Immagine non leggibile per fingerprint social');
     }
 
-    final normalized = img.copyResize(
-      decoded,
-      width: 16,
-      height: 16,
-      interpolation: img.Interpolation.average,
+    final legacy = _averageHash(
+      img.copyResize(
+        decoded,
+        width: 16,
+        height: 16,
+        interpolation: img.Interpolation.average,
+      ),
     );
-    final hash = _averageHash(normalized);
+    final spatial = _spatialDescriptor(decoded);
 
-    return {
-      'algorithm': 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1',
-      'imageHash': hash,
-      'combinedHash': sha256.convert(hash.codeUnits).toString(),
+    return <String, dynamic>{
+      'algorithm': 'SIGILLUM_SOCIAL_IMAGE_SPATIAL_V2',
+      'legacyAlgorithm': 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1',
+      'imageHash': legacy,
+      ...spatial,
+      'combinedHash': sha256
+          .convert(
+            utf8.encode(
+              <String>[
+                legacy,
+                ...List<String>.from(spatial['tileHashes'] as List),
+                jsonEncode(spatial['tone']),
+              ].join('|'),
+            ),
+          )
+          .toString(),
     };
   }
 
@@ -69,28 +84,39 @@ class HCVSocialFingerprint {
       throw Exception('Nessun frame estratto per fingerprint social');
     }
 
-    final hashes = <String>[];
+    final legacyHashes = <String>[];
+    final frameDescriptors = <Map<String, dynamic>>[];
 
     for (final frame in frames) {
       final bytes = await frame.readAsBytes();
       final decoded = img.decodeImage(bytes);
-
       if (decoded == null) continue;
 
-      hashes.add(_averageHash(_normalizeVideoFrame(decoded)));
+      final normalized = _normalizeVideoFrame(decoded);
+      final legacyHash = _averageHash(normalized);
+      legacyHashes.add(legacyHash);
+      frameDescriptors.add(<String, dynamic>{
+        'legacyHash': legacyHash,
+        ..._spatialDescriptor(decoded),
+      });
     }
 
     try {
       await workDir.delete(recursive: true);
     } catch (_) {}
 
-    final combined = hashes.join('|');
+    final combined = <String>[
+      ...legacyHashes,
+      ...frameDescriptors.map(jsonEncode),
+    ].join('|');
 
-    return {
-      'algorithm': 'SIGILLUM_SOCIAL_AHASH_V1',
-      'frameCount': hashes.length,
-      'frameHashes': hashes,
-      'combinedHash': sha256.convert(combined.codeUnits).toString(),
+    return <String, dynamic>{
+      'algorithm': 'SIGILLUM_SOCIAL_VIDEO_SPATIAL_V2',
+      'legacyAlgorithm': 'SIGILLUM_SOCIAL_AHASH_V1',
+      'frameCount': legacyHashes.length,
+      'frameHashes': legacyHashes,
+      'frameDescriptors': frameDescriptors,
+      'combinedHash': sha256.convert(utf8.encode(combined)).toString(),
     };
   }
 
@@ -176,6 +202,107 @@ class HCVSocialFingerprint {
       height: 16,
       interpolation: img.Interpolation.average,
     );
+  }
+
+  Map<String, dynamic> _spatialDescriptor(img.Image source) {
+    const rows = 4;
+    const cols = 4;
+    final tileHashes = <String>[];
+
+    for (var row = 0; row < rows; row++) {
+      final y0 = (source.height * row / rows).floor();
+      final y1 = (source.height * (row + 1) / rows).floor();
+      for (var col = 0; col < cols; col++) {
+        final x0 = (source.width * col / cols).floor();
+        final x1 = (source.width * (col + 1) / cols).floor();
+        final crop = img.copyCrop(
+          source,
+          x: x0,
+          y: y0,
+          width: max(1, x1 - x0),
+          height: max(1, y1 - y0),
+        );
+        tileHashes.add(
+          _averageHash(
+            img.copyResize(
+              crop,
+              width: 16,
+              height: 16,
+              interpolation: img.Interpolation.average,
+            ),
+          ),
+        );
+      }
+    }
+
+    return <String, dynamic>{
+      'spatialPolicy': 'SIGILLUM_SPATIAL_4X4_TONE_V1',
+      'tileRows': rows,
+      'tileCols': cols,
+      'tileHashes': tileHashes,
+      'tone': _toneDescriptor(source),
+    };
+  }
+
+  Map<String, dynamic> _toneDescriptor(img.Image source) {
+    final sampleWidth = min(160, source.width);
+    final sampleHeight = max(
+      1,
+      (source.height * sampleWidth / max(source.width, 1)).round(),
+    );
+    final sampled = img.copyResize(
+      source,
+      width: sampleWidth,
+      height: sampleHeight,
+      interpolation: img.Interpolation.average,
+    );
+
+    var count = 0;
+    var sumLuma = 0.0;
+    var sumLumaSq = 0.0;
+    var sumChroma = 0.0;
+    var sumRG = 0.0;
+    var sumBG = 0.0;
+
+    for (var y = 0; y < sampled.height; y++) {
+      for (var x = 0; x < sampled.width; x++) {
+        final pixel = sampled.getPixel(x, y);
+        final r = pixel.r.toDouble();
+        final g = pixel.g.toDouble();
+        final b = pixel.b.toDouble();
+        final luma = img.getLuminance(pixel).toDouble();
+        final maxC = max(r, max(g, b));
+        final minC = min(r, min(g, b));
+        count++;
+        sumLuma += luma;
+        sumLumaSq += luma * luma;
+        sumChroma += maxC - minC;
+        sumRG += r - g;
+        sumBG += b - g;
+      }
+    }
+
+    if (count == 0) {
+      return const <String, dynamic>{
+        'meanLuma': 0,
+        'stdLuma': 0,
+        'meanChroma': 0,
+        'meanRMinusG': 0,
+        'meanBMinusG': 0,
+      };
+    }
+
+    final meanLuma = sumLuma / count;
+    final variance = max(0.0, (sumLumaSq / count) - meanLuma * meanLuma);
+    double q(double value) => (value * 10).roundToDouble() / 10.0;
+
+    return <String, dynamic>{
+      'meanLuma': q(meanLuma),
+      'stdLuma': q(sqrt(variance)),
+      'meanChroma': q(sumChroma / count),
+      'meanRMinusG': q(sumRG / count),
+      'meanBMinusG': q(sumBG / count),
+    };
   }
 
   String _averageHash(img.Image image) {
