@@ -36,7 +36,8 @@ void main() {
     expect(source, isNot(contains('fit: BoxFit.cover')));
   });
 
-  test('BUILD119 photo cycle and rotation survive BUILD126 video FOV alignment', () {
+  test('BUILD119 photo cycle and rotation survive BUILD126 video FOV alignment',
+      () {
     final cameraSource = File('lib/camera_page.dart').readAsStringSync();
     final temporalSource =
         File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();

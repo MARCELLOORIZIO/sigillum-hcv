@@ -1216,11 +1216,12 @@ class _CameraPageState extends State<CameraPage> {
             await HCVMLV3PhotoResidual.instance.analyzePhoto(savedPhotoPath);
         mlScreenReplayAnalysis =
             HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
-          mlScreenReplayAnalysis ?? <String, dynamic>{
-            'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
-            'analysisStatus': 'NOT_ANALYZED',
-            'reason': 'V2_PHOTO_ANALYSIS_MISSING',
-          },
+          mlScreenReplayAnalysis ??
+              <String, dynamic>{
+                'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+                'analysisStatus': 'NOT_ANALYZED',
+                'reason': 'V2_PHOTO_ANALYSIS_MISSING',
+              },
           v3PhotoResidualAnalysis,
         );
       } catch (e) {
@@ -1232,11 +1233,12 @@ class _CameraPageState extends State<CameraPage> {
         };
         mlScreenReplayAnalysis =
             HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
-          mlScreenReplayAnalysis ?? <String, dynamic>{
-            'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
-            'analysisStatus': 'NOT_ANALYZED',
-            'reason': 'V2_PHOTO_ANALYSIS_MISSING',
-          },
+          mlScreenReplayAnalysis ??
+              <String, dynamic>{
+                'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+                'analysisStatus': 'NOT_ANALYZED',
+                'reason': 'V2_PHOTO_ANALYSIS_MISSING',
+              },
           v3PhotoResidualAnalysis,
         );
       }
