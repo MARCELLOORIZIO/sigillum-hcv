@@ -26,15 +26,18 @@ void main() {
     expect(source, contains('fit: BoxFit.contain'));
   });
 
-  test('BUILD119 keeps video preview behavior unchanged', () {
+  test('BUILD128 video shares photo orientation and uncropped 1x frame', () {
     final source = File('lib/camera_page.dart').readAsStringSync();
 
-    expect(source, contains('if (ok && !photoMode)'));
-    expect(source, contains('OverflowBox('));
-    expect(source, contains('fit: BoxFit.cover'));
+    expect(source, contains('if (ok)'));
+    expect(source, contains('OrientationBuilder('));
+    expect(source, contains('fit: BoxFit.contain'));
+    expect(source, isNot(contains('OverflowBox(')));
+    expect(source, isNot(contains('fit: BoxFit.cover')));
   });
 
-  test('BUILD119 photo cycle and rotation survive BUILD126 video FOV alignment', () {
+  test('BUILD119 photo cycle and rotation survive BUILD126 video FOV alignment',
+      () {
     final cameraSource = File('lib/camera_page.dart').readAsStringSync();
     final temporalSource =
         File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();

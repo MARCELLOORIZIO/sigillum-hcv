@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('BUILD126 retains photo high resolution and aligns video to high for FOV', () {
+  test(
+      'BUILD126 retains photo high resolution and aligns video to high for FOV',
+      () {
     final source = File('lib/camera_page.dart').readAsStringSync();
 
     expect(
@@ -21,14 +23,14 @@ void main() {
   });
 
   test(
-    'BUILD118 photo preview shows the complete frame instead of cover crop',
+    'BUILD128 photo and video previews show complete frame without cover crop',
     () {
       final source = File('lib/camera_page.dart').readAsStringSync();
 
-      expect(source, contains('if (ok && photoMode)'));
+      expect(source, contains('if (ok)'));
       expect(source, contains('fit: BoxFit.contain'));
-      expect(source, contains('if (ok && !photoMode)'));
-      expect(source, contains('fit: BoxFit.cover'));
+      expect(source, isNot(contains('fit: BoxFit.cover')));
+      expect(source, isNot(contains('OverflowBox(')));
     },
   );
 

@@ -1216,11 +1216,12 @@ class _CameraPageState extends State<CameraPage> {
             await HCVMLV3PhotoResidual.instance.analyzePhoto(savedPhotoPath);
         mlScreenReplayAnalysis =
             HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
-          mlScreenReplayAnalysis ?? <String, dynamic>{
-            'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
-            'analysisStatus': 'NOT_ANALYZED',
-            'reason': 'V2_PHOTO_ANALYSIS_MISSING',
-          },
+          mlScreenReplayAnalysis ??
+              <String, dynamic>{
+                'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+                'analysisStatus': 'NOT_ANALYZED',
+                'reason': 'V2_PHOTO_ANALYSIS_MISSING',
+              },
           v3PhotoResidualAnalysis,
         );
       } catch (e) {
@@ -1232,11 +1233,12 @@ class _CameraPageState extends State<CameraPage> {
         };
         mlScreenReplayAnalysis =
             HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
-          mlScreenReplayAnalysis ?? <String, dynamic>{
-            'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
-            'analysisStatus': 'NOT_ANALYZED',
-            'reason': 'V2_PHOTO_ANALYSIS_MISSING',
-          },
+          mlScreenReplayAnalysis ??
+              <String, dynamic>{
+                'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+                'analysisStatus': 'NOT_ANALYZED',
+                'reason': 'V2_PHOTO_ANALYSIS_MISSING',
+              },
           v3PhotoResidualAnalysis,
         );
       }
@@ -2457,7 +2459,10 @@ class _CameraPageState extends State<CameraPage> {
       ),
       body: Stack(
         children: [
-          if (ok && photoMode)
+          // FOTO and VIDEO must display the same uncropped camera texture.
+          // BoxFit.cover in VIDEO previously enlarged the apparent 1x zoom.
+          // The shared geometry also handles landscape rotation in both modes.
+          if (ok)
             Positioned.fill(
               child: OrientationBuilder(
                 builder: (context, orientation) {
@@ -2474,21 +2479,6 @@ class _CameraPageState extends State<CameraPage> {
                     ),
                   );
                 },
-              ),
-            ),
-          if (ok && !photoMode)
-            Positioned.fill(
-              child: OverflowBox(
-                maxWidth: double.infinity,
-                maxHeight: double.infinity,
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: controller!.value.previewSize!.height,
-                    height: controller!.value.previewSize!.width,
-                    child: CameraPreview(controller!),
-                  ),
-                ),
               ),
             ),
           if (result != null)
