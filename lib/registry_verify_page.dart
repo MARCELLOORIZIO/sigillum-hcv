@@ -1872,9 +1872,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   bool get _signedRealityScene {
-    if (_isUnprovenDerivative) return false;
     if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;
     final cert = certificate;
+    // A signed original-scene assessment cannot authenticate an edited copy.
+    if (_isUnprovenDerivative) return false;
     final claims = cert?['claims'];
     final live = claims is Map ? claims['liveScreenProbe'] : null;
     if (live is! Map) return false;
