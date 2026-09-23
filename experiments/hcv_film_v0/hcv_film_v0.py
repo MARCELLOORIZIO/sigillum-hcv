@@ -63,15 +63,59 @@ def require_binary(name: str) -> None:
         raise RuntimeError(f"Required binary not found: {name}")
 
 
-def code_bits(label: str) -> list[int]:
+def digest_bits(label: str, count: int) -> list[int]:
     digest = hashlib.sha256(f"{SEED}|{label}".encode()).digest()
     bits: list[int] = []
     for byte in digest:
         for shift in range(7, -1, -1):
             bits.append((byte >> shift) & 1)
-            if len(bits) == 12:
+            if len(bits) == count:
                 return bits
     raise AssertionError("unreachable")
+
+
+def payload_bits(label: str) -> list[int]:
+    return digest_bits(label, 8)
+
+
+def hamming12_encode(data: list[int]) -> list[int]:
+    if len(data) != 8:
+        raise ValueError("Hamming(12,8) requires exactly 8 payload bits")
+    code = [0] * 13  # one-indexed, positions 1..12
+    data_positions = [3, 5, 6, 7, 9, 10, 11, 12]
+    for pos, bit in zip(data_positions, data):
+        code[pos] = int(bit) & 1
+    for parity_pos in (1, 2, 4, 8):
+        parity = 0
+        for pos in range(1, 13):
+            if pos & parity_pos and pos != parity_pos:
+                parity ^= code[pos]
+        code[parity_pos] = parity
+    return code[1:]
+
+
+def hamming12_decode(bits: list[int]) -> tuple[list[int], int, bool]:
+    if len(bits) != 12:
+        raise ValueError("Hamming(12,8) requires exactly 12 carrier bits")
+    code = [0] + [int(bit) & 1 for bit in bits]
+    syndrome = 0
+    for parity_pos in (1, 2, 4, 8):
+        parity = 0
+        for pos in range(1, 13):
+            if pos & parity_pos:
+                parity ^= code[pos]
+        if parity:
+            syndrome |= parity_pos
+    corrected = False
+    if 1 <= syndrome <= 12:
+        code[syndrome] ^= 1
+        corrected = True
+    data_positions = [3, 5, 6, 7, 9, 10, 11, 12]
+    return [code[pos] for pos in data_positions], syndrome, corrected
+
+
+def code_bits(label: str) -> list[int]:
+    return hamming12_encode(payload_bits(label))
 
 
 def background_image(width: int = WIDTH, height: int = HEIGHT, phase: int = 0) -> Image.Image:
@@ -248,17 +292,26 @@ def extract_video_frames(video: Path, frame_dir: Path) -> list[Path]:
 
 def evaluate_photo(profile_name: str, marked_path: Path) -> list[dict]:
     profile = PROFILES[profile_name]
-    expected = code_bits("photo")
+    expected_code = code_bits("photo")
+    expected_payload = payload_bits("photo")
     rows = []
     for variant, path in photo_variants(marked_path, OUT / profile_name / "photo_variants"):
-        actual = decode_constellation(Image.open(path), profile)
-        errors = bit_errors(expected, actual)
+        actual_code = decode_constellation(Image.open(path), profile)
+        raw_errors = bit_errors(expected_code, actual_code)
+        decoded_payload, syndrome, corrected = hamming12_decode(actual_code)
+        payload_errors = bit_errors(expected_payload, decoded_payload)
         rows.append({
             "profile": profile_name, "media": "photo", "variant": variant,
-            "units": 1, "bits_tested": 12, "bit_errors": errors,
-            "unit_errors": 1 if errors else 0,
-            "full_recovery": errors == 0,
-            "bit_error_rate": errors / 12.0,
+            "units": 1, "bits_tested": 12, "bit_errors": raw_errors,
+            "payload_bits_tested": 8, "payload_bit_errors": payload_errors,
+            "unit_errors": 1 if raw_errors else 0,
+            "payload_unit_errors": 1 if payload_errors else 0,
+            "ecc_corrections_attempted": 1 if corrected else 0,
+            "ecc_syndrome": syndrome,
+            "full_recovery": payload_errors == 0,
+            "raw_full_recovery": raw_errors == 0,
+            "bit_error_rate": raw_errors / 12.0,
+            "payload_error_rate": payload_errors / 8.0,
         })
     return rows
 
@@ -271,23 +324,42 @@ def evaluate_video(profile_name: str, source: Path) -> list[dict]:
         tested = min(len(frames), FRAMES)
         bit_err = 0
         frame_err = 0
+        payload_bit_err = 0
+        payload_frame_err = 0
+        corrections = 0
         for idx in range(tested):
-            expected = code_bits(f"frame:{idx}")
-            actual = decode_constellation(Image.open(frames[idx]), profile)
-            errors = bit_errors(expected, actual)
+            label = f"frame:{idx}"
+            expected_code = code_bits(label)
+            expected_payload = payload_bits(label)
+            actual_code = decode_constellation(Image.open(frames[idx]), profile)
+            errors = bit_errors(expected_code, actual_code)
+            decoded_payload, syndrome, corrected = hamming12_decode(actual_code)
+            payload_errors = bit_errors(expected_payload, decoded_payload)
             bit_err += errors
             frame_err += 1 if errors else 0
+            payload_bit_err += payload_errors
+            payload_frame_err += 1 if payload_errors else 0
+            corrections += 1 if corrected else 0
         # Missing frames are a hard failure for this v0 fixed-FPS experiment.
         missing = max(0, FRAMES - tested)
         bit_err += missing * 12
         frame_err += missing
+        payload_bit_err += missing * 8
+        payload_frame_err += missing
         total_bits = FRAMES * 12
+        total_payload_bits = FRAMES * 8
         rows.append({
             "profile": profile_name, "media": "video", "variant": variant,
             "units": FRAMES, "bits_tested": total_bits, "bit_errors": bit_err,
+            "payload_bits_tested": total_payload_bits,
+            "payload_bit_errors": payload_bit_err,
             "unit_errors": frame_err,
-            "full_recovery": bit_err == 0 and tested == FRAMES,
+            "payload_unit_errors": payload_frame_err,
+            "ecc_corrections_attempted": corrections,
+            "full_recovery": payload_bit_err == 0 and tested == FRAMES,
+            "raw_full_recovery": bit_err == 0 and tested == FRAMES,
             "bit_error_rate": bit_err / total_bits,
+            "payload_error_rate": payload_bit_err / total_payload_bits,
         })
     return rows
 
@@ -318,7 +390,10 @@ def main() -> int:
 
     fields = [
         "profile", "media", "variant", "units", "bits_tested",
-        "bit_errors", "unit_errors", "full_recovery", "bit_error_rate",
+        "bit_errors", "payload_bits_tested", "payload_bit_errors",
+        "unit_errors", "payload_unit_errors", "ecc_corrections_attempted",
+        "ecc_syndrome", "full_recovery", "raw_full_recovery",
+        "bit_error_rate", "payload_error_rate",
     ]
     with (OUT / "results.csv").open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
@@ -331,7 +406,9 @@ def main() -> int:
         summary[profile_name] = {
             "cases": len(rows),
             "full_recovery_cases": sum(1 for r in rows if r["full_recovery"]),
+            "raw_full_recovery_cases": sum(1 for r in rows if r["raw_full_recovery"]),
             "max_bit_error_rate": max((r["bit_error_rate"] for r in rows), default=0.0),
+            "max_payload_error_rate": max((r["payload_error_rate"] for r in rows), default=0.0),
             "photo_full": all(r["full_recovery"] for r in rows if r["media"] == "photo"),
             "video_full": all(r["full_recovery"] for r in rows if r["media"] == "video"),
         }
