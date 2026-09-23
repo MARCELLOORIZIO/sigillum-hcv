@@ -96,6 +96,21 @@ void main() {
       );
     });
 
+    test('spatial VIDEO extraction preserves RGB and full-size frames on all platforms', () {
+      final source = File('lib/hcv_social_fingerprint.dart').readAsStringSync();
+      expect(source, contains('format=rgb24'));
+      expect(source, contains("min(iw,640)"));
+      expect(source, isNot(contains('pad=16:16:(ow-iw)/2:(oh-ih)/2,format=gray')));
+      expect(source, contains('HCVSpatialFingerprintV2.build(decoded)'));
+    });
+
+    test('no audio match can override visual fingerprint mismatch', () {
+      final source = File('lib/registry_verify_page.dart').readAsStringSync();
+      expect(source, contains('videoFingerprintMatches == false'));
+      expect(source, contains("'ID VALID / MEDIA NOT VERIFIED'"));
+      expect(source, contains('videoFingerprintMatches == true &&'));
+    });
+
     test('new PHOTO and VIDEO certificates sign independent spatial evidence',
         () {
       final source = File('lib/hcv_social_fingerprint.dart').readAsStringSync();
