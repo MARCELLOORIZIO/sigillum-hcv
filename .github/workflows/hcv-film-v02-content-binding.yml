@@ -1,0 +1,47 @@
+name: HCV Film v0.2 content-binding attack battery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/hcv-film-v0-20260923
+    paths:
+      - 'experiments/hcv_film_v0/hcv_film_v02_content_binding.py'
+      - '.github/workflows/hcv-film-v02-content-binding.yml'
+  pull_request:
+    paths:
+      - 'experiments/hcv_film_v0/hcv_film_v02_content_binding.py'
+      - '.github/workflows/hcv-film-v02-content-binding.yml'
+
+jobs:
+  content-binding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r experiments/hcv_film_v0/requirements.txt
+      - name: Run content-binding battery
+        run: python experiments/hcv_film_v0/hcv_film_v02_content_binding.py
+      - name: Publish results
+        if: always()
+        run: |
+          echo '## HCV Film v0.2 content-binding' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat experiments/hcv_film_v0/out_v02/results_v02.json >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hcv-film-v02-content-binding
+          path: |
+            experiments/hcv_film_v0/out_v02/results_v02.json
+            experiments/hcv_film_v0/out_v02/photo_signed.png
+            experiments/hcv_film_v0/out_v02/photo/*.jpg
+          if-no-files-found: warn
