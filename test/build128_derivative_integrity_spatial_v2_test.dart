@@ -13,10 +13,9 @@ img.Image _scene({bool xOverlay = false, bool gray = false, int offset = 0}) {
       final r = sky ? 75 + x ~/ 18 : 165 + (x ~/ 21) % 35;
       final g = sky ? 115 + y ~/ 9 : 130 + (y ~/ 15) % 40;
       final b = sky ? 180 + x ~/ 25 : 92 + (x ~/ 11) % 50;
-      final nearDiagonal =
-          ((y - x).abs() < 19 || (y - (255 - x)).abs() < 19) &&
-              y > 48 &&
-              y < 237;
+      final nearDiagonal = ((y - x).abs() < 19 || (y - (255 - x)).abs() < 19) &&
+          y > 48 &&
+          y < 237;
       var rr = xOverlay && nearDiagonal ? 5 : r + offset;
       var gg = xOverlay && nearDiagonal ? 5 : g + offset;
       var bb = xOverlay && nearDiagonal ? 5 : b + offset;
@@ -25,7 +24,8 @@ img.Image _scene({bool xOverlay = false, bool gray = false, int offset = 0}) {
         rr = gg = bb = luma;
       }
       image.setPixelRgba(
-        x, y,
+        x,
+        y,
         rr.clamp(0, 255).toInt(),
         gg.clamp(0, 255).toInt(),
         bb.clamp(0, 255).toInt(),
@@ -38,7 +38,8 @@ img.Image _scene({bool xOverlay = false, bool gray = false, int offset = 0}) {
 
 void main() {
   group('BUILD128 derivative integrity spatial fingerprint', () {
-    test('spatial RGB signature is signed as 4x4x3, structurally validated', () {
+    test('spatial RGB signature is signed as 4x4x3, structurally validated',
+        () {
       final signature = HCVSpatialFingerprintV2.build(_scene());
       expect(signature['algorithm'], HCVSpatialFingerprintV2.algorithm);
       expect(signature['grid'], 4);
@@ -95,7 +96,8 @@ void main() {
       );
     });
 
-    test('new PHOTO and VIDEO certificates sign independent spatial evidence', () {
+    test('new PHOTO and VIDEO certificates sign independent spatial evidence',
+        () {
       final source = File('lib/hcv_social_fingerprint.dart').readAsStringSync();
       expect(source, contains("'spatialFingerprint': spatial"));
       expect(source, contains("'spatialFrameFingerprints': spatialFrames"));
@@ -113,8 +115,10 @@ void main() {
       expect(source, contains('markLimited();'));
       expect(source, contains('if (_isSocialLimited) return _r('));
       for (final language in <String>['it', 'en', 'es', 'ru']) {
-        expect(RegistryVerifyCopy.t(language, 'socialLimitedTitle'), isNotEmpty);
-        expect(RegistryVerifyCopy.t(language, 'socialLimitedDetail'), isNotEmpty);
+        expect(
+            RegistryVerifyCopy.t(language, 'socialLimitedTitle'), isNotEmpty);
+        expect(
+            RegistryVerifyCopy.t(language, 'socialLimitedDetail'), isNotEmpty);
       }
     });
   });

@@ -93,8 +93,7 @@ class HCVSpatialFingerprintV2 {
       ];
       double luma(List<double> rgb) =>
           0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
-      double chroma(List<double> rgb) =>
-          rgb.reduce(max) - rgb.reduce(min);
+      double chroma(List<double> rgb) => rgb.reduce(max) - rgb.reduce(min);
 
       final lumaDifference = (luma(at) - luma(bt)).abs();
       totalLuma += lumaDifference;
