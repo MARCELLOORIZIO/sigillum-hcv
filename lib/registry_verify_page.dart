@@ -18,6 +18,7 @@ import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import 'hcv_social_fingerprint.dart';
+import 'hcv_spatial_fingerprint_v2.dart';
 import 'hcv_audio_fingerprint.dart';
 import 'hcv_media_id_ocr.dart';
 import 'sigillum_localization.dart';
@@ -104,6 +105,23 @@ HCVSocialFingerprintClaimState resolveHCVSocialFingerprintClaimState(
         );
   }
 
+  if (valid && mediaType == 'photo' &&
+      rawFingerprint.containsKey('spatialFingerprint') &&
+      !HCVSpatialFingerprintV2.isValid(
+        rawFingerprint['spatialFingerprint'],
+      )) {
+    return HCVSocialFingerprintClaimState.modernInvalid;
+  }
+  if (valid && mediaType == 'video' &&
+      rawFingerprint.containsKey('spatialFrameFingerprints')) {
+    final spatial = rawFingerprint['spatialFrameFingerprints'];
+    final frames = rawFingerprint['frameHashes'] as List;
+    if (spatial is! List ||
+        spatial.length != frames.length ||
+        spatial.any((entry) => !HCVSpatialFingerprintV2.isValid(entry))) {
+      return HCVSocialFingerprintClaimState.modernInvalid;
+    }
+  }
   if (valid) return HCVSocialFingerprintClaimState.usable;
   return requiresModernFingerprint
       ? HCVSocialFingerprintClaimState.modernInvalid
@@ -645,7 +663,27 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return false;
       }
 
-      return _videoFrameHashesMatch(storedHashes, currentHashes);
+      final signedSpatial = stored['spatialFrameFingerprints'];
+      if (signedSpatial == null) {
+        // Historical V1 aHash can establish resemblance, not an assertion of
+        // visual integrity after a particular social transcode.
+        return _videoFrameHashesMatch(storedHashes, currentHashes)
+            ? null
+            : false;
+      }
+      final currentSpatial = current['spatialFrameFingerprints'];
+      if (signedSpatial is! List ||
+          currentSpatial is! List ||
+          signedSpatial.length != storedHashes.length ||
+          currentSpatial.length != currentHashes.length) {
+        return false;
+      }
+      return _videoFrameSpatialHashesMatch(
+        storedHashes,
+        currentHashes,
+        signedSpatial,
+        currentSpatial,
+      );
     } catch (_) {
       return false;
     }
@@ -688,6 +726,44 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final requiredMatches = max(2, (comparableCount * 0.35).ceil());
 
     return matched >= requiredMatches;
+  }
+
+  bool _videoFrameSpatialHashesMatch(
+    List expectedHashes,
+    List currentHashes,
+    List expectedSpatial,
+    List currentSpatial,
+  ) {
+    final used = <int>{};
+    var matched = 0;
+    for (var e = 0; e < expectedHashes.length; e++) {
+      var bestIndex = -1;
+      var bestDistance = 9999;
+      for (var i = 0; i < currentHashes.length; i++) {
+        if (used.contains(i)) continue;
+        final distance = _hexDistance(
+          expectedHashes[e].toString(),
+          currentHashes[i].toString(),
+        );
+        if (distance > 96 ||
+            distance >= bestDistance ||
+            !HCVSpatialFingerprintV2.matches(
+              expectedSpatial[e],
+              currentSpatial[i],
+            )) {
+          continue;
+        }
+        bestDistance = distance;
+        bestIndex = i;
+      }
+      if (bestIndex != -1) {
+        used.add(bestIndex);
+        matched++;
+      }
+    }
+    final comparable = min(expectedHashes.length, currentHashes.length);
+    final required = max(2, (comparable * 0.60).ceil());
+    return matched >= required;
   }
 
   Future<bool?> _matchesCertifiedAudioFingerprint(
@@ -754,7 +830,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return false;
       }
 
-      return _hexDistance(expected, actual) <= 72;
+      if (_hexDistance(expected, actual) > 72) return false;
+      final signedSpatial = stored['spatialFingerprint'];
+      if (signedSpatial == null) return null; // V1 is visual similarity only.
+      return HCVSpatialFingerprintV2.matches(
+        signedSpatial,
+        current['spatialFingerprint'],
+      );
     } catch (_) {
       return false;
     }
