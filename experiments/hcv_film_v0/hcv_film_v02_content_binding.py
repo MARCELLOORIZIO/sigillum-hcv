@@ -97,17 +97,25 @@ def background(phase: int = 0) -> Image.Image:
 
 
 def marker_mask(h: int, w: int) -> np.ndarray:
+    key = (h, w)
+    cached = _MASK_CACHE.get(key)
+    if cached is not None:
+        return cached
     yy, xx = np.mgrid[0:h, 0:w]
     mask = np.ones((h, w), dtype=bool)
     radius = min(h, w) * MASK_RADIUS_FRAC
     for fx, fy in POSITIONS:
         cx, cy = fx * (w - 1), fy * (h - 1)
         mask &= ((xx - cx) ** 2 + (yy - cy) ** 2) > radius ** 2
+    _MASK_CACHE[key] = mask
     return mask
 
 
 def canonical_features(im: Image.Image) -> np.ndarray:
-    arr = np.asarray(im.convert("YCbCr"), dtype=np.float32)
+    # Normalize every source (4K/1080p/social downscale) to one inexpensive
+    # canonical raster before extracting the 32x18 content grid.
+    work = im.resize((CANON_W, CANON_H), Image.Resampling.LANCZOS)
+    arr = np.asarray(work.convert("YCbCr"), dtype=np.float32)
     h, w, _ = arr.shape
     mask = marker_mask(h, w)
     values: list[float] = []
