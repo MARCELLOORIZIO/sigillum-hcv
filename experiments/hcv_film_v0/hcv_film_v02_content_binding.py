@@ -49,7 +49,7 @@ OUT = ROOT / "out_v02"
 
 W, H = 1920, 1080
 FPS = 30
-FRAMES = 60
+FRAMES = 30
 HCV_ID = "HCV-FILM-V02-CONTENT-BINDING"
 
 POSITIONS = [
@@ -415,22 +415,22 @@ def verify_video(frames: list[Image.Image], indices: np.ndarray) -> dict:
 def video_attack(frames: list[Image.Image], name: str) -> list[Image.Image]:
     out = [f.copy() for f in frames]
     if name == "ufo_big_10_frames":
-        for i in range(20, 30):
+        for i in range(8, 13):
             out[i] = attack_photo(out[i], "ufo_big")
     elif name == "ufo_small_5_frames":
-        for i in range(35, 40):
+        for i in range(14, 18):
             out[i] = attack_photo(out[i], "ufo_small")
     elif name == "ufo_tiny_single_frame":
-        out[45] = attack_photo(out[45], "ufo_tiny")
+        out[18] = attack_photo(out[18], "ufo_tiny")
     elif name == "text_10_frames":
-        for i in range(10, 20):
+        for i in range(4, 9):
             out[i] = attack_photo(out[i], "text")
     elif name == "replace_one_frame":
-        out[30] = out[29].copy()
+        out[15] = out[14].copy()
     elif name == "brightness_all":
         out = [ImageEnhance.Brightness(f).enhance(1.05) for f in out]
     elif name == "delete_one_frame":
-        del out[25]
+        del out[12]
         out.append(out[-1].copy())
     else:
         raise ValueError(name)
