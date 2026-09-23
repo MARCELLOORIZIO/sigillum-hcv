@@ -8,6 +8,11 @@ class RegistryVerifyCopy {
 
   static const Map<String, Map<String, String>> _copy = {
     'it': {
+      'unprovenDerivativeTitle': 'CONTENUTO NON ORIGINALE VERIFICATO',
+      'unprovenDerivativeStatus': 'Originale non verificato',
+      'unprovenDerivativeDetail': 'SHA-256 diverso dall originale certificato. Il fingerprint indica solo somiglianza e NON esclude oggetti aggiunti, scritte o fotogrammi alterati. L HCV-ID valido non autentica questa copia.',
+      'unprovenDerivativeProvenance': 'HCV-ID valido, file non autenticato',
+      'unprovenDerivativeAxis': 'Somiglianza non probante',
       'socialLimitedTitle':
           'CERTIFICATO IDENTIFICATO — INTEGRITÀ NON CONCLUSIVA',
       'socialLimitedStatus':
@@ -128,6 +133,11 @@ class RegistryVerifyCopy {
       'techMlDecision': 'Decisione ML',
     },
     'en': {
+      'unprovenDerivativeTitle': 'ORIGINAL CONTENT NOT VERIFIED',
+      'unprovenDerivativeStatus': 'Original not verified',
+      'unprovenDerivativeDetail': 'SHA-256 differs from the certified original. The fingerprint indicates resemblance only and CANNOT exclude inserted objects, text overlays, or altered frames. A valid HCV-ID does not authenticate this copy.',
+      'unprovenDerivativeProvenance': 'HCV-ID valid, file not authenticated',
+      'unprovenDerivativeAxis': 'Resemblance is not proof',
       'socialLimitedTitle': 'CERTIFICATE IDENTIFIED — INTEGRITY INCONCLUSIVE',
       'socialLimitedStatus':
           'HCV-ID and Registry certificate valid. The legacy V1 global fingerprint shows resemblance but cannot distinguish transcoding from colour, brightness or content edits.',
@@ -248,6 +258,11 @@ class RegistryVerifyCopy {
       'techMlDecision': 'ML decision',
     },
     'es': {
+      'unprovenDerivativeTitle': 'CONTENIDO ORIGINAL NO VERIFICADO',
+      'unprovenDerivativeStatus': 'Original no verificado',
+      'unprovenDerivativeDetail': 'El SHA-256 difiere del original certificado. La huella solo indica semejanza y NO excluye objetos añadidos, texto superpuesto ni fotogramas alterados. Un HCV-ID válido no autentica esta copia.',
+      'unprovenDerivativeProvenance': 'HCV-ID válido; archivo no autenticado',
+      'unprovenDerivativeAxis': 'Semejanza sin prueba',
       'socialLimitedTitle':
           'CERTIFICADO IDENTIFICADO — INTEGRIDAD NO CONCLUYENTE',
       'socialLimitedStatus':
@@ -370,6 +385,11 @@ class RegistryVerifyCopy {
       'techMlDecision': 'Decisión ML',
     },
     'ru': {
+      'unprovenDerivativeTitle': 'ПОДЛИННОСТЬ ОРИГИНАЛА НЕ ПОДТВЕРЖДЕНА',
+      'unprovenDerivativeStatus': 'Оригинал не подтверждён',
+      'unprovenDerivativeDetail': 'SHA-256 отличается от сертифицированного оригинала. Отпечаток указывает лишь на сходство и НЕ исключает добавленные объекты, надписи или изменённые кадры. Действительный HCV-ID не подтверждает подлинность этой копии.',
+      'unprovenDerivativeProvenance': 'HCV-ID действителен; файл не подтверждён',
+      'unprovenDerivativeAxis': 'Сходство не является доказательством',
       'socialLimitedTitle': 'СЕРТИФИКАТ НАЙДЕН — ЦЕЛОСТНОСТЬ НЕ УСТАНОВЛЕНА',
       'socialLimitedStatus':
           'HCV-ID и сертификат Registry действительны. Глобальный отпечаток V1 показывает сходство, но не отличает перекодирование от изменения цвета, яркости или содержимого.',
