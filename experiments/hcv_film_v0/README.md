@@ -14,7 +14,7 @@ Each sample carries 12 relative-position markers. Every marker encodes one bit u
 - `balanced`: radius 0.60%, alpha 0.55
 - `robust`: radius 0.80%, alpha 0.75
 
-The video payload changes in every frame using a deterministic 12-bit code derived from SHA-256, so recovery is checked per frame rather than only once per clip.
+The video payload changes in every frame. HCV Film v0.1 now maps an 8-bit deterministic payload through Hamming(12,8): 8 data bits + 4 parity bits are carried by the same 12 markers. This corrects a single damaged marker in a frame without increasing marker count, size, or visibility.
 
 ## Compression matrix
 
@@ -47,3 +47,8 @@ For video, the criterion is stricter: all 12 bits must be correct in **every exp
 - no claim that a copied constellation cannot be transplanted
 
 Those belong to later experiments only if this carrier first survives compression.
+
+
+## v0.1 rationale
+
+The first measured run found the robust profile perfect in 18/19 stress cases. Its only failure was 1080p -> 480p at H.264 CRF 40: 6 raw bit errors over 720 carrier bits, distributed as exactly one raw bit error in each of 6 different frames. Hamming(12,8) was introduced specifically to test whether that sparse failure mode can be corrected without increasing marker density or visibility.
