@@ -159,9 +159,11 @@ class HCVSocialFingerprint {
 
     final framePattern = p.join(workDir.path, 'frame_%03d.png');
 
+    // Preserve spatial detail and RGB for V2; the old 16x16 gray FFmpeg
+    // thumbnails made the signed spatial fingerprint meaningless off iOS.
+    // The legacy aHash is still computed separately from these decoded frames.
     final command = "-y -i '$videoPath' "
-        "-vf \"fps=1/2,scale=16:16:force_original_aspect_ratio=decrease,"
-        "pad=16:16:(ow-iw)/2:(oh-ih)/2,format=gray\" "
+        "-vf \"fps=1/2,scale='min(iw,640)':-2:flags=lanczos,format=rgb24\" "
         "-frames:v 8 '$framePattern'";
 
     final session = await FFmpegKit.execute(command);
