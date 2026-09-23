@@ -1368,7 +1368,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             derivation: exactOriginal ? 'Non necessaria' : 'Compatibile',
             derivationDetail: exactOriginal
                 ? 'Il file corrisponde esattamente all originale.'
-                : 'Il file sembra un derivato o una versione ricompressa.',
+                : 'Il file differisce dall originale ma supera i controlli spaziali e tonali firmati; la causa della differenza SHA non e determinabile automaticamente.',
           );
           if (sceneWarning) {
             status =
@@ -1798,7 +1798,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isForensicResult)
       return 'Il file corrisponde esattamente all originale.';
     if (_isSocialResult) {
-      return 'Il file sembra un derivato, una versione ricompressa o rinominata.';
+      return 'Il file differisce dall originale ma supera i controlli di compatibilita firmati; la causa della differenza SHA non e determinabile automaticamente.';
     }
     if (_isMediaNotVerified) {
       return 'Il file non puo essere trattato come derivato verificato del contenuto certificato.';
