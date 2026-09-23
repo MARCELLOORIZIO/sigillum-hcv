@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build128-photo-video-fov-${{ github.ref }}
@@ -29,21 +29,9 @@ jobs:
           cache: true
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Format changed Dart sources and persist on push
+      - name: Verify changed Dart source formatting
         run: |
-          FILES='lib/camera_page.dart test/build118_photo_preview_highres_contract_test.dart test/build119_photo_preview_rotation_contract_test.dart test/build128_photo_video_preview_fov_parity_test.dart'
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            dart format $FILES
-            git add $FILES
-            if ! git diff --cached --quiet; then
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-              git commit -m "style(camera): dart format FOV parity changes"
-              git push origin HEAD:refs/heads/fix/build128-photo-video-preview-fov-parity-20260923
-            fi
-          else
-            dart format --output=none --set-exit-if-changed $FILES
-          fi
+          dart format --output=none --set-exit-if-changed lib/camera_page.dart test/build118_photo_preview_highres_contract_test.dart test/build119_photo_preview_rotation_contract_test.dart test/build128_photo_video_preview_fov_parity_test.dart
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Full Flutter tests
