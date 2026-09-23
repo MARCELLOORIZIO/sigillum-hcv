@@ -66,8 +66,8 @@ BIT_COLORS = {
 
 GRID_X = 32
 GRID_Y = 18
-QUANT_STEP = 16.0
-GUARD_MARGIN = 3.0
+QUANT_STEP = 20.0
+GUARD_MARGIN = 6.0
 MASK_RADIUS_FRAC = 0.014
 CANON_W = 640
 CANON_H = 360
@@ -343,19 +343,22 @@ def video_chain_digest(im: Image.Image, indices: np.ndarray, frame_index: int, p
     return hashlib.sha256(payload).digest()
 
 
-def build_video_frames(indices: np.ndarray) -> tuple[list[Image.Image], list[bytes]]:
+def build_video_frames() -> tuple[list[Image.Image], list[bytes], list[np.ndarray]]:
     frames: list[Image.Image] = []
     digests: list[bytes] = []
+    indices_by_frame: list[np.ndarray] = []
     previous = bytes(32)
     for idx in range(FRAMES):
         base = background(idx)
-        digest = video_chain_digest(base, indices, idx, previous)
+        frame_indices = select_guard_indices(canonical_features(base))
+        digest = video_chain_digest(base, frame_indices, idx, previous)
         payload8 = digest_bits(digest, 8)
         marked = embed_bits(base, hamming12_encode(payload8))
         frames.append(marked)
         digests.append(digest)
+        indices_by_frame.append(frame_indices)
         previous = digest
-    return frames, digests
+    return frames, digests, indices_by_frame
 
 
 def save_video(frames: list[Image.Image], path: Path, crf: int = 10, scale_height: int | None = None) -> None:
@@ -387,14 +390,14 @@ def extract_video(path: Path) -> list[Image.Image]:
     return images
 
 
-def verify_video(frames: list[Image.Image], indices: np.ndarray) -> dict:
+def verify_video(frames: list[Image.Image], indices_by_frame: list[np.ndarray]) -> dict:
     previous = bytes(32)
     mismatched_frames = []
     carrier_corrected_frames = 0
     usable = min(len(frames), FRAMES)
     for idx in range(usable):
         current = frames[idx]
-        digest = video_chain_digest(current, indices, idx, previous)
+        digest = video_chain_digest(current, indices_by_frame[idx], idx, previous)
         expected = digest_bits(digest, 8)
         decoded, syndrome = hamming12_decode(decode_bits(current))
         if syndrome:
@@ -453,7 +456,7 @@ def main() -> int:
     photo_marked.save(OUT / "photo_signed.png")
     photo_rows = build_photo_cases(photo_marked, guard_indices)
 
-    video_frames, _ = build_video_frames(guard_indices)
+    video_frames, _, video_indices = build_video_frames()
     video_dir = OUT / "video"
     video_dir.mkdir()
     source_video = video_dir / "source.mp4"
@@ -468,7 +471,7 @@ def main() -> int:
     ]:
         path = video_dir / f"benign_{name}.mp4"
         save_video(video_frames, path, crf=crf, scale_height=height)
-        result = verify_video(extract_video(path), guard_indices)
+        result = verify_video(extract_video(path), video_indices)
         video_rows.append({"kind": "benign", "case": name, **result})
 
     # Attacks, then a realistic re-encode so the verifier never sees pristine edits.
@@ -479,7 +482,7 @@ def main() -> int:
         attacked = video_attack(video_frames, name)
         path = video_dir / f"attack_{name}_crf35.mp4"
         save_video(attacked, path, crf=35)
-        result = verify_video(extract_video(path), guard_indices)
+        result = verify_video(extract_video(path), video_indices)
         video_rows.append({"kind": "attack", "case": name, **result})
 
     summary = {
@@ -489,6 +492,8 @@ def main() -> int:
             "guard_margin": GUARD_MARGIN,
             "selected_feature_count": int(len(guard_indices)),
             "total_feature_count": int(len(source_features)),
+            "video_selected_feature_count_min": int(min(len(x) for x in video_indices)),
+            "video_selected_feature_count_max": int(max(len(x) for x in video_indices)),
         },
         "photo": photo_rows,
         "video": video_rows,
