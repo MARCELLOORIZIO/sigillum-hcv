@@ -1366,16 +1366,20 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 : unprovenDerivative
                     ? 'SHA-256 diverso. Il fingerprint non puo escludere aggiunte, oggetti sintetici o fotogrammi alterati.'
                     : 'Hash diverso, ma evidenze compatibili con il certificato.',
-            scene: sceneWarning
-                ? 'Forte rischio display'
-                : sceneUncertain
-                    ? 'Non conclusiva'
-                    : 'Nessun indizio display',
-            sceneDetail: sceneWarning
-                ? 'Piu segnali coerenti indicano una possibile ripresa da schermo.'
-                : sceneUncertain
-                    ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
-                    : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
+            scene: unprovenDerivative
+                ? 'Non verificata'
+                : sceneWarning
+                    ? 'Forte rischio display'
+                    : sceneUncertain
+                        ? 'Non conclusiva'
+                        : 'Nessun indizio display',
+            sceneDetail: unprovenDerivative
+                ? _r('unprovenDerivativeDetail')
+                : sceneWarning
+                    ? 'Piu segnali coerenti indicano una possibile ripresa da schermo.'
+                    : sceneUncertain
+                        ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
+                        : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
             derivation: exactOriginal
                 ? 'Non necessaria'
                 : unprovenDerivative
@@ -1387,7 +1391,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                     ? _r('unprovenDerivativeDetail')
                     : 'Il file differisce dall originale ma supera i controlli spaziali e tonali firmati; la causa della differenza SHA non e determinabile automaticamente.',
           );
-          if (sceneWarning) {
+          if (sceneWarning && !unprovenDerivative) {
             status =
                 '${unprovenDerivative ? _r('unprovenDerivativeStatus') : cleanStatus}\n\n${_r('sceneWarning').replaceAll('{risk}', screenReplayRisk ?? '-')}';
 
@@ -1783,6 +1787,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String get _effectiveSceneState {
+    if (_isUnprovenDerivative) return 'Non verificata';
     if (sceneState != null) return sceneState!;
     if (_isStrongDisplayRisk) return 'Forte rischio display';
     if (_isDisplayNonConclusive) return 'Non conclusiva';
@@ -1792,6 +1797,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String get _effectiveSceneDetail {
+    if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
     if (sceneDetail != null) return sceneDetail!;
     if (_isStrongDisplayRisk) {
       return 'Piu segnali coerenti indicano una possibile ripresa da schermo.';
@@ -1866,6 +1872,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   bool get _signedRealityScene {
+    if (_isUnprovenDerivative) return false;
     if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;
     final cert = certificate;
     final claims = cert?['claims'];
@@ -1900,7 +1907,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isUnprovenDerivative && axis == 'provenance') {
       return _r('unprovenDerivativeProvenance');
     }
-    if (_isUnprovenDerivative && axis == 'integrity') {
+    if (_isUnprovenDerivative &&
+        (axis == 'integrity' || axis == 'scene')) {
       return _v('notVerified');
     }
     if (_isUnprovenDerivative && axis == 'derivation') {
@@ -1933,7 +1941,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String _localizedAxisDetail(String axis) {
     if (axis == 'scene' && _signedRealityScene) return _v('realityDetail');
-    if (_isUnprovenDerivative && axis != 'scene') {
+    if (_isUnprovenDerivative) {
       return _r('unprovenDerivativeDetail');
     }
     if (axis == 'provenance') return _v('provenanceOkDetail');
@@ -2155,11 +2163,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   subtitle: _verificationAxisSubtitle('scene'),
                   value: _localizedAxisState('scene', _effectiveSceneState),
                   detail: _localizedAxisDetail('scene'),
-                  color: _isStrongDisplayRisk
+                  color: _isUnprovenDerivative
                       ? Colors.red
-                      : _isDisplayNonConclusive
-                          ? Colors.orange
-                          : _axisColor(_effectiveSceneState),
+                      : _isStrongDisplayRisk
+                          ? Colors.red
+                          : _isDisplayNonConclusive
+                              ? Colors.orange
+                              : _axisColor(_effectiveSceneState),
                 ),
                 if (_effectiveDerivationState != null) ...[
                   const SizedBox(height: 10),
