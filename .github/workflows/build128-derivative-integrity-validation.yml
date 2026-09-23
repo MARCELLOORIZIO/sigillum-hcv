@@ -1,0 +1,38 @@
+name: BUILD128 derivative integrity validation
+
+on:
+  push:
+    branches:
+      - fix/build128-derivative-integrity-v2-20260923
+  pull_request:
+    branches:
+      - fix/build127-ml-hard-negatives-20260921
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build128-derivative-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Verify formatting
+        run: |
+          dart format --output=none --set-exit-if-changed lib/hcv_spatial_fingerprint_v2.dart lib/hcv_social_fingerprint.dart lib/registry_verify_page.dart lib/registry_verify_copy.dart test/build128_derivative_integrity_spatial_v2_test.dart
+      - name: Flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Flutter tests
+        run: flutter test --reporter expanded
