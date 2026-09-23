@@ -1738,6 +1738,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   bool get _isUnprovenDerivative => result == _unprovenDerivativeResult;
 
+  // Never transfer signed original-scene claims to an unbound PHOTO/VIDEO copy,
+  // including V1-only, fingerprint mismatch and copied-HCV-ID cases.
+  bool get _isNonExactPhotoOrVideo =>
+      (contentType == 'photo' || contentType == 'video') &&
+      !_isForensicResult;
+
   bool get _isSocialLimited => result == 'SOCIAL LIMITED';
 
   String get _effectiveProvenanceState {
@@ -1787,7 +1793,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String get _effectiveSceneState {
-    if (_isUnprovenDerivative) return 'Non verificata';
+    if (_isNonExactPhotoOrVideo) return 'Non verificata';
     if (sceneState != null) return sceneState!;
     if (_isStrongDisplayRisk) return 'Forte rischio display';
     if (_isDisplayNonConclusive) return 'Non conclusiva';
@@ -1797,7 +1803,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String get _effectiveSceneDetail {
-    if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
+    if (_isNonExactPhotoOrVideo) return _r('unprovenDerivativeDetail');
     if (sceneDetail != null) return sceneDetail!;
     if (_isStrongDisplayRisk) {
       return 'Piu segnali coerenti indicano una possibile ripresa da schermo.';
@@ -1875,7 +1881,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;
     final cert = certificate;
     // A signed original-scene assessment cannot authenticate an edited copy.
-    if (_isUnprovenDerivative) return false;
+    if (_isNonExactPhotoOrVideo) return false;
     final claims = cert?['claims'];
     final live = claims is Map ? claims['liveScreenProbe'] : null;
     if (live is! Map) return false;
@@ -1908,8 +1914,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isUnprovenDerivative && axis == 'provenance') {
       return _r('unprovenDerivativeProvenance');
     }
-    if (_isUnprovenDerivative &&
-        (axis == 'integrity' || axis == 'scene')) {
+    if (_isUnprovenDerivative && axis == 'integrity') {
+      return _v('notVerified');
+    }
+    if (_isNonExactPhotoOrVideo && axis == 'scene') {
       return _v('notVerified');
     }
     if (_isUnprovenDerivative && axis == 'derivation') {
@@ -1941,6 +1949,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String _localizedAxisDetail(String axis) {
+    if (axis == 'scene' && _isNonExactPhotoOrVideo) {
+      return _r('unprovenDerivativeDetail');
+    }
     if (axis == 'scene' && _signedRealityScene) return _v('realityDetail');
     if (_isUnprovenDerivative) {
       return _r('unprovenDerivativeDetail');
@@ -2164,7 +2175,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   subtitle: _verificationAxisSubtitle('scene'),
                   value: _localizedAxisState('scene', _effectiveSceneState),
                   detail: _localizedAxisDetail('scene'),
-                  color: _isUnprovenDerivative
+                  color: _isNonExactPhotoOrVideo
                       ? Colors.red
                       : _isStrongDisplayRisk
                           ? Colors.red
