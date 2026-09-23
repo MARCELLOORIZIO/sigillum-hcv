@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
@@ -15,13 +14,6 @@ import 'hcv_audio_fingerprint.dart';
 
 class HCVSocialFingerprint {
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
-
-  static const String imageAlgorithmV1 = 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1';
-  static const String imageAlgorithmV2 = 'SIGILLUM_SOCIAL_IMAGE_SPATIAL_V2';
-  static const String videoAlgorithmV1 = 'SIGILLUM_SOCIAL_AHASH_V1';
-  static const String videoAlgorithmV2 = 'SIGILLUM_SOCIAL_VIDEO_SPATIAL_V2';
-  static const int spatialGrid = 4;
-  static const int spatialSize = 96;
 
   static int hexDistance(String left, String right) {
     final a = left.trim().toLowerCase();
@@ -448,63 +440,6 @@ class HCVSocialFingerprint {
       'meanChroma': q(sumChroma / count),
       'meanRMinusG': q(sumRG / count),
       'meanBMinusG': q(sumBG / count),
-    };
-  }
-
-  Map<String, dynamic> _spatialFingerprint(img.Image source) {
-    final normalized = img.copyResize(
-      source,
-      width: spatialSize,
-      height: spatialSize,
-      interpolation: img.Interpolation.average,
-    );
-    final tileSize = spatialSize ~/ spatialGrid;
-    final tiles = <List<int>>[];
-
-    for (var gy = 0; gy < spatialGrid; gy++) {
-      for (var gx = 0; gx < spatialGrid; gx++) {
-        var sumY = 0.0;
-        var sumY2 = 0.0;
-        var sumCb = 0.0;
-        var sumCr = 0.0;
-        var count = 0;
-
-        for (var y = gy * tileSize; y < (gy + 1) * tileSize; y++) {
-          for (var x = gx * tileSize; x < (gx + 1) * tileSize; x++) {
-            final pixel = normalized.getPixel(x, y);
-            final r = pixel.r.toDouble();
-            final g = pixel.g.toDouble();
-            final b = pixel.b.toDouble();
-            final luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            final cb = 128.0 + (b - luma) * 0.564;
-            final cr = 128.0 + (r - luma) * 0.713;
-            sumY += luma;
-            sumY2 += luma * luma;
-            sumCb += cb;
-            sumCr += cr;
-            count++;
-          }
-        }
-
-        final meanY = sumY / max(count, 1);
-        final variance = max(0.0, sumY2 / max(count, 1) - meanY * meanY);
-        tiles.add(<int>[
-          meanY.round().clamp(0, 255),
-          sqrt(variance).round().clamp(0, 255),
-          (sumCb / max(count, 1)).round().clamp(0, 255),
-          (sumCr / max(count, 1)).round().clamp(0, 255),
-        ]);
-      }
-    }
-
-    final raw = tiles.map((tile) => tile.join(',')).join('|');
-    return <String, dynamic>{
-      'type': 'SIGILLUM_SPATIAL_TILE_YCC_V2',
-      'grid': spatialGrid,
-      'tileCount': tiles.length,
-      'channels': const <String>['Y_MEAN', 'Y_STD', 'CB_MEAN', 'CR_MEAN'],
-      'tiles': tiles,
-      'digest': sha256.convert(utf8.encode(raw)).toString(),
     };
   }
 
