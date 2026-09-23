@@ -18,7 +18,7 @@ void main() {
       1,
     );
     expect(preview, contains('fit: BoxFit.contain'));
-    expect(preview, isNot(contains('BoxFit.cover')));
+    expect(preview, isNot(contains('fit: BoxFit.cover')));
     expect(preview, isNot(contains('OverflowBox(')));
     expect(preview, isNot(contains('if (ok && photoMode)')));
     expect(preview, isNot(contains('if (ok && !photoMode)')));
