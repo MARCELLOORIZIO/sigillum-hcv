@@ -124,6 +124,18 @@ void main() {
       expect(source, contains("SIGILLUM_SOCIAL_AHASH_V1"));
     });
 
+    test('compatible derivative wording does not claim mere recompression', () {
+      final source = File('lib/registry_verify_page.dart').readAsStringSync();
+      expect(
+        source,
+        contains('la causa della differenza SHA non e determinabile automaticamente'),
+      );
+      expect(
+        source,
+        isNot(contains('Il file sembra un derivato o una versione ricompressa.')),
+      );
+    });
+
     test('legacy V1 cannot reach strong derivative verdict', () {
       final source = File('lib/registry_verify_page.dart').readAsStringSync();
       expect(source, contains('if (signedSpatial == null) return null'));
