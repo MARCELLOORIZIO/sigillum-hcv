@@ -50,9 +50,9 @@ class HCVSpatialFingerprintV2 {
         }
         const pixels = _tileSize * _tileSize;
         tiles
-          ..add((red / pixels).round().clamp(0, 255))
-          ..add((green / pixels).round().clamp(0, 255))
-          ..add((blue / pixels).round().clamp(0, 255));
+          ..add((red / pixels).round().clamp(0, 255).toInt())
+          ..add((green / pixels).round().clamp(0, 255).toInt())
+          ..add((blue / pixels).round().clamp(0, 255).toInt());
       }
     }
     return <String, dynamic>{
