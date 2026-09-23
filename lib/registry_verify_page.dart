@@ -89,19 +89,57 @@ HCVSocialFingerprintClaimState resolveHCVSocialFingerprintClaimState(
   final algorithm = rawFingerprint['algorithm']?.toString() ?? '';
   final shaLikeFingerprint = RegExp(r'^[a-fA-F0-9]{64}$');
 
+  bool validLegacyPhoto() {
+    final imageHash = rawFingerprint['imageHash']?.toString() ?? '';
+    return shaLikeFingerprint.hasMatch(imageHash);
+  }
+
+  bool validSpatialDescriptor(dynamic raw) {
+    if (raw is! Map) return false;
+    final tiles = raw['tileHashes'];
+    final tone = raw['tone'];
+    return raw['spatialPolicy'] == 'SIGILLUM_SPATIAL_4X4_TONE_V1' &&
+        raw['tileRows'] == 4 &&
+        raw['tileCols'] == 4 &&
+        tiles is List &&
+        tiles.length == 16 &&
+        tiles.every((value) => shaLikeFingerprint.hasMatch(value.toString())) &&
+        tone is Map &&
+        <String>[
+          'meanLuma',
+          'stdLuma',
+          'meanChroma',
+          'meanRMinusG',
+          'meanBMinusG',
+        ].every((key) => tone[key] is num);
+  }
+
   bool valid = false;
   if (mediaType == 'photo') {
-    final imageHash = rawFingerprint['imageHash']?.toString() ?? '';
-    valid = algorithm == 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1' &&
-        shaLikeFingerprint.hasMatch(imageHash);
+    if (algorithm == 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1') {
+      valid = validLegacyPhoto();
+    } else if (algorithm == 'SIGILLUM_SOCIAL_IMAGE_SPATIAL_V2') {
+      valid = validLegacyPhoto() && validSpatialDescriptor(rawFingerprint);
+    }
   } else if (mediaType == 'video') {
     final frameHashes = rawFingerprint['frameHashes'];
-    valid = algorithm == 'SIGILLUM_SOCIAL_AHASH_V1' &&
-        frameHashes is List &&
-        frameHashes.isNotEmpty &&
-        frameHashes.every(
-          (value) => shaLikeFingerprint.hasMatch(value.toString()),
-        );
+    if (algorithm == 'SIGILLUM_SOCIAL_AHASH_V1') {
+      valid = frameHashes is List &&
+          frameHashes.isNotEmpty &&
+          frameHashes.every(
+            (value) => shaLikeFingerprint.hasMatch(value.toString()),
+          );
+    } else if (algorithm == 'SIGILLUM_SOCIAL_VIDEO_SPATIAL_V2') {
+      final descriptors = rawFingerprint['frameDescriptors'];
+      valid = frameHashes is List &&
+          frameHashes.isNotEmpty &&
+          frameHashes.every(
+            (value) => shaLikeFingerprint.hasMatch(value.toString()),
+          ) &&
+          descriptors is List &&
+          descriptors.isNotEmpty &&
+          descriptors.every((value) => validSpatialDescriptor(value));
+    }
   }
 
   if (valid) return HCVSocialFingerprintClaimState.usable;
@@ -609,6 +647,141 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return distance;
   }
 
+  bool _toneDescriptorMatches(
+    Map<dynamic, dynamic> expected,
+    Map<dynamic, dynamic> actual, {
+    double lumaTolerance = 12.0,
+    double contrastTolerance = 12.0,
+    double chromaTolerance = 12.0,
+    double colorBalanceTolerance = 10.0,
+  }) {
+    double value(Map<dynamic, dynamic> map, String key) =>
+        (map[key] as num?)?.toDouble() ?? double.nan;
+
+    final expectedLuma = value(expected, 'meanLuma');
+    final actualLuma = value(actual, 'meanLuma');
+    final expectedStd = value(expected, 'stdLuma');
+    final actualStd = value(actual, 'stdLuma');
+    final expectedChroma = value(expected, 'meanChroma');
+    final actualChroma = value(actual, 'meanChroma');
+    final expectedRG = value(expected, 'meanRMinusG');
+    final actualRG = value(actual, 'meanRMinusG');
+    final expectedBG = value(expected, 'meanBMinusG');
+    final actualBG = value(actual, 'meanBMinusG');
+
+    if (<double>[
+      expectedLuma,
+      actualLuma,
+      expectedStd,
+      actualStd,
+      expectedChroma,
+      actualChroma,
+      expectedRG,
+      actualRG,
+      expectedBG,
+      actualBG,
+    ].any((v) => v.isNaN)) {
+      return false;
+    }
+
+    return (expectedLuma - actualLuma).abs() <= lumaTolerance &&
+        (expectedStd - actualStd).abs() <= contrastTolerance &&
+        (expectedChroma - actualChroma).abs() <= chromaTolerance &&
+        (expectedRG - actualRG).abs() <= colorBalanceTolerance &&
+        (expectedBG - actualBG).abs() <= colorBalanceTolerance;
+  }
+
+  bool _spatialDescriptorMatches(
+    Map<dynamic, dynamic> expected,
+    Map<dynamic, dynamic> actual, {
+    int tileDistance = 48,
+    int globalDistance = 48,
+  }) {
+    final expectedTiles = expected['tileHashes'];
+    final actualTiles = actual['tileHashes'];
+    final expectedTone = expected['tone'];
+    final actualTone = actual['tone'];
+    if (expectedTiles is! List ||
+        actualTiles is! List ||
+        expectedTiles.length != 16 ||
+        actualTiles.length != 16 ||
+        expectedTone is! Map ||
+        actualTone is! Map) {
+      return false;
+    }
+
+    var tileMatches = 0;
+    var severeMismatches = 0;
+    for (var i = 0; i < 16; i++) {
+      final distance = _hexDistance(
+        expectedTiles[i].toString(),
+        actualTiles[i].toString(),
+      );
+      if (distance <= tileDistance) tileMatches++;
+      if (distance > 72) severeMismatches++;
+    }
+
+    final expectedGlobal =
+        expected['legacyHash']?.toString() ?? expected['imageHash']?.toString();
+    final actualGlobal =
+        actual['legacyHash']?.toString() ?? actual['imageHash']?.toString();
+    final globalOk = expectedGlobal == null ||
+        actualGlobal == null ||
+        _hexDistance(expectedGlobal, actualGlobal) <= globalDistance;
+
+    return globalOk &&
+        tileMatches >= 15 &&
+        severeMismatches == 0 &&
+        _toneDescriptorMatches(expectedTone, actualTone);
+  }
+
+  bool _videoSpatialDescriptorsMatch(
+    List storedDescriptors,
+    List currentDescriptors,
+  ) {
+    if (storedDescriptors.isEmpty || currentDescriptors.isEmpty) return false;
+
+    final comparableCount = min(storedDescriptors.length, currentDescriptors.length);
+    var matched = 0;
+    final used = <int>{};
+
+    for (var expectedIndex = 0;
+        expectedIndex < storedDescriptors.length;
+        expectedIndex++) {
+      final expected = storedDescriptors[expectedIndex];
+      if (expected is! Map) continue;
+
+      var found = -1;
+      for (final delta in <int>[0, -1, 1]) {
+        final currentIndex = expectedIndex + delta;
+        if (currentIndex < 0 ||
+            currentIndex >= currentDescriptors.length ||
+            used.contains(currentIndex)) {
+          continue;
+        }
+        final actual = currentDescriptors[currentIndex];
+        if (actual is! Map) continue;
+        if (_spatialDescriptorMatches(
+          expected,
+          actual,
+          tileDistance: 56,
+          globalDistance: 56,
+        )) {
+          found = currentIndex;
+          break;
+        }
+      }
+
+      if (found >= 0) {
+        used.add(found);
+        matched++;
+      }
+    }
+
+    final required = max(2, (comparableCount * 0.80).ceil());
+    return matched >= required;
+  }
+
   Future<bool?> _matchesCertifiedVideoFingerprint(
     Map<String, dynamic> cert,
   ) async {
@@ -636,15 +809,30 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     final stored = claims['socialFingerprint'] as Map;
     final storedHashes = stored['frameHashes'] as List;
+    final algorithm = stored['algorithm']?.toString() ?? '';
 
     try {
-      final current = await HCVSocialFingerprint().buildVisualFromVideo(mediaPath!);
+      final current =
+          await HCVSocialFingerprint().buildVisualFromVideo(mediaPath!);
       final currentHashes = current['frameHashes'];
 
       if (currentHashes is! List || currentHashes.isEmpty) {
         return false;
       }
 
+      if (algorithm == 'SIGILLUM_SOCIAL_VIDEO_SPATIAL_V2') {
+        final storedDescriptors = stored['frameDescriptors'];
+        final currentDescriptors = current['frameDescriptors'];
+        if (storedDescriptors is! List || currentDescriptors is! List) {
+          return false;
+        }
+        return _videoSpatialDescriptorsMatch(
+          storedDescriptors,
+          currentDescriptors,
+        );
+      }
+
+      // Legacy V1 certificates keep the historical tolerant matcher.
       return _videoFrameHashesMatch(storedHashes, currentHashes);
     } catch (_) {
       return false;
@@ -745,6 +933,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     final stored = claims['socialFingerprint'] as Map;
     final expected = stored['imageHash']!.toString();
+    final algorithm = stored['algorithm']?.toString() ?? '';
 
     try {
       final current = await HCVSocialFingerprint().buildFromImage(mediaPath!);
@@ -754,6 +943,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return false;
       }
 
+      if (algorithm == 'SIGILLUM_SOCIAL_IMAGE_SPATIAL_V2') {
+        return _spatialDescriptorMatches(
+          <String, dynamic>{
+            'imageHash': expected,
+            'tileHashes': stored['tileHashes'],
+            'tone': stored['tone'],
+          },
+          <String, dynamic>{
+            'imageHash': actual,
+            'tileHashes': current['tileHashes'],
+            'tone': current['tone'],
+          },
+        );
+      }
+
+      // Legacy V1 keeps the historical global threshold.
       return _hexDistance(expected, actual) <= 72;
     } catch (_) {
       return false;
