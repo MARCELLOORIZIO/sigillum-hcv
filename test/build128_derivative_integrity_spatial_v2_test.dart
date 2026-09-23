@@ -128,11 +128,13 @@ void main() {
       final source = File('lib/registry_verify_page.dart').readAsStringSync();
       expect(
         source,
-        contains('la causa della differenza SHA non e determinabile automaticamente'),
+        contains(
+            'la causa della differenza SHA non e determinabile automaticamente'),
       );
       expect(
         source,
-        isNot(contains('Il file sembra un derivato o una versione ricompressa.')),
+        isNot(
+            contains('Il file sembra un derivato o una versione ricompressa.')),
       );
     });
 
