@@ -338,6 +338,9 @@ def main() -> int:
     with (OUT / "summary.json").open("w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
+    print("\n=== HCV FILM V0 DETAILED RESULTS ===")
+    for row in all_rows:
+        print(json.dumps(row, sort_keys=True))
     print("\n=== HCV FILM V0 SUMMARY ===")
     print(json.dumps(summary, indent=2))
     print(f"Artifacts: {OUT}")
