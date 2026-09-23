@@ -49,6 +49,18 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     if (still.isScreen &&
+        still.probability >= 0.80 &&
+        _physicalRepeatingTextureGuard(
+          stillOptical: stillOptical,
+          temporalOptical: temporalOptical,
+        )) {
+      return _nonConclusive(
+        'BUILD127_PHOTO_PHYSICAL_REPEATING_TEXTURE_GUARD',
+      );
+    }
+
+    if (still.isScreen &&
+        !still.v3RealityVeto &&
         still.probability >= 0.90 &&
         still.fullFrameRisk >= 90 &&
         still.contentAreaRisk >= 75) {
@@ -112,7 +124,9 @@ class HCVMultiEvidenceDisplayPolicy {
     return _reality(
       stillOptical: stillOptical,
       temporalOptical: temporalOptical,
-      reason: 'BUILD124_PHOTO_NO_CORROBORATED_DISPLAY_EVIDENCE',
+      reason: still.v3RealityVeto
+          ? 'BUILD127_V3_RESIDUAL_VETO_NO_CORROBORATED_DISPLAY_EVIDENCE'
+          : 'BUILD124_PHOTO_NO_CORROBORATED_DISPLAY_EVIDENCE',
     );
   }
 
@@ -143,6 +157,30 @@ class HCVMultiEvidenceDisplayPolicy {
           'HFR_ZERO_REALITY_LIKE_CELLS',
           'HFR_PARTIAL_DISPLAY_CELLS_WITH_PERIODIC_STABLE_FULL_GRID_FAMILY',
         ],
+      );
+    }
+
+    if (aggregate.isScreen &&
+        aggregate.probability >= 0.80 &&
+        video.framesAtLeast80 >= 2 &&
+        _hasPhysicalRepeatingTexture(passiveOptical) &&
+        _hasNoStrongOpticalDisplayTrace(passiveOptical)) {
+      return _nonConclusive(
+        'BUILD127_VIDEO_PHYSICAL_REPEATING_TEXTURE_GUARD',
+      );
+    }
+
+    // Archive 90: at extreme zoom a fabric surface can lose the visible
+    // lattice entirely. Do not invent physical-texture evidence when it is
+    // absent; keep the semantic-only verdict NON_CONCLUSIVE when the optical
+    // video is both flat and low-information, without a true display trace.
+    // Confirmed HFR paths above remain authoritative.
+    if (aggregate.isScreen &&
+        aggregate.probability >= 0.80 &&
+        video.framesAtLeast80 >= 2 &&
+        _isLowInformationSemanticOnlyVideo(passiveOptical)) {
+      return _nonConclusive(
+        'BUILD127_VIDEO_LOW_INFORMATION_SEMANTIC_ONLY',
       );
     }
 
@@ -267,6 +305,8 @@ class HCVMultiEvidenceDisplayPolicy {
       probability: (ml['screenProbability'] as num?)?.toDouble() ?? 0.0,
       fullFrameRisk: (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0,
       contentAreaRisk: (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0,
+      v3RealityVeto: signals['v3RealityVeto'] == true ||
+          ml['v3RealityVeto'] == true,
     );
   }
 
@@ -396,6 +436,55 @@ class HCVMultiEvidenceDisplayPolicy {
         ],
       );
 
+  static bool _physicalRepeatingTextureGuard({
+    Map<String, dynamic>? stillOptical,
+    Map<String, dynamic>? temporalOptical,
+  }) {
+    final physicalTexture = _hasPhysicalRepeatingTexture(stillOptical) ||
+        _hasPhysicalRepeatingTexture(temporalOptical);
+    if (!physicalTexture) return false;
+
+    return _hasNoStrongOpticalDisplayTrace(stillOptical) &&
+        _hasNoStrongOpticalDisplayTrace(temporalOptical);
+  }
+
+  static bool _isLowInformationSemanticOnlyVideo(
+    Map<String, dynamic>? optical,
+  ) {
+    if (optical == null ||
+        optical['scanMode'] != 'EVERY_15_SECONDS_FAST_SAMPLE' ||
+        !_hasNoStrongOpticalDisplayTrace(optical)) {
+      return false;
+    }
+    final signals = _map(optical['signals']);
+    final score =
+        (optical['screenReplayRiskScore'] as num?)?.toInt() ?? 100;
+    final rgbPhase =
+        (signals['rgbPhaseConsistencyScore'] as num?)?.toDouble() ?? 1.0;
+    return score <= 30 &&
+        signals['flatSceneUniformity'] == true &&
+        signals['lowMicroVariation'] == true &&
+        rgbPhase < 0.20;
+  }
+
+  static bool _hasPhysicalRepeatingTexture(Map<String, dynamic>? raw) {
+    if (raw == null) return false;
+    final signals = _map(raw['signals']);
+    final repetitive =
+        (signals['repetitiveTextureScore'] as num?)?.toDouble() ?? 0.0;
+    final rgbPhase =
+        (signals['rgbPhaseConsistencyScore'] as num?)?.toDouble() ?? 1.0;
+    final defect =
+        (signals['latticeDefectScore'] as num?)?.toDouble() ?? 0.0;
+    final macro =
+        (signals['macroPatternScore'] as num?)?.toDouble() ?? 0.0;
+
+    return signals['physicalRepeatingTextureLikely'] == true &&
+        repetitive >= 0.55 &&
+        rgbPhase < 0.30 &&
+        (defect >= 0.30 || macro >= 0.65);
+  }
+
   static bool _hasNoStrongOpticalDisplayTrace(Map<String, dynamic>? raw) {
     if (raw == null) return true;
     final signals = _map(raw['signals']);
@@ -435,6 +524,7 @@ class _MlEvidence {
     this.probability = 0.0,
     this.fullFrameRisk = 0,
     this.contentAreaRisk = 0,
+    this.v3RealityVeto = false,
   });
 
   final bool available;
@@ -442,6 +532,7 @@ class _MlEvidence {
   final double probability;
   final int fullFrameRisk;
   final int contentAreaRisk;
+  final bool v3RealityVeto;
 }
 
 class _VideoEvidence {

@@ -89,19 +89,57 @@ HCVSocialFingerprintClaimState resolveHCVSocialFingerprintClaimState(
   final algorithm = rawFingerprint['algorithm']?.toString() ?? '';
   final shaLikeFingerprint = RegExp(r'^[a-fA-F0-9]{64}$');
 
+  bool validLegacyPhoto() {
+    final imageHash = rawFingerprint['imageHash']?.toString() ?? '';
+    return shaLikeFingerprint.hasMatch(imageHash);
+  }
+
+  bool validSpatialDescriptor(dynamic raw) {
+    if (raw is! Map) return false;
+    final tiles = raw['tileHashes'];
+    final tone = raw['tone'];
+    return raw['spatialPolicy'] == 'SIGILLUM_SPATIAL_4X4_TONE_V1' &&
+        raw['tileRows'] == 4 &&
+        raw['tileCols'] == 4 &&
+        tiles is List &&
+        tiles.length == 16 &&
+        tiles.every((value) => shaLikeFingerprint.hasMatch(value.toString())) &&
+        tone is Map &&
+        <String>[
+          'meanLuma',
+          'stdLuma',
+          'meanChroma',
+          'meanRMinusG',
+          'meanBMinusG',
+        ].every((key) => tone[key] is num);
+  }
+
   bool valid = false;
   if (mediaType == 'photo') {
-    final imageHash = rawFingerprint['imageHash']?.toString() ?? '';
-    valid = algorithm == 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1' &&
-        shaLikeFingerprint.hasMatch(imageHash);
+    if (algorithm == 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1') {
+      valid = validLegacyPhoto();
+    } else if (algorithm == 'SIGILLUM_SOCIAL_IMAGE_SPATIAL_V2') {
+      valid = validLegacyPhoto() && validSpatialDescriptor(rawFingerprint);
+    }
   } else if (mediaType == 'video') {
     final frameHashes = rawFingerprint['frameHashes'];
-    valid = algorithm == 'SIGILLUM_SOCIAL_AHASH_V1' &&
-        frameHashes is List &&
-        frameHashes.isNotEmpty &&
-        frameHashes.every(
-          (value) => shaLikeFingerprint.hasMatch(value.toString()),
-        );
+    if (algorithm == 'SIGILLUM_SOCIAL_AHASH_V1') {
+      valid = frameHashes is List &&
+          frameHashes.isNotEmpty &&
+          frameHashes.every(
+            (value) => shaLikeFingerprint.hasMatch(value.toString()),
+          );
+    } else if (algorithm == 'SIGILLUM_SOCIAL_VIDEO_SPATIAL_V2') {
+      final descriptors = rawFingerprint['frameDescriptors'];
+      valid = frameHashes is List &&
+          frameHashes.isNotEmpty &&
+          frameHashes.every(
+            (value) => shaLikeFingerprint.hasMatch(value.toString()),
+          ) &&
+          descriptors is List &&
+          descriptors.isNotEmpty &&
+          descriptors.every((value) => validSpatialDescriptor(value));
+    }
   }
 
   if (valid) return HCVSocialFingerprintClaimState.usable;
@@ -459,8 +497,41 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  Future<List<String>> _deepVideoOcrCandidates(String videoPath) async {
+    final detections = <String>[];
+    const times = <double>[0.2, 0.8];
+
+    for (final seconds in times) {
+      String? framePath;
+      try {
+        framePath = Platform.isIOS
+            ? await _extractNativeVideoFrame(videoPath, seconds)
+            : await _extractFfmpegVideoFrame(
+                videoPath,
+                '00:00:0${seconds.toStringAsFixed(1)}',
+              );
+        if (framePath == null || framePath.isEmpty) continue;
+
+        detections.addAll(
+          await HCVMediaIdOcr.extractCandidatesFromImage(framePath),
+        );
+      } catch (_) {
+        // A failed recovery frame must not turn a Registry miss into an error.
+      } finally {
+        if (framePath != null && framePath.isNotEmpty) {
+          try {
+            final frame = File(framePath);
+            if (await frame.exists()) await frame.delete();
+          } catch (_) {}
+        }
+      }
+    }
+
+    return HCVMediaIdOcr.rankConsensusCandidates(detections);
+  }
+
   Future<MapEntry<String, Map<String, dynamic>>>
-  _fetchCertificateWithPhotoOcrRecovery(String hcvId) async {
+  _fetchCertificateWithMediaOcrRecovery(String hcvId) async {
     final path = mediaPath;
     if (path == null) {
       return await _fetchCertificateWithLocalRecovery(hcvId);
@@ -471,7 +542,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.png');
-    if (!isPhoto) {
+    final isVideo =
+        lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v');
+
+    if (!isPhoto && !isVideo) {
       return await _fetchCertificateWithLocalRecovery(hcvId);
     }
 
@@ -483,11 +559,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       originalNotFound = error;
     }
 
-    // A Registry 404 from the first OCR reading is the only condition that
-    // enables deeper PHOTO recovery. Re-read independent crops first because
-    // they can directly recover the correct visible ID without guessing.
-    final rankedCandidates =
-        await HCVMediaIdOcr.extractCandidatesFromImage(path);
+    // The expensive recovery path is enabled only after OCR has already found
+    // a syntactically valid HCV-ID and Registry returned 404 for that exact ID.
+    // This preserves the fast exit for ordinary non-SIGILLUM photos/videos.
+    final rankedCandidates = isPhoto
+        ? await HCVMediaIdOcr.extractCandidatesFromImage(path)
+        : await _deepVideoOcrCandidates(path);
+
     final attemptedIds = <String>{hcvId};
     final recoveryBases = <String>[hcvId];
 
@@ -504,12 +582,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
     }
 
-    // Only after ranked OCR candidates are absent online, try a bounded set of
-    // single-character alternatives. This covers the physical Messenger case
-    // C -> 0 without the previous Cartesian B/8 explosion.
+    // Only after independent OCR readings are absent online, try a bounded set
+    // of single-character alternatives (C/0, B/8, E/6). These substitutions
+    // are never applied during normal parsing, because all are valid hex.
     final variants = HCVMediaIdOcr.buildRegistryRecoveryVariants(
       recoveryBases,
-      maxVariants: 16,
+      maxVariants: 24,
     );
     for (final candidate in variants) {
       if (!attemptedIds.add(candidate)) continue;
@@ -521,9 +599,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
     }
 
-    // Preserve pending/local-certificate recovery, but only after the bounded
-    // online PHOTO search. Retry the queue once, then re-check exactly the IDs
-    // already attempted; never re-enter the generic combinatorial fallback.
+    // Preserve pending/local-certificate recovery only after the bounded online
+    // OCR search. Re-check exactly the IDs already attempted.
     try {
       await registry.retryPendingUploads();
       for (final candidate in attemptedIds) {
@@ -597,15 +674,30 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     final stored = claims['socialFingerprint'] as Map;
     final storedHashes = stored['frameHashes'] as List;
+    final algorithm = stored['algorithm']?.toString() ?? '';
 
     try {
-      final current = await HCVSocialFingerprint().buildVisualFromVideo(mediaPath!);
+      final current =
+          await HCVSocialFingerprint().buildVisualFromVideo(mediaPath!);
       final currentHashes = current['frameHashes'];
 
       if (currentHashes is! List || currentHashes.isEmpty) {
         return false;
       }
 
+      if (algorithm == 'SIGILLUM_SOCIAL_VIDEO_SPATIAL_V2') {
+        final storedDescriptors = stored['frameDescriptors'];
+        final currentDescriptors = current['frameDescriptors'];
+        if (storedDescriptors is! List || currentDescriptors is! List) {
+          return false;
+        }
+        return HCVSocialFingerprint.videoSpatialDescriptorsMatch(
+          storedDescriptors,
+          currentDescriptors,
+        );
+      }
+
+      // Legacy V1 certificates keep the historical tolerant matcher.
       return _videoFrameHashesMatch(storedHashes, currentHashes);
     } catch (_) {
       return false;
@@ -706,6 +798,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     final stored = claims['socialFingerprint'] as Map;
     final expected = stored['imageHash']!.toString();
+    final algorithm = stored['algorithm']?.toString() ?? '';
 
     try {
       final current = await HCVSocialFingerprint().buildFromImage(mediaPath!);
@@ -715,6 +808,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return false;
       }
 
+      if (algorithm == 'SIGILLUM_SOCIAL_IMAGE_SPATIAL_V2') {
+        return HCVSocialFingerprint.spatialDescriptorMatches(
+          <String, dynamic>{
+            'imageHash': expected,
+            'tileHashes': stored['tileHashes'],
+            'tone': stored['tone'],
+          },
+          <String, dynamic>{
+            'imageHash': actual,
+            'tileHashes': current['tileHashes'],
+            'tone': current['tone'],
+          },
+        );
+      }
+
+      // Legacy V1 keeps the historical global threshold.
       return _hexDistance(expected, actual) <= 72;
     } catch (_) {
       return false;
@@ -1030,7 +1139,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     });
 
     try {
-      final resolved = await _fetchCertificateWithPhotoOcrRecovery(hcvId);
+      final resolved = await _fetchCertificateWithMediaOcrRecovery(hcvId);
       hcvId = resolved.key;
       final cert = resolved.value;
       idController.text = hcvId;

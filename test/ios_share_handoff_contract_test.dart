@@ -8,7 +8,7 @@ void main() {
       'ios/SigillumShareExtension/ShareViewController.swift',
     ).readAsStringSync();
     final scene = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
-    final userHome = File('lib/user_home_page.dart').readAsStringSync();
+    final commercialGate = File('lib/commercial_gate.dart').readAsStringSync();
     final labHome = File('lib/home_page.dart').readAsStringSync();
 
     test('share extension does not attempt an unsupported app launch', () {
@@ -37,12 +37,18 @@ void main() {
       );
     });
 
-    test('both Flutter entry pages acknowledge and deduplicate the path', () {
-      for (final source in [userHome, labHome]) {
+    test('USER root and LAB entry page acknowledge and deduplicate the path', () {
+      for (final source in [commercialGate, labHome]) {
         expect(source, contains("'ackSharedPath'"));
         expect(source, contains('_lastOpenedSharedPath'));
         expect(source, contains("'path': path"));
       }
+      final userHome = File('lib/user_home_page.dart').readAsStringSync();
+      expect(
+        userHome,
+        isNot(contains("MethodChannel('hcv.intent')")),
+        reason: 'USER share handoff has one owner above Creator entitlement.',
+      );
     });
   });
 }

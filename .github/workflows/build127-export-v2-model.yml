@@ -1,0 +1,32 @@
+name: BUILD127 export stable V2 model
+
+on:
+  push:
+    branches:
+      - fix/build127-ml-hard-negatives-20260921
+    paths:
+      - .github/workflows/build127-export-v2-model.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify bundled model
+        run: |
+          sha256sum assets/ml/sigillum_screen_replay_v2.tflite
+          unzip -p assets/ml/sigillum_screen_replay_model_update.zip manifest.json || true
+      - name: Upload stable V2
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigillum-stable-v2
+          path: |
+            assets/ml/sigillum_screen_replay_v2.tflite
+            assets/ml/sigillum_screen_replay_v1_labels.json
+          if-no-files-found: error
+          retention-days: 7

@@ -12,7 +12,7 @@ void main() {
     expect(source, contains('url.lastPathComponent'));
   });
 
-  test('photo quick gate stays bounded while Registry keeps deep OCR recovery', () {
+  test('quick gate stays bounded while Registry keeps 404-driven deep OCR recovery', () {
     final quickGate = File('lib/quick_hcv_media_gate_page.dart')
         .readAsStringSync();
     final registry = File('lib/registry_verify_page.dart').readAsStringSync();
@@ -32,11 +32,15 @@ void main() {
 
     expect(
       registry,
-      contains('_fetchCertificateWithPhotoOcrRecovery(String hcvId)'),
+      contains('_fetchCertificateWithMediaOcrRecovery(String hcvId)'),
     );
     expect(
       registry,
       contains('await HCVMediaIdOcr.extractCandidatesFromImage(path)'),
+    );
+    expect(
+      registry,
+      contains('_deepVideoOcrCandidates(path)'),
     );
     expect(
       registry,

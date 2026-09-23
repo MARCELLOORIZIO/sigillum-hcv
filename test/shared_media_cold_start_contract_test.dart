@@ -6,17 +6,27 @@ void main() {
   test(
     'shared media waits for a frame and enters the lightweight import router',
     () {
+      final gate = File('lib/commercial_gate.dart').readAsStringSync();
       final home = File('lib/user_home_page.dart').readAsStringSync();
 
-      expect(home, contains('void _queueImportedPath(String path)'));
-      expect(home, contains('_queueImportedPath(path);'));
+      expect(gate, contains('void _queueImportedPath(String path)'));
+      expect(gate, contains('_queueImportedPath(path);'));
       expect(home, contains('WidgetsBinding.instance.addPostFrameCallback'));
       expect(
-        home,
+        gate,
         contains('Future<void> _openImportedPath(String path) async'),
       );
-      expect(home, contains('HCVImportRouterPage('));
-      expect(home, isNot(contains("import 'registry_verify_page.dart';")));
+      expect(gate, contains('HCVImportRouterPage('));
+      expect(gate, contains("MethodChannel('hcv.intent')"));
+      expect(gate, contains("invokeMethod<String>('getSharedPath')"));
+      expect(gate, contains("invokeMethod<bool>('ackSharedPath'"));
+      expect(
+        gate.indexOf("MethodChannel('hcv.intent')"),
+        lessThan(gate.indexOf("if (_stage == _GateStage.creator)")),
+        reason: 'Shared verification must be owned above Creator entitlement.',
+      );
+      expect(home, isNot(contains("MethodChannel('hcv.intent')")));
+      expect(home, isNot(contains('HCVImportRouterPage(')));
     },
   );
 }

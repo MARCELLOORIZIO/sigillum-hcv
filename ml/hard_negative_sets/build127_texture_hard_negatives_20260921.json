@@ -1,0 +1,44 @@
+{
+  "type": "SIGILLUM_ML_HARD_NEGATIVE_SET_REFERENCE_V1",
+  "name": "build127_texture_hard_negatives_20260921",
+  "groundTruth": "REALITY",
+  "sourceBuild": "BUILD126",
+  "sourceCommit": "4dc9acb4f81e8f09ec207c6e61296c7d45fa16ed",
+  "libraryArtifact": "SIGILLUM_build127_hard_negatives_v1.zip",
+  "libraryPath": "/SIGILLUM/SIGILLUM_build127_hard_negatives_v1.zip",
+  "zipSha256": "597d5ccfbf9a3aa42d0551e364380bcd3579b7292c8576922df97f4bf42ce6ef",
+  "sourcePhotoCount": 14,
+  "sourceVideoCount": 2,
+  "derivedImageCount": 34,
+  "splitRole": "TRAIN_ONLY",
+  "labels": {
+    "REALITY_PAPER": [
+      "HCV-EA33C2DBA9864D87",
+      "HCV-5C3AC7391A834F99",
+      "HCV-6C8809FC120742D4"
+    ],
+    "REALITY_ROOM": [
+      "HCV-4B3B539088A545A2"
+    ],
+    "REALITY_OBJECT": [
+      "HCV-581449500C1846FC",
+      "HCV-75215A95EAFC4AA3",
+      "HCV-B044924B13CD49C6",
+      "HCV-A3A296352D2D42EA",
+      "HCV-CEB513D87E9B4F7D",
+      "HCV-BF567F9FB67F4EA2",
+      "HCV-E32D8FB7FB924117",
+      "HCV-9978EC1C27CA4C9B",
+      "HCV-82E678F1AA824F4B",
+      "HCV-9AC8D2FFAFC04CF1",
+      "HCV-8AE170194CA94D88",
+      "HCV-111B6CF1C92041EC"
+    ]
+  },
+  "notes": [
+    "Full PHOTO samples include a paired cropTop24 variant matching the runtime content-area pass.",
+    "Long REALITY videos contribute three spatial frames each.",
+    "This set is intentionally excluded from validation and test during training.",
+    "Do not train a replacement production model from this set alone; merge it into the original balanced seven-class dataset."
+  ]
+}

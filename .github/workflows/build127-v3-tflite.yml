@@ -1,0 +1,56 @@
+name: BUILD127 V3 TFLite conversion
+
+on:
+  push:
+    branches:
+      - fix/build127-ml-hard-negatives-20260921
+    paths:
+      - ml/v3/v3_multihead_weights_fp16.json
+      - ml/v3/v3_parity_vectors.json
+      - ml/v3/convert_v3_to_tflite.py
+      - .github/workflows/build127-v3-tflite.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install TensorFlow
+        run: python -m pip install --upgrade pip && python -m pip install "tensorflow-cpu==2.17.1" numpy
+      - name: Convert and verify parity
+        run: python ml/v3/convert_v3_to_tflite.py
+      - name: Hash artifact
+        run: sha256sum ml/v3/out/sigillum_screen_replay_v3_multihead.tflite ml/v3/out/manifest.json
+      - name: Upload verified V3 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigillum-v3-multihead-tflite
+          path: |
+            ml/v3/out/sigillum_screen_replay_v3_multihead.tflite
+            ml/v3/out/manifest.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Commit parity-verified V3 asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          git pull --rebase origin fix/build127-ml-hard-negatives-20260921
+          cp ml/v3/out/sigillum_screen_replay_v3_multihead.tflite assets/ml/sigillum_screen_replay_v3_multihead.tflite
+          cp ml/v3/out/manifest.json ml/v3/v3_multihead_tflite_manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/ml/sigillum_screen_replay_v3_multihead.tflite ml/v3/v3_multihead_tflite_manifest.json
+          if git diff --cached --quiet; then
+            echo "Verified V3 asset already committed"
+            exit 0
+          fi
+          git commit -m "BUILD127: commit parity-verified V3 multi-head TFLite"
+          git push origin HEAD:fix/build127-ml-hard-negatives-20260921

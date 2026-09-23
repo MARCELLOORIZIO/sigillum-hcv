@@ -33,8 +33,11 @@ release_source_hashes() {
     lib/hcv_display_risk_fusion.dart \
     lib/hcv_scene_decision_fusion.dart \
     lib/hcv_ml_screen_replay_classifier.dart \
+    lib/hcv_ml_v3_photo_residual.dart \
     lib/hcv_ml_model_store.dart \
+    lib/hcv_software_attestation.dart \
     ios/Runner/SceneDelegate.swift \
+    assets/ml/sigillum_screen_replay_v3_multihead.tflite \
     assets/ml/sigillum_screen_replay_v2.tflite \
     assets/ml/sigillum_screen_replay_v1.tflite
 }
@@ -71,6 +74,9 @@ require_source_token lib/hcv_ml_screen_replay_classifier.dart "TFLITE_INTERPRETE
 require_source_token lib/hcv_ml_screen_replay_classifier.dart "TFLITE_INTERPRETER_NULL"
 require_source_token lib/hcv_ml_screen_replay_classifier.dart "'tfliteRuntimeVersion': _tfliteRuntimeVersion"
 require_source_token lib/hcv_ml_screen_replay_classifier.dart "loadBundledFallbackBundle"
+require_source_token lib/hcv_ml_v3_photo_residual.dart "PHOTO_V2_FALSE_POSITIVE_VETO_ONLY"
+require_source_token lib/hcv_ml_v3_photo_residual.dart "cannotAffectVideo"
+require_source_token lib/hcv_software_attestation.dart "SIGILLUM_BUILD_NUMBER"
 require_source_token lib/hcv_ml_model_store.dart "BUNDLED_ASSET_MODEL_V2"
 require_source_token lib/hcv_ml_model_store.dart "BUNDLED_ASSET_MODEL_V1_FALLBACK"
 require_source_token lib/registry_verify_page.dart "_v('registryHelper')"
@@ -147,17 +153,32 @@ if ! diff -u "$AUDIT_DIR/release-source-validated.sha256" "$AUDIT_DIR/release-so
 fi
 log "PODS_MUTATED_RELEASE_SOURCE=NO"
 
+SOURCE_BUILD_NUMBER="$(sed -nE 's/^version:[[:space:]]*[^+]+\+([0-9]+)[[:space:]]*$/\1/p' pubspec.yaml | head -n 1)"
+if ! [[ "$SOURCE_BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+  log "INVALID_SOURCE_BUILD_NUMBER=$SOURCE_BUILD_NUMBER"
+  exit 1
+fi
+log "SOURCE_BUILD_NUMBER=$SOURCE_BUILD_NUMBER"
+
 LATEST_BUILD_NUMBER="$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")"
 if ! [[ "$LATEST_BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
   log "INVALID_TESTFLIGHT_BUILD_NUMBER=$LATEST_BUILD_NUMBER"
   exit 1
 fi
-BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
-log "TESTFLIGHT_BUILD_NUMBER=$BUILD_NUMBER"
+NEXT_TESTFLIGHT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+if (( NEXT_TESTFLIGHT_BUILD_NUMBER < SOURCE_BUILD_NUMBER )); then
+  BUILD_NUMBER="$SOURCE_BUILD_NUMBER"
+else
+  BUILD_NUMBER="$NEXT_TESTFLIGHT_BUILD_NUMBER"
+fi
+log "LATEST_TESTFLIGHT_BUILD_NUMBER=$LATEST_BUILD_NUMBER"
+log "NEXT_TESTFLIGHT_BUILD_NUMBER=$NEXT_TESTFLIGHT_BUILD_NUMBER"
+log "SELECTED_BUILD_NUMBER=$BUILD_NUMBER"
 
 flutter build ipa --release --no-pub \
   --build-number="$BUILD_NUMBER" \
   --dart-define=SIGILLUM_EDITION=user \
+  --dart-define=SIGILLUM_BUILD_NUMBER="$BUILD_NUMBER" \
   --dart-define=SIGILLUM_API_BASE_URL=https://sigillum-registry-production.onrender.com \
   --dart-define=GIT_COMMIT="$BUILD_COMMIT" \
   --export-options-plist=/Users/builder/export_options.plist
@@ -183,10 +204,20 @@ fi
 log "XCARCHIVE=$ARCHIVE"
 log "ARCHIVED_APP=$APP"
 
+ARCHIVED_BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")"
+if [[ "$ARCHIVED_BUILD_NUMBER" != "$BUILD_NUMBER" ]]; then
+  log "ARCHIVED_BUILD_NUMBER_MISMATCH expected=$BUILD_NUMBER actual=$ARCHIVED_BUILD_NUMBER"
+  exit 1
+fi
+log "ARCHIVED_BUILD_NUMBER=$ARCHIVED_BUILD_NUMBER"
+log "BUILD_NUMBER_ATTESTATION_MATCH=PASS"
+
 FLUTTER_ASSETS="$APP/Frameworks/App.framework/flutter_assets"
+BUILT_V3="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v3_multihead.tflite"
 BUILT_V2="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v2.tflite"
 BUILT_V1="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v1.tflite"
 for pair in \
+  "assets/ml/sigillum_screen_replay_v3_multihead.tflite|$BUILT_V3" \
   "assets/ml/sigillum_screen_replay_v2.tflite|$BUILT_V2" \
   "assets/ml/sigillum_screen_replay_v1.tflite|$BUILT_V1"; do
   SOURCE_FILE="${pair%%|*}"

@@ -80,8 +80,12 @@ workflows:
         script: |
           set -euo pipefail
           BUILD_COMMIT="$(git rev-parse HEAD)"
+          SOURCE_BUILD_NUMBER="$(sed -nE 's/^version:[[:space:]]*[^+]+\+([0-9]+)[[:space:]]*$/\1/p' pubspec.yaml | head -n 1)"
+          test -n "$SOURCE_BUILD_NUMBER"
           flutter build ipa --release --no-pub \
+            --build-number="$SOURCE_BUILD_NUMBER" \
             --dart-define=SIGILLUM_EDITION=user \
+            --dart-define=SIGILLUM_BUILD_NUMBER="$SOURCE_BUILD_NUMBER" \
             --dart-define=GIT_COMMIT="$BUILD_COMMIT" \
             --export-options-plist=/Users/builder/export_options.plist
           git diff --exit-code -- lib test ios/Runner ios/Podfile

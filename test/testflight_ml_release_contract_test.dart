@@ -61,6 +61,12 @@ void main() {
       "tflite_version = '2.17.0'",
       'TensorFlowLiteSwift (2.17.0)',
       'BUILT_MODEL_MATCH=',
+      'sigillum_screen_replay_v3_multihead.tflite',
+      'SOURCE_BUILD_NUMBER=',
+      'SELECTED_BUILD_NUMBER=',
+      '--dart-define=SIGILLUM_BUILD_NUMBER="\$BUILD_NUMBER"',
+      'ARCHIVED_BUILD_NUMBER=',
+      'BUILD_NUMBER_ATTESTATION_MATCH=PASS',
       'TFLITE_SYMBOL_PRESENT=',
       '_TfLiteInterpreterCreate',
       'TESTFLIGHT_RELEASE_PROOF=PASS',
@@ -125,6 +131,21 @@ void main() {
 
     expect(store, contains('BUNDLED_ASSET_MODEL_V2'));
     expect(store, contains('BUNDLED_ASSET_MODEL_V1_FALLBACK'));
+
+    final developmentStart = codemagic.indexOf('  ios-workflow:');
+    expect(developmentStart, greaterThanOrEqualTo(0));
+    final developmentEnd = codemagic.indexOf('  ios-testflight:');
+    expect(developmentEnd, greaterThan(developmentStart));
+    final development = codemagic.substring(developmentStart, developmentEnd);
+    expect(development, contains('SOURCE_BUILD_NUMBER='));
+    expect(
+      development,
+      contains('--build-number="\$SOURCE_BUILD_NUMBER"'),
+    );
+    expect(
+      development,
+      contains('--dart-define=SIGILLUM_BUILD_NUMBER="\$SOURCE_BUILD_NUMBER"'),
+    );
 
     if (!Platform.isWindows) {
       for (final shellPath in <String>[
