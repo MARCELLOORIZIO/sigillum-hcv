@@ -1328,6 +1328,23 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         certificate = cert;
 
+        void markLimited() {
+          status = _r('socialLimitedStatus');
+          result = 'SOCIAL LIMITED';
+          _setVerificationAxes(
+            provenance: 'Verificata',
+            provenanceDetail:
+                'Certificato Registry valido; HCV-ID associato al file.',
+            integrity: 'Non conclusiva',
+            integrityDetail: _r('socialLimitedDetail'),
+            scene: 'Non conclusiva',
+            sceneDetail:
+                'La somiglianza V1 non prova che il derivato non sia stato modificato.',
+            derivation: 'Non conclusiva',
+            derivationDetail: _r('socialLimitedDetail'),
+          );
+        }
+
         void markVerified(String cleanStatus, String cleanResult) {
           final exactOriginal = cleanResult.startsWith('FORENSIC');
           final sceneWarning = _isStrongDisplayRisk;
@@ -1403,12 +1420,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'video' &&
               videoFingerprintMatches == null) {
-            markVerified(
-              hcvIdWasDetectedInMedia
-                  ? _r('videoLegacyLimitedDetected')
-                  : _r('videoLegacyLimitedProvided'),
-              'SOCIAL VERIFIED OK',
-            );
+            markLimited();
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'video' &&
               videoFingerprintMatches == false) {
@@ -1428,12 +1440,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'photo' &&
               imageFingerprintMatches == null) {
-            markVerified(
-              hcvIdWasDetectedInMedia
-                  ? _r('photoLegacyDetected')
-                  : _r('photoLegacyProvided'),
-              'SOCIAL VERIFIED OK',
-            );
+            markLimited();
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'photo' &&
               imageFingerprintMatches == false) {
@@ -1443,10 +1450,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
             result = 'ID VALID / MEDIA NOT VERIFIED';
           } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
-            markVerified(
-              _r('genericDerived'),
-              'SOCIAL VERIFIED OK',
-            );
+            markLimited();
           } else {
             status = _r('idNotDetected');
 
@@ -1704,6 +1708,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   bool get _isSocialResult => (result ?? '').startsWith('SOCIAL VERIFIED');
 
+  bool get _isSocialLimited => result == 'SOCIAL LIMITED';
+
   String get _effectiveProvenanceState {
     if (provenanceState != null) return provenanceState!;
     if (_isMediaNotVerified) return 'HCV-ID valido';
@@ -1881,6 +1887,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (axis == 'derivation' && value.contains('compatibile'))
       return _v('compatible');
     if (value.contains('non verificata')) return _v('notVerified');
+    if (value.contains('non conclusiva')) return _v('notDetermined');
     if (value.contains('non determinata')) return _v('notDetermined');
     if (value.contains('non analizzata')) return _v('notAnalyzed');
     return raw ?? '-';
@@ -1889,22 +1896,27 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String _localizedAxisDetail(String axis) {
     if (axis == 'scene' && _signedRealityScene) return _v('realityDetail');
     if (axis == 'provenance') return _v('provenanceOkDetail');
-    if (axis == 'integrity')
+    if (axis == 'integrity') {
+      if (_isSocialLimited) return _r('socialLimitedDetail');
       return _isForensicResult ? _v('originalDetail') : _v('derivedDetail');
+    }
     if (axis == 'scene') {
       if (_isStrongDisplayRisk) return _v('screenDetail');
       if (_isDisplayNonConclusive) return _v('uncertainDetail');
       return _v('noScreenDetail');
     }
-    if (axis == 'derivation')
+    if (axis == 'derivation') {
+      if (_isSocialLimited) return _r('socialLimitedDetail');
       return _isForensicResult
           ? _v('originalDerivationDetail')
           : _v('derivedDerivationDetail');
+    }
     return '-';
   }
 
   String get _publicResultTitle {
     if (_isForensicResult) return _v('forensicOk');
+    if (_isSocialLimited) return _r('socialLimitedTitle');
     if (_isSocialResult) return _v('socialOk');
     if ((result ?? '').contains('REGISTRY NOT FOUND'))
       return _v('registryNotFound');
@@ -1915,6 +1927,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _publicResultDetail {
     if (_isForensicResult) return _v('forensicOkDetail');
+    if (_isSocialLimited) return _r('socialLimitedDetail');
     if (_isSocialResult) return _v('socialOkDetail');
     final value = result ?? '';
     if (value.contains('REGISTRY NOT FOUND')) return _v('registryNotFound');
@@ -1933,6 +1946,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       !_hasSevereVerificationIssue &&
       (_isRegistryWarningResult ||
           _isDisplayNonConclusive ||
+          _isSocialLimited ||
           isScreenReplayWarning);
 
   Color get _verificationResultColor {
