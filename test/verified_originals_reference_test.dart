@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hcv_app/verified_originals_reference.dart';
+import 'package:sigillum_iphone/verified_originals_reference.dart';
 
 void main() {
   const id = 'HCV-0123456789ABCDEF';
