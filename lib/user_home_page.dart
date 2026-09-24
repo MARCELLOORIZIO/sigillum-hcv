@@ -6,6 +6,8 @@ import 'commercial_account_service.dart';
 import 'hcv_registry_service.dart';
 import 'commercial_profile_page.dart';
 import 'import_page.dart';
+import 'verified_originals_page.dart';
+import 'verified_originals_consent_page.dart';
 import 'legal_info_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
@@ -235,6 +237,27 @@ class _UserHomePageState extends State<UserHomePage>
                       accent: SigillumTheme.verified,
                       onPressed: () =>
                           _open(ImportPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.video_library_outlined,
+                      title: 'SIGILLUM Verified Originals',
+                      subtitle: languageCode == 'it'
+                          ? 'Verifica il codice o guarda la copia certificata'
+                          : 'Check the code or watch the reference',
+                      accent: SigillumTheme.verified,
+                      onPressed: () =>
+                          _open(VerifiedOriginalsPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.publish_outlined,
+                      title: 'Autorizza un originale pubblico',
+                      subtitle: 'Consenso separato, monetizzazione facoltativa e ritiro',
+                      accent: SigillumTheme.accent,
+                      onPressed: () => _openCreatorProtected(
+                        const VerifiedOriginalsConsentPage(),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(
