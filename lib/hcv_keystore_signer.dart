@@ -8,8 +8,8 @@ class HCVKeystoreSigner {
   static const MethodChannel _channel = MethodChannel('hcv.keystore');
 
   static Future<String> sign(String canonicalJson) async {
-    if (Platform.isIOS) {
-      final bytes = utf8.encode('IOS_DEV_SIGNATURE:$canonicalJson');
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      final bytes = utf8.encode('LOCAL_DEV_SIGNATURE:$canonicalJson');
       return sha256.convert(bytes).toString();
     }
 
@@ -28,10 +28,10 @@ class HCVKeystoreSigner {
   }
 
   static Future<Map<String, dynamic>> getPublicKey() async {
-    if (Platform.isIOS) {
+    if (!Platform.isAndroid && !Platform.isIOS) {
       return {
-        'modulus': 'IOS_DEV_PUBLIC_KEY',
-        'exponent': 'IOS_DEV',
+        'modulus': 'LOCAL_DEV_PUBLIC_KEY',
+        'exponent': 'LOCAL_DEV',
       };
     }
 

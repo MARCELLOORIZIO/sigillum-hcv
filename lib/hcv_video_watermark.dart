@@ -5,11 +5,13 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hcv_capture_timestamp.dart';
+
 class HCVVideoWatermark {
   Future<String> createPublishedVideo({
     required String inputPath,
     required String hcvId,
-    String? verificationUrl,
+    required DateTime capturedAt,
   }) async {
     final inputFile = File(inputPath);
 
@@ -35,7 +37,7 @@ class HCVVideoWatermark {
 
     final outputPath = p.join(
       outputDir.path,
-      "${baseName}_SIGILLUM_VERIFIED.mp4",
+      "${baseName}_SIGILLUM_CAPTURE.mp4",
     );
 
     final outputFile = File(outputPath);
@@ -47,7 +49,9 @@ class HCVVideoWatermark {
     final safeInput = _escapePath(inputPath);
     final safeOutput = _escapePath(outputPath);
     final safeHcvId = _escapeText(hcvId);
-    final safeVerify = _escapeText("VERIFY WITH HCV-ID");
+    final safeCapturedAt = _escapeText(
+      HCVCaptureTimestamp.format(capturedAt),
+    );
 
     final fontFile = Platform.isIOS
         ? "/System/Library/Fonts/Core/Avenir.ttc"
@@ -58,34 +62,31 @@ class HCVVideoWatermark {
       //"drawbox=x=18:y=h-92:w=300:h=72:color=black@0.42:t=fill",
 
       // outer square
-      "drawbox=x=30:y=h-100:w=22:h=22:color=white@0.95:t=2",
+      "drawbox=x=22:y=24:w=16:h=16:color=white@0.92:t=2",
 
       // inner square
-      "drawbox=x=36:y=h-94:w=10:h=10:color=white@0.95:t=fill",
+      "drawbox=x=27:y=29:w=7:h=7:color=white@0.92:t=fill",
 
-      // SIGILLUM VERIFIED
-      "drawtext=fontfile=$fontFile:text='SIGILLUM VERIFIED':"
-          "x=62:y=h-104:"
-          "fontsize=16:"
-          "fontcolor=white@0.98",
+      // SIGILLUM capture marker. Verification happens in the app/registry.
+      "drawtext=fontfile=$fontFile:text='SIGILLUM CAPTURE':"
+          "x=46:y=20:"
+          "fontsize=12:"
+          "fontcolor=white@0.94",
 
-      // HUMAN VERIFIED
-      "drawtext=fontfile=$fontFile:text='HUMAN VERIFIED':"
-          "x=52:y=h-78:"
-          "fontsize=11:"
-          "fontcolor=white@0.85",
+      // Local capture time with an explicit UTC offset.
+      "drawtext=fontfile=$fontFile:text='$safeCapturedAt':"
+          "x=46:y=38:"
+          "fontsize=8:"
+          "fontcolor=white@0.78",
 
       // HCV-ID visible for social reposts
-      "drawtext=fontfile=$fontFile:text='HCV-ID\\: $safeHcvId':"
-          "x=52:y=h-56:"
-          "fontsize=10:"
-          "fontcolor=white@0.92",
-
-      // Verify URL visible
-      "drawtext=fontfile=$fontFile:text='VERIFY\\: $safeVerify':"
-          "x=52:y=h-38:"
-          "fontsize=8:"
-          "fontcolor=white@0.70",
+      "drawtext=fontfile=$fontFile:text='$safeHcvId':"
+          "x=22:y=56:"
+          "fontsize=22:"
+          "fontcolor=yellow:"
+          "box=1:"
+          "boxcolor=black@0.58:"
+          "boxborderw=7",
     ].join(",");
 
     final command = "-y "

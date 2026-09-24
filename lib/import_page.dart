@@ -2,17 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'hcv_import_router_page.dart';
+import 'sigillum_localization.dart';
 
 class ImportPage extends StatefulWidget {
-  const ImportPage({super.key});
+  const ImportPage({
+    super.key,
+    this.languageCode = 'it',
+  });
+
+  final String languageCode;
 
   @override
   State<ImportPage> createState() => _ImportPageState();
 }
 
 class _ImportPageState extends State<ImportPage> {
-  String status = "Seleziona un file da verificare";
+  String status = "";
   String? selectedPath;
+
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
+
+  @override
+  void initState() {
+    super.initState();
+    status = _t('selectFileToVerify');
+  }
 
   Future<void> pickFile() async {
     try {
@@ -23,7 +37,7 @@ class _ImportPageState extends State<ImportPage> {
 
       if (res == null) {
         setState(() {
-          status = "Nessun file selezionato";
+          status = _t('noFileSelected');
         });
         return;
       }
@@ -32,14 +46,14 @@ class _ImportPageState extends State<ImportPage> {
 
       if (path == null) {
         setState(() {
-          status = "Path file non disponibile";
+          status = _t('filePathUnavailable');
         });
         return;
       }
 
       setState(() {
         selectedPath = path;
-        status = "File selezionato:\n$path";
+        status = "${_t('fileSelected')}:\n$path";
       });
 
       if (!mounted) return;
@@ -47,12 +61,15 @@ class _ImportPageState extends State<ImportPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => HCVImportRouterPage(path: path),
+          builder: (_) => HCVImportRouterPage(
+            path: path,
+            languageCode: widget.languageCode,
+          ),
         ),
       );
     } catch (e) {
       setState(() {
-        status = "Errore import: $e";
+        status = "${_t('importError')}: $e";
       });
     }
   }
@@ -63,6 +80,10 @@ class _ImportPageState extends State<ImportPage> {
     return lower.endsWith(".hcvpack") ||
         lower.endsWith(".hcv") ||
         lower.endsWith(".txt") ||
+        lower.endsWith(".jpg") ||
+        lower.endsWith(".jpeg") ||
+        lower.endsWith(".png") ||
+        lower.endsWith(".pdf") ||
         lower.endsWith(".mp4") ||
         lower.endsWith(".mov") ||
         lower.endsWith(".m4v");
@@ -72,7 +93,7 @@ class _ImportPageState extends State<ImportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Import / Verify"),
+        title: Text(_t('verifyContentHeading')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -89,40 +110,31 @@ class _ImportPageState extends State<ImportPage> {
                 size: 72,
                 color: Colors.green,
               ),
-
               const SizedBox(height: 20),
-
-              const Text(
-                "Importa e verifica file HCV",
+              Text(
+                _t('verifyContentHeading'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 12),
-
-              const Text(
-                "Supportati:\n.hcvpack, .hcv, .txt, .mp4, .mov, .m4v",
+              Text(
+                _t('supportedFiles'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14),
               ),
-
               const SizedBox(height: 30),
-
               Text(
                 status,
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 24),
-
               ElevatedButton(
                 onPressed: pickFile,
-                child: const Text("SELEZIONA FILE"),
+                child: Text(_t('selectFile')),
               ),
-
               if (selectedPath != null) ...[
                 const SizedBox(height: 20),
                 Text(

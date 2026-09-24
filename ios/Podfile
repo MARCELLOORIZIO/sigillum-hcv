@@ -46,6 +46,7 @@ post_install do |installer|
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+      config.build_settings['STRIP_STYLE'] = 'non-global'
     end
   end
 end
