@@ -114,7 +114,7 @@ class _ConsentState extends State<VerifiedOriginalsConsentPage> {
         _consentRecordId = status['recordId']?.toString();
         _publish = false;
         _rights = false;
-        _monetizationConsent = false;
+        _monetizationConsent = status['monetizationConsent'] == true;
         _message = _state == 'ACTIVE'
             ? 'Consenso attivo: puoi ritirarlo.'
             : 'Certificato trovato. Nessun contenuto viene pubblicato da questa schermata.';
