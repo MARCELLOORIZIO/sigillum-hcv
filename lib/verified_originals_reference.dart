@@ -19,7 +19,25 @@ class VerifiedOriginalsReference {
   static final RegExp _sha256 = RegExp(r'^[a-f0-9]{64}$');
   static final RegExp _youtubeId = RegExp(r'^[A-Za-z0-9_-]{11}$');
 
-  /// Parses a Registry locator only. It never authenticates a third-party
+  /// Free discovery never carries a platform locator. A positive result only
+  /// means that SIGILLUM has an active certified reference for this HCV-ID.
+  static bool isAvailable(
+    Map<String, dynamic> json, {
+    required String requestedHcvId,
+  }) {
+    return _hcvId.hasMatch(requestedHcvId) &&
+        json['hcvId'] == requestedHcvId &&
+        json['availability'] == 'REFERENCE_AVAILABLE' &&
+        json['certificateVerdict'] == 'CERTIFICATE_RECORD_VERIFIED' &&
+        json['socialFileVerdict'] == 'NOT_VERIFIED' &&
+        json['publicationStatus'] == 'PUBLISHED' &&
+        json['viewAccess'] == 'SUBSCRIPTION_REQUIRED' &&
+        json['platform'] == 'youtube' &&
+        !json.containsKey('publicUrl') &&
+        !json.containsKey('platformPostId');
+  }
+
+  /// Parses only the paid /view response. It never authenticates a third-party
   /// social copy and never turns an HCV-ID/fingerprint into an integrity claim.
   static VerifiedOriginalsReference? fromRegistry(
     Map<String, dynamic> json, {
@@ -28,6 +46,7 @@ class VerifiedOriginalsReference {
     if (!_hcvId.hasMatch(requestedHcvId) ||
         json['hcvId'] != requestedHcvId ||
         json['availability'] != 'REFERENCE_AVAILABLE' ||
+        json['access'] != 'ENTITLED' ||
         json['certificateVerdict'] != 'CERTIFICATE_RECORD_VERIFIED' ||
         json['socialFileVerdict'] != 'NOT_VERIFIED' ||
         json['publicationStatus'] != 'PUBLISHED') {
