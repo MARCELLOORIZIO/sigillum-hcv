@@ -26,8 +26,13 @@ void main() {
   test('public reference screen never calls a social integrity verdict', () {
     final source = File('lib/verified_originals_page.dart').readAsStringSync();
     expect(source, contains('un HCV-ID può essere copiato'));
+    expect(source, contains('billingStatus()'));
+    expect(source, contains('/view'));
+    expect(source, contains("billing['status']?.toString() != 'active'"));
+    expect(source, contains('SUBSCRIPTION_REQUIRED'));
     expect(source, contains('non dimostra'));
     expect(source, isNot(contains('INTEGRITÀ VERIFICATA')));
     expect(source, isNot(contains('SOCIAL VERIFIED OK')));
+    expect(source, isNot(contains("json['publicUrl']")));
   });
 }
