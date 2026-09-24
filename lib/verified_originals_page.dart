@@ -5,7 +5,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'commercial_account_service.dart';
 import 'hcv_registry_service.dart';
+import 'hcv_secure_store.dart';
 import 'registry_verify_page.dart';
 import 'verified_originals_reference.dart';
 
@@ -30,7 +32,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
   final HCVRegistryService _registry = const HCVRegistryService();
   final TextEditingController _controller = TextEditingController();
 
-  VerifiedOriginalsReference? _reference;
+  bool _referenceAvailable = false;
   String? _searchedId;
   String? _error;
   bool _busy = false;
@@ -54,7 +56,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
     if (!_validId.hasMatch(id)) {
       setState(() {
         _searchedId = null;
-        _reference = null;
+        _referenceAvailable = false;
         _error = _it ? 'HCV-ID non valido.' : 'Invalid HCV-ID.';
       });
       return;
@@ -90,7 +92,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
       if (decoded is! Map<String, dynamic>) {
         throw const FormatException('Invalid Registry response');
       }
-      final reference = VerifiedOriginalsReference.fromRegistry(
+      final available = VerifiedOriginalsReference.isAvailable(
         decoded,
         requestedHcvId: id,
       );
@@ -98,7 +100,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
       if (!mounted) return;
       setState(() {
         _searchedId = id;
-        _reference = reference;
+        _referenceAvailable = available;
       });
     } catch (_) {
       if (!mounted) return;
@@ -125,29 +127,112 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
   }
 
   Future<void> _openReference() async {
-    final reference = _reference;
-    if (reference == null) return;
-    final opened = await launchUrl(
-      reference.publicUrl,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _it
-                ? 'Impossibile aprire il contenuto certificato.'
-                : 'Unable to open the certified reference.',
-          ),
-        ),
-      );
+    final id = _searchedId;
+    if (id == null || !_referenceAvailable || _busy) return;
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    try {
+      final billing = await const CommercialAccountService().billingStatus();
+      if (billing['status']?.toString() != 'active') {
+        throw const CommercialAccountException(
+          'SUBSCRIPTION_REQUIRED',
+          statusCode: 402,
+          code: 'SUBSCRIPTION_REQUIRED',
+        );
+      }
+
+      final token = await HCVSecureStore.read('sigillum.auth.session.v1');
+      if (token == null || token.isEmpty) {
+        throw const CommercialAccountException(
+          'AUTH_REQUIRED',
+          statusCode: 401,
+          code: 'AUTH_REQUIRED',
+        );
+      }
+
+      final base = _registry.baseUrl.endsWith('/')
+          ? _registry.baseUrl.substring(0, _registry.baseUrl.length - 1)
+          : _registry.baseUrl;
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 12);
+      try {
+        final request = await client
+            .getUrl(Uri.parse('$base/api/verified-originals/$id/view'))
+            .timeout(const Duration(seconds: 12));
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer $token',
+        );
+        final response =
+            await request.close().timeout(const Duration(seconds: 12));
+        final body = await utf8.decoder
+            .bind(response)
+            .join()
+            .timeout(const Duration(seconds: 12));
+        final decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException('Invalid Registry response');
+        }
+        if (response.statusCode == 402) {
+          throw const CommercialAccountException(
+            'SUBSCRIPTION_REQUIRED',
+            statusCode: 402,
+            code: 'SUBSCRIPTION_REQUIRED',
+          );
+        }
+        if (response.statusCode != 200) {
+          throw const FormatException('Reference service unavailable');
+        }
+
+        final reference = VerifiedOriginalsReference.fromRegistry(
+          decoded,
+          requestedHcvId: id,
+        );
+        if (reference == null) {
+          throw const FormatException('Invalid paid reference');
+        }
+
+        final opened = await launchUrl(
+          reference.publicUrl,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened) {
+          throw const FormatException('Unable to open reference');
+        }
+      } finally {
+        client.close(force: true);
+      }
+    } on CommercialAccountException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.code == 'SUBSCRIPTION_REQUIRED'
+            ? (_it
+                ? 'La verifica resta gratuita. Per vedere l’originale certificato serve un abbonamento SIGILLUM attivo.'
+                : 'Verification remains free. Viewing the certified original requires an active SIGILLUM subscription.')
+            : (_it
+                ? 'Accedi con un account SIGILLUM abbonato per vedere l’originale.'
+                : 'Sign in with a subscribed SIGILLUM account to view the original.');
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = _it
+            ? 'Impossibile aprire il contenuto certificato.'
+            : 'Unable to open the certified reference.';
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final searched = _searchedId != null;
-    final found = _reference != null;
+    final found = _referenceAvailable;
 
     return Scaffold(
       appBar: AppBar(
@@ -216,30 +301,30 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
             if (found) ...[
               Text(
                 _it
-                    ? 'Contenuto certificato disponibile.'
-                    : 'Certified reference available.',
+                    ? 'Originale certificato disponibile. La visualizzazione richiede un abbonamento SIGILLUM attivo.'
+                    : 'Certified original available. Viewing requires an active SIGILLUM subscription.',
               ),
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: _openReference,
-                icon: const Icon(Icons.play_circle_outline),
+                icon: const Icon(Icons.lock_outline),
                 label: Text(
                   _it
-                      ? 'GUARDA IL CONTENUTO CERTIFICATO'
-                      : 'WATCH THE CERTIFIED REFERENCE',
+                      ? 'GUARDA L’ORIGINALE CERTIFICATO'
+                      : 'WATCH THE CERTIFIED ORIGINAL',
                 ),
               ),
               const SizedBox(height: 10),
               Text(
                 _it
-                    ? 'Il riferimento deriva da una copia registrata da SIGILLUM. Non è una prova automatica che un altro file social sia identico.'
-                    : 'The reference comes from a copy registered by SIGILLUM. It does not automatically prove that another social file is identical.',
+                    ? 'SIGILLUM non rende pubblico il link durante la verifica gratuita. Il riferimento viene richiesto solo dopo il controllo dell’abbonamento.'
+                    : 'SIGILLUM does not expose the link during free verification. The reference is requested only after the subscription check.',
               ),
             ] else
               Text(
                 _it
-                    ? 'Nessun contenuto pubblico attivo disponibile. Il certificato può comunque essere verificato separatamente.'
-                    : 'No active public reference is available. The certificate can still be checked separately.',
+                    ? 'Nessun originale certificato attivo disponibile. Il certificato può comunque essere verificato gratuitamente.'
+                    : 'No active certified original is available. The certificate can still be checked for free.',
               ),
           ],
         ],
