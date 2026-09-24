@@ -101,8 +101,7 @@ class _ConsentState extends State<VerifiedOriginalsConsentPage> {
           !_hashPattern.hasMatch(hash)) {
         throw const FormatException('Certificato non valido');
       }
-      final status =
-          await _call('GET', '/api/verified-originals/consents/$id');
+      final status = await _call('GET', '/api/verified-originals/consents/$id');
       if (!mounted) return;
       setState(() {
         _resolvedId = id;
@@ -241,8 +240,7 @@ class _ConsentState extends State<VerifiedOriginalsConsentPage> {
                 ),
               ),
               FilledButton(
-                onPressed:
-                    !_busy && _publish && _rights ? _grant : null,
+                onPressed: !_busy && _publish && _rights ? _grant : null,
                 child: const Text('REGISTRA IL MIO CONSENSO'),
               ),
             ] else
