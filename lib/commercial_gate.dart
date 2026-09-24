@@ -12,6 +12,7 @@ import 'commercial_billing_service.dart';
 import 'hcv_identity.dart';
 import 'hcv_import_router_page.dart';
 import 'import_page.dart';
+import 'verified_originals_page.dart';
 import 'legal_info_page.dart';
 import 'sigillum_localization.dart';
 import 'recent_account_service.dart';
@@ -1240,6 +1241,15 @@ class _CommercialGateState extends State<CommercialGate> {
     );
   }
 
+  void _openVerifiedOriginals() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VerifiedOriginalsPage(languageCode: _languageCode),
+      ),
+    );
+  }
+
   void _openLegal() {
     Navigator.push(
       context,
@@ -1675,6 +1685,14 @@ class _CommercialGateState extends State<CommercialGate> {
                           onPressed: _openVerify,
                           icon: const Icon(Icons.center_focus_strong_rounded),
                           label: Text(_lv('verifyFree')),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: _openVerifiedOriginals,
+                          icon: const Icon(Icons.video_library_outlined),
+                          label: Text(_languageCode == 'it'
+                              ? 'VERIFICA CODICE / GUARDA ORIGINALE'
+                              : 'CHECK CODE / WATCH REFERENCE'),
                         ),
                         const SizedBox(height: 10),
                         Row(

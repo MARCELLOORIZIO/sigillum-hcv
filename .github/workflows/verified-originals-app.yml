@@ -1,0 +1,29 @@
+name: Verified Originals app (lookup + creator consent)
+on:
+  push:
+    branches:
+      - feature/verified-originals-app-20260924
+  pull_request:
+    paths:
+      - 'lib/verified_originals_*.dart'
+      - 'test/verified_originals_reference_test.dart'
+      - 'lib/home_page.dart'
+      - 'lib/user_home_page.dart'
+      - 'lib/commercial_gate.dart'
+      - '.github/workflows/verified-originals-app.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+      - run: flutter pub get
+      - run: dart format --output=none lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart test/verified_originals_reference_test.dart
+      - run: flutter test test/verified_originals_reference_test.dart --reporter expanded
+      - run: flutter analyze --no-fatal-warnings --no-fatal-infos
