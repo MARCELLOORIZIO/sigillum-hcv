@@ -1,0 +1,43 @@
+name: Trigger Codemagic BUILD129 TestFlight
+
+on:
+  push:
+    branches:
+      - release/testflight-build129-verified-originals-20260924
+    paths:
+      - '.github/workflows/trigger-codemagic-build129.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CM_A: ${{ secrets.CM_API_TOKEN }}
+      CM_B: ${{ secrets.CODEMAGIC_API_TOKEN }}
+    steps:
+      - name: Start Codemagic TestFlight build
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$CM_A"
+          if [[ -z "$token" ]]; then token="$CM_B"; fi
+          if [[ -z "$token" ]]; then
+            echo "CODEMAGIC_API_TOKEN_MISSING"
+            exit 2
+          fi
+          curl --fail-with-body --silent --show-error             -H "Content-Type: application/json"             -H "x-auth-token: $token"             --data '{"appId":"6a0747e8d58afdcf30d2793c","workflowId":"ios-testflight","branch":"release/testflight-build129-verified-originals-20260924"}'             -X POST https://api.codemagic.io/builds | tee codemagic-build.json
+          grep -q '"buildId"' codemagic-build.json
+          echo "CODEMAGIC_BUILD129_TRIGGERED=PASS"
+
+      - name: Upload trigger evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codemagic-build129-trigger-evidence
+          path: codemagic-build.json
+          if-no-files-found: ignore
+          retention-days: 7
