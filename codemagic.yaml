@@ -103,7 +103,7 @@ workflows:
       events:
         - push
       branch_patterns:
-        - pattern: 'release/testflight-final-20260827'
+        - pattern: 'release/testflight-build129-verified-originals-20260924'
           include: true
           source: true
       cancel_previous_builds: true
