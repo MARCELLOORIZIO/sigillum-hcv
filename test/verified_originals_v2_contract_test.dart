@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('creator consent and secure ingest stay separate from social publishing', () {
+  test('creator consent and secure ingest stay separate from social publishing',
+      () {
     final source =
         File('lib/verified_originals_consent_page.dart').readAsStringSync();
 
