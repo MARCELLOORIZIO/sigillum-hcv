@@ -7,6 +7,7 @@ import 'hcvpack_player_page.dart';
 import 'identity_page.dart';
 import 'import_page.dart';
 import 'registry_verify_page.dart';
+import 'verified_originals_page.dart';
 import 'screen_replay_calibration_page.dart';
 import 'screen_replay_diagnostics_page.dart';
 import 'text_cert_page.dart';
@@ -232,6 +233,13 @@ class _HomePageState extends State<HomePage> {
                 title: _l('verifyVideo'),
                 subtitle: _l('verifyVideoSub'),
                 onPressed: () => _open(RegistryVerifyPage(languageCode: languageCode)),
+              ),
+              const SizedBox(height: 14),
+              _mainButton(
+                icon: Icons.public,
+                title: 'SIGILLUM Verified Originals',
+                subtitle: 'Verifica codice o guarda il riferimento ufficiale',
+                onPressed: () => _open(const VerifiedOriginalsPage()),
               ),
               const SizedBox(height: 14),
               _mainButton(
