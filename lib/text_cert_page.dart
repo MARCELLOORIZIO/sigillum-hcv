@@ -256,7 +256,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('HCV-ID copiato')));
+        .showSnackBar(SnackBar(content: Text(_t('hcvIdCopied'))));
   }
 
   Future<void> copySocialText() async {
@@ -271,7 +271,7 @@ class _TextCertPageState extends State<TextCertPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Testo social copiato')));
+        .showSnackBar(SnackBar(content: Text(_t('socialTextCopied'))));
   }
 
   Future<void> shareSocialText() async {
@@ -292,8 +292,8 @@ class _TextCertPageState extends State<TextCertPage> {
     if (textPath == null || hcvPath == null) return;
 
     final shareText = hcvId == null
-        ? 'Testo verificato SIGILLUM'
-        : 'Testo verificato SIGILLUM\n$hcvId';
+        ? _t('verifiedTextShare')
+        : '${_t('verifiedTextShare')}\n$hcvId';
 
     await Share.shareXFiles(
       [XFile(textPath!), XFile(hcvPath!)],
@@ -356,7 +356,7 @@ class _TextCertPageState extends State<TextCertPage> {
     return Column(
       children: [
         Text(
-          isValid ? 'HUMAN VERIFIED' : 'NOT VERIFIED',
+          isValid ? _t('certificateVerifiedLabel') : _t('notVerifiedLabel'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,12 +10,15 @@ import 'package:url_launcher/url_launcher.dart';
 import 'commercial_account_service.dart';
 import 'commercial_billing_service.dart';
 import 'hcv_identity.dart';
+import 'hcv_import_router_page.dart';
 import 'import_page.dart';
+import 'verified_originals_page.dart';
 import 'legal_info_page.dart';
 import 'sigillum_localization.dart';
 import 'recent_account_service.dart';
 import 'sigillum_quick_guide_page.dart';
 import 'sigillum_theme.dart';
+import 'text_social_verify_page.dart';
 import 'user_home_page.dart';
 
 class CommercialGate extends StatefulWidget {
@@ -94,6 +98,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'L’abbonamento non risulta attivo sul server.',
     'subscriptionVerified': 'Abbonamento verificato.',
     'subscriptionFailed': 'Verifica abbonamento non riuscita',
+    'accountExists': 'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.',
+    'accountNotFoundCreate': 'Non esiste un account con questa email. Puoi crearne uno nuovo.',
+    'kycProcessingNotice': 'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',
+    'refreshVerification': 'AGGIORNA STATO VERIFICA',
     'purchaseFailed': 'Acquisto non completato.',
     'openResourceFailed': 'Impossibile aprire questa risorsa.',
   },
@@ -167,6 +175,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'The subscription is not active on the server.',
     'subscriptionVerified': 'Subscription verified.',
     'subscriptionFailed': 'Subscription verification failed',
+    'accountExists': 'This email is already linked to an account. Sign in or use Forgot password.',
+    'accountNotFoundCreate': 'No account exists with this email. You can create a new one.',
+    'kycProcessingNotice': 'The verification was submitted to Stripe. Wait for the result before starting another procedure.',
+    'refreshVerification': 'REFRESH VERIFICATION STATUS',
     'purchaseFailed': 'Purchase not completed.',
     'openResourceFailed': 'Unable to open this resource.',
   },
@@ -241,6 +253,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'La suscripción no está activa en el servidor.',
     'subscriptionVerified': 'Suscripción verificada.',
     'subscriptionFailed': 'Error al verificar la suscripción',
+    'accountExists': 'Este correo ya está asociado a una cuenta. Inicia sesión o usa ¿Olvidaste la contraseña?.',
+    'accountNotFoundCreate': 'No existe una cuenta con este correo. Puedes crear una nueva.',
+    'kycProcessingNotice': 'La verificación se envió a Stripe. Espera el resultado antes de iniciar otro procedimiento.',
+    'refreshVerification': 'ACTUALIZAR ESTADO DE VERIFICACIÓN',
     'purchaseFailed': 'Compra no completada.',
     'openResourceFailed': 'No se puede abrir este recurso.',
   },
@@ -315,6 +331,10 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'subscriptionInactive': 'Подписка не активна на сервере.',
     'subscriptionVerified': 'Подписка подтверждена.',
     'subscriptionFailed': 'Ошибка проверки подписки',
+    'accountExists': 'Этот email уже связан с аккаунтом. Войдите или используйте восстановление пароля.',
+    'accountNotFoundCreate': 'Аккаунта с этим email нет. Можно создать новый.',
+    'kycProcessingNotice': 'Проверка отправлена в Stripe. Дождитесь результата перед запуском новой процедуры.',
+    'refreshVerification': 'ОБНОВИТЬ СТАТУС ПРОВЕРКИ',
     'purchaseFailed': 'Покупка не завершена.',
     'openResourceFailed': 'Не удалось открыть ресурс.',
   },
@@ -420,6 +440,8 @@ enum _GateStage {
 }
 
 class _CommercialGateState extends State<CommercialGate> {
+  static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
+
   final CommercialAccountService _account = const CommercialAccountService();
   final RecentAccountService _recentAccountService =
       const RecentAccountService();
@@ -445,6 +467,9 @@ class _CommercialGateState extends State<CommercialGate> {
   String _message = '';
   String _languageCode = SigillumCopy.initialLanguageCode();
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
+  String? _lastOpenedSharedPath;
+  String? _pendingSharedPath;
+  bool _sharedOpenScheduled = false;
 
   @override
   void initState() {
@@ -453,12 +478,15 @@ class _CommercialGateState extends State<CommercialGate> {
     _purchaseSub = CommercialBillingService.instance.purchases.listen(
       _onPurchases,
     );
+    _intentChannel.setMethodCallHandler(_handleNativeIntent);
+    Future.microtask(_checkInitialIntent);
     Future.microtask(_loadRecentAccounts);
     _bootstrap();
   }
 
   @override
   void dispose() {
+    _intentChannel.setMethodCallHandler(null);
     _purchaseSub?.cancel();
     _name.dispose();
     _email.dispose();
@@ -501,6 +529,87 @@ class _CommercialGateState extends State<CommercialGate> {
       _password.clear();
       _message = '';
     });
+  }
+
+  Future<dynamic> _handleNativeIntent(MethodCall call) async {
+    if (call.method != 'onSharedPath') return null;
+    final path = call.arguments as String?;
+    if (path == null || path.isEmpty) return null;
+
+    _queueImportedPath(path);
+    try {
+      await _intentChannel.invokeMethod<bool>('ackSharedPath', <String, dynamic>{
+        'path': path,
+      });
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _checkInitialIntent() async {
+    try {
+      final path = await _intentChannel.invokeMethod<String>('getSharedPath');
+      if (path != null && path.isNotEmpty) {
+        _queueImportedPath(path);
+      }
+    } catch (error) {
+      debugPrint('Intent error: $error');
+    }
+  }
+
+  void _queueImportedPath(String path) {
+    if (!mounted ||
+        path.isEmpty ||
+        _lastOpenedSharedPath == path ||
+        _pendingSharedPath == path) {
+      return;
+    }
+
+    _pendingSharedPath = path;
+    if (_sharedOpenScheduled) return;
+    _sharedOpenScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sharedOpenScheduled = false;
+      if (!mounted) return;
+      final pending = _pendingSharedPath;
+      _pendingSharedPath = null;
+      if (pending != null && pending.isNotEmpty) {
+        _openImportedPath(pending);
+      }
+    });
+  }
+
+  Future<void> _openImportedPath(String path) async {
+    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
+    if (!await File(path).exists()) return;
+    if (!mounted) return;
+    _lastOpenedSharedPath = path;
+
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.txt')) {
+      try {
+        final sharedText = await File(path).readAsString();
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TextSocialVerifyPage(
+              languageCode: _languageCode,
+              initialText: sharedText,
+            ),
+          ),
+        );
+      } catch (_) {}
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            HCVImportRouterPage(path: path, languageCode: _languageCode),
+      ),
+    );
   }
 
   void _openQuickGuide() {
@@ -740,18 +849,10 @@ class _CommercialGateState extends State<CommercialGate> {
     var serverStatus = billing['status']?.toString() ?? '';
     var serverActive = serverStatus == 'active' || serverStatus == 'grace';
 
-    if (!serverActive) {
-      try {
-        final recoveredActive = await _recoverUnfinishedAppleTransactions();
-        if (recoveredActive) {
-          billing = await _account.billingStatus();
-          serverStatus = billing['status']?.toString() ?? '';
-          serverActive = serverStatus == 'active' || serverStatus == 'grace';
-        }
-      } catch (error) {
-        _message = "${_t('subscriptionFailed')}: $error";
-      }
-    }
+    // billingStatus() already performs current-entitlement verification
+    // and an account-bound Apple server reconcile. Do not replay unfinished
+    // StoreKit transactions during ordinary login: stale queue cleanup belongs
+    // to the purchase/restore paths and must not hold the login spinner open.
 
     if (!serverActive) {
       if (returnToLandingIfUnpaid) {
@@ -923,7 +1024,7 @@ class _CommercialGateState extends State<CommercialGate> {
           _loginMode = true;
           _forgotMode = false;
           _password.clear();
-          _message = 'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.';
+          _message = _t('accountExists');
         });
         return;
       }
@@ -984,7 +1085,7 @@ class _CommercialGateState extends State<CommercialGate> {
             _loginMode = false;
             _forgotMode = false;
             _password.clear();
-            _message = 'Non esiste un account con questa email. Puoi crearne uno nuovo.';
+            _message = _t('accountNotFoundCreate');
           });
           return;
         }
@@ -1136,6 +1237,15 @@ class _CommercialGateState extends State<CommercialGate> {
       context,
       MaterialPageRoute(
         builder: (_) => ImportPage(languageCode: _languageCode),
+      ),
+    );
+  }
+
+  void _openVerifiedOriginals() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VerifiedOriginalsPage(languageCode: _languageCode),
       ),
     );
   }
@@ -1575,6 +1685,14 @@ class _CommercialGateState extends State<CommercialGate> {
                           onPressed: _openVerify,
                           icon: const Icon(Icons.center_focus_strong_rounded),
                           label: Text(_lv('verifyFree')),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: _openVerifiedOriginals,
+                          icon: const Icon(Icons.video_library_outlined),
+                          label: Text(_languageCode == 'it'
+                              ? 'VERIFICA CODICE / GUARDA ORIGINALE'
+                              : 'CHECK CODE / WATCH REFERENCE'),
                         ),
                         const SizedBox(height: 10),
                         Row(
@@ -2048,8 +2166,8 @@ class _CommercialGateState extends State<CommercialGate> {
         ),
         if (processing) ...[
           const SizedBox(height: 10),
-          const Text(
-            'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',
+          Text(
+            _t('kycProcessingNotice'),
             textAlign: TextAlign.center,
             style: TextStyle(color: SigillumTheme.muted),
           ),
@@ -2057,7 +2175,7 @@ class _CommercialGateState extends State<CommercialGate> {
         const SizedBox(height: 10),
         OutlinedButton(
           onPressed: _busy ? null : _refreshAfterKyc,
-          child: const Text('AGGIORNA STATO VERIFICA'),
+          child: Text(_t('refreshVerification')),
         ),
         if (_busy)
           const Padding(

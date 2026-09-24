@@ -9,6 +9,9 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hcv_audio_fingerprint.dart';
+import 'hcv_spatial_fingerprint_v2.dart';
+
 class HCVSocialFingerprint {
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
@@ -32,15 +35,27 @@ class HCVSocialFingerprint {
       interpolation: img.Interpolation.average,
     );
     final hash = _averageHash(normalized);
+    final spatial = HCVSpatialFingerprintV2.build(decoded);
 
     return {
       'algorithm': 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1',
       'imageHash': hash,
+      'spatialFingerprint': spatial,
       'combinedHash': sha256.convert(hash.codeUnits).toString(),
     };
   }
 
   Future<Map<String, dynamic>> buildFromVideo(String videoPath) async {
+    final visual = await buildVisualFromVideo(videoPath);
+    final audio = await HCVAudioFingerprint.buildFromVideo(videoPath);
+    return <String, dynamic>{
+      ...visual,
+      'audioFingerprintPolicy': HCVAudioFingerprint.policy,
+      'audioFingerprint': audio,
+    };
+  }
+
+  Future<Map<String, dynamic>> buildVisualFromVideo(String videoPath) async {
     final file = File(videoPath);
     if (!await file.exists()) {
       throw Exception('Video non trovato: $videoPath');
@@ -58,6 +73,7 @@ class HCVSocialFingerprint {
     }
 
     final hashes = <String>[];
+    final spatialFrames = <Map<String, dynamic>>[];
 
     for (final frame in frames) {
       final bytes = await frame.readAsBytes();
@@ -66,6 +82,7 @@ class HCVSocialFingerprint {
       if (decoded == null) continue;
 
       hashes.add(_averageHash(_normalizeVideoFrame(decoded)));
+      spatialFrames.add(HCVSpatialFingerprintV2.build(decoded));
     }
 
     try {
@@ -78,6 +95,7 @@ class HCVSocialFingerprint {
       'algorithm': 'SIGILLUM_SOCIAL_AHASH_V1',
       'frameCount': hashes.length,
       'frameHashes': hashes,
+      'spatialFrameFingerprints': spatialFrames,
       'combinedHash': sha256.convert(combined.codeUnits).toString(),
     };
   }
@@ -118,7 +136,8 @@ class HCVSocialFingerprint {
         if (!await source.exists()) continue;
 
         await source.copy(
-            p.join(workDir.path, 'frame_${i.toString().padLeft(3, '0')}.jpg'));
+          p.join(workDir.path, 'frame_${i.toString().padLeft(3, '0')}.jpg'),
+        );
       } catch (_) {}
     }
 
@@ -140,9 +159,11 @@ class HCVSocialFingerprint {
 
     final framePattern = p.join(workDir.path, 'frame_%03d.png');
 
+    // Preserve spatial detail and RGB for V2; the old 16x16 gray FFmpeg
+    // thumbnails made the signed spatial fingerprint meaningless off iOS.
+    // The legacy aHash is still computed separately from these decoded frames.
     final command = "-y -i '$videoPath' "
-        "-vf \"fps=1/2,scale=16:16:force_original_aspect_ratio=decrease,"
-        "pad=16:16:(ow-iw)/2:(oh-ih)/2,format=gray\" "
+        "-vf \"fps=1/2,scale='min(iw,640)':-2:flags=lanczos,format=rgb24\" "
         "-frames:v 8 '$framePattern'";
 
     final session = await FFmpegKit.execute(command);

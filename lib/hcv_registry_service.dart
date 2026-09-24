@@ -155,6 +155,20 @@ class HCVRegistryService {
       final body = await utf8.decoder.bind(res).join().timeout(_requestTimeout);
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
+        if (res.statusCode == 401) {
+          throw const HCVRegistryException(
+            HCVRegistryFailureKind.invalidResponse,
+            'Sessione Creator scaduta. Accedi nuovamente prima di pubblicare nel Registry.',
+            statusCode: 401,
+          );
+        }
+        if (res.statusCode == 402) {
+          throw const HCVRegistryException(
+            HCVRegistryFailureKind.invalidResponse,
+            'Abbonamento Creator non attivo. Rinnova l’abbonamento per pubblicare nel Registry.',
+            statusCode: 402,
+          );
+        }
         throw HCVRegistryException(
           res.statusCode >= 500
               ? HCVRegistryFailureKind.server
@@ -425,6 +439,13 @@ class HCVRegistryService {
           break;
         } on HCVRegistryException catch (e) {
           lastRegistryError = e;
+          if (e.statusCode == 401 || e.statusCode == 402) {
+            // Account/session state is not a transient Registry failure. Keep
+            // the already-persisted outbox untouched and surface the reason
+            // immediately instead of hammering the endpoint or presenting an
+            // endless "pending" state. A later valid Creator session retries it.
+            rethrow;
+          }
           if (e.kind == HCVRegistryFailureKind.invalidCertificate) {
             discarded++;
             discardCurrent = true;

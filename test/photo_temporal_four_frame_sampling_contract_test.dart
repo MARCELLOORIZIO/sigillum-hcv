@@ -28,13 +28,13 @@ void main() {
     );
   });
 
-  test('photo Temporal V2 captures 2.4s and requests four 0.6s ML samples', () {
+  test('photo Temporal V2 captures 1.5s and requests three 0.6s ML samples', () {
     final source = File('lib/hcv_temporal_capture_probe.dart').readAsStringSync();
 
     expect(
       source,
       contains(
-        'static const Duration defaultDuration = Duration(milliseconds: 2400)',
+        'static const Duration defaultDuration = Duration(milliseconds: 1500)',
       ),
     );
     expect(
@@ -43,7 +43,7 @@ void main() {
     );
     expect(
       source,
-      contains('static const int photoMlFrameLimit = 4'),
+      contains('static const int photoMlFrameLimit = 3'),
     );
     expect(source, contains('Future<HCVTemporalCaptureClip> capture('));
     expect(source, contains('Future<Map<String, dynamic>> analyzeCapturedClip('));

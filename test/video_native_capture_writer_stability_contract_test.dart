@@ -27,12 +27,12 @@ void main() {
     expect(miniVideo, greaterThanOrEqualTo(0));
     expect(still, greaterThan(miniVideo));
     expect(analysis, greaterThan(still));
-    expect(temporal, contains('Duration(milliseconds: 2400)'));
+    expect(temporal, contains('Duration(milliseconds: 1500)'));
     expect(
       temporal,
       contains('static const double photoMlFrameIntervalSeconds = 0.6'),
     );
-    expect(temporal, contains('static const int photoMlFrameLimit = 4'));
+    expect(temporal, contains('static const int photoMlFrameLimit = 3'));
     expect(
       temporal,
       contains('frameSamplingIntervalSeconds: photoMlFrameIntervalSeconds'),

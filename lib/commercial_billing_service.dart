@@ -232,21 +232,48 @@ class CommercialBillingService {
   Future<void> _preflightCurrentAppleEntitlementOwnership() async {
     if (defaultTargetPlatform != TargetPlatform.iOS) return;
 
+    List<Object?>? raw;
     try {
-      // billingStatus() reconciles StoreKit 2 currentEntitlements with the
-      // server-side durable originalTransactionId owner. If the Apple ID already
-      // has a current SIGILLUM subscription owned by another SIGILLUM account,
-      // opening another Apple sheet would only attempt a plan change on that
-      // foreign subscription and would necessarily fail server verification.
-      // Block before payment instead. A stale unfinished transaction that is no
-      // longer a current entitlement is still handled separately below and may
-      // be finished safely before a genuinely new purchase.
-      await const CommercialAccountService().billingStatus();
-    } on CommercialAccountException catch (error) {
-      if (error.code == 'APPLE_SUBSCRIPTION_ALREADY_LINKED') rethrow;
-      // Preserve the existing purchase behavior for unrelated/transient status
-      // lookup failures; the actual purchase remains fail-closed because its
-      // resulting transaction must still pass server verification.
+      // Query StoreKit 2 directly here rather than billingStatus(). The normal
+      // account-status path deliberately tolerates a foreign Apple entitlement
+      // so login/profile can remain usable, while purchase preflight must treat
+      // that same ownership conflict as terminal before an Apple payment sheet
+      // is opened and interpreted as a plan change on the foreign subscription.
+      raw = await _nativeStoreKit2.invokeMethod<List<Object?>>(
+        'currentEntitlements',
+      );
+    } on PlatformException {
+      // Preserve the existing purchase behavior for an unavailable/transient
+      // native status lookup. The resulting purchase still cannot grant access
+      // unless its transaction passes server verification.
+      return;
+    }
+
+    if (raw == null || raw.isEmpty) return;
+
+    const account = CommercialAccountService();
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final productId = item['productId']?.toString() ?? '';
+      final transactionId = item['transactionId']?.toString() ?? '';
+      final receiptData = item['receiptData']?.toString() ?? '';
+      if (!productIds.contains(productId) ||
+          transactionId.isEmpty ||
+          receiptData.isEmpty) {
+        continue;
+      }
+
+      try {
+        await account.verifyApplePurchase(
+          productId: productId,
+          transactionId: transactionId,
+          receiptData: receiptData,
+        );
+      } on CommercialAccountException catch (error) {
+        if (error.code == 'APPLE_SUBSCRIPTION_ALREADY_LINKED') rethrow;
+        // Unrelated/transient verification failures do not locally grant an
+        // entitlement and preserve the previous fail-closed purchase flow.
+      }
     }
   }
 

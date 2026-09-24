@@ -13,6 +13,7 @@ import 'hcv_verifier.dart';
 import 'hcv_package.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_live_signals.dart';
+import 'hcv_live_screen_probe.dart';
 import 'hcv_trust_analyzer.dart';
 import 'hcv_location_video_watermark.dart';
 
@@ -25,7 +26,10 @@ import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_temporal_capture_probe.dart';
 import 'hcv_temporal_frequency_probe.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
+import 'hcv_ml_v3_photo_residual.dart';
 import 'hcv_display_risk_fusion.dart';
+import 'hcv_multi_evidence_display_policy.dart';
+import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
@@ -108,6 +112,42 @@ HCVDisplayRiskResult _mergeMlPrimaryWithDiagnostics(
     score: finalScore,
     decision: primary.decision,
     analysisStatus: primary.analysisStatus,
+    evidenceSources: evidenceSources,
+    strongSources: strongSources,
+    reasons: reasons,
+  );
+}
+
+HCVDisplayRiskResult _promoteWithCoherentHfrDisplayPeriodicity(
+  HCVDisplayRiskResult base,
+  Map<String, dynamic>? temporalFrequencyProbe,
+) {
+  if (temporalFrequencyProbe == null ||
+      temporalFrequencyProbe['analysisStatus'] != 'ANALYZED' ||
+      temporalFrequencyProbe['coherentDisplayPeriodicity'] != true) {
+    return base;
+  }
+
+  final evidenceSources = <String>{
+    ...base.evidenceSources,
+    'HFR_COHERENT_DISPLAY_PERIODICITY',
+  }.toList()
+    ..sort();
+  final strongSources = <String>{
+    ...base.strongSources,
+    'HFR_COHERENT_DISPLAY_PERIODICITY',
+  }.toList()
+    ..sort();
+  final reasons = <String>{
+    ...base.reasons,
+    'HFR_FULL_FRAME_COHERENT_DISPLAY_PERIODICITY',
+  }.toList();
+
+  return HCVDisplayRiskResult(
+    risk: 'HIGH',
+    score: base.score < 95 ? 95 : base.score,
+    decision: 'STRONG_DISPLAY_RISK',
+    analysisStatus: 'COMPLETE',
     evidenceSources: evidenceSources,
     strongSources: strongSources,
     reasons: reasons,
@@ -286,6 +326,7 @@ class _CameraPageState extends State<CameraPage> {
   Map<String, dynamic>? lastLiveSignals;
   Map<String, dynamic>? pendingLiveScreenProbe;
   Map<String, dynamic>? pendingTemporalFrequencyProbe;
+  Map<String, dynamic>? pendingSceneContextProbe;
   HCVCaptureLocation? pendingVideoLocation;
   HCVCaptureLocation? _lastCaptureLocation;
   DateTime? pendingVideoCapturedAt;
@@ -392,6 +433,90 @@ class _CameraPageState extends State<CameraPage> {
     Future.microtask(_retryPendingRegistryUploads);
   }
 
+  ResolutionPreset _resolutionPresetForMode(bool isPhotoMode) {
+    // BUILD126: the observed medium video format was 4:3 / 640x480 while
+    // native HFR used 16:9 / 1280x720. Use the same high preset for both
+    // modes; runtime native FOV attestation still determines eligibility.
+    return ResolutionPreset.high;
+  }
+
+  Future<void> _setCaptureMode(bool nextPhotoMode) async {
+    if (photoMode == nextPhotoMode) return;
+    if (recording || _videoFinalizeInProgress) return;
+
+    final active = controller;
+    final available = cameras;
+    final savedZoom = currentZoom;
+    final savedFlash = currentFlashMode;
+
+    photoMode = nextPhotoMode;
+    pendingLiveScreenProbe = null;
+    pendingVideoLocation = null;
+
+    if (active == null ||
+        !active.value.isInitialized ||
+        available == null ||
+        selectedCameraIndex < 0 ||
+        selectedCameraIndex >= available.length) {
+      if (mounted) setState(() {});
+      return;
+    }
+
+    controller = null;
+    if (mounted) {
+      setState(() {
+        ready = false;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+    }
+
+    try {
+      await active.dispose();
+    } catch (_) {}
+
+    final replacement = CameraController(
+      available[selectedCameraIndex],
+      _resolutionPresetForMode(nextPhotoMode),
+      enableAudio: true,
+    );
+
+    try {
+      await replacement.initialize();
+      final newMinZoom = await replacement.getMinZoomLevel();
+      final deviceMaxZoom = await replacement.getMaxZoomLevel();
+      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 15.0).toDouble();
+      final restoredZoom = savedZoom.clamp(newMinZoom, newMaxZoom).toDouble();
+
+      await replacement.setZoomLevel(restoredZoom);
+      try {
+        await replacement.setFlashMode(savedFlash);
+      } catch (_) {}
+
+      controller = replacement;
+      minZoom = newMinZoom;
+      maxZoom = newMaxZoom;
+      currentZoom = restoredZoom;
+
+      if (mounted) {
+        setState(() {
+          ready = true;
+          status = _c('ready');
+        });
+      }
+    } catch (error) {
+      try {
+        await replacement.dispose();
+      } catch (_) {}
+      controller = null;
+      if (mounted) {
+        setState(() {
+          ready = false;
+          status = '${_c('error')}: CAMERA_MODE_REINITIALIZATION_FAILED';
+        });
+      }
+    }
+  }
+
   Future<void> initCamera() async {
     try {
       cameras = await availableCameras();
@@ -403,7 +528,7 @@ class _CameraPageState extends State<CameraPage> {
 
       controller = CameraController(
         cameras![selectedCameraIndex],
-        ResolutionPreset.medium,
+        _resolutionPresetForMode(photoMode),
         enableAudio: true,
       );
 
@@ -411,7 +536,7 @@ class _CameraPageState extends State<CameraPage> {
 
       minZoom = await controller!.getMinZoomLevel();
       final deviceMaxZoom = await controller!.getMaxZoomLevel();
-      maxZoom = deviceMaxZoom.clamp(minZoom, 10.0).toDouble();
+      maxZoom = deviceMaxZoom.clamp(minZoom, 15.0).toDouble();
       currentZoom = currentZoom.clamp(minZoom, maxZoom).toDouble();
       await controller!.setZoomLevel(currentZoom);
 
@@ -435,14 +560,17 @@ class _CameraPageState extends State<CameraPage> {
 
     controller = CameraController(
       cameras![selectedCameraIndex],
-      ResolutionPreset.high,
-      enableAudio: !photoMode,
+      _resolutionPresetForMode(photoMode),
+      enableAudio: true,
     );
 
     await controller!.initialize();
 
     minZoom = await controller!.getMinZoomLevel();
-    maxZoom = await controller!.getMaxZoomLevel();
+    final deviceMaxZoom = await controller!.getMaxZoomLevel();
+    maxZoom = deviceMaxZoom.clamp(minZoom, 15.0).toDouble();
+    currentZoom = currentZoom.clamp(minZoom, maxZoom).toDouble();
+    await controller!.setZoomLevel(currentZoom);
 
     if (!mounted) return;
 
@@ -481,6 +609,14 @@ class _CameraPageState extends State<CameraPage> {
     final savedFlash = currentFlashMode;
     Map<String, dynamic> probe;
 
+    // Snapshot the real native device state while Flutter still owns the
+    // preview session. Reading it after dispose could observe a reset/default
+    // activeFormat rather than the format that produced the user-visible FOV.
+    final preHfrCameraState =
+        await const HCVTemporalFrequencyProbe().snapshotNativeCameraState(
+      description.name,
+    );
+
     // The native high-speed session must own the camera exclusively. Detach
     // CameraPreview from the controller BEFORE disposing its native texture.
     // Keeping a disposed controller mounted during the AVFoundation handoff can
@@ -502,6 +638,8 @@ class _CameraPageState extends State<CameraPage> {
     try {
       probe = await const HCVTemporalFrequencyProbe().captureNative(
         description.name,
+        requestedZoomFactor: savedZoom,
+        preHfrCameraState: preHfrCameraState,
       );
     } catch (error) {
       probe = HCVTemporalFrequencyProbe.unavailable(
@@ -516,14 +654,14 @@ class _CameraPageState extends State<CameraPage> {
     await Future.delayed(const Duration(milliseconds: 220));
     final replacement = CameraController(
       description,
-      ResolutionPreset.medium,
+      _resolutionPresetForMode(photoMode),
       enableAudio: true,
     );
     try {
       await replacement.initialize();
       final newMinZoom = await replacement.getMinZoomLevel();
       final deviceMaxZoom = await replacement.getMaxZoomLevel();
-      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 10.0).toDouble();
+      final newMaxZoom = deviceMaxZoom.clamp(newMinZoom, 15.0).toDouble();
       final restoredZoom = savedZoom.clamp(newMinZoom, newMaxZoom).toDouble();
       await replacement.setZoomLevel(restoredZoom);
       try {
@@ -545,7 +683,7 @@ class _CameraPageState extends State<CameraPage> {
 
       // Real BUILD 91 samples needed roughly 1-3 seconds to recover focus when
       // this reset was absent. Give the explicit AF kick a bounded head start;
-      // photo mode then gets the existing 2.4 s temporal clip as extra settle.
+      // photo mode then gets the 1.5 s temporal clip as extra settle.
       await Future.delayed(const Duration(milliseconds: 650));
 
       controller = replacement;
@@ -575,6 +713,117 @@ class _CameraPageState extends State<CameraPage> {
     }
 
     return probe;
+  }
+
+  Future<Map<String, dynamic>> _capturePassiveSceneContext() async {
+    final camera = controller;
+    if (camera == null || !camera.value.isInitialized) {
+      final context = HCVSceneContextEvidence.unknown(
+        'CAMERA_NOT_READY_FOR_PASSIVE_SCENE_CONTEXT',
+      );
+      return <String, dynamic>{
+        'type': 'SIGILLUM_PASSIVE_SCENE_CONTEXT_CAPTURE_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'sceneContextEvidence': context.toJson(),
+        'reason': 'CAMERA_NOT_READY_FOR_PASSIVE_SCENE_CONTEXT',
+      };
+    }
+
+    final sensorCapture = HCVLiveSignals();
+    Map<String, dynamic>? sensorSignals;
+    Map<String, dynamic> geometryProbe;
+    var sensorsStarted = false;
+
+    try {
+      await sensorCapture.start();
+      sensorsStarted = true;
+      geometryProbe = await HCVLiveScreenProbe().analyzePassiveSceneGeometry(
+        camera,
+      );
+    } catch (error) {
+      geometryProbe = <String, dynamic>{
+        'type': 'SIGILLUM_PASSIVE_SCENE_GEOMETRY_V1',
+        'analysisStatus': 'NOT_ANALYZED',
+        'geometryChallenge': const <String, dynamic>{
+          'sceneClass': 'UNKNOWN',
+          'realityEvidence': false,
+          'planarEvidence': false,
+        },
+        'reason': 'PASSIVE_SCENE_CONTEXT_CAPTURE_FAILED',
+        'error': error.toString(),
+      };
+    } finally {
+      if (sensorsStarted) {
+        try {
+          sensorSignals = await sensorCapture.stopAndBuildSummary();
+        } catch (_) {
+          sensorSignals = null;
+        }
+      }
+    }
+
+    final sceneContext = HCVSceneContextEvidence.fromPassiveGeometryAndSensors(
+      geometryProbe: geometryProbe,
+      sensorSignals: sensorSignals,
+    );
+
+    // The passive probe owns only a short preview stream. Restore the user's
+    // capture state before the normal PHOTO/VIDEO pipeline resumes.
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setZoomLevel(
+          currentZoom.clamp(minZoom, maxZoom).toDouble(),
+        );
+      }
+    } catch (_) {}
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setFlashMode(currentFlashMode);
+      }
+    } catch (_) {}
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setExposureMode(ExposureMode.auto);
+      }
+    } catch (_) {}
+    try {
+      if (camera.value.isInitialized) {
+        await camera.setFocusMode(FocusMode.auto);
+      }
+    } catch (_) {}
+
+    return <String, dynamic>{
+      'type': 'SIGILLUM_PASSIVE_SCENE_CONTEXT_CAPTURE_V1',
+      'analysisStatus': geometryProbe['analysisStatus'] ?? 'NOT_ANALYZED',
+      'geometryProbe': geometryProbe,
+      'geometryChallenge': geometryProbe['geometryChallenge'],
+      'sensorSignals': sensorSignals,
+      'sceneContextEvidence': sceneContext.toJson(),
+      'reason': sceneContext.reasons.join('|'),
+    };
+  }
+
+  HCVSceneContextEvidence _sceneContextFromProbe(
+    Map<String, dynamic>? probe,
+  ) {
+    final raw = probe?['sceneContextEvidence'];
+    if (raw is! Map) {
+      return HCVSceneContextEvidence.unknown(
+        'PASSIVE_SCENE_CONTEXT_NOT_CAPTURED',
+      );
+    }
+    final map = Map<String, dynamic>.from(raw);
+    final rawReasons = map['reasons'];
+    final reasons = rawReasons is List
+        ? rawReasons.map((item) => item.toString()).toList()
+        : const <String>['SCENE_CONTEXT_NOT_POSITIVELY_ESTABLISHED'];
+    return HCVSceneContextEvidence(
+      contextClass: map['contextClass']?.toString() ??
+          HCVSceneContextEvidence.sceneContextUnknown,
+      analysisStatus: map['analysisStatus']?.toString() ?? 'INDETERMINATE',
+      positiveRealityEvidence: map['positiveRealityEvidence'] == true,
+      reasons: reasons,
+    );
   }
 
   Future<void> _settleCameraAfterLiveProbe() async {
@@ -617,6 +866,7 @@ class _CameraPageState extends State<CameraPage> {
 
     pendingLiveScreenProbe = null;
     pendingTemporalFrequencyProbe = null;
+    pendingSceneContextProbe = null;
     pendingVideoLocation = captureLocation;
     lastLiveSignals = null;
 
@@ -637,10 +887,31 @@ class _CameraPageState extends State<CameraPage> {
       // its own native AVCaptureSession while Flutter camera is released.
       pendingTemporalFrequencyProbe =
           await _captureTemporalFrequencyNativeIsolated();
+      pendingSceneContextProbe = await _capturePassiveSceneContext();
 
       await _settleCameraAfterLiveProbe();
       await controller!.startVideoRecording();
       pendingVideoCapturedAt = DateTime.now();
+
+      // Check the device actually used for REC, not merely the Flutter
+      // preview before the isolated HFR handoff. A changed recording format,
+      // zoom or physical lens makes HFR diagnostic-only even when the
+      // pre-HFR snapshot was comparable.
+      final recordingCameras = cameras;
+      Map<String, dynamic>? recordingCameraState;
+      if (recordingCameras != null &&
+          selectedCameraIndex >= 0 &&
+          selectedCameraIndex < recordingCameras.length) {
+        recordingCameraState =
+            await const HCVTemporalFrequencyProbe().snapshotNativeCameraState(
+          recordingCameras[selectedCameraIndex].name,
+        );
+      }
+      pendingTemporalFrequencyProbe =
+          HCVTemporalFrequencyProbe.attestVideoRecordingGeometry(
+        pendingTemporalFrequencyProbe,
+        recordingCameraState,
+      );
 
       try {
         await liveSignals.start();
@@ -654,6 +925,7 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
       pendingTemporalFrequencyProbe = null;
+      pendingSceneContextProbe = null;
       setState(() {
         recording = false;
         status = '${_c('startError')}: $e';
@@ -728,6 +1000,7 @@ class _CameraPageState extends State<CameraPage> {
       pendingVideoLocation = null;
       pendingLiveScreenProbe = null;
       pendingTemporalFrequencyProbe = null;
+      pendingSceneContextProbe = null;
       try {
         lastLiveSignals = await liveSignals.stopAndBuildSummary();
       } catch (_) {
@@ -809,7 +1082,7 @@ class _CameraPageState extends State<CameraPage> {
       if (temporalRisk != null)
         'videoEquivalentDisplayRisk': temporalRisk.toJson(),
       'note':
-          'Photo Temporal V2 uses a disposable 2.4 s clip immediately before automatic still capture. Manual parallax is not used.',
+          'Photo Temporal V2 uses a disposable 1.5 s clip immediately before automatic still capture. Manual parallax is not used.',
     };
   }
 
@@ -824,6 +1097,7 @@ class _CameraPageState extends State<CameraPage> {
     HCVTemporalCaptureClip? temporalClip;
     Map<String, dynamic>? temporalProbe;
     Map<String, dynamic>? temporalFrequencyProbe;
+    Map<String, dynamic>? sceneContextProbe;
 
     try {
       // One user tap starts the technical clip and automatically finishes with
@@ -834,6 +1108,13 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
+      sceneContextProbe = await _capturePassiveSceneContext();
+
+      // BUILD121: the passive context probe temporarily locks focus/exposure.
+      // Let the restored AUTO camera state converge before the technical PHOTO
+      // mini-video starts, so its ML frames and the final still see the same
+      // stabilized optical state.
+      await _settleCameraAfterLiveProbe();
 
       try {
         temporalClip = await temporalProbeEngine.capture(
@@ -929,6 +1210,39 @@ class _CameraPageState extends State<CameraPage> {
         };
       }
 
+      Map<String, dynamic>? v3PhotoResidualAnalysis;
+      try {
+        v3PhotoResidualAnalysis =
+            await HCVMLV3PhotoResidual.instance.analyzePhoto(savedPhotoPath);
+        mlScreenReplayAnalysis =
+            HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
+          mlScreenReplayAnalysis ??
+              <String, dynamic>{
+                'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+                'analysisStatus': 'NOT_ANALYZED',
+                'reason': 'V2_PHOTO_ANALYSIS_MISSING',
+              },
+          v3PhotoResidualAnalysis,
+        );
+      } catch (e) {
+        v3PhotoResidualAnalysis = <String, dynamic>{
+          'type': 'SIGILLUM_V3_PHOTO_RESIDUAL_V1',
+          'analysisStatus': 'NOT_ANALYZED',
+          'reason': 'V3_PHOTO_RESIDUAL_EXCEPTION',
+          'error': e.toString(),
+        };
+        mlScreenReplayAnalysis =
+            HCVMLV3PhotoResidual.instance.decorateV2PhotoAnalysis(
+          mlScreenReplayAnalysis ??
+              <String, dynamic>{
+                'type': 'SIGILLUM_SCREEN_REPLAY_ML_ANALYSIS_V1',
+                'analysisStatus': 'NOT_ANALYZED',
+                'reason': 'V2_PHOTO_ANALYSIS_MISSING',
+              },
+          v3PhotoResidualAnalysis,
+        );
+      }
+
       if (screenReplayAnalysis != null) {
         screenReplayAnalysis = {
           ...screenReplayAnalysis,
@@ -940,14 +1254,30 @@ class _CameraPageState extends State<CameraPage> {
         'decisionRole': 'POST_CAPTURE_DIAGNOSTIC_ONLY',
       };
 
-      final screenReplayAnalyses = [
-        liveScreenProbe,
-        screenReplayAnalysis,
-        mlScreenReplayAnalysis,
-      ];
-      final displayRisk = combinePhotoDisplayRiskFromPreCaptureEvidence(
-        screenReplayAnalyses,
+      final photoTemporalProbeRaw = liveScreenProbe['photoTemporalVideoProbe'];
+      final photoTemporalProbe = photoTemporalProbeRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalProbeRaw)
+          : null;
+      final photoTemporalMlRaw = photoTemporalProbe?['mlScreenReplayAnalysis'];
+      final photoTemporalOpticalRaw =
+          photoTemporalProbe?['screenReplayAnalysis'];
+      final photoTemporalMl = photoTemporalMlRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalMlRaw)
+          : null;
+      final photoTemporalOptical = photoTemporalOpticalRaw is Map
+          ? Map<String, dynamic>.from(photoTemporalOpticalRaw)
+          : null;
+
+      // BUILD124: restore multi-evidence fusion. Scene context remains
+      // diagnostic-only and cannot absolve or promote DISPLAY.
+      final displayRisk = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
+        temporalFrequencyProbe: temporalFrequencyProbe,
+        stillMl: mlScreenReplayAnalysis,
+        temporalMl: photoTemporalMl,
+        stillOptical: screenReplayAnalysis,
+        temporalOptical: photoTemporalOptical,
       );
+      final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
       final displayRiskDecision = displayRisk.decision;
@@ -1007,6 +1337,8 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskDecision": displayRiskDecision,
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
+        "sceneContextEvidence": sceneContext.toJson(),
+        "passiveSceneContextProbe": sceneContextProbe,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
         "captureCreatedAtLocal": HCVCaptureTimestamp.format(capturedAt),
@@ -1014,8 +1346,12 @@ class _CameraPageState extends State<CameraPage> {
         "locationPrinted": captureLocation != null,
         "liveScreenProbe": liveScreenProbe,
         "temporalFrequencyProbe": temporalFrequencyProbe,
-        "physicalSceneClass": liveScreenProbe["sceneClass"] ?? "UNKNOWN",
-        "geometryChallenge": liveScreenProbe["geometryChallenge"],
+        "physicalSceneClass": sceneContextProbe?["geometryChallenge"]
+                ?["sceneClass"] ??
+            liveScreenProbe["sceneClass"] ??
+            "UNKNOWN",
+        "geometryChallenge": sceneContextProbe?["geometryChallenge"] ??
+            liveScreenProbe["geometryChallenge"],
         "screenReplayAnalysis": screenReplayAnalysis,
         "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
         "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(
@@ -1253,6 +1589,8 @@ class _CameraPageState extends State<CameraPage> {
     pendingLiveScreenProbe = null;
     final temporalFrequencyProbe = pendingTemporalFrequencyProbe;
     pendingTemporalFrequencyProbe = null;
+    final sceneContextProbe = pendingSceneContextProbe;
+    pendingSceneContextProbe = null;
     final effectiveCapturedAt = capturedAt ?? DateTime.now();
 
     setState(() {
@@ -1305,14 +1643,14 @@ class _CameraPageState extends State<CameraPage> {
       liveSignals: lastLiveSignals,
       audioCaptured: true,
     );
-    final screenReplayAnalyses = [
-      liveScreenProbe,
-      screenReplayAnalysis,
-      mlScreenReplayAnalysis,
-    ];
-    final displayRisk = combineVideoDisplayRiskFromCaptureEvidence(
-      screenReplayAnalyses,
+    // BUILD124: VIDEO uses persistent ML plus native HFR corroboration.
+    // Scene context remains diagnostic-only.
+    final displayRisk = HCVMultiEvidenceDisplayPolicy.resolveVideo(
+      temporalFrequencyProbe: temporalFrequencyProbe,
+      ml: mlScreenReplayAnalysis,
+      passiveOptical: screenReplayAnalysis,
     );
+    final sceneContext = _sceneContextFromProbe(sceneContextProbe);
     final detectedScreenReplayRisk = displayRisk.risk;
     final detectedScreenReplayScore = displayRisk.score;
     final displayRiskDecision = displayRisk.decision;
@@ -1378,14 +1716,21 @@ class _CameraPageState extends State<CameraPage> {
       "audioCaptured": true,
       "audioIncludedInVideoContainer": true,
       "sensorIntegrity": lastLiveSignals == null ? "NOT_RECORDED" : "RECORDED",
-      "syntheticRisk":
-          detectedScreenReplay ? "POSSIBLE_SCREEN_REPLAY" : "REDUCED",
+      "syntheticRisk": detectedScreenReplay
+          ? "POSSIBLE_SCREEN_REPLAY"
+          : displayRiskDecision == "NON_CONCLUSIVE"
+              ? "UNKNOWN"
+              : "REDUCED",
       "sceneAuthenticity": detectedScreenReplay
           ? "LIVE_CAPTURE_WITH_SCREEN_REPLAY_RISK"
-          : "LIVE_CAPTURE",
+          : displayRiskDecision == "NON_CONCLUSIVE"
+              ? "LIVE_CAPTURE_SCENE_INCONCLUSIVE"
+              : "LIVE_CAPTURE",
       "displayRiskDecision": displayRiskDecision,
       "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
       "displayRiskEvidence": displayRisk.toJson(),
+      "sceneContextEvidence": sceneContext.toJson(),
+      "passiveSceneContextProbe": sceneContextProbe,
       "aiProofLevel": "PASSIVE_LIVE_CAPTURE_V1",
       "trustLevel": trustAnalysis["trustLevel"],
       "liveCaptureTrust": trustAnalysis["liveCaptureTrust"],
@@ -1397,8 +1742,12 @@ class _CameraPageState extends State<CameraPage> {
       "locationPrinted": captureLocation != null,
       "liveScreenProbe": liveScreenProbe,
       "temporalFrequencyProbe": temporalFrequencyProbe,
-      "physicalSceneClass": liveScreenProbe?["sceneClass"] ?? "UNKNOWN",
-      "geometryChallenge": liveScreenProbe?["geometryChallenge"],
+      "physicalSceneClass": sceneContextProbe?["geometryChallenge"]
+              ?["sceneClass"] ??
+          liveScreenProbe?["sceneClass"] ??
+          "UNKNOWN",
+      "geometryChallenge": sceneContextProbe?["geometryChallenge"] ??
+          liveScreenProbe?["geometryChallenge"],
       "screenReplayAnalysis": screenReplayAnalysis,
       "mlScreenReplayAnalysis": mlScreenReplayAnalysis,
       "mlScreenReplayAnalysisStatus": _mlAnalysisStatus(mlScreenReplayAnalysis),
@@ -1711,7 +2060,7 @@ class _CameraPageState extends State<CameraPage> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Video sottotitolato creato'),
+          title: Text(_c('captionedCreatedTitle')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2110,19 +2459,26 @@ class _CameraPageState extends State<CameraPage> {
       ),
       body: Stack(
         children: [
+          // FOTO and VIDEO must display the same uncropped camera texture.
+          // BoxFit.cover in VIDEO previously enlarged the apparent 1x zoom.
+          // The shared geometry also handles landscape rotation in both modes.
           if (ok)
             Positioned.fill(
-              child: OverflowBox(
-                maxWidth: double.infinity,
-                maxHeight: double.infinity,
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: controller!.value.previewSize!.height,
-                    height: controller!.value.previewSize!.width,
-                    child: CameraPreview(controller!),
-                  ),
-                ),
+              child: OrientationBuilder(
+                builder: (context, orientation) {
+                  final previewSize = controller!.value.previewSize!;
+                  final isPortrait = orientation == Orientation.portrait;
+                  return FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width:
+                          isPortrait ? previewSize.height : previewSize.width,
+                      height:
+                          isPortrait ? previewSize.width : previewSize.height,
+                      child: CameraPreview(controller!),
+                    ),
+                  );
+                },
               ),
             ),
           if (result != null)
@@ -2240,10 +2596,8 @@ class _CameraPageState extends State<CameraPage> {
                               color: !photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
-                            onSelected: (_) {
-                              setState(() {
-                                photoMode = false;
-                              });
+                            onSelected: (_) async {
+                              await _setCaptureMode(false);
                             },
                           ),
                           const SizedBox(width: 14),
@@ -2258,12 +2612,8 @@ class _CameraPageState extends State<CameraPage> {
                               color: photoMode ? Colors.black : Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
-                            onSelected: (_) {
-                              pendingLiveScreenProbe = null;
-                              pendingVideoLocation = null;
-                              setState(() {
-                                photoMode = true;
-                              });
+                            onSelected: (_) async {
+                              await _setCaptureMode(true);
                             },
                           ),
                         ],
@@ -2401,7 +2751,7 @@ class _CameraPageState extends State<CameraPage> {
                             });
                           },
                           icon: const Icon(Icons.refresh),
-                          label: const Text('TORNA ALLA CAMERA'),
+                          label: Text(_c('backToCamera')),
                         ),
                       ),
                     ],

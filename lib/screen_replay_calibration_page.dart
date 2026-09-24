@@ -15,9 +15,11 @@ import 'hcv_ai_training_service.dart';
 import 'hcv_live_screen_probe.dart';
 import 'hcv_ml_model_store.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
+import 'lab_ui_copy.dart';
 
 class ScreenReplayCalibrationPage extends StatefulWidget {
-  const ScreenReplayCalibrationPage({super.key});
+  const ScreenReplayCalibrationPage({super.key, this.languageCode = 'it'});
+  final String languageCode;
 
   @override
   State<ScreenReplayCalibrationPage> createState() =>
@@ -33,7 +35,8 @@ class _ScreenReplayCalibrationPageState
   bool autoRunning = false;
   String selectedLabel = 'SCREEN_MONITOR';
   int autoSampleCount = 5;
-  String status = 'Scegli la classe ML e avvia il test.';
+  String _l(String key) => LabUiCopy.t(widget.languageCode, key);
+  late String status;
   String? aiTrainerEndpoint;
   String modelStatus = 'Modello locale: asset app';
   final samples = <Map<String, dynamic>>[];
@@ -50,6 +53,7 @@ class _ScreenReplayCalibrationPageState
   @override
   void initState() {
     super.initState();
+    status = _l('calInitial');
     loadTrainerSettings();
     initCamera();
   }
@@ -70,7 +74,7 @@ class _ScreenReplayCalibrationPageState
     try {
       cameras = await availableCameras();
       if (cameras.isEmpty) {
-        setState(() => status = 'Camera non disponibile.');
+        setState(() => status = _l('cameraUnavailable'));
         return;
       }
 
@@ -95,7 +99,7 @@ class _ScreenReplayCalibrationPageState
       setState(() {
         controller = next;
         ready = true;
-        status = 'Camera pronta.';
+        status = _l('cameraReady');
       });
     } catch (e) {
       if (!mounted) return;
@@ -120,7 +124,7 @@ class _ScreenReplayCalibrationPageState
       if (confirmedLabel == null) {
         if (!mounted) return;
         setState(() {
-          status = 'Campione scartato: nessuna label confermata.';
+          status = _l('sampleDiscarded');
         });
         return;
       }
@@ -216,7 +220,7 @@ class _ScreenReplayCalibrationPageState
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Manifest copiato')),
+      SnackBar(content: Text(_l('manifestCopied'))),
     );
   }
 
@@ -232,7 +236,7 @@ class _ScreenReplayCalibrationPageState
             'ZIP dataset SIGILLUM: contiene immagini reali e manifest JSON. Dopo unzip usa ml/prepare_dataset.py --source sigillum_ml_dataset.',
       );
       if (!mounted) return;
-      setState(() => status = 'Condivisione ZIP aperta.');
+      setState(() => status = _l('zipShareOpened'));
     } catch (e) {
       if (!mounted) return;
       setState(() => status = 'Errore condivisione ZIP: $e');
@@ -267,11 +271,11 @@ class _ScreenReplayCalibrationPageState
       context: context,
       builder: (context) {
                 return AlertDialog(
-                  title: const Text('Server AI Trainer'),
+                  title: Text(_l('trainerServer')),
                   content: TextField(
                     controller: controller,
-                    decoration: const InputDecoration(
-                      labelText: 'Endpoint',
+                    decoration: InputDecoration(
+                      labelText: _l('endpoint'),
                       hintText: HCVAiTrainingService.defaultEndpoint,
                       border: OutlineInputBorder(),
                     ),
@@ -280,7 +284,7 @@ class _ScreenReplayCalibrationPageState
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, ''),
-                      child: const Text('PREDEFINITO'),
+                      child: Text(_l('default')),
                     ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, controller.text),
@@ -310,7 +314,7 @@ class _ScreenReplayCalibrationPageState
     final path = result?.files.single.path;
     if (path == null) return;
 
-    setState(() => status = 'Installazione modello locale...');
+    setState(() => status = _l('installingModel'));
     try {
       final installedPath = await HCVMLModelStore.instance.installModelZip(path);
       HCVMLScreenReplayClassifier.instance.resetLoadedModel();
@@ -328,7 +332,7 @@ class _ScreenReplayCalibrationPageState
     HCVMLScreenReplayClassifier.instance.resetLoadedModel();
     await loadTrainerSettings();
     if (!mounted) return;
-    setState(() => status = 'Ripristinato modello incluso nell’app.');
+    setState(() => status = _l('modelRestored'));
   }
 
   Future<File> _writeDatasetFile() async {
@@ -655,7 +659,7 @@ class _ScreenReplayCalibrationPageState
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Conferma label ML'),
+              title: Text(_l('confirmLabel')),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -700,8 +704,8 @@ class _ScreenReplayCalibrationPageState
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: dialogValue,
-                    decoration: const InputDecoration(
-                      labelText: 'Label corretta',
+                    decoration: InputDecoration(
+                      labelText: _l('correctLabel'),
                       border: OutlineInputBorder(),
                     ),
                     items: [
@@ -718,11 +722,11 @@ class _ScreenReplayCalibrationPageState
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('SCARTA'),
+                  child: Text(_l('discard')),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, dialogValue),
-                  child: const Text('CONFERMA'),
+                  child: Text(_l('confirm')),
                 ),
               ],
             );
@@ -812,7 +816,7 @@ class _ScreenReplayCalibrationPageState
     final busy = running || autoRunning;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Auto Training ML')),
+      appBar: AppBar(title: Text(_l('autoTraining'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -867,7 +871,7 @@ class _ScreenReplayCalibrationPageState
                     child: OutlinedButton.icon(
                       onPressed: busy ? null : configureAiTrainer,
                       icon: const Icon(Icons.cloud_sync),
-                      label: const Text('AI SERVER'),
+                      label: Text(_l('aiServer')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -875,7 +879,7 @@ class _ScreenReplayCalibrationPageState
                     child: OutlinedButton.icon(
                       onPressed: busy ? null : importLocalModelZip,
                       icon: const Icon(Icons.system_update_alt),
-                      label: const Text('MODELLO ZIP'),
+                      label: Text(_l('modelZip')),
                     ),
                   ),
                 ],
@@ -884,7 +888,7 @@ class _ScreenReplayCalibrationPageState
               OutlinedButton.icon(
                 onPressed: busy ? null : clearLocalModel,
                 icon: const Icon(Icons.restore),
-                label: const Text("USA MODELLO INCLUSO NELL'APP"),
+                label: Text(_l('useBundled')),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -962,7 +966,7 @@ class _ScreenReplayCalibrationPageState
               OutlinedButton.icon(
                 onPressed: samples.isEmpty ? null : copyDataset,
                 icon: const Icon(Icons.copy),
-                label: const Text('COPIA MANIFEST'),
+                label: Text(_l('copyManifest')),
               ),
               const SizedBox(height: 8),
               Row(
@@ -971,7 +975,7 @@ class _ScreenReplayCalibrationPageState
                     child: OutlinedButton.icon(
                       onPressed: samples.isEmpty ? null : saveDatasetFile,
                       icon: const Icon(Icons.save_alt),
-                      label: const Text('ZIP'),
+                      label: Text(_l('zip')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -979,7 +983,7 @@ class _ScreenReplayCalibrationPageState
                     child: OutlinedButton.icon(
                       onPressed: samples.isEmpty ? null : shareDatasetZip,
                       icon: const Icon(Icons.ios_share),
-                      label: const Text('CONDIVIDI ZIP'),
+                      label: Text(_l('shareZip')),
                     ),
                   ),
                 ],
@@ -988,7 +992,7 @@ class _ScreenReplayCalibrationPageState
               OutlinedButton.icon(
                 onPressed: samples.isEmpty ? null : saveManifestFile,
                 icon: const Icon(Icons.description),
-                label: const Text('SALVA SOLO MANIFEST'),
+                label: Text(_l('saveManifest')),
               ),
               const SizedBox(height: 18),
               for (final sample in samples.reversed.take(8))

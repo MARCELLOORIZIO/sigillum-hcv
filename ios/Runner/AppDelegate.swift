@@ -9,20 +9,24 @@ import UIKit
 private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
   private let targetFrameCount: Int
   private let rowBins: Int
+  private let spatialGridBins: Int
   private let completion: ([String: Any]) -> Void
   private let lock = NSLock()
   private var frames: [[[Double]]] = []
   private var timestamps: [Double] = []
   private var frameLuma: [Double] = []
+  private var spatialSnapshot: [[[Double]]]?
   private var finished = false
 
   init(
     targetFrameCount: Int,
     rowBins: Int,
+    spatialGridBins: Int = 0,
     completion: @escaping ([String: Any]) -> Void
   ) {
     self.targetFrameCount = targetFrameCount
     self.rowBins = rowBins
+    self.spatialGridBins = spatialGridBins
     self.completion = completion
   }
 
@@ -33,11 +37,15 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
   ) {
     lock.lock()
     let shouldProcess = !finished && frames.count < targetFrameCount
+    let needsSpatialSnapshot = spatialSnapshot == nil && spatialGridBins >= 8
     lock.unlock()
     guard shouldProcess,
           CMSampleBufferDataIsReady(sampleBuffer),
           let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
-          let extracted = rowProfiles(from: pixelBuffer) else {
+          let extracted = rowProfiles(
+            from: pixelBuffer,
+            includeSpatialSnapshot: needsSpatialSnapshot
+          ) else {
       return
     }
 
@@ -50,6 +58,9 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       frames.append(extracted.profiles)
       timestamps.append(pts)
       frameLuma.append(extracted.meanLuma)
+      if spatialSnapshot == nil, let snapshot = extracted.spatialGrids {
+        spatialSnapshot = snapshot
+      }
       if frames.count >= targetFrameCount {
         finished = true
         completedPayload = snapshotLocked()
@@ -71,17 +82,23 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
   }
 
   private func snapshotLocked() -> [String: Any] {
-    return [
+    var payload: [String: Any] = [
       "frames": frames,
       "frameTimestampsSeconds": timestamps,
       "frameLuma": frameLuma,
       "frameCount": frames.count,
     ]
+    if let spatialSnapshot {
+      payload["spatialLumaGridByCell"] = spatialSnapshot
+      payload["spatialGridBins"] = spatialGridBins
+    }
+    return payload
   }
 
   private func rowProfiles(
-    from pixelBuffer: CVPixelBuffer
-  ) -> (profiles: [[Double]], meanLuma: Double)? {
+    from pixelBuffer: CVPixelBuffer,
+    includeSpatialSnapshot: Bool
+  ) -> (profiles: [[Double]], meanLuma: Double, spatialGrids: [[[Double]]]?)? {
     CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
     defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
 
@@ -98,6 +115,8 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     let bytes = baseAddress.assumingMemoryBound(to: UInt8.self)
     var result: [[Double]] = []
     result.reserveCapacity(9)
+    var spatialGrids: [[[Double]]]? = includeSpatialSnapshot ? [] : nil
+    spatialGrids?.reserveCapacity(9)
     var total = 0.0
     var totalCount = 0
 
@@ -133,10 +152,47 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           totalCount += 1
         }
         result.append(profile)
+
+        if includeSpatialSnapshot {
+          let gridSize = max(8, min(64, spatialGridBins))
+          var grid: [[Double]] = []
+          grid.reserveCapacity(gridSize)
+          for gy in 0..<gridSize {
+            let sy0 = y0 + (y1 - y0) * gy / gridSize
+            let sy1 = min(y1, max(sy0 + 1, y0 + (y1 - y0) * (gy + 1) / gridSize))
+            var row: [Double] = []
+            row.reserveCapacity(gridSize)
+            for gx in 0..<gridSize {
+              let sx0 = x0 + (x1 - x0) * gx / gridSize
+              let sx1 = min(x1, max(sx0 + 1, x0 + (x1 - x0) * (gx + 1) / gridSize))
+              var localSum = 0.0
+              var localCount = 0
+              let yStep = max(1, (sy1 - sy0) / 2)
+              let xLocalStep = max(1, (sx1 - sx0) / 2)
+              var y = sy0
+              while y < sy1 {
+                var x = sx0
+                while x < sx1 {
+                  localSum += Double(bytes[y * bytesPerRow + x]) / 255.0
+                  localCount += 1
+                  x += xLocalStep
+                }
+                y += yStep
+              }
+              row.append(localCount > 0 ? localSum / Double(localCount) : 0.0)
+            }
+            grid.append(row)
+          }
+          spatialGrids?.append(grid)
+        }
       }
     }
 
-    return (result, totalCount > 0 ? total / Double(totalCount) : 0.0)
+    return (
+      result,
+      totalCount > 0 ? total / Double(totalCount) : 0.0,
+      spatialGrids
+    )
   }
 }
 
@@ -226,6 +282,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     let formatMaxFps = device.activeFormat.videoSupportedFrameRateRanges
       .map { $0.maxFrameRate }
       .max() ?? 0.0
+    let activeFormatVideoFieldOfView = Double(device.activeFormat.videoFieldOfView)
     let gains = device.deviceWhiteBalanceGains
     return [
       "deviceUniqueId": device.uniqueID,
@@ -234,6 +291,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       "activeFormatWidth": Int(dimensions.width),
       "activeFormatHeight": Int(dimensions.height),
       "activeFormatMaxSupportedFrameRate": formatMaxFps,
+      "activeFormatVideoFieldOfView": activeFormatVideoFieldOfView,
       "activeVideoMinFrameDurationSeconds": activeMinFrame.isFinite ? activeMinFrame : 0.0,
       "activeVideoMaxFrameDurationSeconds": activeMaxFrame.isFinite ? activeMaxFrame : 0.0,
       "exposureMode": exposureModeName(device.exposureMode),
@@ -431,6 +489,166 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     }
   }
 
+  private func captureTemporalFrequencyDiagnosticStage(
+    output: AVCaptureVideoDataOutput,
+    device: AVCaptureDevice,
+    targetExposureSeconds: Double,
+    baselineExposureSeconds: Double,
+    baselineISO: Float,
+    stageName: String,
+    frameCount: Int = 18
+  ) -> [String: Any] {
+    let minimum = CMTimeGetSeconds(device.activeFormat.minExposureDuration)
+    let maximum = CMTimeGetSeconds(device.activeFormat.maxExposureDuration)
+    let target = min(maximum, max(minimum, targetExposureSeconds))
+    let compensation = baselineExposureSeconds / max(target, 0.000001)
+    let compensatedISO = min(
+      device.activeFormat.maxISO,
+      max(device.activeFormat.minISO, baselineISO * Float(compensation))
+    )
+    let duration = CMTimeMakeWithSeconds(target, preferredTimescale: 1_000_000_000)
+    let exposureSemaphore = DispatchSemaphore(value: 0)
+
+    do {
+      try device.lockForConfiguration()
+      guard device.isExposureModeSupported(.custom) else {
+        device.unlockForConfiguration()
+        return [
+          "stageName": stageName,
+          "analysisStatus": "NOT_ANALYZED",
+          "reason": "CUSTOM_EXPOSURE_UNSUPPORTED",
+        ]
+      }
+      device.setExposureModeCustom(duration: duration, iso: compensatedISO) { _ in
+        exposureSemaphore.signal()
+      }
+      device.unlockForConfiguration()
+    } catch {
+      return [
+        "stageName": stageName,
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "EXPOSURE_CONFIGURATION_FAILED",
+        "error": error.localizedDescription,
+      ]
+    }
+
+    _ = exposureSemaphore.wait(timeout: .now() + 0.40)
+    Thread.sleep(forTimeInterval: 0.018)
+    let actualExposure = CMTimeGetSeconds(device.exposureDuration)
+    let actualISO = Double(device.iso)
+    let tolerance = max(0.00008, target * 0.25)
+    let verified = actualExposure.isFinite && abs(actualExposure - target) <= tolerance
+
+    let stageSemaphore = DispatchSemaphore(value: 0)
+    let collector = HCVTemporalFrequencyNativeCollector(
+      targetFrameCount: frameCount,
+      rowBins: 128,
+      spatialGridBins: 64
+    ) { _ in
+      stageSemaphore.signal()
+    }
+    output.setSampleBufferDelegate(collector, queue: temporalFrequencySampleQueue)
+    let waitResult = stageSemaphore.wait(timeout: .now() + 0.55)
+    let snapshot = collector.snapshotAndFinish()
+    output.setSampleBufferDelegate(nil, queue: nil)
+
+    var payload = snapshot
+    payload["stageName"] = stageName
+    payload["analysisStatus"] = waitResult == .success ? "CAPTURED" : "PARTIAL"
+    payload["requestedExposureSeconds"] = targetExposureSeconds
+    payload["targetExposureSecondsAfterClamp"] = target
+    payload["actualExposureSeconds"] = actualExposure
+    payload["exposureVerified"] = verified
+    payload["iso"] = actualISO
+    payload["isoClamped"] = compensatedISO >= device.activeFormat.maxISO - 0.5
+    payload["rowProfileBins"] = 128
+    payload["spatialGridBins"] = 64
+    return payload
+  }
+
+  private func captureActiveIlluminationRealityChallenge(
+    output: AVCaptureVideoDataOutput,
+    device: AVCaptureDevice,
+    frameCount: Int = 10
+  ) -> [String: Any] {
+    guard device.hasTorch, device.isTorchAvailable else {
+      return [
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "TORCH_UNAVAILABLE",
+      ]
+    }
+
+    func captureStage(_ stageName: String) -> [String: Any] {
+      let semaphore = DispatchSemaphore(value: 0)
+      let collector = HCVTemporalFrequencyNativeCollector(
+        targetFrameCount: frameCount,
+        rowBins: 48,
+        spatialGridBins: 0
+      ) { _ in
+        semaphore.signal()
+      }
+      output.setSampleBufferDelegate(collector, queue: temporalFrequencySampleQueue)
+      let waitResult = semaphore.wait(timeout: .now() + 0.45)
+      let snapshot = collector.snapshotAndFinish()
+      output.setSampleBufferDelegate(nil, queue: nil)
+      var payload = snapshot
+      payload["stageName"] = stageName
+      payload["analysisStatus"] = waitResult == .success ? "CAPTURED" : "PARTIAL"
+      return payload
+    }
+
+    do {
+      try device.lockForConfiguration()
+      if device.isTorchModeSupported(.off) {
+        device.torchMode = .off
+      }
+      device.unlockForConfiguration()
+      Thread.sleep(forTimeInterval: 0.025)
+    } catch {
+      return [
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "TORCH_OFF_CONFIGURATION_FAILED",
+        "error": error.localizedDescription,
+      ]
+    }
+
+    let torchOff = captureStage("TORCH_OFF")
+    let torchLevel: Float = min(0.10, AVCaptureDevice.maxAvailableTorchLevel)
+    do {
+      try device.lockForConfiguration()
+      try device.setTorchModeOn(level: torchLevel)
+      device.unlockForConfiguration()
+    } catch {
+      return [
+        "analysisStatus": "NOT_ANALYZED",
+        "reason": "TORCH_ON_CONFIGURATION_FAILED",
+        "error": error.localizedDescription,
+        "torchOff": torchOff,
+      ]
+    }
+
+    Thread.sleep(forTimeInterval: 0.040)
+    let torchOn = captureStage("TORCH_ON")
+
+    do {
+      try device.lockForConfiguration()
+      if device.isTorchModeSupported(.off) {
+        device.torchMode = .off
+      }
+      device.unlockForConfiguration()
+    } catch {
+      // Handoff reset below will still restore normal exposure/focus state.
+    }
+
+    return [
+      "analysisStatus": "CAPTURED",
+      "torchLevel": Double(torchLevel),
+      "torchOff": torchOff,
+      "torchOn": torchOn,
+      "decisionRole": "DIAGNOSTIC_ONLY_PENDING_PHYSICAL_VALIDATION",
+    ]
+  }
+
   private func captureTemporalFrequencyNative(
     device: AVCaptureDevice,
     call: FlutterMethodCall,
@@ -446,6 +664,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     }
 
     let args = call.arguments as? [String: Any]
+    let preHfrCameraState = args?["preHfrCameraState"] as? [String: Any]
     let requestedMaxFps = max(
       60.0,
       min(240.0, args?["targetMaxFps"] as? Double ?? 240.0)
@@ -459,6 +678,10 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       min(0.004, args?["targetExposureSeconds"] as? Double ?? 0.001)
     )
     let rowBins = max(24, min(128, args?["rowProfileBins"] as? Int ?? 96))
+    let requestedZoomFactor = max(
+      1.0,
+      min(15.0, args?["requestedZoomFactor"] as? Double ?? 1.0)
+    )
 
     temporalFrequencyNativeBusy = true
     temporalFrequencyFinishLock.lock()
@@ -512,8 +735,27 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         }
         session.addOutput(output)
 
+        var hfrMinAvailableZoomFactor = 1.0
+        var hfrMaxAvailableZoomFactor = 1.0
+        var effectiveZoomFactor = 1.0
+
         try captureDevice.lockForConfiguration()
         captureDevice.activeFormat = selection.format
+        // BUILD125: apply the user's requested field-of-view factor after the
+        // high-speed format is selected, because the native HFR session owns a
+        // separate AVCaptureDevice configuration from Flutter.
+        hfrMinAvailableZoomFactor = Double(captureDevice.minAvailableVideoZoomFactor)
+        hfrMaxAvailableZoomFactor = min(
+          15.0,
+          Double(captureDevice.maxAvailableVideoZoomFactor)
+        )
+        let clampedZoom = min(
+          hfrMaxAvailableZoomFactor,
+          max(hfrMinAvailableZoomFactor, requestedZoomFactor)
+        )
+        captureDevice.videoZoomFactor = CGFloat(clampedZoom)
+        effectiveZoomFactor = Double(captureDevice.videoZoomFactor)
+
         // Use the exact hardware-supported CMTime from AVFrameRateRange.
         // Assigning a reconstructed reciprocal can raise NSInvalidArgumentException.
         let frameDuration = selection.range.minFrameDuration
@@ -533,6 +775,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
         self.temporalFrequencyNativeSession = session
         session.startRunning()
+        let totalProbeStartUptime = ProcessInfo.processInfo.systemUptime
         guard session.isRunning else {
           throw NSError(
             domain: "SIGILLUMTemporalFrequency",
@@ -616,13 +859,119 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           24,
           min(120, Int((requestedDuration * selection.fps).rounded()))
         )
+        let zoomTolerance = max(0.02, requestedZoomFactor * 0.02)
+        let zoomMatchWithinTolerance =
+          abs(effectiveZoomFactor - requestedZoomFactor) <= zoomTolerance
+        let zoomClampedForHfr = !zoomMatchWithinTolerance
+        let physicalDeviceSubstitutionUsed =
+          captureDevice.uniqueID != device.uniqueID
+        let zoomSpatialEquivalence = physicalDeviceSubstitutionUsed
+          ? (zoomMatchWithinTolerance
+              ? "FACTOR_MATCHED_ON_SUBSTITUTED_PHYSICAL_DEVICE_FOV_NOT_GUARANTEED"
+              : "SUBSTITUTED_PHYSICAL_DEVICE_AND_ZOOM_CLAMPED")
+          : (zoomMatchWithinTolerance
+              ? "SAME_DEVICE_ZOOM_MATCHED"
+              : "SAME_DEVICE_ZOOM_CLAMPED")
 
-        let metadata: [String: Any] = [
+        let preHfrDeviceUniqueId = preHfrCameraState?["deviceUniqueId"] as? String
+        let preHfrNativeZoomFactor =
+          (preHfrCameraState?["zoomFactor"] as? NSNumber)?.doubleValue
+        let preHfrActiveFormatIndex =
+          (preHfrCameraState?["activeFormatIndex"] as? NSNumber)?.intValue
+        let preHfrFormatWidth =
+          (preHfrCameraState?["activeFormatWidth"] as? NSNumber)?.intValue
+        let preHfrFormatHeight =
+          (preHfrCameraState?["activeFormatHeight"] as? NSNumber)?.intValue
+        let preHfrVideoFieldOfView =
+          (preHfrCameraState?["activeFormatVideoFieldOfView"] as? NSNumber)?.doubleValue
+
+        let hfrActiveFormatIndex =
+          captureDevice.formats.firstIndex(where: { $0 === selection.format }) ?? -1
+        let hfrVideoFieldOfView = Double(selection.format.videoFieldOfView)
+        let fieldOfViewToleranceDegrees = 0.0
+        let fieldOfViewDelta = preHfrVideoFieldOfView.map {
+          abs($0 - hfrVideoFieldOfView)
+        }
+        // Until the multi-device physical holdout establishes an optical
+        // tolerance, only exact AVFoundation format-FOV equality is accepted.
+        let fieldOfViewMatchWithinTolerance =
+          fieldOfViewDelta.map { $0 <= fieldOfViewToleranceDegrees } ?? false
+        let preHfrNativeZoomMatchWithinTolerance =
+          preHfrNativeZoomFactor.map {
+            abs(effectiveZoomFactor - $0) <= zoomTolerance
+          } ?? false
+
+        var aspectRatioMatch = false
+        if let preWidth = preHfrFormatWidth,
+           let preHeight = preHfrFormatHeight,
+           preWidth > 0,
+           preHeight > 0 {
+          aspectRatioMatch =
+            Int64(preWidth) * Int64(dimensions.height) ==
+            Int64(dimensions.width) * Int64(preHeight)
+        }
+
+        let preHfrFieldOfViewKnown =
+          preHfrVideoFieldOfView.map { $0.isFinite && $0 > 0.0 } ?? false
+        let hfrFieldOfViewKnown =
+          hfrVideoFieldOfView.isFinite && hfrVideoFieldOfView > 0.0
+        let preHfrStateComplete =
+          preHfrDeviceUniqueId != nil &&
+          preHfrNativeZoomFactor != nil &&
+          preHfrActiveFormatIndex != nil &&
+          preHfrFormatWidth != nil &&
+          preHfrFormatHeight != nil &&
+          preHfrFieldOfViewKnown &&
+          hfrFieldOfViewKnown
+
+        let hfrSpatialComparability: String
+        let hfrSpatialComparabilityReason: String
+        if !preHfrStateComplete {
+          hfrSpatialComparability = "UNKNOWN"
+          hfrSpatialComparabilityReason = "PRE_HFR_CAMERA_STATE_MISSING_OR_INCOMPLETE"
+        } else if physicalDeviceSubstitutionUsed ||
+                    preHfrDeviceUniqueId != captureDevice.uniqueID {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "PHYSICAL_DEVICE_SUBSTITUTION"
+        } else if zoomClampedForHfr ||
+                    !zoomMatchWithinTolerance ||
+                    !preHfrNativeZoomMatchWithinTolerance {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "NATIVE_ZOOM_MISMATCH_OR_CLAMP"
+        } else if !fieldOfViewMatchWithinTolerance {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "ACTIVE_FORMAT_FOV_MISMATCH"
+        } else if !aspectRatioMatch {
+          hfrSpatialComparability = "NOT_COMPARABLE"
+          hfrSpatialComparabilityReason = "ACTIVE_FORMAT_ASPECT_RATIO_MISMATCH"
+        } else {
+          hfrSpatialComparability = "COMPARABLE"
+          hfrSpatialComparabilityReason =
+            "SAME_DEVICE_NATIVE_ZOOM_AND_FORMAT_FOV_MATCHED"
+        }
+
+        var metadata: [String: Any] = [
           "analysisStatus": "CAPTURED",
           "captureMode": "ISOLATED_NATIVE_AVCAPTURESESSION_CMSAMPLEBUFFER",
           "requestedDeviceUniqueId": device.uniqueID,
           "physicalCaptureDeviceUniqueId": captureDevice.uniqueID,
-          "physicalDeviceSubstitutionUsed": captureDevice.uniqueID != device.uniqueID,
+          "physicalDeviceSubstitutionUsed": physicalDeviceSubstitutionUsed,
+          "requestedZoomFactor": requestedZoomFactor,
+          "effectiveZoomFactor": effectiveZoomFactor,
+          "hfrMinAvailableZoomFactor": hfrMinAvailableZoomFactor,
+          "hfrMaxAvailableZoomFactor": hfrMaxAvailableZoomFactor,
+          "zoomClampedForHfr": zoomClampedForHfr,
+          "zoomMatchWithinTolerance": zoomMatchWithinTolerance,
+          "zoomSpatialEquivalence": zoomSpatialEquivalence,
+          "hfrActiveFormatIndex": hfrActiveFormatIndex,
+          "hfrVideoFieldOfView": hfrVideoFieldOfView,
+          "fieldOfViewToleranceDegrees": fieldOfViewToleranceDegrees,
+          "fieldOfViewMatchWithinTolerance": fieldOfViewMatchWithinTolerance,
+          "preHfrNativeZoomMatchWithinTolerance":
+            preHfrNativeZoomMatchWithinTolerance,
+          "aspectRatioMatch": aspectRatioMatch,
+          "hfrSpatialComparability": hfrSpatialComparability,
+          "hfrSpatialComparabilityReason": hfrSpatialComparabilityReason,
           "requestedTargetFps": requestedMaxFps,
           "configuredFrameRate": selection.fps,
           "frameRateTier": Int(selection.fps.rounded()),
@@ -641,10 +990,32 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
           "sensorNativeOrientation": true,
           "encodedVideoUsed": false,
         ]
+        if let value = preHfrDeviceUniqueId {
+          metadata["preHfrDeviceUniqueId"] = value
+        }
+        if let value = preHfrNativeZoomFactor {
+          metadata["preHfrNativeZoomFactor"] = value
+        }
+        if let value = preHfrActiveFormatIndex {
+          metadata["preHfrActiveFormatIndex"] = value
+        }
+        if let value = preHfrFormatWidth {
+          metadata["preHfrFormatWidth"] = value
+        }
+        if let value = preHfrFormatHeight {
+          metadata["preHfrFormatHeight"] = value
+        }
+        if let value = preHfrVideoFieldOfView {
+          metadata["preHfrVideoFieldOfView"] = value
+        }
+        if let value = fieldOfViewDelta {
+          metadata["fieldOfViewDelta"] = value
+        }
 
         let collector = HCVTemporalFrequencyNativeCollector(
           targetFrameCount: targetFrameCount,
-          rowBins: rowBins
+          rowBins: rowBins,
+          spatialGridBins: 24
         ) { [weak self] snapshot in
           guard let self else { return }
           var payload = metadata
@@ -659,13 +1030,60 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
             payload["actualFrameRate"] = Double(timestamps.count - 1) / (last - first)
             payload["captureDurationMs"] = Int(((last - first) * 1000.0).rounded())
           }
-          self.finishTemporalFrequencyNativeCapture(
-            session: session,
-            output: output,
-            device: captureDevice,
-            payload: payload,
-            result: result
-          )
+          // BUILD107 V3.1 keeps the validated production burst untouched,
+          // then reuses the same native session for two shorter diagnostic
+          // shutters. These stages are certificate diagnostics only until the
+          // physical corpus validates their display signatures.
+          self.temporalFrequencyNativeQueue.async {
+            var stages: [[String: Any]] = []
+            let requestedStages = [
+              ("SHORT_X2", targetExposure * 0.50),
+              ("SHORT_X4", targetExposure * 0.25),
+            ]
+            var previousTarget = targetExposure
+            for (name, requestedStageExposure) in requestedStages {
+              let clamped = max(minExposure, requestedStageExposure)
+              if abs(clamped - previousTarget) <= max(0.000005, previousTarget * 0.04) {
+                stages.append([
+                  "stageName": name,
+                  "analysisStatus": "NOT_ANALYZED",
+                  "reason": "NO_DISTINCT_SHORTER_EXPOSURE_AVAILABLE",
+                  "targetExposureSecondsAfterClamp": clamped,
+                ])
+                continue
+              }
+              stages.append(
+                self.captureTemporalFrequencyDiagnosticStage(
+                  output: output,
+                  device: captureDevice,
+                  targetExposureSeconds: requestedStageExposure,
+                  baselineExposureSeconds: baselineDuration,
+                  baselineISO: baselineISO,
+                  stageName: name
+                )
+              )
+              previousTarget = clamped
+            }
+            payload["advancedDiagnosticStages"] = stages
+            payload["advancedDiagnosticsDecisionRole"] =
+              "V32_HARMONIC_RECOVERY_CORROBORATION_PLUS_DIAGNOSTIC_PHYSICS"
+            payload["baselineSpatialGridBins"] = 24
+            payload["advancedSpatialGridBins"] = 64
+            payload["activeIlluminationChallenge"] =
+              self.captureActiveIlluminationRealityChallenge(
+                output: output,
+                device: captureDevice
+              )
+            payload["totalNativeProbeDurationMs"] =
+              Int(((ProcessInfo.processInfo.systemUptime - totalProbeStartUptime) * 1000.0).rounded())
+            self.finishTemporalFrequencyNativeCapture(
+              session: session,
+              output: output,
+              device: captureDevice,
+              payload: payload,
+              result: result
+            )
+          }
         }
         self.temporalFrequencyNativeCollector = collector
         output.setSampleBufferDelegate(
@@ -676,7 +1094,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
         // Timeout protects against a device/format that advertises a tier but
         // does not deliver the requested number of sample buffers in practice.
         self.temporalFrequencyNativeQueue.asyncAfter(
-          deadline: .now() + requestedDuration + 0.75
+          deadline: .now() + requestedDuration + 2.20
         ) { [weak self, weak collector] in
           guard let self, let collector else { return }
           let snapshot = collector.snapshotAndFinish()
@@ -737,9 +1155,11 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 
     switch call.method {
     case "captureTemporalFrequencyNative":
-      let physicalDevice = temporalFrequencyPhysicalDevice(for: device)
+      // Pass the original Flutter-selected device. The native capture method
+      // resolves any required physical high-speed constituent itself, allowing
+      // the certificate to record whether physical-device substitution occurred.
       captureTemporalFrequencyNative(
-        device: physicalDevice,
+        device: device,
         call: call,
         result: result
       )

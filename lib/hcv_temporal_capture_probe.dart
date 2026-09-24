@@ -18,9 +18,9 @@ class HCVTemporalCaptureClip {
 class HCVTemporalCaptureProbe {
   const HCVTemporalCaptureProbe();
 
-  static const Duration defaultDuration = Duration(milliseconds: 2400);
+  static const Duration defaultDuration = Duration(milliseconds: 1500);
   static const double photoMlFrameIntervalSeconds = 0.6;
-  static const int photoMlFrameLimit = 4;
+  static const int photoMlFrameLimit = 3;
 
   /// Captures only the disposable pre-photo temporal clip.
   ///
@@ -75,7 +75,7 @@ class HCVTemporalCaptureProbe {
   }
 
   /// Analyzes a clip already captured immediately before a still photo.
-  /// Four ML samples are requested at 0.6 s spacing inside the 2.4 s clip,
+  /// Three ML samples are requested at 0.6 s spacing inside the 1.5 s clip,
   /// while optical analysis keeps its denser temporal sampling for
   /// refresh/flicker evidence.
   Future<Map<String, dynamic>> analyzeCapturedClip(

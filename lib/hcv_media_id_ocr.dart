@@ -252,6 +252,52 @@ class HCVMediaIdOcr {
     return candidates.isEmpty ? null : candidates.first;
   }
 
+  /// Builds a deterministic, bounded set of one-character alternatives for
+  /// Registry recovery after OCR has produced a syntactically valid HCV-ID
+  /// that is absent online. C/0, B/8 and E/6 are all valid hexadecimal pairs,
+  /// so changing them during normal OCR parsing would silently rewrite valid
+  /// IDs. Recovery therefore changes exactly one ambiguous character at a
+  /// time and runs only after Registry has rejected the original reading.
+  static List<String> buildRegistryRecoveryVariants(
+    Iterable<String> candidateIds, {
+    int maxVariants = 16,
+  }) {
+    if (maxVariants <= 0) return const <String>[];
+
+    final seen = <String>{};
+    final bases = <String>[];
+    for (final raw in candidateIds) {
+      final id = raw.trim().toUpperCase();
+      if (!RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(id)) continue;
+      if (seen.add(id)) bases.add(id);
+    }
+
+    final variants = <String>[];
+    for (final base in bases) {
+      final payload = base.substring(4).split('');
+      for (var i = 0; i < payload.length; i++) {
+        final alternate = switch (payload[i]) {
+          '0' => 'C',
+          'C' => '0',
+          '8' => 'B',
+          'B' => '8',
+          '6' => 'E',
+          'E' => '6',
+          _ => null,
+        };
+        if (alternate == null) continue;
+
+        final changed = List<String>.from(payload);
+        changed[i] = alternate;
+        final candidate = 'HCV-${changed.join()}';
+        if (!seen.add(candidate)) continue;
+        variants.add(candidate);
+        if (variants.length >= maxVariants) return variants;
+      }
+    }
+    return variants;
+  }
+
   static Future<String?> _recognizePath(String path) async {
     final source = File(path);
     try {

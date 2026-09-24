@@ -1,20 +1,18 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camera_page.dart';
-import 'hcv_import_router_page.dart';
+import 'commercial_account_service.dart';
 import 'hcv_registry_service.dart';
 import 'commercial_profile_page.dart';
 import 'import_page.dart';
+import 'verified_originals_page.dart';
+import 'verified_originals_consent_page.dart';
 import 'legal_info_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
 import 'sigillum_quick_guide_page.dart';
 import 'text_cert_page.dart';
-import 'text_social_verify_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key, this.onSessionInvalidated});
@@ -25,11 +23,12 @@ class UserHomePage extends StatefulWidget {
   State<UserHomePage> createState() => _UserHomePageState();
 }
 
-class _UserHomePageState extends State<UserHomePage> {
-  static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
-  String? _lastOpenedSharedPath;
-  String? _pendingSharedPath;
-  bool _sharedOpenScheduled = false;
+class _UserHomePageState extends State<UserHomePage>
+    with WidgetsBindingObserver {
+  static const CommercialAccountService _account = CommercialAccountService();
+
+  Future<bool>? _entitlementCheckInFlight;
+  bool _routingToCommercialGate = false;
   String languageCode = SigillumCopy.initialLanguageCode();
 
   String _t(String key) => SigillumCopy.t(languageCode, key);
@@ -37,10 +36,109 @@ class _UserHomePageState extends State<UserHomePage> {
   @override
   void initState() {
     super.initState();
-    _intentChannel.setMethodCallHandler(_handleNativeIntent);
+    WidgetsBinding.instance.addObserver(this);
     Future.microtask(_loadLanguage);
-    Future.microtask(_checkInitialIntent);
-    Future.microtask(_retryRegistryOutbox);
+    Future.microtask(_bootstrapCreatorSession);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    // A route kept underneath the iOS photo/video picker also receives app
+    // lifecycle callbacks. Revalidate only when Creator Home is actually the
+    // visible route; otherwise the hidden page would compete with OCR/media
+    // work as soon as the picker returns.
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    Future.microtask(_revalidateCreatorEntitlement);
+  }
+
+  Future<void> _bootstrapCreatorSession() async {
+    final active = await _revalidateCreatorEntitlement();
+    if (active) {
+      await _retryRegistryOutbox();
+    }
+  }
+
+  Future<bool> _revalidateCreatorEntitlement({
+    bool blockProtectedAction = false,
+  }) async {
+    if (_routingToCommercialGate) return false;
+
+    final existingCheck = _entitlementCheckInFlight;
+    if (existingCheck != null) {
+      final active = await existingCheck;
+      if (!active && blockProtectedAction && !_routingToCommercialGate) {
+        _showEntitlementVerificationBlocked();
+      }
+      return active;
+    }
+
+    final check = _performCreatorEntitlementCheck();
+    _entitlementCheckInFlight = check;
+    try {
+      final active = await check;
+      if (!active && blockProtectedAction && !_routingToCommercialGate) {
+        _showEntitlementVerificationBlocked();
+      }
+      return active;
+    } finally {
+      if (identical(_entitlementCheckInFlight, check)) {
+        _entitlementCheckInFlight = null;
+      }
+    }
+  }
+
+  Future<bool> _performCreatorEntitlementCheck() async {
+    try {
+      final billing = await _account.billingStatus();
+      final status = billing['status']?.toString() ?? 'inactive';
+      final active = status == 'active' || status == 'grace';
+      if (active) return true;
+
+      _routeToCommercialGate();
+      return false;
+    } catch (_) {
+      // Fail closed for new Creator operations when entitlement cannot be
+      // verified. A concurrent caller will receive this same result.
+      return false;
+    }
+  }
+
+  void _showEntitlementVerificationBlocked() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Impossibile verificare l’abbonamento Creator. Riprova quando la connessione è disponibile.',
+        ),
+      ),
+    );
+  }
+
+  void _routeToCommercialGate() {
+    if (!mounted || _routingToCommercialGate) return;
+    _routingToCommercialGate = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        Navigator.defaultRouteName,
+        (route) => false,
+      );
+    });
+  }
+
+  Future<void> _openCreatorProtected(Widget page) async {
+    final active = await _revalidateCreatorEntitlement(
+      blockProtectedAction: true,
+    );
+    if (!active || !mounted) return;
+    _open(page);
   }
 
   Future<void> _retryRegistryOutbox() async {
@@ -68,87 +166,6 @@ class _UserHomePageState extends State<UserHomePage> {
     setState(() {
       languageCode = SigillumCopy.language(code).code;
     });
-  }
-
-  Future<dynamic> _handleNativeIntent(MethodCall call) async {
-    if (call.method == 'onSharedPath') {
-      final path = call.arguments as String?;
-      if (path != null && path.isNotEmpty) {
-        _queueImportedPath(path);
-        try {
-          await _intentChannel.invokeMethod<bool>('ackSharedPath', {
-            'path': path,
-          });
-        } catch (_) {}
-      }
-    }
-  }
-
-  Future<void> _checkInitialIntent() async {
-    try {
-      final path = await _intentChannel.invokeMethod<String>('getSharedPath');
-      if (path != null && path.isNotEmpty) {
-        _queueImportedPath(path);
-      }
-    } catch (e) {
-      debugPrint('Intent error: $e');
-    }
-  }
-
-  void _queueImportedPath(String path) {
-    if (!mounted ||
-        path.isEmpty ||
-        _lastOpenedSharedPath == path ||
-        _pendingSharedPath == path) {
-      return;
-    }
-
-    _pendingSharedPath = path;
-    if (_sharedOpenScheduled) return;
-    _sharedOpenScheduled = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _sharedOpenScheduled = false;
-      if (!mounted) return;
-      final pending = _pendingSharedPath;
-      _pendingSharedPath = null;
-      if (pending != null && pending.isNotEmpty) {
-        _openImportedPath(pending);
-      }
-    });
-  }
-
-  Future<void> _openImportedPath(String path) async {
-    if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
-    if (!await File(path).exists()) return;
-    if (!mounted) return;
-    _lastOpenedSharedPath = path;
-
-    final lower = path.toLowerCase();
-    if (lower.endsWith('.txt')) {
-      try {
-        final sharedText = await File(path).readAsString();
-        if (!mounted) return;
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TextSocialVerifyPage(
-              languageCode: languageCode,
-              initialText: sharedText,
-            ),
-          ),
-        );
-      } catch (_) {}
-      return;
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            HCVImportRouterPage(path: path, languageCode: languageCode),
-      ),
-    );
   }
 
   void _open(Widget page) {
@@ -198,8 +215,9 @@ class _UserHomePageState extends State<UserHomePage> {
                       title: _t('certifyMediaTitle'),
                       subtitle: _t('certifyMediaSubtitle'),
                       accent: SigillumTheme.accent,
-                      onPressed: () =>
-                          _open(CameraPage(languageCode: languageCode)),
+                      onPressed: () => _openCreatorProtected(
+                        CameraPage(languageCode: languageCode),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(
@@ -207,8 +225,9 @@ class _UserHomePageState extends State<UserHomePage> {
                       title: _t('certifyTextTitle'),
                       subtitle: _t('certifyTextSubtitle'),
                       accent: SigillumTheme.accentAlt,
-                      onPressed: () =>
-                          _open(TextCertPage(languageCode: languageCode)),
+                      onPressed: () => _openCreatorProtected(
+                        TextCertPage(languageCode: languageCode),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(
@@ -218,6 +237,27 @@ class _UserHomePageState extends State<UserHomePage> {
                       accent: SigillumTheme.verified,
                       onPressed: () =>
                           _open(ImportPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.video_library_outlined,
+                      title: 'SIGILLUM Verified Originals',
+                      subtitle: languageCode == 'it'
+                          ? 'Verifica il codice o guarda la copia certificata'
+                          : 'Check the code or watch the reference',
+                      accent: SigillumTheme.verified,
+                      onPressed: () =>
+                          _open(VerifiedOriginalsPage(languageCode: languageCode)),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrimaryAction(
+                      icon: Icons.publish_outlined,
+                      title: 'Autorizza un originale pubblico',
+                      subtitle: 'Consenso separato, monetizzazione facoltativa e ritiro',
+                      accent: SigillumTheme.accent,
+                      onPressed: () => _openCreatorProtected(
+                        const VerifiedOriginalsConsentPage(),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(
@@ -339,7 +379,7 @@ class _Header extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Account',
+              tooltip: _t('account'),
               onPressed: onIdentity,
               icon: const Icon(Icons.manage_accounts_outlined),
             ),

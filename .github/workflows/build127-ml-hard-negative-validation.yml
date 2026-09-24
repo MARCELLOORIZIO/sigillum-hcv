@@ -1,0 +1,54 @@
+name: BUILD127 ML hard-negative validation
+
+on:
+  push:
+    branches:
+      - fix/build127-ml-hard-negatives-20260921
+  pull_request:
+    branches:
+      - fix/build126-video-fov-persistence-20260921
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build127-ml-hard-negatives-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  training-contract-and-flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout BUILD127 candidate
+        uses: actions/checkout@v4
+      - name: Inspect bundled stable model manifest
+        run: |
+          echo "MODEL_BUNDLE_MANIFEST_BEGIN"
+          unzip -p assets/ml/sigillum_screen_replay_model_update.zip manifest.json || true
+          echo
+          echo "MODEL_BUNDLE_MANIFEST_END"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dataset tooling
+        run: python -m pip install Pillow
+      - name: Validate hard-negative merge
+        run: python -m unittest ml/test_prepare_dataset_hard_negatives.py
+      - name: Set up validated Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Verify formatting
+        run: |
+          dart format test/build127_ml_hard_negative_training_contract_test.dart
+          git diff --exit-code
+      - name: Flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Flutter tests
+        run: flutter test --reporter expanded

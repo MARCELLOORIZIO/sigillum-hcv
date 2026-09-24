@@ -1,0 +1,44 @@
+{
+  "type": "SIGILLUM_V3_MULTIHEAD_TFLITE_V1",
+  "modelFile": "sigillum_screen_replay_v3_multihead.tflite",
+  "classes": [
+    "SCREEN_MONITOR",
+    "SCREEN_PHONE",
+    "SCREEN_TABLET",
+    "REALITY_PAPER",
+    "REALITY_ROOM",
+    "REALITY_OBJECT",
+    "REALITY_OUTDOOR"
+  ],
+  "inputShape": [
+    1,
+    96,
+    96,
+    3
+  ],
+  "inputRange": "0..1 float32",
+  "outputs": [
+    "hard",
+    "clean"
+  ],
+  "kerasParityMaxAbs": 1.1920928955078125e-07,
+  "tfliteParityMaxAbs": 4.76837158203125e-07,
+  "benchmarkRule": {
+    "v2High": 0.8,
+    "v2Low": 0.15,
+    "v3Veto": 0.25,
+    "v3Screen": 0.5
+  },
+  "productionResidualPolicy": {
+    "role": "PHOTO_V2_FALSE_POSITIVE_VETO_ONLY",
+    "v2High": 0.8,
+    "v3RealityVeto": 0.2,
+    "screenPromotion": false,
+    "affectsVideo": false
+  },
+  "benchmark": {
+    "frozenPhoto": "13/13",
+    "build126PhotoHoldout": "15/15",
+    "combined": "28/28"
+  }
+}

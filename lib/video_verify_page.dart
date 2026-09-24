@@ -258,7 +258,7 @@ class _VideoVerifyPageState extends State<VideoVerifyPage> {
 
       setState(() {
         status = "Video verificato";
-        result = "HUMAN VERIFIED ✔";
+        result = "CERTIFICATE_VERIFIED";
         verifiedCreatorName = creatorName;
         verifiedTrustLevel = trustLevel;
         verifiedIssuer = issuer;
@@ -282,7 +282,7 @@ class _VideoVerifyPageState extends State<VideoVerifyPage> {
   }
 
   bool get isVerified {
-    return result == "HUMAN VERIFIED ✔";
+    return result == "CERTIFICATE_VERIFIED";
   }
 
   bool get hasResult {

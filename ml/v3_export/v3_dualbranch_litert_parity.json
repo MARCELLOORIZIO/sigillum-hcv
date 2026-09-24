@@ -1,0 +1,95 @@
+{
+  "type": "SIGILLUM_V3_DUAL_BRANCH_LITERT_PARITY_V1",
+  "classes": [
+    "SCREEN_MONITOR",
+    "SCREEN_PHONE",
+    "SCREEN_TABLET",
+    "REALITY_PAPER",
+    "REALITY_ROOM",
+    "REALITY_OBJECT",
+    "REALITY_OUTDOOR"
+  ],
+  "inputs": [
+    {
+      "index": 0,
+      "name": "serving_default_args_0",
+      "shape": [
+        1,
+        96,
+        96,
+        3
+      ],
+      "dtype": "<class 'numpy.float32'>"
+    },
+    {
+      "index": 1,
+      "name": "serving_default_args_1",
+      "shape": [
+        1,
+        96,
+        96,
+        3
+      ],
+      "dtype": "<class 'numpy.float32'>"
+    }
+  ],
+  "outputs": [
+    {
+      "index": 78,
+      "name": "serving_default_output_0_output",
+      "shape": [
+        1,
+        7
+      ],
+      "dtype": "<class 'numpy.float32'>"
+    },
+    {
+      "index": 104,
+      "name": "serving_default_output_1_output",
+      "shape": [
+        1,
+        7
+      ],
+      "dtype": "<class 'numpy.float32'>"
+    }
+  ],
+  "mapping": {
+    "inputSwap": false,
+    "outputSwap": false
+  },
+  "worstMaxAbsDiff": 7.748603820800781e-07,
+  "tests": [
+    {
+      "case": 0,
+      "maxAbsDiff": 4.470348358154297e-07
+    },
+    {
+      "case": 1,
+      "maxAbsDiff": 1.4901161193847656e-07
+    },
+    {
+      "case": 2,
+      "maxAbsDiff": 4.76837158203125e-07
+    },
+    {
+      "case": 3,
+      "maxAbsDiff": 5.960464477539062e-07
+    },
+    {
+      "case": 4,
+      "maxAbsDiff": 4.172325134277344e-07
+    },
+    {
+      "case": 5,
+      "maxAbsDiff": 5.364418029785156e-07
+    },
+    {
+      "case": 6,
+      "maxAbsDiff": 7.748603820800781e-07
+    },
+    {
+      "case": 7,
+      "maxAbsDiff": 4.76837158203125e-07
+    }
+  ]
+}

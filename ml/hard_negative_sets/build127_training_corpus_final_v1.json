@@ -1,0 +1,45 @@
+{
+  "type": "SIGILLUM_BUILD127_TRAINING_CORPUS_FINAL_V1_REFERENCE",
+  "libraryPath": "/SIGILLUM/SIGILLUM_build127_training_corpus_final_v1.zip",
+  "zipSha256": "1d12bf594cec61616ef2b922915a31263f693b31d959ccea39914643b4c995f8",
+  "uniqueImages": 1502,
+  "duplicatesExcludedAcrossSources": 0,
+  "crossClassConflicts": 0,
+  "sourceCounts": {
+    "historicalDeduplicated": 596,
+    "hcvExtension": 906
+  },
+  "classCounts": {
+    "SCREEN_MONITOR": 479,
+    "SCREEN_PHONE": 65,
+    "SCREEN_TABLET": 36,
+    "REALITY_PAPER": 203,
+    "REALITY_ROOM": 199,
+    "REALITY_OBJECT": 334,
+    "REALITY_OUTDOOR": 186
+  },
+  "screenFamilyTotal": 580,
+  "realityFamilyTotal": 922,
+  "hcvMining": {
+    "archivesScanned": 94,
+    "uniqueHcvpacks": 592,
+    "uniqueHcvPhotosReviewed": 336,
+    "photoReviewCandidates": 291,
+    "photoTrainingAccepted": 252,
+    "photoReviewExcludedAmbiguous": 39,
+    "uniqueHcvVideosReviewed": 291,
+    "videoTrainingAccepted": 266,
+    "videoReviewExcludedAmbiguous": 25,
+    "videoFramesPerAcceptedVideo": 3,
+    "videoFramePositions": [0.2, 0.5, 0.8]
+  },
+  "groundTruthPolicy": [
+    "Do not use previous ML verdict as training ground truth.",
+    "Use independent historical labels, frozen corpus labels, or manual visual review.",
+    "Exclude ambiguous and mixed scenes.",
+    "Keep frozen evaluation and BUILD126 holdout captures out of training."
+  ],
+  "modelStatus": "BUNDLED_TFLITE_NOT_REPLACED_YET",
+  "baseBuild": "BUILD126",
+  "baseCommit": "4dc9acb4f81e8f09ec207c6e61296c7d45fa16ed"
+}

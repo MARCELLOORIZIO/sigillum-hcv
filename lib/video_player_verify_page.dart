@@ -8,9 +8,11 @@ import 'package:video_player/video_player.dart';
 
 import 'hcv_verifier.dart';
 import 'hcv_logo_badge.dart';
+import 'sigillum_localization.dart';
 
 class VideoPlayerVerifyPage extends StatefulWidget {
-  const VideoPlayerVerifyPage({super.key});
+  const VideoPlayerVerifyPage({super.key, this.languageCode = 'it'});
+  final String languageCode;
 
   @override
   State<VideoPlayerVerifyPage> createState() => _VideoPlayerVerifyPageState();
@@ -18,13 +20,14 @@ class VideoPlayerVerifyPage extends StatefulWidget {
 
 class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
   final verifier = HCVVerifier();
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   VideoPlayerController? _controller;
 
   String? videoPath;
   String? hcvPath;
 
-  String status = "Seleziona video";
+  String status = '';
   String? result;
 
   Future<void> pickVideo() async {
@@ -46,7 +49,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
     setState(() {
       videoPath = path;
       _controller = controller;
-      status = "Video caricato";
+      status = _t('videoLoaded');
       result = null;
     });
 
@@ -66,7 +69,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
 
     setState(() {
       hcvPath = path;
-      status = "Certificato caricato";
+      status = _t('certificateLoaded');
     });
 
     await verify();
@@ -77,7 +80,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
 
     try {
       setState(() {
-        status = "Verifica...";
+        status = _t('verifying');
         result = null;
       });
 
@@ -88,7 +91,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
       if (hcvPath == null) {
         setState(() {
           result = "NOT VERIFIED ❌";
-          status = "Nessun certificato";
+          status = _t('noCertificate');
         });
         return;
       }
@@ -102,7 +105,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
       if (!hcvOk) {
         setState(() {
           result = "INVALID CERT ❌";
-          status = "Certificato non valido";
+          status = _t('invalidCertificate');
         });
         return;
       }
@@ -112,7 +115,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
       if (content == null || content["type"] != "video") {
         setState(() {
           result = "NOT VERIFIED ❌";
-          status = "HCV non compatibile";
+          status = _t('hcvNotCompatible');
         });
         return;
       }
@@ -122,13 +125,13 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
       if (storedHash != videoHash) {
         setState(() {
           result = "TAMPERED ❌";
-          status = "Video modificato";
+          status = _t('videoModified');
         });
         return;
       }
 
       setState(() {
-        result = "HUMAN VERIFIED ✔";
+        result = "CERTIFICATE_VERIFIED";
         status = "OK";
       });
     } catch (e) {
@@ -147,10 +150,10 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
 
     if (result!.contains("VERIFIED")) {
       color = Colors.green;
-      text = "HUMAN VERIFIED";
+      text = _t('certificateVerifiedLabel');
     } else {
       color = Colors.red;
-      text = "NOT VERIFIED";
+      text = _t('notVerifiedLabel');
     }
 
     return Positioned(
@@ -186,7 +189,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("SIGILLUM Player"),
+        title: Text(_t('videoPlayerTitle')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -197,7 +200,7 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
           Expanded(
             child: Center(
               child: _controller == null
-                  ? const Text("Seleziona un video")
+                  ? Text(_t('selectVideoPrompt'))
                   : Stack(
                       alignment: Alignment.center,
                       children: [
@@ -226,12 +229,12 @@ class _VideoPlayerVerifyPageState extends State<VideoPlayerVerifyPage> {
           const SizedBox(height: 10),
           ElevatedButton(
             onPressed: pickVideo,
-            child: const Text("CARICA VIDEO"),
+            child: Text(_t('loadVideo')),
           ),
           const SizedBox(height: 10),
           ElevatedButton(
             onPressed: pickHCV,
-            child: const Text("CARICA HCV"),
+            child: Text(_t('loadHcv')),
           ),
           const SizedBox(height: 20),
         ],

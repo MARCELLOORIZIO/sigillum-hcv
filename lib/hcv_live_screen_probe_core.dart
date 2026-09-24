@@ -1,6 +1,101 @@
 part of 'hcv_live_screen_probe.dart';
 
 class HCVLiveScreenProbe {
+  /// Passive BUILD117 geometry probe.
+  ///
+  /// Captures only torch-OFF preview frames and runs the existing projective
+  /// motion / parallax classifier. It deliberately does not invoke the active
+  /// illumination classifier and cannot classify a display by itself.
+  Future<Map<String, dynamic>> analyzePassiveSceneGeometry(
+    CameraController controller, {
+    Duration duration = const Duration(milliseconds: 1200),
+    int maxFrames = 60,
+  }) async {
+    if (!controller.value.isInitialized) {
+      return _unknownGeometry('CAMERA_NOT_READY');
+    }
+    if (controller.value.isRecordingVideo) {
+      return _unknownGeometry('CAMERA_RECORDING');
+    }
+    if (controller.value.isStreamingImages) {
+      return _unknownGeometry('STREAM_ALREADY_ACTIVE');
+    }
+
+    final frames = <_FrameStats>[];
+    var processing = false;
+    String? error;
+    final deadline = DateTime.now().add(duration);
+
+    try {
+      await controller.setFlashMode(FlashMode.off);
+      try {
+        await controller.setExposureMode(ExposureMode.locked);
+      } catch (_) {}
+      try {
+        await controller.setFocusMode(FocusMode.locked);
+      } catch (_) {}
+
+      await controller.startImageStream((image) {
+        if (processing || frames.length >= maxFrames) return;
+        processing = true;
+        try {
+          final stats = _readFrameStats(image, 0);
+          if (stats != null && frames.length < maxFrames) {
+            frames.add(stats);
+          }
+        } finally {
+          processing = false;
+        }
+      });
+
+      // BUILD121: keep the probe alive for the full time window even when the
+      // preview stream reaches maxFrames early. Sensor corroboration is sampled
+      // in the same interval and needs a real temporal baseline; ending on the
+      // frame-count cap made PHOTO probes stop around 0.65-0.70 s on iPhone.
+      while (DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 20));
+      }
+    } catch (e) {
+      error = 'PASSIVE_GEOMETRY_FAILED: $e';
+    } finally {
+      try {
+        if (controller.value.isStreamingImages) {
+          await controller.stopImageStream();
+        }
+      } catch (_) {}
+      try {
+        await controller.setFlashMode(FlashMode.off);
+      } catch (_) {}
+      try {
+        await controller.setExposureMode(ExposureMode.auto);
+      } catch (_) {}
+      try {
+        await controller.setFocusMode(FocusMode.auto);
+      } catch (_) {}
+    }
+
+    if (frames.length < 4) {
+      return _unknownGeometry(
+        'NOT_ENOUGH_PASSIVE_GEOMETRY_FRAMES',
+        framesAnalyzed: frames.length,
+        error: error,
+      );
+    }
+
+    final geometry = _analyzeGeometry(frames);
+    final context = HCVSceneContextEvidence.fromGeometry(geometry.toJson());
+    return <String, dynamic>{
+      'type': 'SIGILLUM_PASSIVE_SCENE_GEOMETRY_V1',
+      'analysisStatus': 'ANALYZED',
+      'framesAnalyzed': frames.length,
+      'torchUsed': false,
+      'geometryChallenge': geometry.toJson(),
+      'sceneContextEvidence': context.toJson(),
+      'reason': geometry.reasons.join('|'),
+      if (error != null) 'error': error,
+    };
+  }
+
   Future<Map<String, dynamic>> analyzePreview(
     CameraController controller, {
     Duration duration = const Duration(milliseconds: 3000),
@@ -272,8 +367,7 @@ class HCVLiveScreenProbe {
         'displayBandTrace':
             passive.localFlicker > 0.34 && passive.refreshBand > 0.18,
         'opticalStripeTrace': passive.fineStripe > 0.30,
-        'opticalCorroboratedTrace':
-            passive.fineStripe > 0.30 &&
+        'opticalCorroboratedTrace': passive.fineStripe > 0.30 &&
             (passive.refreshBand > 0.14 || passive.localFlicker > 0.34),
         'moireFrequencyTrace': passive.moire > 0.42,
         'globalDisplayPulse':
@@ -290,7 +384,8 @@ class HCVLiveScreenProbe {
       },
       'activeReasons': finalReasons,
       'geometryReasons': geometry.reasons,
-      'note': 'Active display probe V5 combines OFF/ON/OFF illumination response and low-resolution camera-motion geometry; still-photo capture can additionally use a disposable pre-capture mini-video for temporal evidence.',
+      'note':
+          'Active display probe V5 combines OFF/ON/OFF illumination response and low-resolution camera-motion geometry; still-photo capture can additionally use a disposable pre-capture mini-video for temporal evidence.',
     };
 
     final temporalProbe = includeTemporalVideoProbe
@@ -323,8 +418,8 @@ class HCVLiveScreenProbe {
     activeLiveAnalysis['videoEquivalentAvailable'] =
         includeTemporalVideoProbe && videoEquivalentRisk != null;
     if (videoEquivalentRisk != null) {
-      activeLiveAnalysis['videoEquivalentDisplayRisk'] = videoEquivalentRisk
-          .toJson();
+      activeLiveAnalysis['videoEquivalentDisplayRisk'] =
+          videoEquivalentRisk.toJson();
     }
 
     final signals = activeLiveAnalysis['signals'];
@@ -342,6 +437,27 @@ class HCVLiveScreenProbe {
   Map<String, dynamic>? _stringMap(dynamic value) {
     if (value is! Map) return null;
     return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+
+  Map<String, dynamic> _unknownGeometry(
+    String reason, {
+    int framesAnalyzed = 0,
+    String? error,
+  }) {
+    return <String, dynamic>{
+      'type': 'SIGILLUM_PASSIVE_SCENE_GEOMETRY_V1',
+      'analysisStatus': 'NOT_ANALYZED',
+      'framesAnalyzed': framesAnalyzed,
+      'torchUsed': false,
+      'geometryChallenge': const <String, dynamic>{
+        'sceneClass': 'UNKNOWN',
+        'realityEvidence': false,
+        'planarEvidence': false,
+      },
+      'sceneContextEvidence': HCVSceneContextEvidence.unknown(reason).toJson(),
+      'reason': reason,
+      if (error != null && error.isNotEmpty) 'error': error,
+    };
   }
 
   Map<String, dynamic> _unknown(

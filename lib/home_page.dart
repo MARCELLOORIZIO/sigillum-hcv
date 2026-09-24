@@ -7,9 +7,12 @@ import 'hcvpack_player_page.dart';
 import 'identity_page.dart';
 import 'import_page.dart';
 import 'registry_verify_page.dart';
+import 'verified_originals_page.dart';
 import 'screen_replay_calibration_page.dart';
 import 'screen_replay_diagnostics_page.dart';
 import 'text_cert_page.dart';
+import 'sigillum_localization.dart';
+import 'lab_ui_copy.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,6 +24,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
   String? _lastOpenedSharedPath;
+  String languageCode = SigillumCopy.initialLanguageCode();
+  String _l(String key) => LabUiCopy.t(languageCode, key);
 
   @override
   void initState() {
@@ -77,6 +82,7 @@ class _HomePageState extends State<HomePage> {
         MaterialPageRoute(
           builder: (_) => RegistryVerifyPage(
             initialMediaPath: path,
+            languageCode: languageCode,
           ),
         ),
       );
@@ -148,23 +154,15 @@ class _HomePageState extends State<HomePage> {
   void _openInfo() {
     _open(
       Scaffold(
-        appBar: AppBar(title: const Text("Come funziona HCV")),
-        body: const Padding(
-          padding: EdgeInsets.all(24),
+        appBar: AppBar(title: Text(_l('infoTitle'))),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
           child: Center(
             child: SingleChildScrollView(
               child: Text(
-                "HCV crea una prova digitale per un contenuto.\n\n"
-                "Quando crei una foto, un video o un testo, l'app genera:\n\n"
-                "- un contenuto standard condivisibile\n"
-                "- un HCV-ID\n"
-                "- un certificato firmato\n"
-                "- un pacchetto HCVPACK opzionale\n\n"
-                "Il controllo non riguarda solo i monitor. Sigillum combina piu prove: integrita del file, cattura live, watermark visibile, certificato firmato, Registry, fingerprint per file ricompressi dai social e analisi del rischio di replay da schermo.\n\n"
-                "Se il contenuto corrisponde al certificato appare HUMAN VERIFIED.\n\n"
-                "Se il file non corrisponde o il controllo non e conclusivo, l'app lo segnala.",
+                _l('infoBody'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, height: 1.4),
+                style: const TextStyle(fontSize: 15, height: 1.4),
               ),
             ),
           ),
@@ -177,7 +175,21 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("HCV Verify"),
+        title: Text(_l('title')),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: SigillumCopy.language(languageCode).name,
+            onSelected: (value) => setState(() => languageCode = value),
+            itemBuilder: (_) => [
+              for (final item in SigillumCopy.languages)
+                PopupMenuItem(value: item.code, child: Text(item.name)),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Center(child: Text(SigillumCopy.language(languageCode).shortName)),
+            ),
+          ),
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -191,8 +203,8 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.green,
               ),
               const SizedBox(height: 12),
-              const Text(
-                "Human Content Verification",
+              Text(
+                _l('subtitle'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
@@ -200,10 +212,10 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
-                  "Crea contenuti verificabili con controlli su integrita, cattura live, Registry, social fingerprint e rischio schermo.",
+                  _l('tagline'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14),
                 ),
@@ -211,64 +223,71 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 32),
               _mainButton(
                 icon: Icons.videocam,
-                title: "CREA VIDEO VERIFICABILE",
-                subtitle: "Registra un video e genera HCV-ID",
-                onPressed: () => _open(const CameraPage()),
+                title: _l('createVideo'),
+                subtitle: _l('createVideoSub'),
+                onPressed: () => _open(CameraPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.cloud_done,
-                title: "VERIFICA VIDEO CON HCV-ID",
-                subtitle: "Seleziona un MP4 e verifica dal Registry",
-                onPressed: () => _open(const RegistryVerifyPage()),
+                title: _l('verifyVideo'),
+                subtitle: _l('verifyVideoSub'),
+                onPressed: () => _open(RegistryVerifyPage(languageCode: languageCode)),
+              ),
+              const SizedBox(height: 14),
+              _mainButton(
+                icon: Icons.video_library_outlined,
+                title: 'SIGILLUM Verified Originals',
+                subtitle: 'Verifica HCV-ID o guarda la copia autorizzata',
+                onPressed: () => _open(VerifiedOriginalsPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.file_open,
-                title: "IMPORTA FILE HCV",
-                subtitle: "Apri .hcv, .hcvpack o file ricevuti",
+                title: _l('import'),
+                subtitle: _l('importSub'),
                 onPressed: () => _open(const ImportPage()),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.play_circle_fill,
-                title: "APRI HCVPACK",
-                subtitle: "Verifica un pacchetto completo offline",
-                onPressed: () => _open(const HCVPackPlayerPage()),
+                title: _l('openPack'),
+                subtitle: _l('openPackSub'),
+                onPressed: () => _open(HCVPackPlayerPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.text_fields,
-                title: "CERTIFICA TESTO",
-                subtitle: "Crea un testo verificabile con HCV",
-                onPressed: () => _open(const TextCertPage()),
+                title: _l('certText'),
+                subtitle: _l('certTextSub'),
+                onPressed: () => _open(TextCertPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.badge,
-                title: "IDENTITA CREATOR",
-                subtitle: "Imposta nome e identita del creatore",
-                onPressed: () => _open(const IdentityPage()),
+                title: _l('identity'),
+                subtitle: _l('identitySub'),
+                onPressed: () => _open(IdentityPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.analytics,
-                title: "DIAGNOSTICA SCHERMO",
-                subtitle: "Raccogli sessioni test e leggi i valori tecnici",
-                onPressed: () => _open(const ScreenReplayDiagnosticsPage()),
+                title: _l('diagnostics'),
+                subtitle: _l('diagnosticsSub'),
+                onPressed: () => _open(ScreenReplayDiagnosticsPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.model_training,
-                title: "AUTO TRAINING ML",
-                subtitle: "Raccogli campioni, conferma label ed esporta ZIP",
-                onPressed: () => _open(const ScreenReplayCalibrationPage()),
+                title: _l('training'),
+                subtitle: _l('trainingSub'),
+                onPressed: () => _open(ScreenReplayCalibrationPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.info_outline,
-                title: "COME FUNZIONA",
-                subtitle: "Spiegazione semplice del sistema",
+                title: _l('how'),
+                subtitle: _l('howSub'),
                 onPressed: _openInfo,
               ),
             ],

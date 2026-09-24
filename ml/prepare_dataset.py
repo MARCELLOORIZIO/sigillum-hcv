@@ -56,6 +56,16 @@ def main() -> None:
     parser.add_argument("--out", default="ml_work/dataset")
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--seed", type=int, default=1337)
+    parser.add_argument(
+        "--hard-negatives",
+        action="append",
+        default=[],
+        help=(
+            "Optional directory with class subfolders. Images are appended to "
+            "TRAIN ONLY so the original validation/test split stays independent. "
+            "Pass this option more than once to merge multiple sets."
+        ),
+    )
     args = parser.parse_args()
 
     source = Path(args.source)
@@ -82,6 +92,38 @@ def main() -> None:
             for index, path in enumerate(paths):
                 target = output / split / class_name / f"{path.stem}_{index:04d}.jpg"
                 resize_and_copy(path, target, args.image_size)
+
+    manifest["hardNegativeSets"] = []
+    for set_index, raw_hard_negative_root in enumerate(args.hard_negatives):
+        hard_negative_root = Path(raw_hard_negative_root)
+        counts: dict[str, int] = {}
+
+        for class_name in CLASSES:
+            class_dir = hard_negative_root / class_name
+            images = (
+                sorted(path for path in iter_images(class_dir) if path.is_file())
+                if class_dir.exists()
+                else []
+            )
+            counts[class_name] = len(images)
+
+            for index, path in enumerate(images):
+                target = (
+                    output
+                    / "train"
+                    / class_name
+                    / f"hardneg_{set_index:02d}_{path.stem}_{index:04d}.jpg"
+                )
+                resize_and_copy(path, target, args.image_size)
+
+        manifest["hardNegativeSets"].append(
+            {
+                "source": str(hard_negative_root),
+                "splitRole": "TRAIN_ONLY",
+                "counts": counts,
+                "total": sum(counts.values()),
+            }
+        )
 
     (output / "labels.json").write_text(
         json.dumps({"classes": CLASSES}, indent=2),

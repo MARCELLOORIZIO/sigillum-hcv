@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import 'hcv_ml_model_store.dart';
+import 'hcv_video_photo_spatial_evidence.dart';
 import 'sigillum_edition.dart';
 
 class HCVMLScreenReplayClassifier {
@@ -70,9 +71,10 @@ class HCVMLScreenReplayClassifier {
 
     try {
       await workDir.create(recursive: true);
-      final num samplingIntervalSeconds = frameSamplingIntervalSeconds == null
+      num samplingIntervalSeconds = frameSamplingIntervalSeconds == null
           ? max(1, frameIntervalSeconds)
           : max(0.1, frameSamplingIntervalSeconds);
+      var samplingFallbackUsed = false;
       final frameLimit = max(1, maxFrames);
       final framePattern = p.join(workDir.path, 'frame_%03d.jpg');
       final command = "-y -i '$videoPath' "
@@ -88,12 +90,47 @@ class HCVMLScreenReplayClassifier {
         return _unknown('FRAME_EXTRACTION_FAILED');
       }
 
-      final frames = workDir
+      var frames = workDir
           .listSync()
           .whereType<File>()
           .where((file) => file.path.toLowerCase().endsWith('.jpg'))
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
+
+      // Generic video analysis historically samples every three seconds. Very
+      // short real videos can therefore yield only one ML frame and can never
+      // satisfy the multi-frame decision contract. Retry only that narrow case
+      // with a denser one-second sampling. Photo Temporal V2 supplies its own
+      // explicit interval and is intentionally left unchanged.
+      if (frames.length < 2 && frameSamplingIntervalSeconds == null) {
+        const fallbackSamplingIntervalSeconds = 1.0;
+        final fallbackFramePattern = p.join(workDir.path, 'fallback_%03d.jpg');
+        final fallbackCommand = "-y -i '$videoPath' "
+            "-vf \"scale=720:720:force_original_aspect_ratio=decrease,"
+            "pad=720:720:(ow-iw)/2:(oh-ih)/2,"
+            "fps=1/$fallbackSamplingIntervalSeconds\" "
+            "-frames:v $frameLimit "
+            "'$fallbackFramePattern'";
+        final fallbackSession = await FFmpegKit.execute(fallbackCommand);
+        final fallbackCode = await fallbackSession.getReturnCode();
+        if (fallbackCode != null && ReturnCode.isSuccess(fallbackCode)) {
+          final fallbackFrames = workDir
+              .listSync()
+              .whereType<File>()
+              .where(
+                (file) =>
+                    p.basename(file.path).startsWith('fallback_') &&
+                    file.path.toLowerCase().endsWith('.jpg'),
+              )
+              .toList()
+            ..sort((a, b) => a.path.compareTo(b.path));
+          if (fallbackFrames.length >= 2) {
+            frames = fallbackFrames;
+            samplingIntervalSeconds = fallbackSamplingIntervalSeconds;
+            samplingFallbackUsed = true;
+          }
+        }
+      }
 
       if (frames.isEmpty) {
         return _unknown('NOT_ENOUGH_VIDEO_FRAMES');
@@ -103,10 +140,15 @@ class HCVMLScreenReplayClassifier {
       for (var i = 0; i < frames.length; i++) {
         final analysis = await analyzeImage(frames[i].path);
         analysis['videoFrameIndex'] = i;
-        analysis['approxVideoSecond'] =
-            _round(i * samplingIntervalSeconds.toDouble());
+        analysis['approxVideoSecond'] = _round(
+          i * samplingIntervalSeconds.toDouble(),
+        );
         analyses.add(analysis);
       }
+
+      final videoPhotoSpatialEvidence = HCVVideoPhotoSpatialEvidence.analyze(
+        analyses,
+      );
 
       analyses.sort((a, b) {
         final bScore = (b['screenReplayRiskScore'] as num?)?.toInt() ?? -1;
@@ -151,7 +193,9 @@ class HCVMLScreenReplayClassifier {
           averageScore == null ? null : _round(averageScore);
       worst['videoFrameSamplingIntervalSeconds'] = samplingIntervalSeconds;
       worst['videoFrameSamplingLimit'] = frameLimit;
+      worst['videoFrameSamplingFallbackUsed'] = samplingFallbackUsed;
       worst['videoFrameAnalyses'] = analyses.take(12).toList();
+      worst['videoPhotoSpatialEvidence'] = videoPhotoSpatialEvidence;
       return worst;
     } catch (e) {
       return _unknown('VIDEO_ML_ANALYSIS_ERROR', e);
@@ -184,6 +228,7 @@ class HCVMLScreenReplayClassifier {
       }
 
       var result = _runImageAnalysis(interpreter, classes, decoded);
+      final fullResult = result;
       final cropped = _runImageAnalysis(
         interpreter,
         classes,
@@ -225,6 +270,13 @@ class HCVMLScreenReplayClassifier {
           'sigillumOverlayCorrected': overlayCorrected,
           'fullFrameRiskScore': fullScore,
           'contentAreaRiskScore': croppedScore,
+          'rawFullFrameScreenProbability': _round(
+            fullResult.screenProbability,
+          ),
+          'rawFullFramePredictedClass': classes[fullResult.topIndex],
+          'rawFullFramePredictedClassConfidence': _round(
+            fullResult.probabilities[fullResult.topIndex],
+          ),
         },
         'note':
             'Local ML screen replay classifier trained from Sigillum calibration samples. It supports the signal but is not absolute proof.',

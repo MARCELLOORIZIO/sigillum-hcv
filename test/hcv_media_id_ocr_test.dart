@@ -68,5 +68,44 @@ void main() {
         'HCV-D2BEECE9BB114783',
       );
     });
+
+
+    test('Registry recovery covers the physical Messenger C-to-0 OCR error', () {
+      final variants = HCVMediaIdOcr.buildRegistryRecoveryVariants(const [
+        'HCV-58499808ECB04900',
+      ]);
+
+      expect(variants, contains('HCV-58499808ECB049C0'));
+      expect(variants.length, lessThanOrEqualTo(16));
+
+      const base = '58499808ECB04900';
+      for (final variant in variants) {
+        final payload = variant.substring(4);
+        var changed = 0;
+        for (var i = 0; i < base.length; i++) {
+          if (base[i] != payload[i]) changed++;
+        }
+        expect(changed, 1, reason: '$variant must be one OCR edit only');
+      }
+    });
+
+    test('Registry recovery is deterministic and respects its global cap', () {
+      final first = HCVMediaIdOcr.buildRegistryRecoveryVariants(
+        const ['HCV-58499808ECB04900'],
+        maxVariants: 3,
+      );
+      final second = HCVMediaIdOcr.buildRegistryRecoveryVariants(
+        const ['HCV-58499808ECB04900'],
+        maxVariants: 3,
+      );
+
+      expect(first, second);
+      expect(first, hasLength(3));
+      expect(first, [
+        'HCV-5B499808ECB04900',
+        'HCV-58499B08ECB04900',
+        'HCV-584998C8ECB04900',
+      ]);
+    });
   });
 }

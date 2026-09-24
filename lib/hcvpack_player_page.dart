@@ -487,7 +487,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
     setState(() {
       loading = false;
-      result = "HUMAN VERIFIED";
+      result = "HCVPACK_VERIFIED";
       status = "${_t('verificationComplete')} ($sourceLabel)";
 
       verifiedFileType = contentType;
@@ -547,7 +547,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   }
 
   bool get isVerified {
-    return result == "HUMAN VERIFIED";
+    return result == "HCVPACK_VERIFIED";
   }
 
   bool get hasResult {
@@ -576,7 +576,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            isVerified ? "HUMAN VERIFIED" : "NOT VERIFIED",
+            isVerified ? _v('packVerifiedResult') : _t('notVerifiedLabel'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
@@ -587,7 +587,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            result ?? "",
+            status,
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontSize: 13),
           ),

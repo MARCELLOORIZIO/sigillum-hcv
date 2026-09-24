@@ -18,10 +18,13 @@ import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import 'hcv_social_fingerprint.dart';
+import 'hcv_spatial_fingerprint_v2.dart';
+import 'hcv_audio_fingerprint.dart';
 import 'hcv_media_id_ocr.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
 import 'verification_ui_copy.dart';
+import 'registry_verify_copy.dart';
 
 class HCVDisplayRiskClaimValues {
   const HCVDisplayRiskClaimValues({
@@ -43,9 +46,8 @@ HCVDisplayRiskClaimValues resolveHCVDisplayRiskClaimValues(
   final evidence = claims['displayRiskEvidence'];
   final signedRisk = evidence is Map ? evidence['risk']?.toString() : null;
   final signedScore = evidence is Map ? evidence['score']?.toString() : null;
-  final signedDecision = evidence is Map
-      ? evidence['decision']?.toString()
-      : null;
+  final signedDecision =
+      evidence is Map ? evidence['decision']?.toString() : null;
   final hasCompleteSignedEvidence =
       signedRisk != null && signedScore != null && signedDecision != null;
 
@@ -64,6 +66,121 @@ HCVDisplayRiskClaimValues resolveHCVDisplayRiskClaimValues(
     decision: claims['displayRiskDecision']?.toString(),
     requiresLegacyNormalization: true,
   );
+}
+
+const String _unprovenDerivativeResult =
+    'VISUAL SIMILARITY / ORIGINAL NOT VERIFIED';
+
+enum HCVSocialFingerprintClaimState {
+  usable,
+  legacyMissing,
+  modernInvalid,
+}
+
+HCVSocialFingerprintClaimState resolveHCVSocialFingerprintClaimState(
+  Map<dynamic, dynamic> claims, {
+  required String mediaType,
+}) {
+  final requiresModernFingerprint = claims['socialVerification'] == true;
+  final rawFingerprint = claims['socialFingerprint'];
+  if (rawFingerprint is! Map) {
+    return requiresModernFingerprint
+        ? HCVSocialFingerprintClaimState.modernInvalid
+        : HCVSocialFingerprintClaimState.legacyMissing;
+  }
+
+  final algorithm = rawFingerprint['algorithm']?.toString() ?? '';
+  final shaLikeFingerprint = RegExp(r'^[a-fA-F0-9]{64}$');
+
+  bool valid = false;
+  if (mediaType == 'photo') {
+    final imageHash = rawFingerprint['imageHash']?.toString() ?? '';
+    valid = algorithm == 'SIGILLUM_SOCIAL_IMAGE_AHASH_V1' &&
+        shaLikeFingerprint.hasMatch(imageHash);
+  } else if (mediaType == 'video') {
+    final frameHashes = rawFingerprint['frameHashes'];
+    valid = algorithm == 'SIGILLUM_SOCIAL_AHASH_V1' &&
+        frameHashes is List &&
+        frameHashes.isNotEmpty &&
+        frameHashes.every(
+          (value) => shaLikeFingerprint.hasMatch(value.toString()),
+        );
+  }
+
+  if (valid &&
+      mediaType == 'photo' &&
+      rawFingerprint.containsKey('spatialFingerprint') &&
+      !HCVSpatialFingerprintV2.isValid(
+        rawFingerprint['spatialFingerprint'],
+      )) {
+    return HCVSocialFingerprintClaimState.modernInvalid;
+  }
+  if (valid &&
+      mediaType == 'video' &&
+      rawFingerprint.containsKey('spatialFrameFingerprints')) {
+    final spatial = rawFingerprint['spatialFrameFingerprints'];
+    final frames = rawFingerprint['frameHashes'] as List;
+    if (spatial is! List ||
+        spatial.length != frames.length ||
+        spatial.any((entry) => !HCVSpatialFingerprintV2.isValid(entry))) {
+      return HCVSocialFingerprintClaimState.modernInvalid;
+    }
+  }
+  if (valid) return HCVSocialFingerprintClaimState.usable;
+  return requiresModernFingerprint
+      ? HCVSocialFingerprintClaimState.modernInvalid
+      : HCVSocialFingerprintClaimState.legacyMissing;
+}
+
+bool? resolveHCVSocialFingerprintAvailability(
+  Map<dynamic, dynamic> claims, {
+  required String mediaType,
+}) {
+  switch (resolveHCVSocialFingerprintClaimState(
+    claims,
+    mediaType: mediaType,
+  )) {
+    case HCVSocialFingerprintClaimState.usable:
+      return true;
+    case HCVSocialFingerprintClaimState.legacyMissing:
+      return null;
+    case HCVSocialFingerprintClaimState.modernInvalid:
+      return false;
+  }
+}
+
+enum HCVAudioFingerprintClaimState {
+  usable,
+  legacyMissing,
+  modernInvalid,
+}
+
+HCVAudioFingerprintClaimState resolveHCVAudioFingerprintClaimState(
+  Map<dynamic, dynamic> claims,
+) {
+  final social = claims['socialFingerprint'];
+  if (social is! Map || !social.containsKey('audioFingerprintPolicy')) {
+    return HCVAudioFingerprintClaimState.legacyMissing;
+  }
+  if (social['audioFingerprintPolicy'] != HCVAudioFingerprint.policy) {
+    return HCVAudioFingerprintClaimState.modernInvalid;
+  }
+  final audio = social['audioFingerprint'];
+  if (audio is! Map || !HCVAudioFingerprint.isValidFingerprint(audio)) {
+    return HCVAudioFingerprintClaimState.modernInvalid;
+  }
+  return HCVAudioFingerprintClaimState.usable;
+}
+
+bool? resolveHCVAudioFingerprintAvailability(Map<dynamic, dynamic> claims) {
+  switch (resolveHCVAudioFingerprintClaimState(claims)) {
+    case HCVAudioFingerprintClaimState.usable:
+      return true;
+    case HCVAudioFingerprintClaimState.legacyMissing:
+      return null;
+    case HCVAudioFingerprintClaimState.modernInvalid:
+      return false;
+  }
 }
 
 class RegistryVerifyPage extends StatefulWidget {
@@ -87,6 +204,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
+  String _r(String key) => RegistryVerifyCopy.t(widget.languageCode, key);
 
   String? extractHcvIdFromName(String fileName) {
     final patterns = [
@@ -115,8 +233,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         .replaceAll('HCV_ID', 'HCV-')
         .replaceAll('HCV_', 'HCV-');
 
-    final match = RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])')
-        .firstMatch(normalized);
+    final match =
+        RegExp(r'HCV-[A-F0-9]{16}(?![A-F0-9])').firstMatch(normalized);
     return match?.group(0);
   }
 
@@ -230,8 +348,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final framePath =
           '${tempDir.path}/hcv_ocr_frame_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      final command =
-          "-y -ss $time -i '$videoPath' "
+      final command = "-y -ss $time -i '$videoPath' "
           "-vf \"crop=iw:ih*0.40:0:0,scale=iw*2:ih*2,eq=contrast=1.6:brightness=0.05:saturation=1.2\" "
           "-frames:v 1 '$framePath'";
 
@@ -314,6 +431,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  Future<MapEntry<String, Map<String, dynamic>>> _fetchCertificateExact(
+    String hcvId,
+  ) async {
+    return MapEntry(hcvId, await registry.fetchCertificate(hcvId));
+  }
+
   Future<File?> _findLocalCertificate(String hcvId) async {
     final root = await getApplicationDocumentsDirectory();
     await for (final entity in root.list(recursive: true, followLinks: false)) {
@@ -335,7 +458,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   Future<MapEntry<String, Map<String, dynamic>>>
-  _fetchCertificateWithLocalRecovery(String hcvId) async {
+      _fetchCertificateWithLocalRecovery(String hcvId) async {
     try {
       return await _fetchCertificate(hcvId);
     } on HCVRegistryException catch (error) {
@@ -357,39 +480,130 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  Future<List<String>> _deepVideoOcrCandidates(String videoPath) async {
+    final detections = <String>[];
+    const times = <double>[0.2, 0.8];
+
+    for (final seconds in times) {
+      String? framePath;
+      try {
+        framePath = Platform.isIOS
+            ? await _extractNativeVideoFrame(videoPath, seconds)
+            : await _extractFfmpegVideoFrame(
+                videoPath,
+                '00:00:0${seconds.toStringAsFixed(1)}',
+              );
+        if (framePath == null || framePath.isEmpty) continue;
+
+        detections.addAll(
+          await HCVMediaIdOcr.extractCandidatesFromImage(framePath),
+        );
+      } catch (_) {
+        // A failed recovery frame must not turn a Registry miss into an error.
+      } finally {
+        if (framePath != null && framePath.isNotEmpty) {
+          try {
+            final frame = File(framePath);
+            if (await frame.exists()) await frame.delete();
+          } catch (_) {}
+        }
+      }
+    }
+
+    return HCVMediaIdOcr.rankConsensusCandidates(detections);
+  }
+
   Future<MapEntry<String, Map<String, dynamic>>>
-  _fetchCertificateWithPhotoOcrRecovery(String hcvId) async {
-    try {
+      _fetchCertificateWithMediaOcrRecovery(String hcvId) async {
+    final path = mediaPath;
+    if (path == null) {
       return await _fetchCertificateWithLocalRecovery(hcvId);
-    } on HCVRegistryException catch (originalError) {
-      final path = mediaPath;
-      if (originalError.kind != HCVRegistryFailureKind.notFound ||
-          path == null) {
+    }
+
+    final lower = path.toLowerCase();
+    final isPhoto = lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
+    final isVideo = lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v');
+
+    if (!isPhoto && !isVideo) {
+      return await _fetchCertificateWithLocalRecovery(hcvId);
+    }
+
+    late HCVRegistryException originalNotFound;
+    try {
+      return await _fetchCertificateExact(hcvId);
+    } on HCVRegistryException catch (error) {
+      if (error.kind != HCVRegistryFailureKind.notFound) rethrow;
+      originalNotFound = error;
+    }
+
+    // The expensive recovery path is enabled only after OCR has already found
+    // a syntactically valid HCV-ID and Registry returned 404 for that exact ID.
+    // This preserves the fast exit for ordinary non-SIGILLUM photos/videos.
+    final rankedCandidates = isPhoto
+        ? await HCVMediaIdOcr.extractCandidatesFromImage(path)
+        : await _deepVideoOcrCandidates(path);
+
+    final attemptedIds = <String>{hcvId};
+    final recoveryBases = <String>[hcvId];
+
+    for (final rawCandidate in rankedCandidates) {
+      final candidate = rawCandidate.trim().toUpperCase();
+      if (!RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(candidate)) continue;
+      if (!recoveryBases.contains(candidate)) recoveryBases.add(candidate);
+      if (!attemptedIds.add(candidate)) continue;
+      try {
+        return await _fetchCertificateExact(candidate);
+      } on HCVRegistryException catch (candidateError) {
+        if (candidateError.kind == HCVRegistryFailureKind.notFound) continue;
         rethrow;
       }
+    }
 
-      final lower = path.toLowerCase();
-      final isPhoto =
-          lower.endsWith('.jpg') ||
-          lower.endsWith('.jpeg') ||
-          lower.endsWith('.png');
-      if (!isPhoto) rethrow;
+    // Only after independent OCR readings are absent online, try a bounded set
+    // of single-character alternatives (C/0, B/8, E/6). These substitutions
+    // are never applied during normal parsing, because all are valid hex.
+    final variants = HCVMediaIdOcr.buildRegistryRecoveryVariants(
+      recoveryBases,
+      maxVariants: 24,
+    );
+    for (final candidate in variants) {
+      if (!attemptedIds.add(candidate)) continue;
+      try {
+        return await _fetchCertificateExact(candidate);
+      } on HCVRegistryException catch (candidateError) {
+        if (candidateError.kind == HCVRegistryFailureKind.notFound) continue;
+        rethrow;
+      }
+    }
 
-      final candidates = await HCVMediaIdOcr.extractCandidatesFromImage(path);
-      for (final candidate in candidates) {
-        if (candidate == hcvId) continue;
+    // Preserve pending/local-certificate recovery only after the bounded online
+    // OCR search. Re-check exactly the IDs already attempted.
+    try {
+      await registry.retryPendingUploads();
+      for (final candidate in attemptedIds) {
         try {
-          return await _fetchCertificate(candidate);
+          return await _fetchCertificateExact(candidate);
         } on HCVRegistryException catch (candidateError) {
-          if (candidateError.kind == HCVRegistryFailureKind.notFound) {
-            continue;
-          }
+          if (candidateError.kind == HCVRegistryFailureKind.notFound) continue;
           rethrow;
         }
       }
+    } catch (_) {}
 
-      throw originalError;
+    for (final candidate in attemptedIds) {
+      final localCertificate = await _findLocalCertificate(candidate);
+      if (localCertificate == null) continue;
+      try {
+        await registry.uploadCertificateFile(localCertificate.path);
+        return await _fetchCertificateExact(candidate);
+      } catch (_) {}
     }
+
+    throw originalNotFound;
   }
 
   int _hexDistance(String left, String right) {
@@ -433,25 +647,45 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return null;
     }
 
-    final stored = claims['socialFingerprint'];
-    if (stored is! Map) {
-      return null;
-    }
+    final fingerprintAvailable = resolveHCVSocialFingerprintAvailability(
+      claims,
+      mediaType: 'video',
+    );
+    if (fingerprintAvailable != true) return fingerprintAvailable;
 
-    final storedHashes = stored['frameHashes'];
-    if (storedHashes is! List || storedHashes.isEmpty) {
-      return null;
-    }
+    final stored = claims['socialFingerprint'] as Map;
+    final storedHashes = stored['frameHashes'] as List;
 
     try {
-      final current = await HCVSocialFingerprint().buildFromVideo(mediaPath!);
+      final current =
+          await HCVSocialFingerprint().buildVisualFromVideo(mediaPath!);
       final currentHashes = current['frameHashes'];
 
       if (currentHashes is! List || currentHashes.isEmpty) {
         return false;
       }
 
-      return _videoFrameHashesMatch(storedHashes, currentHashes);
+      final signedSpatial = stored['spatialFrameFingerprints'];
+      if (signedSpatial == null) {
+        // Historical V1 aHash can establish resemblance, not an assertion of
+        // visual integrity after a particular social transcode.
+        return _videoFrameHashesMatch(storedHashes, currentHashes)
+            ? null
+            : false;
+      }
+      final currentSpatial = current['spatialFrameFingerprints'];
+      if (signedSpatial is! List ||
+          currentSpatial is! List ||
+          signedSpatial.length != storedHashes.length ||
+          currentSpatial.length != currentHashes.length) {
+        return false;
+      }
+      return _videoFrameSpatialHashesMatch(
+        storedHashes,
+        currentHashes,
+        signedSpatial,
+        currentSpatial,
+      );
     } catch (_) {
       return false;
     }
@@ -488,12 +722,77 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
     }
 
-    final comparableCount = expected.length < current.length
-        ? expected.length
-        : current.length;
+    final comparableCount =
+        expected.length < current.length ? expected.length : current.length;
     final requiredMatches = max(2, (comparableCount * 0.35).ceil());
 
     return matched >= requiredMatches;
+  }
+
+  bool _videoFrameSpatialHashesMatch(
+    List expectedHashes,
+    List currentHashes,
+    List expectedSpatial,
+    List currentSpatial,
+  ) {
+    final used = <int>{};
+    var matched = 0;
+    for (var e = 0; e < expectedHashes.length; e++) {
+      var bestIndex = -1;
+      var bestDistance = 9999;
+      for (var i = 0; i < currentHashes.length; i++) {
+        if (used.contains(i)) continue;
+        final distance = _hexDistance(
+          expectedHashes[e].toString(),
+          currentHashes[i].toString(),
+        );
+        if (distance > 96 ||
+            distance >= bestDistance ||
+            !HCVSpatialFingerprintV2.matches(
+              expectedSpatial[e],
+              currentSpatial[i],
+            )) {
+          continue;
+        }
+        bestDistance = distance;
+        bestIndex = i;
+      }
+      if (bestIndex != -1) {
+        used.add(bestIndex);
+        matched++;
+      }
+    }
+    final comparable = min(expectedHashes.length, currentHashes.length);
+    final required = max(2, (comparable * 0.60).ceil());
+    return matched >= required;
+  }
+
+  Future<bool?> _matchesCertifiedAudioFingerprint(
+    Map<String, dynamic> cert,
+  ) async {
+    if (mediaPath == null) return null;
+    final lowerPath = mediaPath!.toLowerCase();
+    if (!lowerPath.endsWith('.mp4') &&
+        !lowerPath.endsWith('.mov') &&
+        !lowerPath.endsWith('.m4v')) {
+      return null;
+    }
+
+    final claims = cert['claims'];
+    if (claims is! Map) return null;
+    final availability = resolveHCVAudioFingerprintAvailability(claims);
+    if (availability != true) return availability;
+
+    final social = claims['socialFingerprint'] as Map;
+    final stored = Map<String, dynamic>.from(
+      social['audioFingerprint'] as Map,
+    );
+    try {
+      final current = await HCVAudioFingerprint.buildFromVideo(mediaPath!);
+      return HCVAudioFingerprint.matches(stored, current);
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool?> _matchesCertifiedImageFingerprint(
@@ -515,15 +814,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return null;
     }
 
-    final stored = claims['socialFingerprint'];
-    if (stored is! Map) {
-      return null;
-    }
+    final fingerprintAvailable = resolveHCVSocialFingerprintAvailability(
+      claims,
+      mediaType: 'photo',
+    );
+    if (fingerprintAvailable != true) return fingerprintAvailable;
 
-    final expected = stored['imageHash']?.toString();
-    if (expected == null || expected.isEmpty) {
-      return null;
-    }
+    final stored = claims['socialFingerprint'] as Map;
+    final expected = stored['imageHash']!.toString();
 
     try {
       final current = await HCVSocialFingerprint().buildFromImage(mediaPath!);
@@ -533,7 +831,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return false;
       }
 
-      return _hexDistance(expected, actual) <= 72;
+      if (_hexDistance(expected, actual) > 72) return false;
+      final signedSpatial = stored['spatialFingerprint'];
+      if (signedSpatial == null) return null; // V1 is visual similarity only.
+      return HCVSpatialFingerprintV2.matches(
+        signedSpatial,
+        current['spatialFingerprint'],
+      );
     } catch (_) {
       return false;
     }
@@ -619,7 +923,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       setState(() {
         mediaPath = path;
         result = null;
-        status = 'Controllo rapido SIGILLUM in corso...';
+        status = _r('quickCheck');
         hcvIdDetectedByOcr = false;
       });
 
@@ -628,14 +932,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (!mounted) return;
         setState(() {
           result = 'NOT ANALYZED';
-          status = 'File ricevuto ma non accessibile. Riprova da Verifica contenuto.';
+          status = _r('fileUnavailable');
         });
         return;
       }
 
       final suppliedId = widget.initialHcvId?.trim().toUpperCase();
-      final detectedId =
-          suppliedId != null &&
+      final detectedId = suppliedId != null &&
               RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(suppliedId)
           ? suppliedId
           : await detectHcvIdFromMediaPath(path);
@@ -645,7 +948,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       if (detectedId == null || detectedId.isEmpty) {
         setState(() {
           result = null;
-          status = 'Contenuto non certificato SIGILLUM.';
+          status = _r('notCertified');
         });
         return;
       }
@@ -653,7 +956,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       setState(() {
         hcvIdDetectedByOcr = true;
         idController.text = detectedId;
-        status = 'HCV-ID rilevato. Verifica Registry automatica...';
+        status = _r('idDetectedAuto');
       });
 
       await verifyFromRegistry();
@@ -661,7 +964,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       if (!mounted) return;
       setState(() {
         result = 'NOT ANALYZED';
-        status = 'Verifica automatica non completata. Il file e arrivato con un formato non leggibile automaticamente: inserisci HCV-ID e premi VERIFICA DA REGISTRY.';
+        status = _r('autoIncomplete');
       });
     }
   }
@@ -705,7 +1008,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     if (path == null) {
       setState(() {
-        status = 'File selezionato ma non importabile su iOS';
+        status = _r('iosImportFailed');
       });
       return;
     }
@@ -716,7 +1019,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       setState(() {
         mediaPath = null;
         result = 'INVALID';
-        status = 'Qui devi selezionare il file ORIGINALE (mp4, jpg, pdf, txt, audio), NON .hcv o .hcvpack';
+        status = _r('selectOriginalNotPack');
       });
 
       return;
@@ -751,7 +1054,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         idController.text = ocrId;
 
         setState(() {
-          status = 'HCV-ID rilevato via OCR nel media';
+          status = _r('ocrDetectedMedia');
         });
       }
 
@@ -759,7 +1062,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         idController.text = ocrId;
 
         setState(() {
-          status = 'HCV-ID rilevato via OCR';
+          status = _r('ocrDetectedMedia');
         });
       }
     }
@@ -769,8 +1072,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       result = null;
 
       status = idController.text.trim().isNotEmpty
-          ? 'HCV-ID rilevato. Ora premi VERIFICA DA REGISTRY'
-          : 'File selezionato. Se disponibile, inserisci o rileva HCV-ID e premi VERIFICA DA REGISTRY.';
+          ? _r('idDetectedPressVerify')
+          : _r('fileSelectedPressVerify');
     });
   }
 
@@ -785,7 +1088,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     if (hcvId.isEmpty) {
       setState(() {
-        status = 'Inserisci HCV-ID';
+        status = _r('enterId');
       });
 
       return;
@@ -793,7 +1096,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
     if (mediaPath == null) {
       setState(() {
-        status = 'Seleziona il file originale da verificare';
+        status = _r('selectOriginal');
       });
 
       return;
@@ -804,7 +1107,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       result = null;
 
-      status = 'Scaricamento certificato dal Registry HCV...';
+      status = _r('downloadingCertificate');
       _clearVerificationAxes();
 
       certificate = null;
@@ -848,7 +1151,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     });
 
     try {
-      final resolved = await _fetchCertificateWithPhotoOcrRecovery(hcvId);
+      final resolved = await _fetchCertificateWithMediaOcrRecovery(hcvId);
       hcvId = resolved.key;
       final cert = resolved.value;
       idController.text = hcvId;
@@ -866,12 +1169,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (screenReplayAnalysis is Map) {
           screenReplaySegmentsAnalyzed =
               screenReplayAnalysis['segmentsAnalyzed']?.toString();
-          screenReplayWorstSecond = screenReplayAnalysis['worstSegmentSecond']
-              ?.toString();
+          screenReplayWorstSecond =
+              screenReplayAnalysis['worstSegmentSecond']?.toString();
           localTemporalFlickerScore =
               screenReplayAnalysis['localTemporalFlickerScore']?.toString();
-          refreshBandScore = screenReplayAnalysis['refreshBandScore']
-              ?.toString();
+          refreshBandScore =
+              screenReplayAnalysis['refreshBandScore']?.toString();
           pixelGridUniformityScore =
               screenReplayAnalysis['pixelGridUniformityScore']?.toString();
         }
@@ -879,19 +1182,19 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         if (liveScreenProbe is Map) {
           liveProbeFrames = liveScreenProbe['framesAnalyzed']?.toString();
           liveProbeRisk = liveScreenProbe['screenReplayRisk']?.toString();
-          liveProbeAnalysisStatus = liveScreenProbe['analysisStatus']
-              ?.toString();
+          liveProbeAnalysisStatus =
+              liveScreenProbe['analysisStatus']?.toString();
           liveProbeReason = liveScreenProbe['reason']?.toString();
           liveProbeError = liveScreenProbe['error']?.toString();
           liveProbeLocalFlickerScore =
               liveScreenProbe['localTemporalFlickerScore']?.toString();
-          liveProbeRefreshBandScore = liveScreenProbe['refreshBandScore']
-              ?.toString();
-          liveProbeFineStripeScore = liveScreenProbe['fineStripeScore']
-              ?.toString();
+          liveProbeRefreshBandScore =
+              liveScreenProbe['refreshBandScore']?.toString();
+          liveProbeFineStripeScore =
+              liveScreenProbe['fineStripeScore']?.toString();
           liveProbeFineGridScore = liveScreenProbe['fineGridScore']?.toString();
-          liveProbeMoireFrequencyScore = liveScreenProbe['moireFrequencyScore']
-              ?.toString();
+          liveProbeMoireFrequencyScore =
+              liveScreenProbe['moireFrequencyScore']?.toString();
           liveProbeDynamicChallengeScore =
               liveScreenProbe['dynamicChallengeScore']?.toString();
           liveProbePersistentPatternScore =
@@ -930,7 +1233,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         setState(() {
           loading = false;
 
-          status = 'Certificato scaricato ma firma crittografica NON valida';
+          status = _r('signatureInvalid');
 
           result = 'INVALID';
 
@@ -946,7 +1249,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         setState(() {
           loading = false;
 
-          status = 'Certificato senza content binding';
+          status = _r('bindingMissing');
 
           result = 'INVALID';
 
@@ -962,7 +1265,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         setState(() {
           loading = false;
 
-          status = 'File media non trovato';
+          status = _r('mediaMissing');
 
           result = 'INVALID';
         });
@@ -1003,14 +1306,17 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         identityAssuranceLevel = identity['identityAssuranceLevel']?.toString();
         legalIdentityStatus = identity['legalIdentityStatus']?.toString();
         identityFingerprint = identity['identityFingerprint']?.toString();
-        creatorKeyFingerprint = identity['devicePublicKeyFingerprint']
-            ?.toString();
+        creatorKeyFingerprint =
+            identity['devicePublicKeyFingerprint']?.toString();
       }
 
       contentType = contentTypeForVerification;
 
       final forensicVerified = actualHash == expectedHash;
       final videoFingerprintMatches = await _matchesCertifiedVideoFingerprint(
+        cert,
+      );
+      final audioFingerprintMatches = await _matchesCertifiedAudioFingerprint(
         cert,
       );
       final imageFingerprintMatches = await _matchesCertifiedImageFingerprint(
@@ -1022,120 +1328,153 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         certificate = cert;
 
+        void markLimited() {
+          status = _r('socialLimitedStatus');
+          result = 'SOCIAL LIMITED';
+          _setVerificationAxes(
+            provenance: 'Verificata',
+            provenanceDetail:
+                'Certificato Registry valido; HCV-ID associato al file.',
+            integrity: 'Non conclusiva',
+            integrityDetail: _r('socialLimitedDetail'),
+            scene: 'Non conclusiva',
+            sceneDetail:
+                'La somiglianza V1 non prova che il derivato non sia stato modificato.',
+            derivation: 'Non conclusiva',
+            derivationDetail: _r('socialLimitedDetail'),
+          );
+        }
+
         void markVerified(String cleanStatus, String cleanResult) {
           final exactOriginal = cleanResult.startsWith('FORENSIC');
+          final unprovenDerivative =
+              cleanResult == _unprovenDerivativeResult;
           final sceneWarning = _isStrongDisplayRisk;
           final sceneUncertain = _isDisplayNonConclusive;
           _setVerificationAxes(
-            provenance: 'Verificata',
-            provenanceDetail: 'Certificato Registry valido, identita tecnica e contenuto collegati.',
+            provenance: unprovenDerivative ? 'HCV-ID valido' : 'Verificata',
+            provenanceDetail: unprovenDerivative
+                ? 'Certificato Registry valido: la somiglianza non dimostra che questo file derivi senza modifiche dall originale.'
+                : 'Certificato Registry valido, identita tecnica e contenuto collegati.',
             integrity: exactOriginal
                 ? 'Originale integro'
-                : 'Derivato compatibile',
+                : unprovenDerivative
+                    ? 'Non verificata'
+                    : 'Derivato compatibile',
             integrityDetail: exactOriginal
                 ? 'Hash SHA-256 identico all originale certificato.'
-                : 'Hash diverso, ma evidenze compatibili con il certificato.',
-            scene: sceneWarning
-                ? 'Forte rischio display'
-                : sceneUncertain
-                ? 'Non conclusiva'
-                : 'Nessun indizio display',
-            sceneDetail: sceneWarning
-                ? 'Piu segnali coerenti indicano una possibile ripresa da schermo.'
-                : sceneUncertain
-                ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
-                : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
-            derivation: exactOriginal ? 'Non necessaria' : 'Compatibile',
+                : unprovenDerivative
+                    ? 'SHA-256 diverso. Il fingerprint non puo escludere aggiunte, oggetti sintetici o fotogrammi alterati.'
+                    : 'Hash diverso, ma evidenze compatibili con il certificato.',
+            scene: unprovenDerivative
+                ? 'Non verificata'
+                : sceneWarning
+                    ? 'Forte rischio display'
+                    : sceneUncertain
+                        ? 'Non conclusiva'
+                        : 'Nessun indizio display',
+            sceneDetail: unprovenDerivative
+                ? _r('unprovenDerivativeDetail')
+                : sceneWarning
+                    ? 'Piu segnali coerenti indicano una possibile ripresa da schermo.'
+                    : sceneUncertain
+                        ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
+                        : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
+            derivation: exactOriginal
+                ? 'Non necessaria'
+                : unprovenDerivative
+                    ? 'Somiglianza non probante'
+                    : 'Compatibile',
             derivationDetail: exactOriginal
                 ? 'Il file corrisponde esattamente all originale.'
-                : 'Il file sembra un derivato o una versione ricompressa.',
+                : unprovenDerivative
+                    ? _r('unprovenDerivativeDetail')
+                    : 'Il file differisce dall originale ma supera i controlli spaziali e tonali firmati; la causa della differenza SHA non e determinabile automaticamente.',
           );
-          if (sceneWarning) {
+          if (sceneWarning && !unprovenDerivative) {
             status =
-                '$cleanStatus\n\n'
-                'ATTENZIONE: possibile ripresa di uno schermo rilevata '
-                '($screenReplayRisk). Il media è collegato al certificato, '
-                'ma la scena non va trattata come ripresa diretta della realtà.';
+                '${unprovenDerivative ? _r('unprovenDerivativeStatus') : cleanStatus}\n\n${_r('sceneWarning').replaceAll('{risk}', screenReplayRisk ?? '-')}';
 
             result = cleanResult;
           } else {
-            status = cleanStatus;
+            status = unprovenDerivative
+                ? _r('unprovenDerivativeStatus')
+                : cleanStatus;
             result = cleanResult;
           }
         }
 
         if (forensicVerified) {
           markVerified(
-            'FORENSIC VERIFIED OK\nFile identico all originale certificato. Hash SHA-256 corrispondente.',
+            _r('forensicStatus'),
             'FORENSIC VERIFIED OK',
           );
         } else if (socialTextVerified) {
           markVerified(
-            'SOCIAL VERIFIED OK\nTesto originale verificato. Il post contiene footer SIGILLUM/HCV-ID, quindi il file non e identico byte-per-byte ma il contenuto certificato corrisponde.',
+            _r('socialTextStatus'),
             'SOCIAL VERIFIED OK',
           );
         } else {
-          status = 'SOCIAL VERIFIED OK\nHash non identico al file certificato. HCV-ID e certificato Registry sono validi; la causa della differenza non e determinabile automaticamente.';
+          status = _r('genericDerived');
 
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
           final hcvIdProvided = idController.text.trim().isNotEmpty;
 
-          if (contentType == 'video' && videoFingerprintMatches == true) {
+          if (contentType == 'video' &&
+              videoFingerprintMatches == true &&
+              audioFingerprintMatches == false) {
+            status = hcvIdWasDetectedInMedia
+                ? _r('audioMismatchDetected')
+                : _r('audioMismatchProvided');
+            result = 'ID VALID / MEDIA NOT VERIFIED';
+          } else if (contentType == 'video' &&
+              videoFingerprintMatches == true) {
             markVerified(
-              hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel video, certificato Registry valido e fingerprint video compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint video compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
-              'SOCIAL VERIFIED OK',
+              audioFingerprintMatches == true
+                  ? (hcvIdWasDetectedInMedia
+                      ? _r('videoBothDetected')
+                      : _r('videoBothProvided'))
+                  : (hcvIdWasDetectedInMedia
+                      ? _r('videoLegacyAudioDetected')
+                      : _r('videoLegacyAudioProvided')),
+              _unprovenDerivativeResult,
             );
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'video' &&
               videoFingerprintMatches == null) {
-            markVerified(
-              hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito e certificato Registry valido. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
-              'SOCIAL VERIFIED OK',
-            );
+            markLimited();
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'video' &&
               videoFingerprintMatches == false) {
             status = hcvIdWasDetectedInMedia
-                ? 'HCV-ID rilevato nel video, ma il fingerprint social non corrisponde al contenuto certificato. Possibile ID sovrapposto a un video diverso.'
-                : 'HCV-ID inserito, ma il fingerprint social non corrisponde al contenuto certificato. Il video selezionato non risulta compatibile con quel certificato.';
+                ? _r('videoMismatchDetected')
+                : _r('videoMismatchProvided');
 
             result = 'ID VALID / MEDIA NOT VERIFIED';
           } else if (contentType == 'photo' &&
               imageFingerprintMatches == true) {
             markVerified(
               hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto, certificato Registry valido e fingerprint immagine compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito, certificato Registry valido e fingerprint immagine compatibile. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
-              'SOCIAL VERIFIED OK',
+                  ? _r('photoCompatibleDetected')
+                  : _r('photoCompatibleProvided'),
+              _unprovenDerivativeResult,
             );
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'photo' &&
               imageFingerprintMatches == null) {
-            markVerified(
-              hcvIdWasDetectedInMedia
-                  ? 'SOCIAL VERIFIED OK\nHCV-ID rilevato nella foto e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.'
-                  : 'SOCIAL VERIFIED OK\nHCV-ID inserito e certificato Registry valido. Foto legacy senza fingerprint immagine: verifica social meno forte.',
-              'SOCIAL VERIFIED OK',
-            );
+            markLimited();
           } else if ((hcvIdWasDetectedInMedia || hcvIdProvided) &&
               contentType == 'photo' &&
               imageFingerprintMatches == false) {
             status = hcvIdWasDetectedInMedia
-                ? 'HCV-ID rilevato nella foto, ma il fingerprint immagine non corrisponde al contenuto certificato. Possibile ID sovrapposto a una foto diversa.'
-                : 'HCV-ID inserito, ma il fingerprint immagine non corrisponde al contenuto certificato. La foto selezionata non risulta compatibile con quel certificato.';
+                ? _r('photoMismatchDetected')
+                : _r('photoMismatchProvided');
 
             result = 'ID VALID / MEDIA NOT VERIFIED';
           } else if (hcvIdWasDetectedInMedia && contentType != 'text') {
-            markVerified(
-              'SOCIAL VERIFIED OK\nHCV-ID rilevato nel media e certificato Registry valido. Hash diverso; HCV-ID e fingerprint restano compatibili. La causa della differenza non e determinabile automaticamente.',
-              'SOCIAL VERIFIED OK',
-            );
+            markLimited();
           } else {
-            status = 'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. Verifica social non conclusiva.';
+            status = _r('idNotDetected');
 
             result = 'ID VALID / MEDIA NOT VERIFIED';
           }
@@ -1148,50 +1487,59 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         switch (e.kind) {
           case HCVRegistryFailureKind.notFound:
-            status = 'Certificato non presente nel Registry. Questo non dimostra che il file sia stato modificato: la pubblicazione online potrebbe essere ancora in attesa.';
+            status = _r('registryNotFoundDetail');
             result = 'REGISTRY NOT FOUND';
             _setVerificationAxes(
               provenance: 'Non presente online',
-              provenanceDetail: 'Il Registry non contiene ancora questo HCV-ID. Il file non viene dichiarato alterato.',
+              provenanceDetail:
+                  'Il Registry non contiene ancora questo HCV-ID. Il file non viene dichiarato alterato.',
               integrity: 'Non determinata',
-              integrityDetail: 'Senza il certificato online non e possibile confrontare firma e contenuto.',
+              integrityDetail:
+                  'Senza il certificato online non e possibile confrontare firma e contenuto.',
               scene: 'Non analizzata',
-              sceneDetail: 'Il controllo della scena non viene eseguito senza certificato.',
+              sceneDetail:
+                  'Il controllo della scena non viene eseguito senza certificato.',
               derivation: null,
               derivationDetail: null,
             );
             break;
           case HCVRegistryFailureKind.unavailable:
           case HCVRegistryFailureKind.server:
-            status = 'Registry temporaneamente non raggiungibile. Il file locale non viene considerato invalido; riprova quando la connessione e disponibile.';
+            status = _r('registryUnavailableDetail');
             result = 'REGISTRY UNAVAILABLE';
             _setVerificationAxes(
               provenance: 'Registry non raggiungibile',
-              provenanceDetail: 'La verifica online non e stata completata per un problema di rete o del server.',
+              provenanceDetail:
+                  'La verifica online non e stata completata per un problema di rete o del server.',
               integrity: 'Non determinata',
               integrityDetail: 'Nessun verdetto di modifica e stato emesso.',
               scene: 'Non analizzata',
-              sceneDetail: 'Il controllo della scena non viene eseguito senza certificato.',
+              sceneDetail:
+                  'Il controllo della scena non viene eseguito senza certificato.',
               derivation: null,
               derivationDetail: null,
             );
             break;
           case HCVRegistryFailureKind.invalidResponse:
-            status = 'Risposta Registry non utilizzabile: ${e.message}';
+            status =
+                _r('registryInvalidResponse').replaceAll('{error}', e.message);
             result = 'REGISTRY ERROR';
             _setVerificationAxes(
               provenance: 'Verifica online incompleta',
-              provenanceDetail: 'Il Registry ha risposto, ma la risposta non consente una verifica affidabile.',
+              provenanceDetail:
+                  'Il Registry ha risposto, ma la risposta non consente una verifica affidabile.',
               integrity: 'Non determinata',
               integrityDetail: 'Nessun verdetto di modifica e stato emesso.',
               scene: 'Non analizzata',
-              sceneDetail: 'Il controllo della scena non viene eseguito senza certificato valido.',
+              sceneDetail:
+                  'Il controllo della scena non viene eseguito senza certificato valido.',
               derivation: null,
               derivationDetail: null,
             );
             break;
           case HCVRegistryFailureKind.invalidCertificate:
-            status = 'Certificato locale non valido: ${e.message}';
+            status =
+                _r('invalidLocalCertificate').replaceAll('{error}', e.message);
             result = 'INVALID';
             _setVerificationAxes(
               provenance: 'Non verificata',
@@ -1200,7 +1548,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               integrity: 'Non verificata',
               integrityDetail: 'Integrita non dimostrata.',
               scene: 'Non analizzata',
-              sceneDetail: 'Il controllo della scena non viene usato per questo verdetto.',
+              sceneDetail:
+                  'Il controllo della scena non viene usato per questo verdetto.',
               derivation: null,
               derivationDetail: null,
             );
@@ -1211,7 +1560,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       setState(() {
         loading = false;
         certificate = null;
-        status = 'Errore imprevisto durante la verifica Registry: $e';
+        status =
+            _r('unexpectedRegistryError').replaceAll('{error}', e.toString());
         result = 'REGISTRY ERROR';
         _setVerificationAxes(
           provenance: 'Verifica online incompleta',
@@ -1260,8 +1610,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return score >= 70
         ? 'HIGH'
         : score >= 45
-        ? 'MEDIUM'
-        : 'LOW';
+            ? 'MEDIUM'
+            : 'LOW';
   }
 
   void _normalizeScreenReplayRiskFromClaims(Map<dynamic, dynamic> claims) {
@@ -1274,12 +1624,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final ml = claims['mlScreenReplayAnalysis'];
     final passive = claims['screenReplayAnalysis'];
     final mlClass = ml is Map ? ml['predictedClass']?.toString() : null;
-    final mlConfidence = ml is Map
-        ? _asDouble(ml['predictedClassConfidence'])
-        : 0.0;
-    final mlScreenProbability = ml is Map
-        ? _asDouble(ml['screenProbability'])
-        : 1.0;
+    final mlConfidence =
+        ml is Map ? _asDouble(ml['predictedClassConfidence']) : 0.0;
+    final mlScreenProbability =
+        ml is Map ? _asDouble(ml['screenProbability']) : 1.0;
     final passiveScore = passive is Map
         ? (passive['screenReplayRiskScore'] as num?)?.toInt()
         : null;
@@ -1288,8 +1636,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final liveFineStripe = _asDouble(liveProbe['fineStripeScore']);
     final livePersistent = _asDouble(liveProbe['persistentPatternScore']);
     final liveDynamic = _asDouble(liveProbe['dynamicChallengeScore']);
-    final closeDisplaySpatialTrace =
-        (liveSignals is Map &&
+    final closeDisplaySpatialTrace = (liveSignals is Map &&
             liveSignals['closeDisplaySpatialTrace'] == true) ||
         (liveSignals is Map &&
             liveSignals['dynamicScreenChallengeTrace'] == true &&
@@ -1299,8 +1646,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             liveDynamic < 0.18);
     final confirmedTemporalTrace =
         liveSignals is Map && liveSignals['confirmedDisplayTrace'] == true;
-    final mlSaysReality =
-        mlClass != null &&
+    final mlSaysReality = mlClass != null &&
         (mlClass.startsWith('REALITY_') || mlClass == 'REAL_SCENE') &&
         mlConfidence >= 0.60 &&
         mlScreenProbability < 0.35;
@@ -1323,9 +1669,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final downgradedScore = passiveScore ?? 34;
       screenReplayRiskScore = downgradedScore.toString();
       screenReplayRisk = _screenReplayRiskLabel(downgradedScore);
-      displayRiskDecision = downgradedScore >= 45
-          ? 'NON_CONCLUSIVE'
-          : 'NO_DISPLAY_EVIDENCE';
+      displayRiskDecision =
+          downgradedScore >= 45 ? 'NON_CONCLUSIVE' : 'NO_DISPLAY_EVIDENCE';
       return;
     }
 
@@ -1391,6 +1736,16 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   bool get _isSocialResult => (result ?? '').startsWith('SOCIAL VERIFIED');
 
+  bool get _isUnprovenDerivative => result == _unprovenDerivativeResult;
+
+  // Never transfer signed original-scene claims to an unbound PHOTO/VIDEO copy,
+  // including V1-only, fingerprint mismatch and copied-HCV-ID cases.
+  bool get _isNonExactPhotoOrVideo =>
+      (contentType == 'photo' || contentType == 'video') &&
+      !_isForensicResult;
+
+  bool get _isSocialLimited => result == 'SOCIAL LIMITED';
+
   String get _effectiveProvenanceState {
     if (provenanceState != null) return provenanceState!;
     if (_isMediaNotVerified) return 'HCV-ID valido';
@@ -1412,6 +1767,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String get _effectiveIntegrityState {
     if (integrityState != null) return integrityState!;
     if (_isForensicResult) return 'Originale integro';
+    if (_isUnprovenDerivative) return 'Non verificata';
     if (_isSocialResult) return 'Derivato compatibile';
     if (_isMediaNotVerified) return 'Non originale';
     if (_isInvalidResult) return 'Non verificata';
@@ -1423,6 +1779,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isForensicResult) {
       return 'Hash SHA-256 identico all originale certificato.';
     }
+    if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
     if (_isSocialResult) {
       return 'Hash diverso, ma HCV-ID e fingerprint sono compatibili con il certificato.';
     }
@@ -1436,6 +1793,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String get _effectiveSceneState {
+    if (_isNonExactPhotoOrVideo) return 'Non verificata';
     if (sceneState != null) return sceneState!;
     if (_isStrongDisplayRisk) return 'Forte rischio display';
     if (_isDisplayNonConclusive) return 'Non conclusiva';
@@ -1445,6 +1803,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String get _effectiveSceneDetail {
+    if (_isNonExactPhotoOrVideo) return _r('unprovenDerivativeDetail');
     if (sceneDetail != null) return sceneDetail!;
     if (_isStrongDisplayRisk) {
       return 'Piu segnali coerenti indicano una possibile ripresa da schermo.';
@@ -1464,6 +1823,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   String? get _effectiveDerivationState {
     if (derivationState != null) return derivationState;
     if (_isForensicResult) return 'Non necessaria';
+    if (_isUnprovenDerivative) return 'Somiglianza non probante';
     if (_isSocialResult) return 'Compatibile';
     if (_isMediaNotVerified) return 'Non verificata';
     return null;
@@ -1473,8 +1833,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (derivationDetail != null) return derivationDetail!;
     if (_isForensicResult)
       return 'Il file corrisponde esattamente all originale.';
+    if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
     if (_isSocialResult) {
-      return 'Il file sembra un derivato, una versione ricompressa o rinominata.';
+      return 'Il file differisce dall originale ma supera i controlli di compatibilita firmati; la causa della differenza SHA non e determinabile automaticamente.';
     }
     if (_isMediaNotVerified) {
       return 'Il file non puo essere trattato come derivato verificato del contenuto certificato.';
@@ -1519,6 +1880,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   bool get _signedRealityScene {
     if (displayRiskDecision != 'NO_DISPLAY_EVIDENCE') return false;
     final cert = certificate;
+    // A signed original-scene assessment cannot authenticate an edited copy.
+    if (_isNonExactPhotoOrVideo) return false;
     final claims = cert?['claims'];
     final live = claims is Map ? claims['liveScreenProbe'] : null;
     if (live is! Map) return false;
@@ -1548,13 +1911,24 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String _localizedAxisState(String axis, String? raw) {
     final value = (raw ?? '').toLowerCase();
+    if (_isUnprovenDerivative && axis == 'provenance') {
+      return _r('unprovenDerivativeProvenance');
+    }
+    if (_isUnprovenDerivative && axis == 'integrity') {
+      return _v('notVerified');
+    }
+    if (_isNonExactPhotoOrVideo && axis == 'scene') {
+      return _v('notVerified');
+    }
+    if (_isUnprovenDerivative && axis == 'derivation') {
+      return _r('unprovenDerivativeAxis');
+    }
     if (axis == 'scene' && _signedRealityScene) return _v('realityDetected');
     if (axis == 'provenance' && value.contains('verificat'))
       return _v('verified');
     if (axis == 'integrity' &&
         value.contains('originale') &&
-        value.contains('integro'))
-      return _v('originalIntact');
+        value.contains('integro')) return _v('originalIntact');
     if (axis == 'integrity' && value.contains('derivato'))
       return _v('compatibleDerivative');
     if (axis == 'scene' && value.contains('nessun'))
@@ -1568,30 +1942,43 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (axis == 'derivation' && value.contains('compatibile'))
       return _v('compatible');
     if (value.contains('non verificata')) return _v('notVerified');
+    if (value.contains('non conclusiva')) return _v('notDetermined');
     if (value.contains('non determinata')) return _v('notDetermined');
     if (value.contains('non analizzata')) return _v('notAnalyzed');
     return raw ?? '-';
   }
 
   String _localizedAxisDetail(String axis) {
+    if (axis == 'scene' && _isNonExactPhotoOrVideo) {
+      return _r('unprovenDerivativeDetail');
+    }
     if (axis == 'scene' && _signedRealityScene) return _v('realityDetail');
+    if (_isUnprovenDerivative) {
+      return _r('unprovenDerivativeDetail');
+    }
     if (axis == 'provenance') return _v('provenanceOkDetail');
-    if (axis == 'integrity')
+    if (axis == 'integrity') {
+      if (_isSocialLimited) return _r('socialLimitedDetail');
       return _isForensicResult ? _v('originalDetail') : _v('derivedDetail');
+    }
     if (axis == 'scene') {
       if (_isStrongDisplayRisk) return _v('screenDetail');
       if (_isDisplayNonConclusive) return _v('uncertainDetail');
       return _v('noScreenDetail');
     }
-    if (axis == 'derivation')
+    if (axis == 'derivation') {
+      if (_isSocialLimited) return _r('socialLimitedDetail');
       return _isForensicResult
           ? _v('originalDerivationDetail')
           : _v('derivedDerivationDetail');
+    }
     return '-';
   }
 
   String get _publicResultTitle {
     if (_isForensicResult) return _v('forensicOk');
+    if (_isUnprovenDerivative) return _r('unprovenDerivativeTitle');
+    if (_isSocialLimited) return _r('socialLimitedTitle');
     if (_isSocialResult) return _v('socialOk');
     if ((result ?? '').contains('REGISTRY NOT FOUND'))
       return _v('registryNotFound');
@@ -1602,6 +1989,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _publicResultDetail {
     if (_isForensicResult) return _v('forensicOkDetail');
+    if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
+    if (_isSocialLimited) return _r('socialLimitedDetail');
     if (_isSocialResult) return _v('socialOkDetail');
     final value = result ?? '';
     if (value.contains('REGISTRY NOT FOUND')) return _v('registryNotFound');
@@ -1614,12 +2003,16 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   bool get _hasSevereVerificationIssue =>
-      _isInvalidResult || _isMediaNotVerified || _isStrongDisplayRisk;
+      _isInvalidResult ||
+      _isMediaNotVerified ||
+      _isUnprovenDerivative ||
+      _isStrongDisplayRisk;
 
   bool get _hasIntermediateVerificationIssue =>
       !_hasSevereVerificationIssue &&
       (_isRegistryWarningResult ||
           _isDisplayNonConclusive ||
+          _isSocialLimited ||
           isScreenReplayWarning);
 
   Color get _verificationResultColor {
@@ -1653,52 +2046,52 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _fullTechnicalDiagnostics {
     final ml = _signedMlDiagnostics;
-    return 'HCV trust: ${_diagnosticValue(hcvTrustLevel)}\n'
-        'Live capture trust: ${_diagnosticValue(liveCaptureTrust)}\n'
-        'Scene authenticity: ${_diagnosticValue(sceneAuthenticity)}\n'
-        'Synthetic risk: ${_diagnosticValue(syntheticRisk)}\n'
-        'AI proof level: ${_diagnosticValue(aiProofLevel)}\n'
-        '\nDISPLAY FUSION\n'
-        'Decision: ${_diagnosticValue(displayRiskDecision)}\n'
-        'Risk: ${_diagnosticValue(screenReplayRisk)}\n'
-        'Score: ${_diagnosticValue(screenReplayRiskScore)}\n'
-        '\nPASSIVE VIDEO/IMAGE ANALYSIS\n'
-        'Segments analyzed: ${_diagnosticValue(screenReplaySegmentsAnalyzed)}\n'
-        'Worst segment second: ${_diagnosticValue(screenReplayWorstSecond)}\n'
-        'Local temporal flicker: ${_diagnosticValue(localTemporalFlickerScore)}\n'
-        'Refresh band: ${_diagnosticValue(refreshBandScore)}\n'
-        'Pixel-grid uniformity: ${_diagnosticValue(pixelGridUniformityScore)}\n'
-        '\nLIVE SCREEN PROBE\n'
-        'Analysis status: ${_diagnosticValue(liveProbeAnalysisStatus)}\n'
-        'Frames analyzed: ${_diagnosticValue(liveProbeFrames)}\n'
-        'Risk: ${_diagnosticValue(liveProbeRisk)}\n'
-        'Reason: ${_diagnosticValue(liveProbeReason)}\n'
-        'Error: ${_diagnosticValue(liveProbeError)}\n'
-        'Local temporal flicker: ${_diagnosticValue(liveProbeLocalFlickerScore)}\n'
-        'Refresh band: ${_diagnosticValue(liveProbeRefreshBandScore)}\n'
-        'Fine stripe: ${_diagnosticValue(liveProbeFineStripeScore)}\n'
-        'Fine grid: ${_diagnosticValue(liveProbeFineGridScore)}\n'
-        'Moiré frequency: ${_diagnosticValue(liveProbeMoireFrequencyScore)}\n'
-        'Dynamic challenge: ${_diagnosticValue(liveProbeDynamicChallengeScore)}\n'
-        'Persistent pattern: ${_diagnosticValue(liveProbePersistentPatternScore)}\n'
-        'Optical corroborated trace: ${_diagnosticValue(liveProbeOpticalCorroboratedTrace)}\n'
-        'Moiré trace: ${_diagnosticValue(liveProbeMoireFrequencyTrace)}\n'
-        'Dynamic screen challenge trace: ${_diagnosticValue(liveProbeDynamicScreenChallengeTrace)}\n'
-        'Uncorroborated display pattern: ${_diagnosticValue(liveProbeUncorroboratedDisplayPattern)}\n'
-        '\nML SCREEN REPLAY\n'
-        'Analysis status: ${_diagnosticValue(ml?['analysisStatus'])}\n'
-        'Model source: ${_diagnosticValue(ml?['modelSource'])}\n'
-        'Model version: ${_diagnosticValue(ml?['modelVersion'])}\n'
-        'TFLite runtime: ${_diagnosticValue(ml?['tfliteRuntimeVersion'])}\n'
-        'Model SHA-256: ${_diagnosticValue(ml?['modelSha256'])}\n'
-        'Predicted class: ${_diagnosticValue(ml?['predictedClass'])}\n'
-        'Predicted confidence: ${_diagnosticValue(ml?['predictedClassConfidence'])}\n'
-        'Screen probability: ${_diagnosticValue(ml?['screenProbability'])}\n'
-        'Risk: ${_diagnosticValue(ml?['screenReplayRisk'])}\n'
-        'Risk score: ${_diagnosticValue(ml?['screenReplayRiskScore'])}\n'
-        'ML decision: ${_diagnosticValue(ml?['displayRiskDecision'])}\n'
-        'Reason: ${_diagnosticValue(ml?['reason'])}\n'
-        'Error: ${_diagnosticValue(ml?['error'])}';
+    return '${_r('techHcvTrust')}: ${_diagnosticValue(hcvTrustLevel)}\n'
+        '${_r('techLiveTrust')}: ${_diagnosticValue(liveCaptureTrust)}\n'
+        '${_r('techSceneAuthenticity')}: ${_diagnosticValue(sceneAuthenticity)}\n'
+        '${_r('techSyntheticRisk')}: ${_diagnosticValue(syntheticRisk)}\n'
+        '${_r('techAiProof')}: ${_diagnosticValue(aiProofLevel)}\n'
+        '\n${_r('techDisplayFusion')}\n'
+        '${_r('techDecision')}: ${_diagnosticValue(displayRiskDecision)}\n'
+        '${_r('techRisk')}: ${_diagnosticValue(screenReplayRisk)}\n'
+        '${_r('techScore')}: ${_diagnosticValue(screenReplayRiskScore)}\n'
+        '\n${_r('techPassive')}\n'
+        '${_r('techSegments')}: ${_diagnosticValue(screenReplaySegmentsAnalyzed)}\n'
+        '${_r('techWorstSecond')}: ${_diagnosticValue(screenReplayWorstSecond)}\n'
+        '${_r('techLocalFlicker')}: ${_diagnosticValue(localTemporalFlickerScore)}\n'
+        '${_r('techRefreshBand')}: ${_diagnosticValue(refreshBandScore)}\n'
+        '${_r('techPixelGrid')}: ${_diagnosticValue(pixelGridUniformityScore)}\n'
+        '\n${_r('techLiveProbe')}\n'
+        '${_r('techAnalysisStatus')}: ${_diagnosticValue(liveProbeAnalysisStatus)}\n'
+        '${_r('techFrames')}: ${_diagnosticValue(liveProbeFrames)}\n'
+        '${_r('techRisk')}: ${_diagnosticValue(liveProbeRisk)}\n'
+        '${_r('techReason')}: ${_diagnosticValue(liveProbeReason)}\n'
+        '${_r('techError')}: ${_diagnosticValue(liveProbeError)}\n'
+        '${_r('techLocalFlicker')}: ${_diagnosticValue(liveProbeLocalFlickerScore)}\n'
+        '${_r('techRefreshBand')}: ${_diagnosticValue(liveProbeRefreshBandScore)}\n'
+        '${_r('techFineStripe')}: ${_diagnosticValue(liveProbeFineStripeScore)}\n'
+        '${_r('techFineGrid')}: ${_diagnosticValue(liveProbeFineGridScore)}\n'
+        '${_r('techMoireFrequency')}: ${_diagnosticValue(liveProbeMoireFrequencyScore)}\n'
+        '${_r('techDynamicChallenge')}: ${_diagnosticValue(liveProbeDynamicChallengeScore)}\n'
+        '${_r('techPersistentPattern')}: ${_diagnosticValue(liveProbePersistentPatternScore)}\n'
+        '${_r('techOpticalTrace')}: ${_diagnosticValue(liveProbeOpticalCorroboratedTrace)}\n'
+        '${_r('techMoireTrace')}: ${_diagnosticValue(liveProbeMoireFrequencyTrace)}\n'
+        '${_r('techDynamicTrace')}: ${_diagnosticValue(liveProbeDynamicScreenChallengeTrace)}\n'
+        '${_r('techUncorroborated')}: ${_diagnosticValue(liveProbeUncorroboratedDisplayPattern)}\n'
+        '\n${_r('techMl')}\n'
+        '${_r('techAnalysisStatus')}: ${_diagnosticValue(ml?['analysisStatus'])}\n'
+        '${_r('techModelSource')}: ${_diagnosticValue(ml?['modelSource'])}\n'
+        '${_r('techModelVersion')}: ${_diagnosticValue(ml?['modelVersion'])}\n'
+        '${_r('techRuntime')}: ${_diagnosticValue(ml?['tfliteRuntimeVersion'])}\n'
+        '${_r('techModelSha')}: ${_diagnosticValue(ml?['modelSha256'])}\n'
+        '${_r('techPredictedClass')}: ${_diagnosticValue(ml?['predictedClass'])}\n'
+        '${_r('techConfidence')}: ${_diagnosticValue(ml?['predictedClassConfidence'])}\n'
+        '${_r('techScreenProbability')}: ${_diagnosticValue(ml?['screenProbability'])}\n'
+        '${_r('techRisk')}: ${_diagnosticValue(ml?['screenReplayRisk'])}\n'
+        '${_r('techScore')}: ${_diagnosticValue(ml?['screenReplayRiskScore'])}\n'
+        '${_r('techMlDecision')}: ${_diagnosticValue(ml?['displayRiskDecision'])}\n'
+        '${_r('techReason')}: ${_diagnosticValue(ml?['reason'])}\n'
+        '${_r('techError')}: ${_diagnosticValue(ml?['error'])}';
   }
 
   @override
@@ -1782,11 +2175,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   subtitle: _verificationAxisSubtitle('scene'),
                   value: _localizedAxisState('scene', _effectiveSceneState),
                   detail: _localizedAxisDetail('scene'),
-                  color: _isStrongDisplayRisk
+                  color: _isNonExactPhotoOrVideo
                       ? Colors.red
-                      : _isDisplayNonConclusive
-                      ? Colors.orange
-                      : _axisColor(_effectiveSceneState),
+                      : _isStrongDisplayRisk
+                          ? Colors.red
+                          : _isDisplayNonConclusive
+                              ? Colors.orange
+                              : _axisColor(_effectiveSceneState),
                 ),
                 if (_effectiveDerivationState != null) ...[
                   const SizedBox(height: 10),
@@ -1830,7 +2225,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                   '${_t('legalIdentity')}: ${legalIdentityStatus ?? '-'}\n'
                   '${_t('technicalIdentityFingerprint')}: ${_shortFingerprint(identityFingerprint)}\n'
                   '${_t('deviceKeyFingerprint')}: ${_shortFingerprint(creatorKeyFingerprint)}\n'
-                  'Type: ${contentType ?? '-'}',
+                  '${_r('contentType')}: ${contentType ?? '-'}',
                   textAlign: TextAlign.center,
                 ),
               ],

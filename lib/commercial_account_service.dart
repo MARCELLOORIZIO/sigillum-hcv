@@ -215,6 +215,7 @@ class CommercialAccountService {
           productId: entitlement.productId,
           transactionId: entitlement.transactionId,
           receiptData: entitlement.receiptData,
+          retryInactivePropagation: false,
         );
         lastVerification = verified;
         final status = verified['status']?.toString() ?? '';
@@ -332,6 +333,7 @@ class CommercialAccountService {
     required String productId,
     String? transactionId,
     required String receiptData,
+    bool retryInactivePropagation = true,
   }) async {
     if (productId.isEmpty) {
       throw const CommercialAccountException('Prodotto App Store non valido.');
@@ -376,6 +378,7 @@ class CommercialAccountService {
             (status == 'active' || status == 'grace')) {
           return result;
         }
+        if (!retryInactivePropagation) return result;
       } on CommercialAccountException catch (error) {
         final hasMoreAttempts =
             attempt + 1 < _appleVerificationRetryDelays.length;
