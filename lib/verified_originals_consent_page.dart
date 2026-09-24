@@ -138,7 +138,8 @@ class _ConsentState extends State<VerifiedOriginalsConsentPage> {
     }
     setState(() => _busy = true);
     try {
-      final response = await _call('POST', '/api/verified-originals/consents', payload: {
+      final response =
+          await _call('POST', '/api/verified-originals/consents', payload: {
         'hcvId': _resolvedId,
         'intent': 'PUBLISH_VERIFIED_ORIGINAL',
         'publishReference': true,
@@ -207,8 +208,7 @@ class _ConsentState extends State<VerifiedOriginalsConsentPage> {
     if (path == null || !path.toLowerCase().endsWith('.mp4')) {
       if (mounted) {
         setState(() {
-          _message =
-              'Seleziona il file MP4 originale certificato da SIGILLUM.';
+          _message = 'Seleziona il file MP4 originale certificato da SIGILLUM.';
         });
       }
       return;
