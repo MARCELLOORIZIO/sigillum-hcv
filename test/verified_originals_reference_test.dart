@@ -9,8 +9,8 @@ void main() {
     'certificateVerdict': 'CERTIFICATE_RECORD_VERIFIED',
     'socialFileVerdict': 'NOT_VERIFIED',
     'youtubeUrl': 'https://www.youtube.com/watch?v=AbCdEfGhI_1',
-    'originalSha256': 'a' * 64,
-    'renditionSha256': 'b' * 64,
+    'originalSha256': List.filled(64, 'a').join(),
+    'renditionSha256': List.filled(64, 'b').join(),
   };
 
   test('discovery returns a locator, not a social integrity verdict', () {
