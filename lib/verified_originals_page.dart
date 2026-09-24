@@ -65,7 +65,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
     setState(() {
       _busy = true;
       _searchedId = null;
-      _reference = null;
+      _referenceAvailable = false;
       _error = null;
     });
 
