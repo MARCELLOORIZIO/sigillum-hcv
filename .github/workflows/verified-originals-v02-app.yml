@@ -24,6 +24,7 @@ jobs:
         with:
           flutter-version: '3.47.1'
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart
+      - run: dart format lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart
+      - run: git diff --exit-code -- lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart
       - run: flutter test test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart --reporter expanded
       - run: flutter analyze --no-fatal-warnings --no-fatal-infos
