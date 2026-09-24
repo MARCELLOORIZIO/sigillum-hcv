@@ -106,6 +106,9 @@ workflows:
         - pattern: 'release/testflight-build129-verified-originals-20260924'
           include: true
           source: true
+        - pattern: 'release/testflight-final-20260827'
+          include: true
+          source: true
       cancel_previous_builds: true
     environment:
       flutter: 3.47.1
