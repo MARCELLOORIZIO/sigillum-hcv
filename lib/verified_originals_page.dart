@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'hcv_secure_store.dart';
+import 'verified_originals_links.dart';
 
 /// Reference links are NOT cryptographic verification of an arbitrary social file.
 class VerifiedOriginalsPage extends StatefulWidget {
@@ -101,9 +102,8 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
         if (result['referenceAvailable'] == true && reference is Map) {
           final rawUrl = reference['url'];
           if (rawUrl is String) {
-            final uri = Uri.tryParse(rawUrl);
-            if (uri != null && uri.scheme == 'https' &&
-                uri.host == 'www.youtube.com') {
+            final uri = verifiedOriginalsYoutubeUri(rawUrl);
+            if (uri != null) {
               _reference = uri.toString();
             }
           }
