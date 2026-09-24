@@ -6,6 +6,7 @@ void main() {
   final valid = <String, dynamic>{
     'hcvId': id,
     'availability': 'REFERENCE_AVAILABLE',
+    'access': 'ENTITLED',
     'certificateVerdict': 'CERTIFICATE_RECORD_VERIFIED',
     'socialFileVerdict': 'NOT_VERIFIED',
     'publicationStatus': 'PUBLISHED',
@@ -16,7 +17,33 @@ void main() {
     'derivationType': 'video_transcode_h264_aac_v1',
   };
 
-  test('discovery returns a locator, not a social integrity verdict', () {
+  test('free discovery exposes availability without a locator', () {
+    final free = <String, dynamic>{
+      'hcvId': id,
+      'availability': 'REFERENCE_AVAILABLE',
+      'certificateVerdict': 'CERTIFICATE_RECORD_VERIFIED',
+      'socialFileVerdict': 'NOT_VERIFIED',
+      'publicationStatus': 'PUBLISHED',
+      'platform': 'youtube',
+      'viewAccess': 'SUBSCRIPTION_REQUIRED',
+    };
+    expect(
+      VerifiedOriginalsReference.isAvailable(
+        free,
+        requestedHcvId: id,
+      ),
+      isTrue,
+    );
+    expect(
+      VerifiedOriginalsReference.isAvailable(
+        {...free, 'publicUrl': 'https://www.youtube.com/watch?v=AbCdEfGhI_1'},
+        requestedHcvId: id,
+      ),
+      isFalse,
+    );
+  });
+
+  test('paid view returns a locator, not a social integrity verdict', () {
     final ref = VerifiedOriginalsReference.fromRegistry(
       valid,
       requestedHcvId: id,
