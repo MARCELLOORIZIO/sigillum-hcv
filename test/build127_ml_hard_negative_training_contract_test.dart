@@ -30,6 +30,6 @@ void main() {
   test('BUILD127 does not change the bundled model before balanced retraining',
       () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
-    expect(pubspec, contains('version: 1.0.0+126'));
+    expect(pubspec, contains('version: 1.0.0+129'));
   });
 }
