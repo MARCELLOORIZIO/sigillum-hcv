@@ -1,0 +1,27 @@
+name: Verified Originals v0.1 app
+on:
+  push:
+    branches:
+      - feature/verified-originals-v01-20260924
+  pull_request:
+    paths:
+      - 'lib/verified_originals_page.dart'
+      - 'lib/verified_originals_links.dart'
+      - 'test/verified_originals_links_test.dart'
+      - '.github/workflows/verified-originals-v01.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter pub get
+      - run: flutter test test/verified_originals_links_test.dart --reporter expanded
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
