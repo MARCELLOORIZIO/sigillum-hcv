@@ -13,7 +13,8 @@ void main() {
     expect(source, isNot(contains("'originalSha256':")));
     expect(source, isNot(contains('youtubeApiKey')));
     expect(source, isNot(contains('clientSecret')));
-    expect(source, isNot(contains('upload')));
+    expect(source, isNot(contains("'/api/verified-originals/publications'")));
+    expect(source, isNot(contains('launchUrl')));
   });
 
   test('public reference screen never calls a social integrity verdict', () {
