@@ -1,4 +1,4 @@
-name: Verified Originals app (read-only)
+name: Verified Originals app (lookup + creator consent)
 on:
   push:
     branches:
@@ -24,6 +24,6 @@ jobs:
         with:
           flutter-version: '3.47.1'
       - run: flutter pub get
-      - run: dart format --output=none lib/verified_originals_reference.dart lib/verified_originals_page.dart test/verified_originals_reference_test.dart
+      - run: dart format --output=none lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart test/verified_originals_reference_test.dart
       - run: flutter test test/verified_originals_reference_test.dart --reporter expanded
       - run: flutter analyze --no-fatal-warnings --no-fatal-infos
