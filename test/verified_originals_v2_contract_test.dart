@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('creator consent remains separate from publishing and monetization', () {
+  test('creator consent and secure ingest stay separate from social publishing', () {
     final source =
         File('lib/verified_originals_consent_page.dart').readAsStringSync();
 
@@ -13,7 +13,12 @@ void main() {
     expect(source, isNot(contains("'originalSha256':")));
     expect(source, isNot(contains('youtubeApiKey')));
     expect(source, isNot(contains('clientSecret')));
+    expect(source, contains('/api/verified-originals/publish/'));
+    expect(source, contains('request.addStream(file.openRead())'));
+    expect(source, contains("ContentType('video', 'mp4')"));
     expect(source, isNot(contains("'/api/verified-originals/publications'")));
+    expect(source, isNot(contains('www.googleapis.com')));
+    expect(source, isNot(contains('accounts.google.com')));
     expect(source, isNot(contains('launchUrl')));
   });
 
