@@ -253,6 +253,18 @@ class VerifiedOriginalsPublishService {
     }
   }
 
+  Future<void> withdrawReference(HCVSecureOriginalRecord record) async {
+    final response = await _json(
+      'POST',
+      '/api/verified-originals/consents/${record.hcvId}/withdraw',
+      authenticated: true,
+    );
+    if (response['referenceAvailable'] == true) {
+      throw StateError('REFERENCE_WITHDRAWAL_INCOMPLETE');
+    }
+    await vault.clearReference(record.hcvId);
+  }
+
   String _mime(HCVSecureOriginalRecord record) {
     if (record.mediaType == 'video') return 'video/mp4';
     final lower = record.originalName.toLowerCase();
