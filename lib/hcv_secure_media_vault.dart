@@ -630,7 +630,8 @@ class HCVSecureMediaVault {
       final index = records.indexWhere((item) => item.hcvId == hcvId);
       if (index < 0) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
       final current = records[index];
-      if (current.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+      if (current.ownerAccountSubjectHash !=
+          await _currentAccountSubjectHash()) {
         throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
       }
       records[index] = HCVSecureOriginalRecord(
@@ -662,7 +663,8 @@ class HCVSecureMediaVault {
       final index = records.indexWhere((item) => item.hcvId == hcvId);
       if (index < 0) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
       final current = records[index];
-      if (current.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+      if (current.ownerAccountSubjectHash !=
+          await _currentAccountSubjectHash()) {
         throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
       }
       records[index] = HCVSecureOriginalRecord(
