@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'hcv_secure_media_vault.dart';
@@ -224,6 +225,19 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
     }
   }
 
+  Future<void> _openOfficialCopy(HCVSecureOriginalRecord record) async {
+    final raw = record.referenceUrl?.trim() ?? '';
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasScheme) {
+      setState(() => _message = _t('voOpenError'));
+      return;
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      setState(() => _message = _t('voOpenError'));
+    }
+  }
+
   Future<void> _withdraw(HCVSecureOriginalRecord record) async {
     if (_busyId != null || !record.hasReference) return;
 
@@ -393,6 +407,15 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                                 icon: const Icon(Icons.ios_share),
                                 label: Text(_t('secureOriginalsShare')),
                               ),
+                              if (record.hasReference)
+                                OutlinedButton.icon(
+                                  onPressed: _busyId == null
+                                      ? () => _openOfficialCopy(record)
+                                      : null,
+                                  icon: const Icon(Icons.open_in_new),
+                                  label:
+                                      Text(_t('secureOriginalsOfficialCopy')),
+                                ),
                               if (record.hasReference)
                                 OutlinedButton.icon(
                                   onPressed: _busyId == null
