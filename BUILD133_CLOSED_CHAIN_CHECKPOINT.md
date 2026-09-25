@@ -36,6 +36,15 @@ I. Add regression/contract tests and run CI before promotion.
 - 2026-09-25: feature branch created from BUILD132 release branch.
 - 2026-09-25: backend companion branch created from reconciled prelaunch backend.
 - 2026-09-25: implementation started; release branches intentionally left untouched.
+- 2026-09-25: added AES-256-GCM chunked local vault (`lib/hcv_secure_media_vault.dart`) with master secret in HCVSecureStore/Keychain, encrypted canonical media + HCVPACK, SHA-256 verification and temporary cleartext materialization.
+- 2026-09-25: camera success paths now seal PHOTO/VIDEO + HCVPACK and no longer auto-save canonical originals to iOS Photos.
+- 2026-09-25: added fail-closed reference publication service and protected-originals viewer/share page. Social share runs only after the backend reference is available.
+- 2026-09-25: Creator home now uses Protected Originals instead of the old per-file publication screen.
+- 2026-09-25: Verified Originals lookup now accepts HCV-ID or a selected file; selected files enter the existing verification router.
+- 2026-09-25: new closed-chain/Verified Originals UI copy added for IT/EN/ES/RU; public/LAB entry points updated.
+- 2026-09-25: replaced stale Verified Originals v2 contract tests with BUILD133 closed-chain invariants.
+- 2026-09-25: added `.github/workflows/build133-closed-chain-validation.yml`; validation pending.
+- Remaining before release: resolve all analyzer/test failures; legal/privacy/quick-guide update; account deletion/vault semantics; vault-aware caption workflow decision; final YouTube policy/live upload checks; no release/deploy yet.
 
 ## Resume rule
 
