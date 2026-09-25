@@ -1690,9 +1690,12 @@ class _CommercialGateState extends State<CommercialGate> {
                         OutlinedButton.icon(
                           onPressed: _openVerifiedOriginals,
                           icon: const Icon(Icons.video_library_outlined),
-                          label: Text(_languageCode == 'it'
-                              ? 'VERIFICA CODICE / GUARDA ORIGINALE'
-                              : 'CHECK CODE / WATCH REFERENCE'),
+                          label: Text(
+                            SigillumCopy.t(
+                              _languageCode,
+                              'verifiedOriginalsAction',
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Row(
