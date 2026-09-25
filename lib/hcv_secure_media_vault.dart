@@ -401,14 +401,62 @@ class HCVSecureMediaVault {
       throw StateError('SECURE_VAULT_SOURCE_EMPTY');
     }
 
+    final existingBefore = await _withIndexLock(() async {
+      final records = await _loadIndex();
+      for (final item in records) {
+        if (item.hcvId == cleanId) return item;
+      }
+      return null;
+    });
+
+    if (existingBefore != null &&
+        (existingBefore.ownerCreatorId != ownerCreatorId ||
+            existingBefore.mediaSha256 != mediaHash ||
+            existingBefore.hcvpackSha256 != packHash)) {
+      throw StateError('SECURE_VAULT_HCV_CONFLICT');
+    }
+
+    if (existingBefore != null &&
+        await File(existingBefore.encryptedMediaPath).exists() &&
+        await File(existingBefore.encryptedHcvpackPath).exists()) {
+      await media.delete();
+      await pack.delete();
+      return existingBefore;
+    }
+
     final dir = await _vaultDirectory();
     final safe = cleanId.replaceAll(RegExp(r'[^A-Z0-9-]'), '');
-    final encryptedMedia = File(p.join(dir.path, '$safe.media.enc'));
-    final encryptedPack = File(p.join(dir.path, '$safe.hcvpack.enc'));
+    final mediaTag = mediaHash.substring(0, 16);
+    final packTag = packHash.substring(0, 16);
+    final encryptedMedia =
+        File(p.join(dir.path, '$safe.$mediaTag.media.enc'));
+    final encryptedPack =
+        File(p.join(dir.path, '$safe.$packTag.hcvpack.enc'));
+
     for (final target in [encryptedMedia, encryptedPack]) {
       if (await target.exists()) await target.delete();
     }
 
+    final record = HCVSecureOriginalRecord(
+      hcvId: cleanId,
+      ownerCreatorId: ownerCreatorId,
+      mediaType: mediaType,
+      originalName: p.basename(media.path),
+      mediaSha256: mediaHash,
+      mediaSize: mediaSize,
+      encryptedMediaPath: encryptedMedia.path,
+      hcvpackSha256: packHash,
+      hcvpackSize: packSize,
+      encryptedHcvpackPath: encryptedPack.path,
+      certificatePath: certificate.absolute.path,
+      createdAt: existingBefore?.createdAt ?? DateTime.now().toUtc(),
+      publicationId: existingBefore?.publicationId,
+      referenceUrl: existingBefore?.referenceUrl,
+      referenceSha256: existingBefore?.referenceSha256,
+      publishedAt: existingBefore?.publishedAt,
+    );
+
+    var committed = false;
     try {
       await _encryptFile(
         source: media,
@@ -423,21 +471,6 @@ class HCVSecureMediaVault {
         sha256Hex: packHash,
         mimeType: 'application/vnd.sigillum.hcvpack',
         originalName: p.basename(pack.path),
-      );
-
-      final record = HCVSecureOriginalRecord(
-        hcvId: cleanId,
-        ownerCreatorId: ownerCreatorId,
-        mediaType: mediaType,
-        originalName: p.basename(media.path),
-        mediaSha256: mediaHash,
-        mediaSize: mediaSize,
-        encryptedMediaPath: encryptedMedia.path,
-        hcvpackSha256: packHash,
-        hcvpackSize: packSize,
-        encryptedHcvpackPath: encryptedPack.path,
-        certificatePath: certificate.absolute.path,
-        createdAt: DateTime.now().toUtc(),
       );
 
       await _withIndexLock(() async {
@@ -455,18 +488,20 @@ class HCVSecureMediaVault {
         records.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         await _saveIndex(records);
       });
-
-      await media.delete();
-      await pack.delete();
-      return record;
-    } catch (_) {
-      for (final target in [encryptedMedia, encryptedPack]) {
-        try {
-          if (await target.exists()) await target.delete();
-        } catch (_) {}
+      committed = true;
+    } finally {
+      if (!committed) {
+        for (final target in [encryptedMedia, encryptedPack]) {
+          try {
+            if (await target.exists()) await target.delete();
+          } catch (_) {}
+        }
       }
-      rethrow;
     }
+
+    await media.delete();
+    await pack.delete();
+    return record;
   }
 
   Future<List<HCVSecureOriginalRecord>> list() async {
