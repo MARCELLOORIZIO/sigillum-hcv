@@ -173,7 +173,7 @@ class HCVPackage {
       throw Exception('Unable to create HCV photo package');
     }
 
-    final outputDir = await getApplicationDocumentsDirectory();
+    final outputDir = await getTemporaryDirectory();
     final base = p.basenameWithoutExtension(photoPath);
     final output = File(p.join(outputDir.path, '$base.hcvpack'));
     await output.writeAsBytes(zipBytes, flush: true);

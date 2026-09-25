@@ -313,6 +313,7 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
+  static const int _maxSecureVideoBytes = 200 * 1024 * 1024;
   CameraController? controller;
   List<CameraDescription>? cameras;
 
@@ -1483,6 +1484,12 @@ class _CameraPageState extends State<CameraPage> {
     if (sourceSize <= 1024) {
       throw StateError('VIDEO_CONTAINER_TOO_SMALL');
     }
+    if (sourceSize > _maxSecureVideoBytes) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {}
+      throw StateError('VIDEO_EXCEEDS_SECURE_PIPELINE_LIMIT_200_MIB');
+    }
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final savedPath = p.join(dir.path, 'hcv_video_$timestamp.mp4');
@@ -1495,6 +1502,26 @@ class _CameraPageState extends State<CameraPage> {
       throw StateError('VIDEO_CONTAINER_CHANGED_DURING_COPY');
     }
 
+    if (p.normalize(sourceFile.absolute.path) !=
+        p.normalize(savedFile.absolute.path)) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {
+        if (Platform.isIOS) {
+          try {
+            await savedFile.delete();
+          } catch (_) {}
+          throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+        }
+      }
+      if (Platform.isIOS && await sourceFile.exists()) {
+        try {
+          await savedFile.delete();
+        } catch (_) {}
+        throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+      }
+    }
+
     return savedFile.path;
   }
 
@@ -1502,11 +1529,41 @@ class _CameraPageState extends State<CameraPage> {
     final dir = await _downloadsDirectory();
 
     final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      throw FileSystemException('Captured photo source not found', sourcePath);
+    }
+    final sourceSize = await sourceFile.length();
+    if (sourceSize <= 0) throw StateError('PHOTO_SOURCE_EMPTY');
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     final savedPath = p.join(dir.path, 'hcv_photo_$timestamp.jpg');
 
     final savedFile = await sourceFile.copy(savedPath);
+    if (await savedFile.length() != sourceSize) {
+      try {
+        await savedFile.delete();
+      } catch (_) {}
+      throw StateError('PHOTO_CHANGED_DURING_COPY');
+    }
+    if (p.normalize(sourceFile.absolute.path) !=
+        p.normalize(savedFile.absolute.path)) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {
+        if (Platform.isIOS) {
+          try {
+            await savedFile.delete();
+          } catch (_) {}
+          throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+        }
+      }
+      if (Platform.isIOS && await sourceFile.exists()) {
+        try {
+          await savedFile.delete();
+        } catch (_) {}
+        throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+      }
+    }
     return savedFile.path;
   }
 

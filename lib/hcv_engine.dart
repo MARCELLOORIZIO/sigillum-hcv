@@ -182,10 +182,17 @@ class HCVEngine {
       capturedAt: capturedAt,
     );
 
-    claims = {
-      ...claims,
-      "provenance": binding.toClaim(hcvId: hcvId),
-    };
+    try {
+      claims = {
+        ...claims,
+        "provenance": binding.toClaim(hcvId: hcvId),
+      };
+    } finally {
+      try {
+        final logFile = File(binding.logPath);
+        if (await logFile.exists()) await logFile.delete();
+      } catch (_) {}
+    }
   }
 
   Map<String, dynamic> _buildSignedPayload({
@@ -234,7 +241,7 @@ class HCVEngine {
 
     // D2: bind the finalized PHOTO/VIDEO hash to this exact HCV session and
     // device signing key before the certificate payload itself is signed.
-    await _attachCaptureProvenance(dir);
+    await _attachCaptureProvenance(await getTemporaryDirectory());
 
     final rootHash = _computeRootHash();
 
