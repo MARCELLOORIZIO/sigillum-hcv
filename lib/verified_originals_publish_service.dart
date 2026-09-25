@@ -71,6 +71,7 @@ class VerifiedOriginalsPublishService {
       final raw = await utf8.decoder.bind(response).join().timeout(timeout);
       final decoded =
           raw.trim().isEmpty ? <String, dynamic>{} : jsonDecode(raw);
+
       if (decoded is! Map<String, dynamic>) {
         throw StateError('REGISTRY_RESPONSE_INVALID');
       }
@@ -122,48 +123,43 @@ class VerifiedOriginalsPublishService {
     return id;
   }
 
-  Future<VerifiedOriginalPublishResult> _existingReference(
-    HCVSecureOriginalRecord record,
-  ) async {
-    final reference = await _json(
-      'GET',
-      '/api/verified-originals/${record.hcvId}/view',
-      authenticated: true,
-    );
-
-    final publicationId = reference['publicationId']?.toString() ?? '';
-    final publicUrl = reference['publicUrl']?.toString() ?? '';
-    final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
-
-    if (publicationId.isEmpty ||
-        publicUrl.isEmpty ||
-        !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
-      throw StateError('REFERENCE_EXISTING_RECORD_INVALID');
-    }
-
-    await vault.markReference(
-      hcvId: record.hcvId,
-      publicationId: publicationId,
-      referenceUrl: publicUrl,
-      referenceSha256: referenceSha256,
-    );
-
-    return VerifiedOriginalPublishResult(
-      hcvId: record.hcvId,
-      alreadyAvailable: true,
-      publicationId: publicationId,
-      publicUrl: publicUrl,
-      referenceSha256: referenceSha256,
-    );
-  }
-
   Future<VerifiedOriginalPublishResult> ensureReference(
     HCVSecureOriginalRecord record, {
     bool monetizationConsent = false,
   }) async {
     final availability = await publicAvailability(record.hcvId);
+
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
-      return _existingReference(record);
+      final reference = await _json(
+        'GET',
+        '/api/verified-originals/${record.hcvId}/view',
+        authenticated: true,
+      );
+
+      final publicationId = reference['publicationId']?.toString() ?? '';
+      final publicUrl = reference['publicUrl']?.toString() ?? '';
+      final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
+
+      if (publicationId.isEmpty ||
+          publicUrl.isEmpty ||
+          !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
+        throw StateError('REFERENCE_EXISTING_RECORD_INVALID');
+      }
+
+      await vault.markReference(
+        hcvId: record.hcvId,
+        publicationId: publicationId,
+        referenceUrl: publicUrl,
+        referenceSha256: referenceSha256,
+      );
+
+      return VerifiedOriginalPublishResult(
+        hcvId: record.hcvId,
+        alreadyAvailable: true,
+        publicationId: publicationId,
+        publicUrl: publicUrl,
+        referenceSha256: referenceSha256,
+      );
     }
 
     final consentId = await _ensureConsent(
@@ -194,6 +190,7 @@ class VerifiedOriginalsPublishService {
 
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 20);
+
       try {
         final request =
             await client.postUrl(uri).timeout(const Duration(seconds: 20));
@@ -212,6 +209,7 @@ class VerifiedOriginalsPublishService {
             .join()
             .timeout(const Duration(minutes: 2));
         final decoded = jsonDecode(raw);
+
         if (decoded is! Map<String, dynamic>) {
           throw StateError('REGISTRY_RESPONSE_INVALID');
         }
@@ -251,18 +249,6 @@ class VerifiedOriginalsPublishService {
     } finally {
       await vault.deleteMaterialized(materialized);
     }
-  }
-
-  Future<void> withdrawReference(HCVSecureOriginalRecord record) async {
-    final response = await _json(
-      'POST',
-      '/api/verified-originals/consents/${record.hcvId}/withdraw',
-      authenticated: true,
-    );
-    if (response['referenceAvailable'] == true) {
-      throw StateError('REFERENCE_WITHDRAWAL_INCOMPLETE');
-    }
-    await vault.clearReference(record.hcvId);
   }
 
   String _mime(HCVSecureOriginalRecord record) {
