@@ -256,6 +256,8 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'Originale SIGILLUM',
       'secureOriginalStored':
           'Originale e HCVPACK cifrati nell’area protetta SIGILLUM.',
+      'secureOriginalStorageDetail':
+          'L’originale non è salvato in Foto né esposto nella cartella File. Aprilo o condividilo da Originali protetti.',
       'secureOriginalsOpen': 'APRI ORIGINALI PROTETTI',
       'secureOriginalsHomeSubtitle':
           'Visualizza e condividi solo attraverso SIGILLUM; il riferimento ufficiale viene registrato prima dell’uscita verso i social.',
@@ -503,6 +505,8 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'SIGILLUM original',
       'secureOriginalStored':
           'Original and HCVPACK encrypted in the protected SIGILLUM area.',
+      'secureOriginalStorageDetail':
+          'The original is not saved to Photos or exposed in the Files folder. Open or share it from Protected originals.',
       'secureOriginalsOpen': 'OPEN PROTECTED ORIGINALS',
       'secureOriginalsHomeSubtitle':
           'View and share only through SIGILLUM; the official reference is registered before a file is released to social platforms.',
@@ -752,6 +756,8 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'Original SIGILLUM',
       'secureOriginalStored':
           'Original y HCVPACK cifrados en el área protegida de SIGILLUM.',
+      'secureOriginalStorageDetail':
+          'El original no se guarda en Fotos ni se expone en la carpeta Archivos. Ábrelo o compártelo desde Originales protegidos.',
       'secureOriginalsOpen': 'ABRIR ORIGINALES PROTEGIDOS',
       'secureOriginalsHomeSubtitle':
           'Visualiza y comparte solo mediante SIGILLUM; la referencia oficial se registra antes de entregar el archivo a una red social.',
@@ -999,6 +1005,8 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'Оригинал SIGILLUM',
       'secureOriginalStored':
           'Оригинал и HCVPACK зашифрованы в защищённой области SIGILLUM.',
+      'secureOriginalStorageDetail':
+          'Оригинал не сохраняется в Photos и не отображается в папке Files. Открывайте и отправляйте его из раздела «Защищённые оригиналы».',
       'secureOriginalsOpen': 'ОТКРЫТЬ ЗАЩИЩЁННЫЕ ОРИГИНАЛЫ',
       'secureOriginalsHomeSubtitle':
           'Просматривайте и отправляйте только через SIGILLUM; официальный эталон регистрируется до передачи файла в социальную сеть.',
