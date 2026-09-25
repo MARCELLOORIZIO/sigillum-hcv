@@ -15,13 +15,10 @@
 	<string>SIGILLUM accede alla libreria per importare media da verificare.</string>
 
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>SIGILLUM salva video verificati nella libreria.</string>
+	<string>SIGILLUM aggiunge alla libreria solo copie derivate che scegli esplicitamente di salvare, ad esempio un video sottotitolato. L’originale certificato resta nell’area protetta dell’app.</string>
 
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SIGILLUM usa la posizione mentre l'app è in uso per associare coordinate GPS ai contenuti certificati quando la funzione di localizzazione è attiva.</string>
-
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>SIGILLUM usa la posizione per associare coordinate GPS ai contenuti certificati quando la funzione di localizzazione è attiva. SIGILLUM non usa la posizione per il tracciamento continuo.</string>
 
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>SIGILLUM usa la rete locale per collegarsi al server AI Trainer durante i test.</string>

@@ -9,6 +9,7 @@ import 'commercial_account_service.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_secure_store.dart';
 import 'registry_verify_page.dart';
+import 'sigillum_localization.dart';
 import 'verified_originals_reference.dart';
 
 /// Public reference discovery. This screen never certifies third-party social
@@ -37,7 +38,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
   String? _error;
   bool _busy = false;
 
-  bool get _it => widget.languageCode == 'it';
+  String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
   @override
   void initState() {
@@ -57,7 +58,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
       setState(() {
         _searchedId = null;
         _referenceAvailable = false;
-        _error = _it ? 'HCV-ID non valido.' : 'Invalid HCV-ID.';
+        _error = _t('voInvalidId');
       });
       return;
     }
@@ -105,9 +106,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = _it
-            ? 'Registry non raggiungibile o risposta non valida. Nessun risultato di verifica.'
-            : 'Registry unavailable or invalid response. No verification result.';
+        _error = _t('voRegistryError');
       });
     } finally {
       client.close(force: true);
@@ -210,19 +209,13 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
       if (!mounted) return;
       setState(() {
         _error = error.code == 'SUBSCRIPTION_REQUIRED'
-            ? (_it
-                ? 'La verifica resta gratuita. Per vedere l’originale certificato serve un abbonamento SIGILLUM attivo.'
-                : 'Verification remains free. Viewing the certified original requires an active SIGILLUM subscription.')
-            : (_it
-                ? 'Accedi con un account SIGILLUM abbonato per vedere l’originale.'
-                : 'Sign in with a subscribed SIGILLUM account to view the original.');
+            ? _t('voSubscriptionRequired')
+            : _t('voAuthRequired');
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = _it
-            ? 'Impossibile aprire il contenuto certificato.'
-            : 'Unable to open the certified reference.';
+        _error = _t('voOpenError');
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -235,21 +228,11 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
     final found = _referenceAvailable;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _it
-              ? 'SIGILLUM · Originali certificati'
-              : 'SIGILLUM · Certified references',
-        ),
-      ),
+      appBar: AppBar(title: Text(_t('voPageTitle'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(
-            _it
-                ? 'Verifica il codice e, quando esiste una pubblicazione ufficiale attiva, consulta la copia di riferimento certificata.'
-                : 'Check the code and, when an official active publication exists, view the certified reference copy.',
-          ),
+          Text(_t('voIntro')),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
@@ -265,7 +248,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
           FilledButton.icon(
             onPressed: _busy ? null : _lookup,
             icon: const Icon(Icons.search),
-            label: Text(_it ? 'CERCA HCV-ID' : 'FIND HCV-ID'),
+            label: Text(_t('voFindId')),
           ),
           if (_busy)
             const Padding(
@@ -282,50 +265,26 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
             ),
           if (searched) ...[
             const SizedBox(height: 22),
-            Text(
-              _it
-                  ? 'La presenza del codice non dimostra che il file social sia integro: un HCV-ID può essere copiato.'
-                  : 'The presence of a code does not prove that a social file is intact: an HCV-ID can be copied.',
-            ),
+            Text(_t('voCodeWarning')),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _verifyCode,
               icon: const Icon(Icons.verified_user_outlined),
-              label: Text(
-                _it
-                    ? 'VERIFICA CODICE E CERTIFICATO'
-                    : 'CHECK CODE AND CERTIFICATE',
-              ),
+              label: Text(_t('voVerifyCodeCertificate')),
             ),
             const SizedBox(height: 18),
             if (found) ...[
-              Text(
-                _it
-                    ? 'Originale certificato disponibile. La visualizzazione richiede un abbonamento SIGILLUM attivo.'
-                    : 'Certified original available. Viewing requires an active SIGILLUM subscription.',
-              ),
+              Text(_t('voAvailable')),
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: _openReference,
                 icon: const Icon(Icons.lock_outline),
-                label: Text(
-                  _it
-                      ? 'GUARDA L’ORIGINALE CERTIFICATO'
-                      : 'WATCH THE CERTIFIED ORIGINAL',
-                ),
+                label: Text(_t('voWatch')),
               ),
               const SizedBox(height: 10),
-              Text(
-                _it
-                    ? 'SIGILLUM non rende pubblico il link durante la verifica gratuita. Il riferimento viene richiesto solo dopo il controllo dell’abbonamento.'
-                    : 'SIGILLUM does not expose the link during free verification. The reference is requested only after the subscription check.',
-              ),
+              Text(_t('voLinkGated')),
             ] else
-              Text(
-                _it
-                    ? 'Nessun originale certificato attivo disponibile. Il certificato può comunque essere verificato gratuitamente.'
-                    : 'No active certified original is available. The certificate can still be checked for free.',
-              ),
+              Text(_t('voNotAvailable')),
           ],
         ],
       ),

@@ -60,8 +60,8 @@ class CommercialAccountService {
     Duration(milliseconds: 4000),
     Duration(milliseconds: 8000),
   ];
-  static const termsVersion = '2026-08-18';
-  static const privacyVersion = '2026-08-18';
+  static const termsVersion = '2026-09-25';
+  static const privacyVersion = '2026-09-25';
 
   final String baseUrl;
 

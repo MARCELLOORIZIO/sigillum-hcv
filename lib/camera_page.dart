@@ -35,6 +35,8 @@ import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
 import 'video_transcription_service.dart';
 import 'sigillum_quick_guide_page.dart';
+import 'hcv_secure_media_vault.dart';
+import 'secure_originals_page.dart';
 
 int _displayDecisionRank(String decision) {
   switch (decision) {
@@ -311,6 +313,7 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
+  static const int _maxSecureVideoBytes = 200 * 1024 * 1024;
   CameraController? controller;
   List<CameraDescription>? cameras;
 
@@ -318,6 +321,7 @@ class _CameraPageState extends State<CameraPage> {
 
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
+  final HCVSecureMediaVault _secureVault = const HCVSecureMediaVault();
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
@@ -359,6 +363,7 @@ class _CameraPageState extends State<CameraPage> {
   String? _videoTranscript;
   String? _subtitlePath;
   String? _captionedVideoPath;
+  HCVSecureOriginalRecord? _secureOriginalRecord;
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _c(String key) => CameraUiExtendedCopy.t(widget.languageCode, key);
@@ -880,6 +885,7 @@ class _CameraPageState extends State<CameraPage> {
       hcvId = null;
       verificationUrl = null;
       registryStatus = null;
+      _secureOriginalRecord = null;
     });
 
     try {
@@ -1105,6 +1111,13 @@ class _CameraPageState extends State<CameraPage> {
       setState(() {
         status = _c('takingPhoto');
         result = null;
+        videoPath = null;
+        hcvPath = null;
+        packagePath = null;
+        hcvId = null;
+        verificationUrl = null;
+        registryStatus = null;
+        _secureOriginalRecord = null;
       });
 
       temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
@@ -1370,6 +1383,13 @@ class _CameraPageState extends State<CameraPage> {
       String hcv = await engine.exportToFile();
 
       final ok = await verifier.verifyFile(hcv);
+      if (ok) {
+        hcv = await moveHcvToUnifiedName(
+          currentPath: hcv,
+          hcvId: preparedHcvId,
+          contentKind: 'photo',
+        );
+      }
 
       String? pack;
 
@@ -1399,9 +1419,27 @@ class _CameraPageState extends State<CameraPage> {
 
         recording = false;
       });
-      if (ok) {
-        await saveContentToGallery(publishedPhoto);
+      if (ok && pack != null) {
         await uploadCertificateToRegistry();
+        final secured = await _secureVault.seal(
+          hcvId: preparedHcvId,
+          mediaType: 'photo',
+          mediaPath: publishedPhoto,
+          hcvpackPath: pack,
+          certificatePath: hcv,
+          expectedMediaSha256: hash,
+        );
+        if (mounted) {
+          setState(() {
+            _secureOriginalRecord = secured;
+            videoPath = null;
+            packagePath = null;
+            status = _t('secureOriginalStored');
+            registryStatus = registryStatus == null
+                ? _t('secureOriginalStored')
+                : '$registryStatus\n${_t('secureOriginalStored')}';
+          });
+        }
       }
     } catch (e) {
       if (temporalClip != null) {
@@ -1424,7 +1462,9 @@ class _CameraPageState extends State<CameraPage> {
       return dir;
     }
 
-    final dir = await getApplicationDocumentsDirectory();
+    // BUILD133: camera media is processed in private Application Support on iOS.
+    // Documents is exposed through Files because UIFileSharingEnabled is true.
+    final dir = await getApplicationSupportDirectory();
 
     if (!await dir.exists()) {
       await dir.create(recursive: true);
@@ -1444,6 +1484,12 @@ class _CameraPageState extends State<CameraPage> {
     if (sourceSize <= 1024) {
       throw StateError('VIDEO_CONTAINER_TOO_SMALL');
     }
+    if (sourceSize > _maxSecureVideoBytes) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {}
+      throw StateError('VIDEO_EXCEEDS_SECURE_PIPELINE_LIMIT_200_MIB');
+    }
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final savedPath = p.join(dir.path, 'hcv_video_$timestamp.mp4');
@@ -1456,6 +1502,26 @@ class _CameraPageState extends State<CameraPage> {
       throw StateError('VIDEO_CONTAINER_CHANGED_DURING_COPY');
     }
 
+    if (p.normalize(sourceFile.absolute.path) !=
+        p.normalize(savedFile.absolute.path)) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {
+        if (Platform.isIOS) {
+          try {
+            await savedFile.delete();
+          } catch (_) {}
+          throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+        }
+      }
+      if (Platform.isIOS && await sourceFile.exists()) {
+        try {
+          await savedFile.delete();
+        } catch (_) {}
+        throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+      }
+    }
+
     return savedFile.path;
   }
 
@@ -1463,11 +1529,41 @@ class _CameraPageState extends State<CameraPage> {
     final dir = await _downloadsDirectory();
 
     final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      throw FileSystemException('Captured photo source not found', sourcePath);
+    }
+    final sourceSize = await sourceFile.length();
+    if (sourceSize <= 0) throw StateError('PHOTO_SOURCE_EMPTY');
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     final savedPath = p.join(dir.path, 'hcv_photo_$timestamp.jpg');
 
     final savedFile = await sourceFile.copy(savedPath);
+    if (await savedFile.length() != sourceSize) {
+      try {
+        await savedFile.delete();
+      } catch (_) {}
+      throw StateError('PHOTO_CHANGED_DURING_COPY');
+    }
+    if (p.normalize(sourceFile.absolute.path) !=
+        p.normalize(savedFile.absolute.path)) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {
+        if (Platform.isIOS) {
+          try {
+            await savedFile.delete();
+          } catch (_) {}
+          throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+        }
+      }
+      if (Platform.isIOS && await sourceFile.exists()) {
+        try {
+          await savedFile.delete();
+        } catch (_) {}
+        throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+      }
+    }
     return savedFile.path;
   }
 
@@ -1494,12 +1590,14 @@ class _CameraPageState extends State<CameraPage> {
   Future<String> moveHcvToUnifiedName({
     required String currentPath,
     required String hcvId,
+    String contentKind = 'video',
   }) async {
     final currentFile = File(currentPath);
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
     final dir = await _downloadsDirectory();
 
-    final newPath = p.join(dir.path, 'hcv_video_$safeId.hcv');
+    final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';
+    final newPath = p.join(dir.path, '${contentPrefix}_$safeId.hcv');
 
     final newFile = File(newPath);
 
@@ -1838,9 +1936,27 @@ class _CameraPageState extends State<CameraPage> {
       status = _c('done');
     });
 
-    if (ok) {
-      await saveContentToGallery(savedVideoPath);
+    if (ok && pack != null) {
       await uploadCertificateToRegistry();
+      final secured = await _secureVault.seal(
+        hcvId: detectedId,
+        mediaType: 'video',
+        mediaPath: savedVideoPath,
+        hcvpackPath: pack,
+        certificatePath: hcv,
+        expectedMediaSha256: videoHash,
+      );
+      if (mounted) {
+        setState(() {
+          _secureOriginalRecord = secured;
+          videoPath = null;
+          packagePath = null;
+          status = _t('secureOriginalStored');
+          registryStatus = registryStatus == null
+              ? _t('secureOriginalStored')
+              : '$registryStatus\n${_t('secureOriginalStored')}';
+        });
+      }
     }
   }
 
@@ -1904,6 +2020,17 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> shareVideoAndCertificate() async {
+    if (_secureOriginalRecord != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SecureOriginalsPage(
+            languageCode: widget.languageCode,
+          ),
+        ),
+      );
+      return;
+    }
     if (videoPath == null || hcvPath == null) {
       setState(() => status = _c('noFileToShare'));
       return;
@@ -2029,14 +2156,28 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _transcribeCreatedVideo() async {
-    final path = videoPath;
-    if (path == null || createdContentKind != 'video' || _transcribingAudio)
-      return;
-    setState(() {
-      _transcribingAudio = true;
-      status = _c('transcriptionAudio');
-    });
+    if (createdContentKind != 'video' || _transcribingAudio) return;
+
+    File? materializedSource;
+    var path = videoPath;
     try {
+      final secureRecord = _secureOriginalRecord;
+      if (path == null &&
+          secureRecord != null &&
+          secureRecord.mediaType == 'video') {
+        materializedSource = await _secureVault.materializeOriginal(
+          secureRecord,
+          purpose: 'caption-source',
+        );
+        path = materializedSource.path;
+      }
+      if (path == null) return;
+
+      setState(() {
+        _transcribingAudio = true;
+        status = _c('transcriptionAudio');
+      });
+
       final transcript = await const VideoTranscriptionService().transcribe(
         path,
         languageCode: widget.languageCode,
@@ -2091,6 +2232,9 @@ class _CameraPageState extends State<CameraPage> {
       if (!mounted) return;
       setState(() => status = '${_c('transcriptionFailed')}: $error');
     } finally {
+      if (materializedSource != null) {
+        await _secureVault.deleteMaterialized(materializedSource);
+      }
       if (mounted) setState(() => _transcribingAudio = false);
     }
   }
@@ -2220,7 +2364,8 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Widget _createdFilesCard() {
-    if (videoPath == null &&
+    if (_secureOriginalRecord == null &&
+        videoPath == null &&
         hcvPath == null &&
         packagePath == null &&
         _captionedVideoPath == null &&
@@ -2243,7 +2388,9 @@ class _CameraPageState extends State<CameraPage> {
           const Icon(Icons.folder_outlined, color: Color(0xFF0098A1), size: 34),
           const SizedBox(height: 8),
           Text(
-            _c('filesWhere'),
+            _secureOriginalRecord != null
+                ? _t('secureOriginalStored')
+                : _c('filesWhere'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF280D5F),
@@ -2252,18 +2399,21 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            _c('filesPath'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF280D5F),
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+          if (_secureOriginalRecord == null)
+            Text(
+              _c('filesPath'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF280D5F),
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+              ),
             ),
-          ),
           const SizedBox(height: 6),
           Text(
-            _c('filesExplanation'),
+            _secureOriginalRecord != null
+                ? _t('secureOriginalStorageDetail')
+                : _c('filesExplanation'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF7A6EAA),
@@ -2320,13 +2470,16 @@ class _CameraPageState extends State<CameraPage> {
   Widget _actionButtons() {
     return Column(
       children: [
-        if (videoPath != null && hcvPath != null) ...[
+        if (_secureOriginalRecord != null ||
+            (videoPath != null && hcvPath != null)) ...[
           SizedBox(
             width: 300,
             child: ElevatedButton.icon(
               onPressed: shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label: Text(_t('shareContent')),
+              label: Text(_secureOriginalRecord != null
+                  ? _t('secureOriginalsOpen')
+                  : _t('shareContent')),
             ),
           ),
           const SizedBox(height: 10),
@@ -2343,7 +2496,8 @@ class _CameraPageState extends State<CameraPage> {
           const SizedBox(height: 10),
         ],
         if (createdContentKind == 'video' &&
-            videoPath != null &&
+            (videoPath != null ||
+                _secureOriginalRecord?.mediaType == 'video') &&
             Platform.isIOS) ...[
           SizedBox(
             width: 340,
