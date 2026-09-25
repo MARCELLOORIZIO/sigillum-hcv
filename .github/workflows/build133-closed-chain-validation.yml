@@ -25,7 +25,9 @@ jobs:
           flutter-version: '3.47.1'
           cache: true
       - name: Resolve dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
       - name: Format BUILD133 sources
         run: |
           dart format lib/hcv_secure_media_vault.dart lib/verified_originals_publish_service.dart lib/secure_originals_page.dart lib/verified_originals_page.dart lib/user_home_page.dart lib/home_page.dart lib/commercial_gate.dart lib/camera_page.dart lib/sigillum_localization.dart lib/sigillum_quick_guide_page.dart test/verified_originals_v2_contract_test.dart
