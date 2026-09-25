@@ -244,6 +244,7 @@ class SigillumCopy {
       'secureOriginalsView': 'VISUALIZZA',
       'secureOriginalsShare': 'CONDIVIDI',
       'secureOriginalsViewerTitle': 'Originale SIGILLUM',
+      'secureOriginalStored': 'Originale e HCVPACK cifrati nell’area protetta SIGILLUM.',
     },
     'en': {
       'identity': 'Identity',
@@ -450,6 +451,7 @@ class SigillumCopy {
       'secureOriginalsView': 'VIEW',
       'secureOriginalsShare': 'SHARE',
       'secureOriginalsViewerTitle': 'SIGILLUM original',
+      'secureOriginalStored': 'Original and HCVPACK encrypted in the protected SIGILLUM area.',
     },
     'es': {
       'identity': 'Identidad',
@@ -657,6 +659,7 @@ class SigillumCopy {
       'secureOriginalsView': 'VER',
       'secureOriginalsShare': 'COMPARTIR',
       'secureOriginalsViewerTitle': 'Original SIGILLUM',
+      'secureOriginalStored': 'Original y HCVPACK cifrados en el área protegida de SIGILLUM.',
     },
     'ru': {
       'identity': 'Идентичность',
@@ -862,6 +865,7 @@ class SigillumCopy {
       'secureOriginalsView': 'ПРОСМОТР',
       'secureOriginalsShare': 'ПОДЕЛИТЬСЯ',
       'secureOriginalsViewerTitle': 'Оригинал SIGILLUM',
+      'secureOriginalStored': 'Оригинал и HCVPACK зашифрованы в защищённой области SIGILLUM.',
     },
   };
 }
