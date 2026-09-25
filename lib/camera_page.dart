@@ -2439,7 +2439,8 @@ class _CameraPageState extends State<CameraPage> {
           const SizedBox(height: 10),
         ],
         if (createdContentKind == 'video' &&
-            (videoPath != null || _secureOriginalRecord?.mediaType == 'video') &&
+            (videoPath != null ||
+                _secureOriginalRecord?.mediaType == 'video') &&
             Platform.isIOS) ...[
           SizedBox(
             width: 340,

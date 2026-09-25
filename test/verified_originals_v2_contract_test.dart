@@ -33,7 +33,8 @@ void main() {
     expect(vault, contains("static const int _chunkSize = 4 * 1024 * 1024"));
     expect(vault, contains('mac: Mac(macBytes)'));
     expect(vault, contains('SECURE_VAULT_PLAINTEXT_HASH_MISMATCH'));
-    expect(vault, contains('if (await destination.exists()) await destination.delete()'));
+    expect(vault,
+        contains('if (await destination.exists()) await destination.delete()'));
     expect(vault, contains("throw StateError('SECURE_VAULT_HCV_CONFLICT')"));
     expect(vault, contains('final mediaTag = mediaHash.substring(0, 16)'));
     expect(vault, contains('if (!committed)'));

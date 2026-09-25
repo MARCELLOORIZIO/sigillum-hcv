@@ -428,10 +428,8 @@ class HCVSecureMediaVault {
     final safe = cleanId.replaceAll(RegExp(r'[^A-Z0-9-]'), '');
     final mediaTag = mediaHash.substring(0, 16);
     final packTag = packHash.substring(0, 16);
-    final encryptedMedia =
-        File(p.join(dir.path, '$safe.$mediaTag.media.enc'));
-    final encryptedPack =
-        File(p.join(dir.path, '$safe.$packTag.hcvpack.enc'));
+    final encryptedMedia = File(p.join(dir.path, '$safe.$mediaTag.media.enc'));
+    final encryptedPack = File(p.join(dir.path, '$safe.$packTag.hcvpack.enc'));
 
     for (final target in [encryptedMedia, encryptedPack]) {
       if (await target.exists()) await target.delete();
