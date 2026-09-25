@@ -13,10 +13,12 @@ void main() {
     expect(gate, contains('AutofillHints.password'));
   });
 
-  test('quick guide explains Files archive and derived subtitles', () {
+  test('quick guide explains encrypted protected originals and fail-closed sharing', () {
     final guide = File('lib/sigillum_quick_guide_page.dart').readAsStringSync();
-    expect(guide, contains('File > Sul mio iPhone > Fotocamera Sigillum'));
-    expect(guide, contains('L’originale certificato non viene modificato'));
+    expect(guide, contains('foto o video e HCVPACK vengono cifrati'));
+    expect(guide, contains('non vengono salvati automaticamente in Foto'));
+    expect(guide, contains('registra prima la copia di riferimento ufficiale'));
+    expect(guide, contains('il file non viene rilasciato al social'));
   });
 
   test('subtitle actions remain readable and save captioned copy to Photos', () {
