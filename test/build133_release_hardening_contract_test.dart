@@ -112,4 +112,27 @@ void main() {
         isNot(contains(
             r'SIGILLUM_HCVPACK_BINDING_V1|\${record.hcvId}|\${record.mediaSha256}|\${record.hcvpackSha256}')));
   });
+  test('official copy UX keeps each action tied to one function', () {
+    final copy = File('lib/sigillum_localization.dart').readAsStringSync();
+    final official =
+        File('lib/verified_originals_page.dart').readAsStringSync();
+    final protected =
+        File('lib/secure_originals_page.dart').readAsStringSync();
+
+    expect(copy, contains('VERIFICA CONTENUTO'));
+    expect(copy, contains('CERCA COPIA UFFICIALE'));
+    expect(copy, contains('VISUALIZZA COPIA UFFICIALE'));
+    expect(copy, contains('VISUALIZZA ORIGINALE'));
+    expect(copy, contains('CONDIVIDI ORIGINALE'));
+
+    expect(official, isNot(contains('_pickProtected')));
+    expect(official, isNot(contains('_pickFile')));
+    expect(official, isNot(contains('FilePicker.platform.pickFiles')));
+    expect(protected, contains('_openOfficialCopy'));
+    expect(protected, contains('secureOriginalsOfficialCopy'));
+
+    expect(copy, isNot(contains('VERIFICA CODICE / GUARDA ORIGINALE')));
+    expect(copy, isNot(contains('GUARDA L’ORIGINALE CERTIFICATO')));
+  });
+
 }
