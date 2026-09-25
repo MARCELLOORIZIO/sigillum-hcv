@@ -585,6 +585,25 @@ class HCVSecureMediaVault {
     } catch (_) {}
   }
 
+  Future<void> wipeLocalVault() async {
+    await _withIndexLock(() async {
+      final dir = await _vaultDirectory();
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
+      await HCVSecureStore.delete(_masterKeyStoreKey);
+    });
+
+    try {
+      final tempRoot = await getTemporaryDirectory();
+      final materialized =
+          Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+      if (await materialized.exists()) {
+        await materialized.delete(recursive: true);
+      }
+    } catch (_) {}
+  }
+
   String _photoMime(String path) {
     final lower = path.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';
