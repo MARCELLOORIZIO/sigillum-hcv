@@ -76,7 +76,8 @@ void main() {
     }
   });
 
-  test('official-copy search is HCV-ID only and does not duplicate file verification',
+  test(
+      'official-copy search is HCV-ID only and does not duplicate file verification',
       () {
     final source = File('lib/verified_originals_page.dart').readAsStringSync();
 

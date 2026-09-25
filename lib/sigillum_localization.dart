@@ -264,11 +264,9 @@ class SigillumCopy {
       'secureOriginalsWithdrawBody':
           'La copia ufficiale verrà rimossa dal canale SIGILLUM e non sarà più disponibile nell’app. Il certificato HCV e il record tecnico restano verificabili.',
       'secureOriginalsWithdrawConfirm': 'RITIRA',
-      'secureOriginalsWithdrawing':
-          'Ritiro della copia ufficiale in corso...',
+      'secureOriginalsWithdrawing': 'Ritiro della copia ufficiale in corso...',
       'secureOriginalsWithdrawn': 'Copia ufficiale ritirata.',
-      'secureOriginalsWithdrawError':
-          'Impossibile ritirare la copia ufficiale',
+      'secureOriginalsWithdrawError': 'Impossibile ritirare la copia ufficiale',
       'secureOriginalsWithdrawPending':
           'Ritiro registrato. L’eliminazione dal canale è ancora in attesa; puoi ritentare da questa schermata.',
       'secureOriginalsView': 'VISUALIZZA ORIGINALE',
@@ -550,8 +548,7 @@ class SigillumCopy {
       'secureOriginalStorageDetail':
           'The original is not saved to Photos or exposed in the Files folder. Open or share it from Protected originals.',
       'secureOriginalsOpen': 'OPEN PROTECTED ORIGINALS',
-      'secureOriginalsHomeSubtitle':
-          'View and share your SIGILLUM originals.',
+      'secureOriginalsHomeSubtitle': 'View and share your SIGILLUM originals.',
       'verifiedOriginalsTitle': 'FIND OFFICIAL COPY',
       'verifiedOriginalsSubtitle':
           'View the copy published by SIGILLUM before it is shared on social platforms.',
@@ -810,8 +807,7 @@ class SigillumCopy {
       'secureOriginalsWithdrawConfirm': 'RETIRAR',
       'secureOriginalsWithdrawing': 'Retirando la copia oficial...',
       'secureOriginalsWithdrawn': 'Copia oficial retirada.',
-      'secureOriginalsWithdrawError':
-          'No se puede retirar la copia oficial',
+      'secureOriginalsWithdrawError': 'No se puede retirar la copia oficial',
       'secureOriginalsWithdrawPending':
           'Retirada registrada. La eliminación del canal sigue pendiente; puedes volver a intentarlo desde esta pantalla.',
       'secureOriginalsView': 'VER ORIGINAL',
@@ -1073,7 +1069,8 @@ class SigillumCopy {
       'secureOriginalsShareComplete': 'Отправка завершена или закрыта.',
       'secureOriginalsShareBlocked': 'Отправка заблокирована',
       'secureOriginalsReferencePublished': 'Официальная копия опубликована',
-      'secureOriginalsReferencePending': 'Официальная копия ещё не опубликована',
+      'secureOriginalsReferencePending':
+          'Официальная копия ещё не опубликована',
       'secureOriginalsWithdraw': 'ОТОЗВАТЬ ОФИЦИАЛЬНУЮ КОПИЮ',
       'secureOriginalsWithdrawTitle': 'Отозвать официальную копию',
       'secureOriginalsWithdrawBody':
