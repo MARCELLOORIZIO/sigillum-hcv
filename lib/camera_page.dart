@@ -2099,14 +2099,28 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _transcribeCreatedVideo() async {
-    final path = videoPath;
-    if (path == null || createdContentKind != 'video' || _transcribingAudio)
-      return;
-    setState(() {
-      _transcribingAudio = true;
-      status = _c('transcriptionAudio');
-    });
+    if (createdContentKind != 'video' || _transcribingAudio) return;
+
+    File? materializedSource;
+    var path = videoPath;
     try {
+      final secureRecord = _secureOriginalRecord;
+      if (path == null &&
+          secureRecord != null &&
+          secureRecord.mediaType == 'video') {
+        materializedSource = await _secureVault.materializeOriginal(
+          secureRecord,
+          purpose: 'caption-source',
+        );
+        path = materializedSource.path;
+      }
+      if (path == null) return;
+
+      setState(() {
+        _transcribingAudio = true;
+        status = _c('transcriptionAudio');
+      });
+
       final transcript = await const VideoTranscriptionService().transcribe(
         path,
         languageCode: widget.languageCode,
@@ -2161,6 +2175,9 @@ class _CameraPageState extends State<CameraPage> {
       if (!mounted) return;
       setState(() => status = '${_c('transcriptionFailed')}: $error');
     } finally {
+      if (materializedSource != null) {
+        await _secureVault.deleteMaterialized(materializedSource);
+      }
       if (mounted) setState(() => _transcribingAudio = false);
     }
   }
@@ -2422,7 +2439,7 @@ class _CameraPageState extends State<CameraPage> {
           const SizedBox(height: 10),
         ],
         if (createdContentKind == 'video' &&
-            videoPath != null &&
+            (videoPath != null || _secureOriginalRecord?.mediaType == 'video') &&
             Platform.isIOS) ...[
           SizedBox(
             width: 340,
