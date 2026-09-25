@@ -106,7 +106,7 @@ void main() {
     expect(
         source,
         contains(
-            'SIGILLUM_HCVPACK_BINDING_V1|${record.hcvId}|${record.mediaSha256}|${record.hcvpackSha256}'));
+            r'SIGILLUM_HCVPACK_BINDING_V1|${record.hcvId}|${record.mediaSha256}|${record.hcvpackSha256}'));
     expect(
         source,
         isNot(contains(
