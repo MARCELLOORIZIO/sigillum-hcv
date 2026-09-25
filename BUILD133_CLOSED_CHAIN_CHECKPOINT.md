@@ -62,3 +62,10 @@ I. Add regression/contract tests and run CI before promotion.
 ## Resume rule
 
 Do not start again from the design discussion. Resume from the first unfinished item in the implementation plan, inspect this file plus the backend checkpoint, and preserve the locked product decisions above.
+
+
+## 2026-09-25 TestFlight 136 retry
+
+- Retrigger only: no runtime, UI, model, backend, or test logic changes.
+- Previous upload reached App Store Connect as build 135 but remained in processing longer than the user's normal processing window.
+- Codemagic TestFlight script selects max(source build number, latest TestFlight build + 1); with build 135 already present, this retry is expected to publish build 136.
