@@ -91,10 +91,10 @@ class SigillumCopy {
       'legalControls': 'Controlli eseguiti',
       'legalData': 'Dati trattati',
       'legalLimits': 'Limiti del servizio',
-      'data1': 'contenuto creato o selezionato dall utente',
-      'data2': 'HCV-ID e impronta crittografica del file',
-      'data3': 'metadati tecnici necessari alla verifica',
-      'data4': 'identità tecnica del creatore, se configurata',
+      'data1': 'foto, video e HCVPACK certificati restano cifrati nell’area privata dell’app; i file in chiaro sono temporanei',
+      'data2': 'HCV-ID, hash crittografici e certificato firmato collegano l’originale al Registry',
+      'data3': 'metadati tecnici e segnali di acquisizione necessari alla verifica',
+      'data4': 'quando scegli di condividere, la copia di riferimento ufficiale viene registrata tramite SIGILLUM e ospitata su YouTube',
       'limit1':
           'SIGILLUM verifica provenienza tecnica e integrita, non sostituisce una perizia legale.',
       'limit2':
@@ -343,10 +343,10 @@ class SigillumCopy {
       'legalControls': 'Checks performed',
       'legalData': 'Data processed',
       'legalLimits': 'Service limits',
-      'data1': 'content created or selected by the user',
-      'data2': 'HCV-ID and cryptographic file fingerprint',
-      'data3': 'technical metadata required for verification',
-      'data4': 'technical creator identity, when configured',
+      'data1': 'certified photos, videos and HCVPACK files remain encrypted in the app’s private area; clear files are temporary',
+      'data2': 'HCV-ID, cryptographic hashes and the signed certificate bind the original to the Registry',
+      'data3': 'technical metadata and capture signals required for verification',
+      'data4': 'when you choose to share, the official reference copy is registered through SIGILLUM and hosted on YouTube',
       'limit1':
           'SIGILLUM verifies technical provenance and integrity; it does not replace a legal expert report.',
       'limit2':
@@ -591,10 +591,10 @@ class SigillumCopy {
       'legalControls': 'Controles realizados',
       'legalData': 'Datos tratados',
       'legalLimits': 'Limites del servicio',
-      'data1': 'contenido creado o seleccionado por el usuario',
-      'data2': 'HCV-ID y huella criptografica del archivo',
-      'data3': 'metadatos tecnicos necesarios para la verificacion',
-      'data4': 'identidad tecnica del creador, si esta configurada',
+      'data1': 'las fotos, vídeos y HCVPACK certificados permanecen cifrados en el área privada de la app; los archivos en claro son temporales',
+      'data2': 'HCV-ID, hashes criptográficos y certificado firmado vinculan el original al Registry',
+      'data3': 'metadatos técnicos y señales de captura necesarios para la verificación',
+      'data4': 'cuando decides compartir, la copia de referencia oficial se registra mediante SIGILLUM y se aloja en YouTube',
       'limit1':
           'SIGILLUM verifica procedencia tecnica e integridad; no sustituye un informe pericial legal.',
       'limit2':
@@ -842,10 +842,10 @@ class SigillumCopy {
       'legalControls': 'Выполняемые проверки',
       'legalData': 'Обрабатываемые данные',
       'legalLimits': 'Ограничения сервиса',
-      'data1': 'контент, созданный или выбранный пользователем',
-      'data2': 'HCV-ID и криптографический отпечаток файла',
-      'data3': 'технические метаданные, необходимые для проверки',
-      'data4': 'техническая идентичность автора, если настроена',
+      'data1': 'сертифицированные фото, видео и HCVPACK остаются зашифрованными в закрытой области приложения; открытые файлы создаются временно',
+      'data2': 'HCV-ID, криптографические хеши и подписанный сертификат связывают оригинал с Registry',
+      'data3': 'технические метаданные и сигналы захвата, необходимые для проверки',
+      'data4': 'при выборе отправки официальная эталонная копия регистрируется через SIGILLUM и размещается на YouTube',
       'limit1':
           'SIGILLUM проверяет техническое происхождение и целостность; это не заменяет юридическую экспертизу.',
       'limit2':
