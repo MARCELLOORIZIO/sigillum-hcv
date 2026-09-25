@@ -9,11 +9,13 @@ import 'package:cryptography/cryptography.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hcv_identity.dart';
 import 'hcv_secure_store.dart';
 
 class HCVSecureOriginalRecord {
   const HCVSecureOriginalRecord({
     required this.hcvId,
+    required this.ownerCreatorId,
     required this.mediaType,
     required this.originalName,
     required this.mediaSha256,
@@ -31,6 +33,7 @@ class HCVSecureOriginalRecord {
   });
 
   final String hcvId;
+  final String ownerCreatorId;
   final String mediaType;
   final String originalName;
   final String mediaSha256;
@@ -54,6 +57,7 @@ class HCVSecureOriginalRecord {
 
   Map<String, dynamic> toJson() => {
         'hcvId': hcvId,
+        'ownerCreatorId': ownerCreatorId,
         'mediaType': mediaType,
         'originalName': originalName,
         'mediaSha256': mediaSha256,
@@ -74,6 +78,7 @@ class HCVSecureOriginalRecord {
   factory HCVSecureOriginalRecord.fromJson(Map<String, dynamic> json) {
     return HCVSecureOriginalRecord(
       hcvId: json['hcvId']?.toString() ?? '',
+      ownerCreatorId: json['ownerCreatorId']?.toString() ?? '',
       mediaType: json['mediaType']?.toString() ?? '',
       originalName: json['originalName']?.toString() ?? '',
       mediaSha256: json['mediaSha256']?.toString() ?? '',
@@ -115,6 +120,15 @@ class HCVSecureMediaVault {
   Future<File> _indexFile() async {
     final dir = await _vaultDirectory();
     return File(p.join(dir.path, 'index.json'));
+  }
+
+  Future<String> _currentCreatorId() async {
+    final identity = await HCVIdentity().loadIdentity();
+    final creatorId = identity['creatorId']?.toString().trim() ?? '';
+    if (creatorId.isEmpty) {
+      throw StateError('SECURE_VAULT_CREATOR_ID_UNAVAILABLE');
+    }
+    return creatorId;
   }
 
   Future<SecretKey> _masterKey() async {
@@ -362,6 +376,7 @@ class HCVSecureMediaVault {
       throw ArgumentError('SECURE_VAULT_INPUT_INVALID');
     }
 
+    final ownerCreatorId = await _currentCreatorId();
     final media = File(mediaPath);
     final pack = File(hcvpackPath);
     final certificate = File(certificatePath);
@@ -408,6 +423,7 @@ class HCVSecureMediaVault {
 
       final record = HCVSecureOriginalRecord(
         hcvId: cleanId,
+        ownerCreatorId: ownerCreatorId,
         mediaType: mediaType,
         originalName: p.basename(media.path),
         mediaSha256: mediaHash,
@@ -424,7 +440,8 @@ class HCVSecureMediaVault {
         final records = await _loadIndex();
         final existing = records.where((item) => item.hcvId == cleanId).toList();
         if (existing.isNotEmpty &&
-            (existing.first.mediaSha256 != mediaHash ||
+            (existing.first.ownerCreatorId != ownerCreatorId ||
+                existing.first.mediaSha256 != mediaHash ||
                 existing.first.hcvpackSha256 != packHash)) {
           throw StateError('SECURE_VAULT_HCV_CONFLICT');
         }
@@ -448,11 +465,13 @@ class HCVSecureMediaVault {
   }
 
   Future<List<HCVSecureOriginalRecord>> list() async {
+    final ownerCreatorId = await _currentCreatorId();
     return _withIndexLock(() async {
       final records = await _loadIndex();
       final available = <HCVSecureOriginalRecord>[];
       for (final item in records) {
-        if (await File(item.encryptedMediaPath).exists() &&
+        if (item.ownerCreatorId == ownerCreatorId &&
+            await File(item.encryptedMediaPath).exists() &&
             await File(item.encryptedHcvpackPath).exists()) {
           available.add(item);
         }
@@ -474,6 +493,9 @@ class HCVSecureMediaVault {
     HCVSecureOriginalRecord record, {
     String purpose = 'view',
   }) async {
+    if (record.ownerCreatorId != await _currentCreatorId()) {
+      throw StateError('SECURE_VAULT_CREATOR_MISMATCH');
+    }
     final tempRoot = await getTemporaryDirectory();
     final dir = Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
     if (!await dir.exists()) await dir.create(recursive: true);
@@ -498,6 +520,9 @@ class HCVSecureMediaVault {
     HCVSecureOriginalRecord record, {
     String purpose = 'export',
   }) async {
+    if (record.ownerCreatorId != await _currentCreatorId()) {
+      throw StateError('SECURE_VAULT_CREATOR_MISMATCH');
+    }
     final tempRoot = await getTemporaryDirectory();
     final dir = Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
     if (!await dir.exists()) await dir.create(recursive: true);
@@ -531,6 +556,7 @@ class HCVSecureMediaVault {
       final current = records[index];
       records[index] = HCVSecureOriginalRecord(
         hcvId: current.hcvId,
+        ownerCreatorId: current.ownerCreatorId,
         mediaType: current.mediaType,
         originalName: current.originalName,
         mediaSha256: current.mediaSha256,
