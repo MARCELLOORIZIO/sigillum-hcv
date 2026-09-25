@@ -116,8 +116,7 @@ void main() {
     final copy = File('lib/sigillum_localization.dart').readAsStringSync();
     final official =
         File('lib/verified_originals_page.dart').readAsStringSync();
-    final protected =
-        File('lib/secure_originals_page.dart').readAsStringSync();
+    final protected = File('lib/secure_originals_page.dart').readAsStringSync();
 
     expect(copy, contains('VERIFICA CONTENUTO'));
     expect(copy, contains('CERCA COPIA UFFICIALE'));
@@ -134,5 +133,4 @@ void main() {
     expect(copy, isNot(contains('VERIFICA CODICE / GUARDA ORIGINALE')));
     expect(copy, isNot(contains('GUARDA L’ORIGINALE CERTIFICATO')));
   });
-
 }
