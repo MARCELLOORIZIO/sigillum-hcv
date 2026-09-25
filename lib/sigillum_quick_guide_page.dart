@@ -199,8 +199,14 @@ const _guideCopies = <String, _GuideCopy>{
             'Quando scegli di condividere, SIGILLUM verifica l’originale e registra prima la copia di riferimento ufficiale. Solo dopo il buon esito viene aperto il menu Condividi di iPhone. Se il riferimento non viene registrato, il file non viene rilasciato al social.',
       ),
       _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '5. Sottotitoli derivati',
+        text:
+            'Su iPhone puoi creare una copia derivata con sottotitoli sincronizzati partendo temporaneamente dall’originale cifrato. L’originale certificato non viene modificato. La copia sottotitolata è un derivato e può essere salvata in Foto.',
+      ),
+      _GuideStep(
         icon: Icons.fact_check_outlined,
-        title: '5. Verifica successiva',
+        title: '6. Verifica successiva',
         text:
             'Puoi verificare un HCV-ID oppure selezionare un file dalla libreria. SIGILLUM controlla certificato e Registry e, quando disponibile, consente di consultare la copia di riferimento ufficiale secondo le condizioni di accesso previste.',
       ),
@@ -238,8 +244,14 @@ const _guideCopies = <String, _GuideCopy>{
             'When you choose to share, SIGILLUM verifies the original and first registers the official reference copy. The iPhone share sheet opens only after that succeeds. If the reference cannot be registered, the file is not released to the social platform.',
       ),
       _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '5. Derived captions',
+        text:
+            'On iPhone you can create a separate derived copy with synchronized captions from a temporary materialization of the encrypted original. The certified original is not modified. The captioned derivative may be saved to Photos.',
+      ),
+      _GuideStep(
         icon: Icons.fact_check_outlined,
-        title: '5. Verify later',
+        title: '6. Verify later',
         text:
             'You can verify an HCV-ID or select a file from your library. SIGILLUM checks the certificate and Registry and, when available, lets you view the official reference copy under the applicable access conditions.',
       ),
@@ -277,8 +289,14 @@ const _guideCopies = <String, _GuideCopy>{
             'Cuando eliges compartir, SIGILLUM verifica el original y registra primero la copia de referencia oficial. El menú Compartir del iPhone solo se abre después de que el registro termine correctamente. Si la referencia no se registra, el archivo no se entrega a la red social.',
       ),
       _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '5. Subtítulos derivados',
+        text:
+            'En iPhone puedes crear una copia derivada con subtítulos sincronizados a partir de una materialización temporal del original cifrado. El original certificado no se modifica. La copia subtitulada derivada puede guardarse en Fotos.',
+      ),
+      _GuideStep(
         icon: Icons.fact_check_outlined,
-        title: '5. Verificar después',
+        title: '6. Verificar después',
         text:
             'Puedes verificar un HCV-ID o seleccionar un archivo de tu biblioteca. SIGILLUM comprueba el certificado y el Registry y, cuando está disponible, permite consultar la copia de referencia oficial según las condiciones de acceso aplicables.',
       ),
@@ -316,8 +334,14 @@ const _guideCopies = <String, _GuideCopy>{
             'Когда вы выбираете отправку, SIGILLUM проверяет оригинал и сначала регистрирует официальную эталонную копию. Меню «Поделиться» iPhone открывается только после успешной регистрации. Если эталон не зарегистрирован, файл не передаётся социальной платформе.',
       ),
       _GuideStep(
+        icon: Icons.closed_caption_outlined,
+        title: '5. Производные субтитры',
+        text:
+            'На iPhone можно создать отдельную производную копию с синхронизированными субтитрами из временно расшифрованного оригинала. Сертифицированный оригинал не изменяется. Производную копию с субтитрами можно сохранить в Photos.',
+      ),
+      _GuideStep(
         icon: Icons.fact_check_outlined,
-        title: '5. Последующая проверка',
+        title: '6. Последующая проверка',
         text:
             'Можно проверить HCV-ID или выбрать файл из библиотеки. SIGILLUM проверяет сертификат и Registry и, если эталон доступен, позволяет открыть официальную эталонную копию в соответствии с условиями доступа.',
       ),
