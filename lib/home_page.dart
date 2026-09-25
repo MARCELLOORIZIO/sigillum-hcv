@@ -237,9 +237,11 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.video_library_outlined,
-                title: 'SIGILLUM Verified Originals',
-                subtitle: 'Verifica HCV-ID o guarda la copia autorizzata',
-                onPressed: () => _open(VerifiedOriginalsPage(languageCode: languageCode)),
+                title: SigillumCopy.t(languageCode, 'verifiedOriginalsTitle'),
+                subtitle: SigillumCopy.t(languageCode, 'verifiedOriginalsSubtitle'),
+                onPressed: () => _open(
+                  VerifiedOriginalsPage(languageCode: languageCode),
+                ),
               ),
               const SizedBox(height: 14),
               _mainButton(
