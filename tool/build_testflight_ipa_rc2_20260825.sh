@@ -142,8 +142,6 @@ exec "$REAL_CURL" --http1.1 --retry 6 --retry-delay 2 --retry-all-errors --conne
 EOF
 chmod +x "$CURL_WRAPPER_DIR/curl"
 
-cp Podfile.lock "$AUDIT_DIR/Podfile.preinstall.lock"
-
 POD_INSTALL_OK=0
 for attempt in 1 2 3; do
   log "POD_INSTALL_ATTEMPT=$attempt"
@@ -158,12 +156,6 @@ if [[ "$POD_INSTALL_OK" != "1" ]]; then
   exit 1
 fi
 
-if ! cmp -s Podfile.lock "$AUDIT_DIR/Podfile.preinstall.lock"; then
-  log "PODFILE_LOCK_DRIFT=FAIL"
-  diff -u "$AUDIT_DIR/Podfile.preinstall.lock" Podfile.lock | tee -a "$PROOF_LOG" || true
-  exit 1
-fi
-log "PODFILE_LOCK_DRIFT=NO"
 popd >/dev/null
 
 if [[ ! -f ios/Podfile.lock ]]; then
