@@ -190,6 +190,48 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
     }
   }
 
+  Future<void> _withdraw(HCVSecureOriginalRecord record) async {
+    if (_busyId != null || !record.hasReference) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_t('secureOriginalsWithdrawTitle')),
+        content: Text(_t('secureOriginalsWithdrawBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(_t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(_t('secureOriginalsWithdrawConfirm')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _busyId = record.hcvId;
+      _message = _t('secureOriginalsWithdrawing');
+    });
+
+    try {
+      await _publisher.withdrawReference(record);
+      if (!mounted) return;
+      setState(() => _message = _t('secureOriginalsWithdrawn'));
+      await _reload();
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _message = '${_t('secureOriginalsWithdrawError')}: $error',
+      );
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
   String _photoMime(String path) =>
       path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
@@ -257,6 +299,14 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                               icon: const Icon(Icons.ios_share),
                               label: Text(_t('secureOriginalsShare')),
                             ),
+                            if (record.hasReference)
+                              OutlinedButton.icon(
+                                onPressed: _busyId == null
+                                    ? () => _withdraw(record)
+                                    : null,
+                                icon: const Icon(Icons.link_off),
+                                label: Text(_t('secureOriginalsWithdraw')),
+                              ),
                           ],
                         ),
                         if (_busyId == record.hcvId) ...[
