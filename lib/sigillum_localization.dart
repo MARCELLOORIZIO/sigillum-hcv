@@ -265,6 +265,8 @@ class SigillumCopy {
       'secureOriginalsWithdrawn': 'Copia di riferimento ritirata.',
       'secureOriginalsWithdrawError':
           'Impossibile ritirare la copia di riferimento',
+      'secureOriginalsWithdrawPending':
+          'Ritiro registrato. L’eliminazione dal canale è ancora in attesa; puoi ritentare da questa schermata.',
       'secureOriginalsView': 'VISUALIZZA',
       'secureOriginalsShare': 'CONDIVIDI',
       'secureOriginalsViewerTitle': 'Originale SIGILLUM',
@@ -526,6 +528,8 @@ class SigillumCopy {
       'secureOriginalsWithdrawing': 'Withdrawing the reference copy...',
       'secureOriginalsWithdrawn': 'Reference copy withdrawn.',
       'secureOriginalsWithdrawError': 'Unable to withdraw the reference copy',
+      'secureOriginalsWithdrawPending':
+          'Withdrawal recorded. Removal from the channel is still pending; you can retry from this screen.',
       'secureOriginalsView': 'VIEW',
       'secureOriginalsShare': 'SHARE',
       'secureOriginalsViewerTitle': 'SIGILLUM original',
@@ -790,6 +794,8 @@ class SigillumCopy {
       'secureOriginalsWithdrawn': 'Copia de referencia retirada.',
       'secureOriginalsWithdrawError':
           'No se puede retirar la copia de referencia',
+      'secureOriginalsWithdrawPending':
+          'Retirada registrada. La eliminación del canal sigue pendiente; puedes volver a intentarlo desde esta pantalla.',
       'secureOriginalsView': 'VER',
       'secureOriginalsShare': 'COMPARTIR',
       'secureOriginalsViewerTitle': 'Original SIGILLUM',
@@ -1051,6 +1057,8 @@ class SigillumCopy {
       'secureOriginalsWithdrawing': 'Отзыв эталонной копии...',
       'secureOriginalsWithdrawn': 'Эталонная копия отозвана.',
       'secureOriginalsWithdrawError': 'Не удалось отозвать эталонную копию',
+      'secureOriginalsWithdrawPending':
+          'Отзыв зарегистрирован. Удаление с канала ещё ожидается; повторите попытку с этого экрана.',
       'secureOriginalsView': 'ПРОСМОТР',
       'secureOriginalsShare': 'ПОДЕЛИТЬСЯ',
       'secureOriginalsViewerTitle': 'Оригинал SIGILLUM',

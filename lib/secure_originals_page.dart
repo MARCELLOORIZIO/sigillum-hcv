@@ -224,8 +224,13 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
       await _reload();
     } catch (error) {
       if (!mounted) return;
+      final message = error.toString();
+      final pending = message.contains('REFERENCE_TAKEDOWN_PENDING') ||
+          message.contains('REFERENCE_TAKEDOWN_PARTIAL');
       setState(
-        () => _message = '${_t('secureOriginalsWithdrawError')}: $error',
+        () => _message = pending
+            ? _t('secureOriginalsWithdrawPending')
+            : '${_t('secureOriginalsWithdrawError')}: $error',
       );
     } finally {
       if (mounted) setState(() => _busyId = null);
