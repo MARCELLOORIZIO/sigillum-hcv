@@ -134,16 +134,8 @@ class HCVSecureMediaVault {
   }
 
   Future<String> _sha256File(File file) async {
-    final sink = AccumulatorSink<Digest>();
-    final converter = sha256.startChunkedConversion(sink);
-    await for (final chunk in file.openRead()) {
-      converter.add(chunk);
-    }
-    converter.close();
-    if (sink.events.length != 1) {
-      throw StateError('SECURE_VAULT_SHA256_FAILED');
-    }
-    return sink.events.single.toString();
+    final digest = await sha256.bind(file.openRead()).first;
+    return digest.toString();
   }
 
   Uint8List _nonce(List<int> baseNonce, int counter) {
