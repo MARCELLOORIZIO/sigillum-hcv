@@ -122,14 +122,27 @@ void main() {
     expect(page, contains('await _publisher.withdrawReference(record)'));
   });
 
-  test('account removal erases the local encrypted vault and its key', () {
+  test('account removal erases only the deleted Creator protected originals',
+      () {
     final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
     final profile = File('lib/commercial_profile_page.dart').readAsStringSync();
 
-    expect(vault, contains('Future<void> wipeLocalVault() async'));
+    expect(
+      vault,
+      contains('Future<void> wipeCreatorVault(String creatorId) async'),
+    );
+    expect(vault, contains('item.ownerCreatorId == owner'));
+    expect(vault, contains('if (becameEmpty)'));
     expect(vault, contains('await HCVSecureStore.delete(_masterKeyStoreKey)'));
-    expect(profile,
-        contains('await const HCVSecureMediaVault().wipeLocalVault()'));
+    expect(profile, contains('await HCVIdentity().loadIdentity()'));
+    expect(
+      profile,
+      contains('await const HCVSecureMediaVault().wipeCreatorVault(creatorId)'),
+    );
+    expect(
+      profile,
+      isNot(contains('await const HCVSecureMediaVault().wipeLocalVault()')),
+    );
   });
 
   test('new closed-chain user copy exists in all four languages', () {
