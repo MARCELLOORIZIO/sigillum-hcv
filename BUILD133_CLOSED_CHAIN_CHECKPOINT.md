@@ -43,8 +43,13 @@ I. Add regression/contract tests and run CI before promotion.
 - 2026-09-25: Verified Originals lookup now accepts HCV-ID or a selected file; selected files enter the existing verification router.
 - 2026-09-25: new closed-chain/Verified Originals UI copy added for IT/EN/ES/RU; public/LAB entry points updated.
 - 2026-09-25: replaced stale Verified Originals v2 contract tests with BUILD133 closed-chain invariants.
-- 2026-09-25: added `.github/workflows/build133-closed-chain-validation.yml`; validation pending.
-- Remaining before release: resolve all analyzer/test failures; legal/privacy/quick-guide update; account deletion/vault semantics; vault-aware caption workflow decision; final YouTube policy/live upload checks; no release/deploy yet.
+- 2026-09-25: added `.github/workflows/build133-closed-chain-validation.yml`; workflow now pins the iOS TFLite 2.17.0 runtime before the release guard.
+- 2026-09-25: full Flutter analyzer and test suite reached GREEN on run `36119100437`; only the release guard failed there because the validation workflow had not yet run the existing TFLite pin script. Workflow corrected; a new validation is running.
+- 2026-09-25: camera processing paths on iOS moved from Documents to private Application Support so canonical media is not exposed through iOS Files before vault sealing.
+- 2026-09-25: Terms/Privacy acceptance revision bumped to 2026-09-25. In-app legal copy and the four-language quick guide now describe encrypted originals and official YouTube reference publication.
+- 2026-09-25: encrypted originals are bound to the active Creator ID. Local vault/key wipe implemented and wired to Creator account removal from the profile flow.
+- 2026-09-25: reference withdrawal added to Protected Originals; backend takedown is called first, then local reference state is cleared. UI/copy supplied in IT/EN/ES/RU.
+- Remaining before release: obtain a fully GREEN BUILD133 validation after the latest commits; resolve vault-aware caption workflow; add final device-level regression around photo/video vault materialization + social share; complete live YouTube compliance/upload check; align deployed TERMS_VERSION/PRIVACY_VERSION with 2026-09-25 before production deploy. No release/deploy yet.
 
 ## Resume rule
 
