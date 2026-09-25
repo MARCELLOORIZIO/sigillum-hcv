@@ -655,7 +655,8 @@ class HCVSecureMediaVault {
     final removedIds = <String>[];
     final becameEmpty = await _withIndexLock(() async {
       final records = await _loadIndex();
-      final owned = records.where((item) => item.ownerCreatorId == owner).toList();
+      final owned =
+          records.where((item) => item.ownerCreatorId == owner).toList();
       if (owned.isEmpty) return false;
 
       for (final item in owned) {
