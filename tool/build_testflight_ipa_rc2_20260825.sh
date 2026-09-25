@@ -129,7 +129,10 @@ log "TFLITE_PODSPEC=$TFLITE_PODSPEC"
 # CocoaPods may update generated Pod state/Podfile.lock, but it must not mutate
 # committed application source.
 pushd ios >/dev/null
-pod install --repo-update
+# Podfile.lock pins the release graph. Avoid a forced CocoaPods specs refresh
+# during TestFlight builds because it adds an unnecessary external HTTP/2
+# dependency and can fail after source validation even when the app is valid.
+pod install
 popd >/dev/null
 
 if [[ ! -f ios/Podfile.lock ]]; then
