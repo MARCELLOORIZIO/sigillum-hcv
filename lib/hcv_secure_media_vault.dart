@@ -646,6 +646,65 @@ class HCVSecureMediaVault {
     } catch (_) {}
   }
 
+  Future<void> wipeCreatorVault(String creatorId) async {
+    final owner = creatorId.trim();
+    if (owner.isEmpty) {
+      throw ArgumentError('SECURE_VAULT_CREATOR_ID_UNAVAILABLE');
+    }
+
+    final removedIds = <String>[];
+    final becameEmpty = await _withIndexLock(() async {
+      final records = await _loadIndex();
+      final owned = records.where((item) => item.ownerCreatorId == owner).toList();
+      if (owned.isEmpty) return false;
+
+      for (final item in owned) {
+        removedIds.add(item.hcvId);
+        for (final path in [
+          item.encryptedMediaPath,
+          item.encryptedHcvpackPath,
+          item.certificatePath,
+        ]) {
+          try {
+            final file = File(path);
+            if (await file.exists()) await file.delete();
+          } catch (_) {}
+        }
+      }
+
+      records.removeWhere((item) => item.ownerCreatorId == owner);
+      if (records.isEmpty) {
+        final dir = await _vaultDirectory();
+        if (await dir.exists()) await dir.delete(recursive: true);
+        return true;
+      }
+
+      await _saveIndex(records);
+      return false;
+    });
+
+    if (becameEmpty) {
+      await HCVSecureStore.delete(_masterKeyStoreKey);
+    }
+
+    if (removedIds.isEmpty) return;
+    try {
+      final tempRoot = await getTemporaryDirectory();
+      final materialized =
+          Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+      if (!await materialized.exists()) return;
+      await for (final entity in materialized.list()) {
+        if (entity is! File) continue;
+        final name = p.basename(entity.path);
+        if (removedIds.any((hcvId) => name.startsWith(hcvId))) {
+          try {
+            await entity.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> wipeLocalVault() async {
     await _withIndexLock(() async {
       final dir = await _vaultDirectory();
