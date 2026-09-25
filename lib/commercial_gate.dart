@@ -375,8 +375,8 @@ const _landingVisualCopy = <String, Map<String, String>>{
         'Verifica l’autenticità dei contenuti digitali e condividi con fiducia.',
     'verifySeconds': 'Verifica in pochi secondi',
     'scanDescription':
-        'Scansiona un codice SIGILLUM o inserisci l’HCV-ID per controllare foto, video, documenti e messaggi.',
-    'verifyFree': 'VERIFICA CONTENUTO GRATIS',
+        'Controlla foto, video o file ricevuti confrontandoli con SIGILLUM.',
+    'verifyFree': 'VERIFICA CONTENUTO',
     'secureFast': 'Sicuro, veloce, senza registrazione',
     'loginTitle': 'Accedi al tuo account',
     'loginSubtitle': 'Entra e gestisci le tue verifiche',
@@ -399,7 +399,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'verifySeconds': 'Verify in seconds',
     'scanDescription':
         'Scan a SIGILLUM code or enter the HCV-ID to check photos, videos, documents and messages.',
-    'verifyFree': 'VERIFY CONTENT FOR FREE',
+    'verifyFree': 'VERIFY CONTENT',
     'secureFast': 'Secure, fast, no registration required',
     'loginTitle': 'Sign in to your account',
     'loginSubtitle': 'Access and manage your verifications',
@@ -422,7 +422,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'verifySeconds': 'Verifica en pocos segundos',
     'scanDescription':
         'Escanea un código SIGILLUM o introduce el HCV-ID para comprobar fotos, vídeos, documentos y mensajes.',
-    'verifyFree': 'VERIFICAR CONTENIDO GRATIS',
+    'verifyFree': 'VERIFICAR CONTENIDO',
     'secureFast': 'Seguro, rápido y sin registro',
     'loginTitle': 'Accede a tu cuenta',
     'loginSubtitle': 'Entra y gestiona tus verificaciones',
@@ -446,7 +446,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'verifySeconds': 'Проверка за несколько секунд',
     'scanDescription':
         'Отсканируйте код SIGILLUM или введите HCV-ID, чтобы проверить фото, видео, документы и сообщения.',
-    'verifyFree': 'ПРОВЕРИТЬ КОНТЕНТ БЕСПЛАТНО',
+    'verifyFree': 'ПРОВЕРИТЬ КОНТЕНТ'
     'secureFast': 'Безопасно, быстро, без регистрации',
     'loginTitle': 'Войти в аккаунт',
     'loginSubtitle': 'Войдите и управляйте своими проверками',
