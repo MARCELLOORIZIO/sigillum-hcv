@@ -35,6 +35,8 @@ import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
 import 'video_transcription_service.dart';
 import 'sigillum_quick_guide_page.dart';
+import 'hcv_secure_media_vault.dart';
+import 'secure_originals_page.dart';
 
 int _displayDecisionRank(String decision) {
   switch (decision) {
@@ -318,6 +320,7 @@ class _CameraPageState extends State<CameraPage> {
 
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
+  final HCVSecureMediaVault _secureVault = const HCVSecureMediaVault();
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
@@ -359,6 +362,7 @@ class _CameraPageState extends State<CameraPage> {
   String? _videoTranscript;
   String? _subtitlePath;
   String? _captionedVideoPath;
+  HCVSecureOriginalRecord? _secureOriginalRecord;
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _c(String key) => CameraUiExtendedCopy.t(widget.languageCode, key);
@@ -880,6 +884,7 @@ class _CameraPageState extends State<CameraPage> {
       hcvId = null;
       verificationUrl = null;
       registryStatus = null;
+      _secureOriginalRecord = null;
     });
 
     try {
@@ -1105,6 +1110,13 @@ class _CameraPageState extends State<CameraPage> {
       setState(() {
         status = _c('takingPhoto');
         result = null;
+        videoPath = null;
+        hcvPath = null;
+        packagePath = null;
+        hcvId = null;
+        verificationUrl = null;
+        registryStatus = null;
+        _secureOriginalRecord = null;
       });
 
       temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
@@ -1399,9 +1411,27 @@ class _CameraPageState extends State<CameraPage> {
 
         recording = false;
       });
-      if (ok) {
-        await saveContentToGallery(publishedPhoto);
+      if (ok && pack != null) {
         await uploadCertificateToRegistry();
+        final secured = await _secureVault.seal(
+          hcvId: preparedHcvId,
+          mediaType: 'photo',
+          mediaPath: publishedPhoto,
+          hcvpackPath: pack,
+          certificatePath: hcv,
+          expectedMediaSha256: hash,
+        );
+        if (mounted) {
+          setState(() {
+            _secureOriginalRecord = secured;
+            videoPath = null;
+            packagePath = null;
+            status = _t('secureOriginalStored');
+            registryStatus = registryStatus == null
+                ? _t('secureOriginalStored')
+                : '$registryStatus\n${_t('secureOriginalStored')}';
+          });
+        }
       }
     } catch (e) {
       if (temporalClip != null) {
@@ -1838,9 +1868,27 @@ class _CameraPageState extends State<CameraPage> {
       status = _c('done');
     });
 
-    if (ok) {
-      await saveContentToGallery(savedVideoPath);
+    if (ok && pack != null) {
       await uploadCertificateToRegistry();
+      final secured = await _secureVault.seal(
+        hcvId: detectedId,
+        mediaType: 'video',
+        mediaPath: savedVideoPath,
+        hcvpackPath: pack,
+        certificatePath: hcv,
+        expectedMediaSha256: videoHash,
+      );
+      if (mounted) {
+        setState(() {
+          _secureOriginalRecord = secured;
+          videoPath = null;
+          packagePath = null;
+          status = _t('secureOriginalStored');
+          registryStatus = registryStatus == null
+              ? _t('secureOriginalStored')
+              : '$registryStatus\n${_t('secureOriginalStored')}';
+        });
+      }
     }
   }
 
@@ -1904,6 +1952,17 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> shareVideoAndCertificate() async {
+    if (_secureOriginalRecord != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SecureOriginalsPage(
+            languageCode: widget.languageCode,
+          ),
+        ),
+      );
+      return;
+    }
     if (videoPath == null || hcvPath == null) {
       setState(() => status = _c('noFileToShare'));
       return;
@@ -2220,7 +2279,8 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Widget _createdFilesCard() {
-    if (videoPath == null &&
+    if (_secureOriginalRecord == null &&
+        videoPath == null &&
         hcvPath == null &&
         packagePath == null &&
         _captionedVideoPath == null &&
@@ -2272,6 +2332,12 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const Divider(height: 24),
+          if (_secureOriginalRecord != null)
+            Text(
+              _t('secureOriginalStored'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
           if (videoPath != null)
             Text(
               '${_c('certifiedOriginal')}: ${fileName(videoPath)}',
@@ -2320,13 +2386,16 @@ class _CameraPageState extends State<CameraPage> {
   Widget _actionButtons() {
     return Column(
       children: [
-        if (videoPath != null && hcvPath != null) ...[
+        if (_secureOriginalRecord != null ||
+            (videoPath != null && hcvPath != null)) ...[
           SizedBox(
             width: 300,
             child: ElevatedButton.icon(
               onPressed: shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label: Text(_t('shareContent')),
+              label: Text(_secureOriginalRecord != null
+                  ? _t('secureOriginalsOpen')
+                  : _t('shareContent')),
             ),
           ),
           const SizedBox(height: 10),
