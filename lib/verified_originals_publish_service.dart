@@ -66,6 +66,7 @@ class VerifiedOriginalsPublishService {
         request.headers.contentType = ContentType.json;
         request.write(jsonEncode(body));
       }
+
       final response = await request.close().timeout(timeout);
       final raw = await utf8.decoder.bind(response).join().timeout(timeout);
       final decoded =
@@ -75,7 +76,8 @@ class VerifiedOriginalsPublishService {
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw StateError(
-            decoded['error']?.toString() ?? 'HTTP_${response.statusCode}');
+          decoded['error']?.toString() ?? 'HTTP_${response.statusCode}',
+        );
       }
       return decoded;
     } finally {
@@ -96,6 +98,7 @@ class VerifiedOriginalsPublishService {
       '/api/verified-originals/consents/${record.hcvId}',
       authenticated: true,
     );
+
     if (status['consentState'] == 'ACTIVE') {
       final existing = status['recordId']?.toString() ?? '';
       if (existing.isNotEmpty) return existing;
@@ -113,9 +116,45 @@ class VerifiedOriginalsPublishService {
         'monetizationConsent': monetizationConsent,
       },
     );
+
     final id = created['recordId']?.toString() ?? '';
     if (id.isEmpty) throw StateError('CONSENT_RECORD_MISSING');
     return id;
+  }
+
+  Future<VerifiedOriginalPublishResult> _existingReference(
+    HCVSecureOriginalRecord record,
+  ) async {
+    final reference = await _json(
+      'GET',
+      '/api/verified-originals/${record.hcvId}/view',
+      authenticated: true,
+    );
+
+    final publicationId = reference['publicationId']?.toString() ?? '';
+    final publicUrl = reference['publicUrl']?.toString() ?? '';
+    final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
+
+    if (publicationId.isEmpty ||
+        publicUrl.isEmpty ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
+      throw StateError('REFERENCE_EXISTING_RECORD_INVALID');
+    }
+
+    await vault.markReference(
+      hcvId: record.hcvId,
+      publicationId: publicationId,
+      referenceUrl: publicUrl,
+      referenceSha256: referenceSha256,
+    );
+
+    return VerifiedOriginalPublishResult(
+      hcvId: record.hcvId,
+      alreadyAvailable: true,
+      publicationId: publicationId,
+      publicUrl: publicUrl,
+      referenceSha256: referenceSha256,
+    );
   }
 
   Future<VerifiedOriginalPublishResult> ensureReference(
@@ -124,29 +163,24 @@ class VerifiedOriginalsPublishService {
   }) async {
     final availability = await publicAvailability(record.hcvId);
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
-      final reference = await _json(
-        'GET',
-        '/api/verified-originals/${record.hcvId}/view',
-        authenticated: true,
-      );
-      final publicationId = reference['publicationId']?.toString() ?? '';
-      final publicUrl = reference['publicUrl']?.toString() ?? '';
-      final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
-      if (publicationId.isEmpty ||
-          publicUrl.isEmpty ||
-          !RegExp(r'^[a-f0-9]{64}
+      return _existingReference(record);
+    }
+
     final consentId = await _ensureConsent(
       record,
       monetizationConsent: monetizationConsent,
     );
+
     final materialized = await vault.materializeOriginal(
       record,
       purpose: 'reference',
     );
+
     try {
       if (await materialized.length() != record.mediaSize) {
         throw StateError('MATERIALIZED_ORIGINAL_SIZE_MISMATCH');
       }
+
       final token = await _sessionToken();
       final uri = Uri.parse(
         '$_base/api/verified-originals/publish/${record.hcvId}',
@@ -190,114 +224,7 @@ class VerifiedOriginalsPublishService {
         final publicationId = decoded['publicationId']?.toString() ?? '';
         final publicUrl = decoded['publicUrl']?.toString() ?? '';
         final referenceSha256 = decoded['referenceSha256']?.toString() ?? '';
-        if (publicationId.isEmpty ||
-            publicUrl.isEmpty ||
-            !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
-          throw StateError('REFERENCE_PUBLICATION_RESPONSE_INVALID');
-        }
 
-        await vault.markReference(
-          hcvId: record.hcvId,
-          publicationId: publicationId,
-          referenceUrl: publicUrl,
-          referenceSha256: referenceSha256,
-        );
-
-        return VerifiedOriginalPublishResult(
-          hcvId: record.hcvId,
-          alreadyAvailable: false,
-          publicationId: publicationId,
-          publicUrl: publicUrl,
-          referenceSha256: referenceSha256,
-        );
-      } finally {
-        client.close(force: true);
-      }
-    } finally {
-      await vault.deleteMaterialized(materialized);
-    }
-  }
-
-  String _mime(HCVSecureOriginalRecord record) {
-    if (record.mediaType == 'video') return 'video/mp4';
-    final lower = record.originalName.toLowerCase();
-    if (lower.endsWith('.png')) return 'image/png';
-    return 'image/jpeg';
-  }
-}
-).hasMatch(referenceSha256)) {
-        throw StateError('REFERENCE_EXISTING_RECORD_INVALID');
-      }
-      await vault.markReference(
-        hcvId: record.hcvId,
-        publicationId: publicationId,
-        referenceUrl: publicUrl,
-        referenceSha256: referenceSha256,
-      );
-      return VerifiedOriginalPublishResult(
-        hcvId: record.hcvId,
-        alreadyAvailable: true,
-        publicationId: publicationId,
-        publicUrl: publicUrl,
-        referenceSha256: referenceSha256,
-      );
-    }
-
-    final consentId = await _ensureConsent(
-      record,
-      monetizationConsent: monetizationConsent,
-    );
-    final materialized = await vault.materializeOriginal(
-      record,
-      purpose: 'reference',
-    );
-    try {
-      if (await materialized.length() != record.mediaSize) {
-        throw StateError('MATERIALIZED_ORIGINAL_SIZE_MISMATCH');
-      }
-      final token = await _sessionToken();
-      final uri = Uri.parse(
-        '$_base/api/verified-originals/publish/${record.hcvId}',
-      ).replace(
-        queryParameters: {
-          'consentRecordId': consentId,
-          'monetizationEnabled': monetizationConsent.toString(),
-          'hcvpackSha256': record.hcvpackSha256,
-        },
-      );
-
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 20);
-      try {
-        final request =
-            await client.postUrl(uri).timeout(const Duration(seconds: 20));
-        request.headers.set(
-          HttpHeaders.authorizationHeader,
-          'Bearer $token',
-        );
-        request.headers.set(HttpHeaders.contentTypeHeader, _mime(record));
-        request.contentLength = record.mediaSize;
-        await request.addStream(materialized.openRead());
-
-        final response =
-            await request.close().timeout(const Duration(minutes: 15));
-        final raw = await utf8.decoder
-            .bind(response)
-            .join()
-            .timeout(const Duration(minutes: 2));
-        final decoded = jsonDecode(raw);
-        if (decoded is! Map<String, dynamic>) {
-          throw StateError('REGISTRY_RESPONSE_INVALID');
-        }
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw StateError(
-            decoded['error']?.toString() ?? 'HTTP_${response.statusCode}',
-          );
-        }
-
-        final publicationId = decoded['publicationId']?.toString() ?? '';
-        final publicUrl = decoded['publicUrl']?.toString() ?? '';
-        final referenceSha256 = decoded['referenceSha256']?.toString() ?? '';
         if (publicationId.isEmpty ||
             publicUrl.isEmpty ||
             !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
