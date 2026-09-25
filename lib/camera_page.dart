@@ -2314,7 +2314,9 @@ class _CameraPageState extends State<CameraPage> {
           const Icon(Icons.folder_outlined, color: Color(0xFF0098A1), size: 34),
           const SizedBox(height: 8),
           Text(
-            _c('filesWhere'),
+            _secureOriginalRecord != null
+                ? _t('secureOriginalStored')
+                : _c('filesWhere'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF280D5F),
@@ -2323,18 +2325,21 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            _c('filesPath'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF280D5F),
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+          if (_secureOriginalRecord == null)
+            Text(
+              _c('filesPath'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF280D5F),
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+              ),
             ),
-          ),
           const SizedBox(height: 6),
           Text(
-            _c('filesExplanation'),
+            _secureOriginalRecord != null
+                ? _t('secureOriginalStorageDetail')
+                : _c('filesExplanation'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF7A6EAA),
@@ -2343,12 +2348,6 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const Divider(height: 24),
-          if (_secureOriginalRecord != null)
-            Text(
-              _t('secureOriginalStored'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
           if (videoPath != null)
             Text(
               '${_c('certifiedOriginal')}: ${fileName(videoPath)}',
