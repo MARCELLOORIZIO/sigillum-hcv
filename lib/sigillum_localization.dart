@@ -291,14 +291,14 @@ class SigillumCopy {
           'La presenza del codice non dimostra che il file social sia integro: un HCV-ID può essere copiato.',
       'voVerifyCodeCertificate': 'VERIFICA CODICE E CERTIFICATO',
       'voAvailable':
-          'Originale certificato disponibile. La visualizzazione richiede un abbonamento SIGILLUM attivo.',
+          'Originale certificato disponibile. L’accesso al riferimento tramite SIGILLUM richiede un abbonamento attivo.',
       'voWatch': 'GUARDA L’ORIGINALE CERTIFICATO',
       'voLinkGated':
-          'SIGILLUM non rende pubblico il link durante la verifica gratuita. Il riferimento viene richiesto solo dopo il controllo dell’abbonamento.',
+          'SIGILLUM non rende pubblico il link durante la verifica gratuita. L’abbonamento controlla l’accesso al riferimento tramite SIGILLUM; un link YouTube non in elenco già ottenuto può essere condiviso fuori dall’app.',
       'voNotAvailable':
           'Nessun originale certificato attivo disponibile. Il certificato può comunque essere verificato gratuitamente.',
       'voSubscriptionRequired':
-          'La verifica resta gratuita. Per vedere l’originale certificato serve un abbonamento SIGILLUM attivo.',
+          'La verifica resta gratuita. Per accedere al riferimento tramite SIGILLUM serve un abbonamento attivo.',
       'voAuthRequired':
           'Accedi con un account SIGILLUM abbonato per vedere l’originale.',
       'voOpenError': 'Impossibile aprire il contenuto certificato.',
@@ -552,14 +552,14 @@ class SigillumCopy {
           'The presence of a code does not prove that a social file is intact: an HCV-ID can be copied.',
       'voVerifyCodeCertificate': 'CHECK CODE AND CERTIFICATE',
       'voAvailable':
-          'Certified original available. Viewing requires an active SIGILLUM subscription.',
+          'Certified original available. Accessing the reference through SIGILLUM requires an active subscription.',
       'voWatch': 'WATCH THE CERTIFIED ORIGINAL',
       'voLinkGated':
-          'SIGILLUM does not expose the link during free verification. The reference is requested only after the subscription check.',
+          'SIGILLUM does not expose the link during free verification. The subscription controls access to the reference through SIGILLUM; an unlisted YouTube link already obtained can be shared outside the app.',
       'voNotAvailable':
           'No active certified original is available. The certificate can still be checked for free.',
       'voSubscriptionRequired':
-          'Verification remains free. Viewing the certified original requires an active SIGILLUM subscription.',
+          'Verification remains free. Accessing the reference through SIGILLUM requires an active subscription.',
       'voAuthRequired':
           'Sign in with a subscribed SIGILLUM account to view the original.',
       'voOpenError': 'Unable to open the certified reference.',
@@ -816,14 +816,14 @@ class SigillumCopy {
           'La presencia del código no demuestra que un archivo de una red social esté íntegro: un HCV-ID puede copiarse.',
       'voVerifyCodeCertificate': 'VERIFICAR CÓDIGO Y CERTIFICADO',
       'voAvailable':
-          'Original certificado disponible. La visualización requiere una suscripción SIGILLUM activa.',
+          'Original certificado disponible. El acceso a la referencia mediante SIGILLUM requiere una suscripción activa.',
       'voWatch': 'VER EL ORIGINAL CERTIFICADO',
       'voLinkGated':
-          'SIGILLUM no expone el enlace durante la verificación gratuita. La referencia se solicita solo después de comprobar la suscripción.',
+          'SIGILLUM no expone el enlace durante la verificación gratuita. La suscripción controla el acceso a la referencia mediante SIGILLUM; un enlace de YouTube no listado ya obtenido puede compartirse fuera de la app.',
       'voNotAvailable':
           'No hay ningún original certificado activo disponible. El certificado puede seguir verificándose gratuitamente.',
       'voSubscriptionRequired':
-          'La verificación sigue siendo gratuita. Para ver el original certificado se necesita una suscripción SIGILLUM activa.',
+          'La verificación sigue siendo gratuita. Para acceder a la referencia mediante SIGILLUM se necesita una suscripción activa.',
       'voAuthRequired':
           'Inicia sesión con una cuenta SIGILLUM suscrita para ver el original.',
       'voOpenError': 'No se puede abrir la referencia certificada.',
@@ -1077,14 +1077,14 @@ class SigillumCopy {
           'Наличие кода не доказывает целостность файла из социальной сети: HCV-ID можно скопировать.',
       'voVerifyCodeCertificate': 'ПРОВЕРИТЬ КОД И СЕРТИФИКАТ',
       'voAvailable':
-          'Сертифицированный оригинал доступен. Для просмотра требуется активная подписка SIGILLUM.',
+          'Сертифицированный оригинал доступен. Для доступа к эталону через SIGILLUM требуется активная подписка.',
       'voWatch': 'ПОСМОТРЕТЬ СЕРТИФИЦИРОВАННЫЙ ОРИГИНАЛ',
       'voLinkGated':
-          'SIGILLUM не раскрывает ссылку при бесплатной проверке. Эталон запрашивается только после проверки подписки.',
+          'SIGILLUM не раскрывает ссылку при бесплатной проверке. Подписка управляет доступом к эталону через SIGILLUM; уже полученной ссылкой YouTube в режиме unlisted можно поделиться вне приложения.',
       'voNotAvailable':
           'Активный сертифицированный оригинал отсутствует. Сертификат всё равно можно проверить бесплатно.',
       'voSubscriptionRequired':
-          'Проверка остаётся бесплатной. Для просмотра сертифицированного оригинала нужна активная подписка SIGILLUM.',
+          'Проверка остаётся бесплатной. Для доступа к эталону через SIGILLUM требуется активная подписка.',
       'voAuthRequired':
           'Войдите в аккаунт SIGILLUM с активной подпиской, чтобы посмотреть оригинал.',
       'voOpenError': 'Не удалось открыть сертифицированный эталон.',
