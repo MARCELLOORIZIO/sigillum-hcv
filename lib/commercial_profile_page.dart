@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'commercial_account_service.dart';
 import 'hcv_auth_service.dart';
+import 'hcv_identity.dart';
 import 'hcv_secure_media_vault.dart';
 import 'legal_info_page.dart';
 import 'sigillum_localization.dart';
@@ -497,9 +498,13 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     );
     password.dispose();
     if (value == null || value.isEmpty) return;
+    final identity = await HCVIdentity().loadIdentity();
+    final creatorId = identity['creatorId']?.toString().trim() ?? '';
     await _run(() async {
       await _auth.deleteAccount(password: value);
-      await const HCVSecureMediaVault().wipeLocalVault();
+      if (creatorId.isNotEmpty) {
+        await const HCVSecureMediaVault().wipeCreatorVault(creatorId);
+      }
       if (!mounted) return;
       TextInput.finishAutofillContext(shouldSave: false);
       widget.onSessionInvalidated();
