@@ -51,7 +51,10 @@ I. Add regression/contract tests and run CI before promotion.
 - 2026-09-25: reference withdrawal added to Protected Originals; backend takedown is called first, then local reference state is cleared. UI/copy supplied in IT/EN/ES/RU.
 - 2026-09-25: vault-aware caption workflow restored. Certified video is materialized only temporarily from the encrypted vault for transcription/subtitle burn-in; the temporary original is deleted afterward. The captioned output remains an explicit derivative and may be saved to Photos.
 - 2026-09-25: reference withdrawal UI/service added; successful server takedown clears local reference state without deleting HCV verification.
-- Remaining before release: obtain a fully GREEN BUILD133 validation after the latest commits; add final device-level regression around photo/video vault materialization + social share; complete live YouTube compliance/upload check; align deployed TERMS_VERSION/PRIVACY_VERSION with 2026-09-25 before production deploy. No release/deploy yet.
+- 2026-09-25: vault hardening completed. Any decrypt/MAC/binding/hash failure deletes partial cleartext; sealing is idempotent and conflict-safe and no longer risks erasing an already-valid vault record.
+- 2026-09-25: account-deletion cleanup is Creator-scoped. Records are bound to `ownerCreatorId`; deleting one Creator removes only that Creator’s encrypted media/HCVPACK/certificate files and deletes the shared vault key only when no vault records remain.
+- 2026-09-25: BUILD133 validation run `36121390997` GREEN at commit `34cbb100e1192cb5e980cfb639e6eb9b653a8581`: Flutter setup/dependencies, formatting, analyzer, complete Flutter test suite and release architecture guard all passed.
+- Remaining before release: controlled device-level regression on iPhone for photo/video vault materialization + reference-first social share/withdrawal; live YouTube compliance/upload test; align deployed TERMS_VERSION/PRIVACY_VERSION with 2026-09-25 before production deploy. No release/deploy yet.
 
 ## Resume rule
 
