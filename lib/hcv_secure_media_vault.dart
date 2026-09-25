@@ -438,7 +438,8 @@ class HCVSecureMediaVault {
 
       await _withIndexLock(() async {
         final records = await _loadIndex();
-        final existing = records.where((item) => item.hcvId == cleanId).toList();
+        final existing =
+            records.where((item) => item.hcvId == cleanId).toList();
         if (existing.isNotEmpty &&
             (existing.first.ownerCreatorId != ownerCreatorId ||
                 existing.first.mediaSha256 != mediaHash ||
@@ -497,7 +498,8 @@ class HCVSecureMediaVault {
       throw StateError('SECURE_VAULT_CREATOR_MISMATCH');
     }
     final tempRoot = await getTemporaryDirectory();
-    final dir = Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+    final dir =
+        Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
     if (!await dir.exists()) await dir.create(recursive: true);
     final extension = p.extension(record.originalName).isEmpty
         ? (record.mediaType == 'video' ? '.mp4' : '.jpg')
@@ -524,7 +526,8 @@ class HCVSecureMediaVault {
       throw StateError('SECURE_VAULT_CREATOR_MISMATCH');
     }
     final tempRoot = await getTemporaryDirectory();
-    final dir = Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+    final dir =
+        Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
     if (!await dir.exists()) await dir.create(recursive: true);
     final target = File(
       p.join(

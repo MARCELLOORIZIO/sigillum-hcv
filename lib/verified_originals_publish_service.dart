@@ -68,12 +68,14 @@ class VerifiedOriginalsPublishService {
       }
       final response = await request.close().timeout(timeout);
       final raw = await utf8.decoder.bind(response).join().timeout(timeout);
-      final decoded = raw.trim().isEmpty ? <String, dynamic>{} : jsonDecode(raw);
+      final decoded =
+          raw.trim().isEmpty ? <String, dynamic>{} : jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) {
         throw StateError('REGISTRY_RESPONSE_INVALID');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw StateError(decoded['error']?.toString() ?? 'HTTP_${response.statusCode}');
+        throw StateError(
+            decoded['error']?.toString() ?? 'HTTP_${response.statusCode}');
       }
       return decoded;
     } finally {
@@ -154,9 +156,8 @@ class VerifiedOriginalsPublishService {
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 20);
       try {
-        final request = await client
-            .postUrl(uri)
-            .timeout(const Duration(seconds: 20));
+        final request =
+            await client.postUrl(uri).timeout(const Duration(seconds: 20));
         request.headers.set(
           HttpHeaders.authorizationHeader,
           'Bearer $token',

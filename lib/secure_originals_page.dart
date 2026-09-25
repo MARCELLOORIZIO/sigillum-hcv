@@ -165,8 +165,9 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
         [
           XFile(
             clear.path,
-            mimeType:
-                refreshed.mediaType == 'video' ? 'video/mp4' : _photoMime(clear.path),
+            mimeType: refreshed.mediaType == 'video'
+                ? 'video/mp4'
+                : _photoMime(clear.path),
           ),
         ],
         text:
@@ -245,16 +246,14 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                           runSpacing: 8,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: _busyId == null
-                                  ? () => _view(record)
-                                  : null,
+                              onPressed:
+                                  _busyId == null ? () => _view(record) : null,
                               icon: const Icon(Icons.play_circle_outline),
                               label: Text(_t('secureOriginalsView')),
                             ),
                             FilledButton.icon(
-                              onPressed: _busyId == null
-                                  ? () => _share(record)
-                                  : null,
+                              onPressed:
+                                  _busyId == null ? () => _share(record) : null,
                               icon: const Icon(Icons.ios_share),
                               label: Text(_t('secureOriginalsShare')),
                             ),

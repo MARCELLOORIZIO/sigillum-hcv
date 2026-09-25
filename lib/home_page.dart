@@ -186,7 +186,8 @@ class _HomePageState extends State<HomePage> {
             ],
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Center(child: Text(SigillumCopy.language(languageCode).shortName)),
+              child: Center(
+                  child: Text(SigillumCopy.language(languageCode).shortName)),
             ),
           ),
         ],
@@ -232,13 +233,15 @@ class _HomePageState extends State<HomePage> {
                 icon: Icons.cloud_done,
                 title: _l('verifyVideo'),
                 subtitle: _l('verifyVideoSub'),
-                onPressed: () => _open(RegistryVerifyPage(languageCode: languageCode)),
+                onPressed: () =>
+                    _open(RegistryVerifyPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.video_library_outlined,
                 title: SigillumCopy.t(languageCode, 'verifiedOriginalsTitle'),
-                subtitle: SigillumCopy.t(languageCode, 'verifiedOriginalsSubtitle'),
+                subtitle:
+                    SigillumCopy.t(languageCode, 'verifiedOriginalsSubtitle'),
                 onPressed: () => _open(
                   VerifiedOriginalsPage(languageCode: languageCode),
                 ),
@@ -255,35 +258,40 @@ class _HomePageState extends State<HomePage> {
                 icon: Icons.play_circle_fill,
                 title: _l('openPack'),
                 subtitle: _l('openPackSub'),
-                onPressed: () => _open(HCVPackPlayerPage(languageCode: languageCode)),
+                onPressed: () =>
+                    _open(HCVPackPlayerPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.text_fields,
                 title: _l('certText'),
                 subtitle: _l('certTextSub'),
-                onPressed: () => _open(TextCertPage(languageCode: languageCode)),
+                onPressed: () =>
+                    _open(TextCertPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.badge,
                 title: _l('identity'),
                 subtitle: _l('identitySub'),
-                onPressed: () => _open(IdentityPage(languageCode: languageCode)),
+                onPressed: () =>
+                    _open(IdentityPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.analytics,
                 title: _l('diagnostics'),
                 subtitle: _l('diagnosticsSub'),
-                onPressed: () => _open(ScreenReplayDiagnosticsPage(languageCode: languageCode)),
+                onPressed: () => _open(
+                    ScreenReplayDiagnosticsPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(
                 icon: Icons.model_training,
                 title: _l('training'),
                 subtitle: _l('trainingSub'),
-                onPressed: () => _open(ScreenReplayCalibrationPage(languageCode: languageCode)),
+                onPressed: () => _open(
+                    ScreenReplayCalibrationPage(languageCode: languageCode)),
               ),
               const SizedBox(height: 14),
               _mainButton(

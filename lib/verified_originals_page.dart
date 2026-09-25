@@ -235,7 +235,8 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
       if (path == null || path.isEmpty || !mounted) return;
 
       final filename = path.split(Platform.pathSeparator).last.toUpperCase();
-      final fromName = RegExp(r'HCV-[A-F0-9]{16}').firstMatch(filename)?.group(0);
+      final fromName =
+          RegExp(r'HCV-[A-F0-9]{16}').firstMatch(filename)?.group(0);
       if (fromName != null) {
         _controller.text = fromName;
         await _lookup();

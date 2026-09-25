@@ -244,8 +244,8 @@ class _UserHomePageState extends State<UserHomePage>
                       title: _t('verifiedOriginalsTitle'),
                       subtitle: _t('verifiedOriginalsSubtitle'),
                       accent: SigillumTheme.verified,
-                      onPressed: () =>
-                          _open(VerifiedOriginalsPage(languageCode: languageCode)),
+                      onPressed: () => _open(
+                          VerifiedOriginalsPage(languageCode: languageCode)),
                     ),
                     const SizedBox(height: 12),
                     _PrimaryAction(

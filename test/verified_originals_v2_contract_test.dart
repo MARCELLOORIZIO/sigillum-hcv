@@ -23,7 +23,8 @@ void main() {
     );
   });
 
-  test('secure vault uses authenticated AES-256-GCM and Keychain-backed secret', () {
+  test('secure vault uses authenticated AES-256-GCM and Keychain-backed secret',
+      () {
     final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
 
     expect(vault, contains('AesGcm.with256bits()'));
@@ -44,7 +45,8 @@ void main() {
     final referenceIndex = page.indexOf('await _publisher.ensureReference(');
     final socialMaterializeIndex =
         page.indexOf("purpose: 'social'", referenceIndex);
-    final shareIndex = page.indexOf('Share.shareXFiles(', socialMaterializeIndex);
+    final shareIndex =
+        page.indexOf('Share.shareXFiles(', socialMaterializeIndex);
 
     expect(referenceIndex, greaterThanOrEqualTo(0));
     expect(socialMaterializeIndex, greaterThan(referenceIndex));
@@ -62,7 +64,8 @@ void main() {
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
 
     for (final source in [page, publisher]) {
-      expect(source, isNot(contains("displayRiskDecision == 'NO_DISPLAY_EVIDENCE'")));
+      expect(source,
+          isNot(contains("displayRiskDecision == 'NO_DISPLAY_EVIDENCE'")));
       expect(source, isNot(contains('STRONG_DISPLAY_RISK')));
       expect(source, isNot(contains('NON_CONCLUSIVE')));
     }
@@ -77,7 +80,8 @@ void main() {
     expect(source, contains("_t('voFindId')"));
   });
 
-  test('legacy per-file publication page is no longer linked from Creator home', () {
+  test('legacy per-file publication page is no longer linked from Creator home',
+      () {
     final home = File('lib/user_home_page.dart').readAsStringSync();
 
     expect(home, contains('SecureOriginalsPage(languageCode: languageCode)'));
