@@ -89,6 +89,22 @@ void main() {
     expect(home, isNot(contains('verified_originals_consent_page.dart')));
   });
 
+  test('published reference can be withdrawn without deleting HCV verification', () {
+    final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
+    final publisher =
+        File('lib/verified_originals_publish_service.dart').readAsStringSync();
+    final page = File('lib/secure_originals_page.dart').readAsStringSync();
+
+    expect(vault, contains('Future<void> clearReference(String hcvId) async'));
+    expect(
+      publisher,
+      contains('/api/verified-originals/consents/${record.hcvId}/withdraw'),
+    );
+    expect(publisher, contains('await vault.clearReference(record.hcvId)'));
+    expect(page, contains("_t('secureOriginalsWithdraw')"));
+    expect(page, contains('await _publisher.withdrawReference(record)'));
+  });
+
   test('account removal erases the local encrypted vault and its key', () {
     final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
     final profile = File('lib/commercial_profile_page.dart').readAsStringSync();
