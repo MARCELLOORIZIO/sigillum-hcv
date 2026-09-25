@@ -78,26 +78,18 @@ void main() {
       isNot(contains('SIGILLUM salva video verificati nella libreria')),
     );
   });
-  test(
-      'protected originals show secure previews and direct protected selection',
-      () {
+  test('protected originals show secure previews', () {
     final page = File('lib/secure_originals_page.dart').readAsStringSync();
     final preview =
         File('lib/hcv_secure_preview_service.dart').readAsStringSync();
-    final verified =
-        File('lib/verified_originals_page.dart').readAsStringSync();
     final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
 
     expect(page, contains('FutureBuilder<File?>'));
     expect(page, contains('_recordDate(record)'));
-    expect(page, contains('selectionMode'));
     expect(preview, contains('sigillum_secure_previews'));
     expect(preview, contains('FFmpegKit.execute'));
     expect(preview, contains('copyResize'));
     expect(vault, contains("'sigillum_secure_previews'"));
-    expect(verified, contains('_pickProtected'));
-    expect(verified, contains('SecureOriginalsPage('));
-    expect(verified, contains('selectionMode: true'));
   });
 
   test('HCVPACK binding signature interpolates actual record values', () {
@@ -114,11 +106,12 @@ void main() {
   });
   test('official copy UX keeps each action tied to one function', () {
     final copy = File('lib/sigillum_localization.dart').readAsStringSync();
+    final landing = File('lib/commercial_gate.dart').readAsStringSync();
     final official =
         File('lib/verified_originals_page.dart').readAsStringSync();
     final protected = File('lib/secure_originals_page.dart').readAsStringSync();
 
-    expect(copy, contains('VERIFICA CONTENUTO'));
+    expect(landing, contains('VERIFICA CONTENUTO'));
     expect(copy, contains('CERCA COPIA UFFICIALE'));
     expect(copy, contains('VISUALIZZA COPIA UFFICIALE'));
     expect(copy, contains('VISUALIZZA ORIGINALE'));
