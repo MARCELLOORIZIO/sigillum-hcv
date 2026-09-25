@@ -99,7 +99,7 @@ void main() {
     expect(vault, contains('Future<void> clearReference(String hcvId) async'));
     expect(
       publisher,
-      contains('/api/verified-originals/consents/${record.hcvId}/withdraw'),
+      contains(r'/api/verified-originals/consents/${record.hcvId}/withdraw'),
     );
     expect(publisher, contains('await vault.clearReference(record.hcvId)'));
     expect(page, contains("_t('secureOriginalsWithdraw')"));
