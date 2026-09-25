@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'hcv_registry_service.dart';
+import 'hcv_keystore_signer.dart';
 import 'hcv_secure_media_vault.dart';
 import 'hcv_secure_store.dart';
 
@@ -134,9 +135,17 @@ class VerifiedOriginalsPublishService {
     final publicationId = reference['publicationId']?.toString() ?? '';
     final publicUrl = reference['publicUrl']?.toString() ?? '';
     final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
+    final originalContentSha256 =
+        reference['originalContentSha256']?.toString().toLowerCase() ?? '';
+    final serverHcvpackSha256 =
+        reference['hcvpackSha256']?.toString().toLowerCase() ?? '';
+    final derivedFrom = reference['derivedFrom']?.toString().toLowerCase() ?? '';
 
     if (publicationId.isEmpty ||
         publicUrl.isEmpty ||
+        originalContentSha256 != record.mediaSha256 ||
+        serverHcvpackSha256 != record.hcvpackSha256 ||
+        derivedFrom != record.mediaSha256 ||
         !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
       throw StateError('REFERENCE_EXISTING_RECORD_INVALID');
     }
@@ -202,6 +211,13 @@ class VerifiedOriginalsPublishService {
           'Bearer $token',
         );
         request.headers.set(HttpHeaders.contentTypeHeader, _mime(record));
+        final packageStatement =
+            'SIGILLUM_HCVPACK_BINDING_V1|\${record.hcvId}|\${record.mediaSha256}|\${record.hcvpackSha256}';
+        request.headers.set(
+          'X-Sigillum-Hcvpack-Signature',
+          await HCVKeystoreSigner.sign(packageStatement),
+        );
+        request.headers.set('X-Sigillum-Hcvpack-Binding-Version', '1');
         request.contentLength = record.mediaSize;
         await request.addStream(materialized.openRead());
 
@@ -224,9 +240,17 @@ class VerifiedOriginalsPublishService {
         final publicationId = decoded['publicationId']?.toString() ?? '';
         final publicUrl = decoded['publicUrl']?.toString() ?? '';
         final referenceSha256 = decoded['referenceSha256']?.toString() ?? '';
+        final originalContentSha256 =
+            decoded['originalContentSha256']?.toString().toLowerCase() ?? '';
+        final serverHcvpackSha256 =
+            decoded['hcvpackSha256']?.toString().toLowerCase() ?? '';
+        final derivedFrom = decoded['derivedFrom']?.toString().toLowerCase() ?? '';
 
         if (publicationId.isEmpty ||
             publicUrl.isEmpty ||
+            originalContentSha256 != record.mediaSha256 ||
+            serverHcvpackSha256 != record.hcvpackSha256 ||
+            derivedFrom != record.mediaSha256 ||
             !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
           throw StateError('REFERENCE_PUBLICATION_RESPONSE_INVALID');
         }
@@ -261,6 +285,10 @@ class VerifiedOriginalsPublishService {
     );
     if (response['referenceAvailable'] == true) {
       throw StateError('REFERENCE_WITHDRAWAL_INCOMPLETE');
+    }
+    final takedown = response['platformTakedown']?.toString() ?? '';
+    if (takedown != 'COMPLETED') {
+      throw StateError('REFERENCE_TAKEDOWN_$takedown');
     }
     await vault.clearReference(record.hcvId);
   }
