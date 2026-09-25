@@ -76,13 +76,15 @@ void main() {
     }
   });
 
-  test('Verified Originals accepts file selection as well as HCV-ID', () {
+  test('official-copy search is HCV-ID only and does not duplicate file verification',
+      () {
     final source = File('lib/verified_originals_page.dart').readAsStringSync();
 
-    expect(source, contains('FilePicker.platform.pickFiles('));
-    expect(source, contains('HCVImportRouterPage('));
-    expect(source, contains("_t('voSelectFile')"));
     expect(source, contains("_t('voFindId')"));
+    expect(source, isNot(contains('FilePicker.platform.pickFiles(')));
+    expect(source, isNot(contains('HCVImportRouterPage(')));
+    expect(source, isNot(contains('_pickProtected')));
+    expect(source, isNot(contains('_pickFile')));
   });
 
   test('legacy per-file publication page is no longer linked from Creator home',
