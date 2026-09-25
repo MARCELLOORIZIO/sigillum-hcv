@@ -89,6 +89,17 @@ void main() {
     expect(home, isNot(contains('verified_originals_consent_page.dart')));
   });
 
+  test('caption workflow materializes encrypted video only temporarily', () {
+    final camera = File('lib/camera_page.dart').readAsStringSync();
+
+    expect(camera, contains("purpose: 'caption-source'"));
+    expect(
+      camera,
+      contains('await _secureVault.deleteMaterialized(materializedSource)'),
+    );
+    expect(camera, contains("_secureOriginalRecord?.mediaType == 'video'"));
+  });
+
   test('published reference can be withdrawn without deleting HCV verification',
       () {
     final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
