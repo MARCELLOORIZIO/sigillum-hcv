@@ -129,10 +129,32 @@ log "TFLITE_PODSPEC=$TFLITE_PODSPEC"
 # CocoaPods may update generated Pod state/Podfile.lock, but it must not mutate
 # committed application source.
 pushd ios >/dev/null
-# Podfile.lock pins the release graph. Avoid a forced CocoaPods specs refresh
-# during TestFlight builds because it adds an unnecessary external HTTP/2
-# dependency and can fail after source validation even when the app is valid.
-pod install
+# Podfile.lock pins the release graph. CocoaPods may still download pinned pod
+# artifacts on a fresh Codemagic machine. Its downloader uses curl and we have
+# observed transient HTTP/2 INTERNAL_ERROR failures from remote hosts. During
+# this release-only dependency step, force curl to HTTP/1.1 and enable retries.
+REAL_CURL="$(command -v curl)"
+CURL_WRAPPER_DIR="/tmp/sigillum_curl_wrapper"
+mkdir -p "$CURL_WRAPPER_DIR"
+cat > "$CURL_WRAPPER_DIR/curl" <<EOF
+#!/usr/bin/env bash
+exec "$REAL_CURL" --http1.1 --retry 6 --retry-delay 2 --retry-all-errors --connect-timeout 30 "\$@"
+EOF
+chmod +x "$CURL_WRAPPER_DIR/curl"
+
+POD_INSTALL_OK=0
+for attempt in 1 2 3; do
+  log "POD_INSTALL_ATTEMPT=$attempt"
+  if PATH="$CURL_WRAPPER_DIR:$PATH" pod install --deployment; then
+    POD_INSTALL_OK=1
+    break
+  fi
+  sleep $((attempt * 5))
+done
+if [[ "$POD_INSTALL_OK" != "1" ]]; then
+  log "POD_INSTALL_RETRIES_EXHAUSTED"
+  exit 1
+fi
 popd >/dev/null
 
 if [[ ! -f ios/Podfile.lock ]]; then
