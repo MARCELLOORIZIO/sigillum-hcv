@@ -253,61 +253,65 @@ class HCVSecureMediaVault {
     required File destination,
     required String expectedSha256,
   }) async {
-    final algorithm = AesGcm.with256bits();
-    final key = await _masterKey();
-    final input = await encrypted.open();
-    final output = await destination.open(mode: FileMode.write);
     try {
-      final header = await _readHeader(input);
-      final plainLength = (header['plainLength'] as num).toInt();
-      final headerHash = header['sha256'] as String;
-      final baseNonce = base64Decode(header['baseNonce'] as String);
-      if (plainLength <= 0 ||
-          headerHash != expectedSha256 ||
-          !_shaPattern.hasMatch(expectedSha256)) {
-        throw StateError('SECURE_VAULT_BINDING_MISMATCH');
-      }
-
-      var remaining = plainLength;
-      var counter = 0;
-      while (remaining > 0) {
-        final plainChunkLength = min(_chunkSize, remaining);
-        final cipherText = await input.read(plainChunkLength);
-        final macBytes = await input.read(_macLength);
-        if (cipherText.length != plainChunkLength ||
-            macBytes.length != _macLength) {
-          throw StateError('SECURE_VAULT_CIPHERTEXT_TRUNCATED');
-        }
-        final clear = await algorithm.decrypt(
-          SecretBox(
-            cipherText,
-            nonce: _nonce(baseNonce, counter),
-            mac: Mac(macBytes),
-          ),
-          secretKey: key,
-        );
-        if (clear.length != plainChunkLength) {
-          throw StateError('SECURE_VAULT_DECRYPT_LENGTH_INVALID');
-        }
-        await output.writeFrom(clear);
-        remaining -= plainChunkLength;
-        counter += 1;
-      }
-      if (await input.position() != await input.length()) {
-        throw StateError('SECURE_VAULT_TRAILING_DATA');
-      }
-      await output.flush();
-    } finally {
-      await input.close();
-      await output.close();
-    }
-
-    final actual = await _sha256File(destination);
-    if (actual != expectedSha256) {
+      final algorithm = AesGcm.with256bits();
+      final key = await _masterKey();
+      final input = await encrypted.open();
+      final output = await destination.open(mode: FileMode.write);
       try {
-        await destination.delete();
+        final header = await _readHeader(input);
+        final plainLength = (header['plainLength'] as num).toInt();
+        final headerHash = header['sha256'] as String;
+        final baseNonce = base64Decode(header['baseNonce'] as String);
+        if (plainLength <= 0 ||
+            headerHash != expectedSha256 ||
+            !_shaPattern.hasMatch(expectedSha256)) {
+          throw StateError('SECURE_VAULT_BINDING_MISMATCH');
+        }
+
+        var remaining = plainLength;
+        var counter = 0;
+        while (remaining > 0) {
+          final plainChunkLength = min(_chunkSize, remaining);
+          final cipherText = await input.read(plainChunkLength);
+          final macBytes = await input.read(_macLength);
+          if (cipherText.length != plainChunkLength ||
+              macBytes.length != _macLength) {
+            throw StateError('SECURE_VAULT_CIPHERTEXT_TRUNCATED');
+          }
+          final clear = await algorithm.decrypt(
+            SecretBox(
+              cipherText,
+              nonce: _nonce(baseNonce, counter),
+              mac: Mac(macBytes),
+            ),
+            secretKey: key,
+          );
+          if (clear.length != plainChunkLength) {
+            throw StateError('SECURE_VAULT_DECRYPT_LENGTH_INVALID');
+          }
+          await output.writeFrom(clear);
+          remaining -= plainChunkLength;
+          counter += 1;
+        }
+        if (await input.position() != await input.length()) {
+          throw StateError('SECURE_VAULT_TRAILING_DATA');
+        }
+        await output.flush();
+      } finally {
+        await input.close();
+        await output.close();
+      }
+
+      final actual = await _sha256File(destination);
+      if (actual != expectedSha256) {
+        throw StateError('SECURE_VAULT_PLAINTEXT_HASH_MISMATCH');
+      }
+    } catch (_) {
+      try {
+        if (await destination.exists()) await destination.delete();
       } catch (_) {}
-      throw StateError('SECURE_VAULT_PLAINTEXT_HASH_MISMATCH');
+      rethrow;
     }
   }
 
