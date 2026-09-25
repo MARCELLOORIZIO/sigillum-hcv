@@ -579,6 +579,30 @@ class HCVSecureMediaVault {
     });
   }
 
+  Future<void> clearReference(String hcvId) async {
+    await _withIndexLock(() async {
+      final records = await _loadIndex();
+      final index = records.indexWhere((item) => item.hcvId == hcvId);
+      if (index < 0) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
+      final current = records[index];
+      records[index] = HCVSecureOriginalRecord(
+        hcvId: current.hcvId,
+        ownerCreatorId: current.ownerCreatorId,
+        mediaType: current.mediaType,
+        originalName: current.originalName,
+        mediaSha256: current.mediaSha256,
+        mediaSize: current.mediaSize,
+        encryptedMediaPath: current.encryptedMediaPath,
+        hcvpackSha256: current.hcvpackSha256,
+        hcvpackSize: current.hcvpackSize,
+        encryptedHcvpackPath: current.encryptedHcvpackPath,
+        certificatePath: current.certificatePath,
+        createdAt: current.createdAt,
+      );
+      await _saveIndex(records);
+    });
+  }
+
   Future<void> deleteMaterialized(File file) async {
     try {
       if (await file.exists()) await file.delete();
