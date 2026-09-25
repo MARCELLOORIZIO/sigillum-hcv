@@ -446,7 +446,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'verifySeconds': 'Проверка за несколько секунд',
     'scanDescription':
         'Отсканируйте код SIGILLUM или введите HCV-ID, чтобы проверить фото, видео, документы и сообщения.',
-    'verifyFree': 'ПРОВЕРИТЬ КОНТЕНТ'
+    'verifyFree': 'ПРОВЕРИТЬ КОНТЕНТ',
     'secureFast': 'Безопасно, быстро, без регистрации',
     'loginTitle': 'Войти в аккаунт',
     'loginSubtitle': 'Войдите и управляйте своими проверками',
