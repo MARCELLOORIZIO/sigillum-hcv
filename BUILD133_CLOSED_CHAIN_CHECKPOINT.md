@@ -62,3 +62,16 @@ I. Add regression/contract tests and run CI before promotion.
 ## Resume rule
 
 Do not start again from the design discussion. Resume from the first unfinished item in the implementation plan, inspect this file plus the backend checkpoint, and preserve the locked product decisions above.
+
+
+## 2026-09-25 UX official-copy naming hardening
+
+- Replaced ambiguous "Verified Originals / watch original" user copy with function-based actions:
+  - VERIFICA CONTENUTO
+  - APRI ORIGINALI PROTETTI
+  - CERCA COPIA UFFICIALE
+  - VISUALIZZA ORIGINALE / CONDIVIDI ORIGINALE
+  - VISUALIZZA COPIA UFFICIALE
+- Official-copy search is HCV-ID-only and no longer duplicates file verification or protected-original selection.
+- Fixed Russian landing-copy syntax regression and updated obsolete Verified Originals contract tests.
+- BUILD133 formatter materialized the UX changes before TestFlight sync.
