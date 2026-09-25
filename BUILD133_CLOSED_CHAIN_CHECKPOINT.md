@@ -49,7 +49,9 @@ I. Add regression/contract tests and run CI before promotion.
 - 2026-09-25: Terms/Privacy acceptance revision bumped to 2026-09-25. In-app legal copy and the four-language quick guide now describe encrypted originals and official YouTube reference publication.
 - 2026-09-25: encrypted originals are bound to the active Creator ID. Local vault/key wipe implemented and wired to Creator account removal from the profile flow.
 - 2026-09-25: reference withdrawal added to Protected Originals; backend takedown is called first, then local reference state is cleared. UI/copy supplied in IT/EN/ES/RU.
-- Remaining before release: obtain a fully GREEN BUILD133 validation after the latest commits; resolve vault-aware caption workflow; add final device-level regression around photo/video vault materialization + social share; complete live YouTube compliance/upload check; align deployed TERMS_VERSION/PRIVACY_VERSION with 2026-09-25 before production deploy. No release/deploy yet.
+- 2026-09-25: vault-aware caption workflow restored. Certified video is materialized only temporarily from the encrypted vault for transcription/subtitle burn-in; the temporary original is deleted afterward. The captioned output remains an explicit derivative and may be saved to Photos.
+- 2026-09-25: reference withdrawal UI/service added; successful server takedown clears local reference state without deleting HCV verification.
+- Remaining before release: obtain a fully GREEN BUILD133 validation after the latest commits; add final device-level regression around photo/video vault materialization + social share; complete live YouTube compliance/upload check; align deployed TERMS_VERSION/PRIVACY_VERSION with 2026-09-25 before production deploy. No release/deploy yet.
 
 ## Resume rule
 
