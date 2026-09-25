@@ -498,11 +498,14 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     );
     password.dispose();
     if (value == null || value.isEmpty) return;
+    final accountId = _account['id']?.toString().trim() ?? '';
     final identity = await HCVIdentity().loadIdentity();
     final creatorId = identity['creatorId']?.toString().trim() ?? '';
     await _run(() async {
       await _auth.deleteAccount(password: value);
-      if (creatorId.isNotEmpty) {
+      if (accountId.isNotEmpty) {
+        await const HCVSecureMediaVault().wipeAccountVault(accountId);
+      } else if (creatorId.isNotEmpty) {
         await const HCVSecureMediaVault().wipeCreatorVault(creatorId);
       }
       if (!mounted) return;

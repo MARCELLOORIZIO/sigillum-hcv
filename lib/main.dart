@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 
 import 'commercial_gate.dart';
 import 'home_page.dart';
+import 'hcv_secure_media_vault.dart';
 import 'sigillum_edition.dart';
 import 'sigillum_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await const HCVSecureMediaVault().purgeMaterializedPlaintext();
   // MediaKit.ensureInitialized();
 
   runApp(const HCVApp());

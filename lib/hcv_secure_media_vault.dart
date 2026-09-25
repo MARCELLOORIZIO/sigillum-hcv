@@ -16,6 +16,7 @@ class HCVSecureOriginalRecord {
   const HCVSecureOriginalRecord({
     required this.hcvId,
     required this.ownerCreatorId,
+    required this.ownerAccountSubjectHash,
     required this.mediaType,
     required this.originalName,
     required this.mediaSha256,
@@ -34,6 +35,7 @@ class HCVSecureOriginalRecord {
 
   final String hcvId;
   final String ownerCreatorId;
+  final String ownerAccountSubjectHash;
   final String mediaType;
   final String originalName;
   final String mediaSha256;
@@ -58,6 +60,7 @@ class HCVSecureOriginalRecord {
   Map<String, dynamic> toJson() => {
         'hcvId': hcvId,
         'ownerCreatorId': ownerCreatorId,
+        'ownerAccountSubjectHash': ownerAccountSubjectHash,
         'mediaType': mediaType,
         'originalName': originalName,
         'mediaSha256': mediaSha256,
@@ -79,6 +82,8 @@ class HCVSecureOriginalRecord {
     return HCVSecureOriginalRecord(
       hcvId: json['hcvId']?.toString() ?? '',
       ownerCreatorId: json['ownerCreatorId']?.toString() ?? '',
+      ownerAccountSubjectHash:
+          json['ownerAccountSubjectHash']?.toString().toLowerCase() ?? '',
       mediaType: json['mediaType']?.toString() ?? '',
       originalName: json['originalName']?.toString() ?? '',
       mediaSha256: json['mediaSha256']?.toString() ?? '',
@@ -102,6 +107,7 @@ class HCVSecureMediaVault {
   const HCVSecureMediaVault();
 
   static const String _masterKeyStoreKey = 'sigillum.secure.vault.master.v1';
+  static const String _accountIdStoreKey = 'sigillum.auth.account.id.v1';
   static const String _magic = 'SIGVLT1';
   static const int _version = 1;
   static const int _chunkSize = 4 * 1024 * 1024;
@@ -129,6 +135,23 @@ class HCVSecureMediaVault {
       throw StateError('SECURE_VAULT_CREATOR_ID_UNAVAILABLE');
     }
     return creatorId;
+  }
+
+  Future<String> _currentAccountSubjectHash() async {
+    final accountId = await HCVSecureStore.read(_accountIdStoreKey);
+    final clean = accountId?.trim() ?? '';
+    if (clean.isEmpty) {
+      throw StateError('SECURE_VAULT_ACCOUNT_CONTEXT_UNAVAILABLE');
+    }
+    return sha256.convert(utf8.encode(clean)).toString();
+  }
+
+  String _accountSubjectHash(String accountId) {
+    final clean = accountId.trim();
+    if (clean.isEmpty) {
+      throw ArgumentError('SECURE_VAULT_ACCOUNT_ID_UNAVAILABLE');
+    }
+    return sha256.convert(utf8.encode(clean)).toString();
   }
 
   Future<SecretKey> _masterKey() async {
@@ -381,6 +404,7 @@ class HCVSecureMediaVault {
     }
 
     final ownerCreatorId = await _currentCreatorId();
+    final ownerAccountSubjectHash = await _currentAccountSubjectHash();
     final media = File(mediaPath);
     final pack = File(hcvpackPath);
     final certificate = File(certificatePath);
@@ -411,6 +435,7 @@ class HCVSecureMediaVault {
 
     if (existingBefore != null &&
         (existingBefore.ownerCreatorId != ownerCreatorId ||
+            existingBefore.ownerAccountSubjectHash != ownerAccountSubjectHash ||
             existingBefore.mediaSha256 != mediaHash ||
             existingBefore.hcvpackSha256 != packHash)) {
       throw StateError('SECURE_VAULT_HCV_CONFLICT');
@@ -438,6 +463,7 @@ class HCVSecureMediaVault {
     final record = HCVSecureOriginalRecord(
       hcvId: cleanId,
       ownerCreatorId: ownerCreatorId,
+      ownerAccountSubjectHash: ownerAccountSubjectHash,
       mediaType: mediaType,
       originalName: p.basename(media.path),
       mediaSha256: mediaHash,
@@ -477,6 +503,8 @@ class HCVSecureMediaVault {
             records.where((item) => item.hcvId == cleanId).toList();
         if (existing.isNotEmpty &&
             (existing.first.ownerCreatorId != ownerCreatorId ||
+                existing.first.ownerAccountSubjectHash !=
+                    ownerAccountSubjectHash ||
                 existing.first.mediaSha256 != mediaHash ||
                 existing.first.hcvpackSha256 != packHash)) {
           throw StateError('SECURE_VAULT_HCV_CONFLICT');
@@ -504,11 +532,13 @@ class HCVSecureMediaVault {
 
   Future<List<HCVSecureOriginalRecord>> list() async {
     final ownerCreatorId = await _currentCreatorId();
+    final ownerAccountSubjectHash = await _currentAccountSubjectHash();
     return _withIndexLock(() async {
       final records = await _loadIndex();
       final available = <HCVSecureOriginalRecord>[];
       for (final item in records) {
         if (item.ownerCreatorId == ownerCreatorId &&
+            item.ownerAccountSubjectHash == ownerAccountSubjectHash &&
             await File(item.encryptedMediaPath).exists() &&
             await File(item.encryptedHcvpackPath).exists()) {
           available.add(item);
@@ -533,6 +563,9 @@ class HCVSecureMediaVault {
   }) async {
     if (record.ownerCreatorId != await _currentCreatorId()) {
       throw StateError('SECURE_VAULT_CREATOR_MISMATCH');
+    }
+    if (record.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+      throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
     }
     final tempRoot = await getTemporaryDirectory();
     final dir =
@@ -561,6 +594,9 @@ class HCVSecureMediaVault {
   }) async {
     if (record.ownerCreatorId != await _currentCreatorId()) {
       throw StateError('SECURE_VAULT_CREATOR_MISMATCH');
+    }
+    if (record.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+      throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
     }
     final tempRoot = await getTemporaryDirectory();
     final dir =
@@ -594,9 +630,13 @@ class HCVSecureMediaVault {
       final index = records.indexWhere((item) => item.hcvId == hcvId);
       if (index < 0) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
       final current = records[index];
+      if (current.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+        throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
+      }
       records[index] = HCVSecureOriginalRecord(
         hcvId: current.hcvId,
         ownerCreatorId: current.ownerCreatorId,
+        ownerAccountSubjectHash: current.ownerAccountSubjectHash,
         mediaType: current.mediaType,
         originalName: current.originalName,
         mediaSha256: current.mediaSha256,
@@ -622,9 +662,13 @@ class HCVSecureMediaVault {
       final index = records.indexWhere((item) => item.hcvId == hcvId);
       if (index < 0) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
       final current = records[index];
+      if (current.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+        throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
+      }
       records[index] = HCVSecureOriginalRecord(
         hcvId: current.hcvId,
         ownerCreatorId: current.ownerCreatorId,
+        ownerAccountSubjectHash: current.ownerAccountSubjectHash,
         mediaType: current.mediaType,
         originalName: current.originalName,
         mediaSha256: current.mediaSha256,
@@ -640,9 +684,74 @@ class HCVSecureMediaVault {
     });
   }
 
+  Future<void> purgeMaterializedPlaintext() async {
+    try {
+      final tempRoot = await getTemporaryDirectory();
+      final materialized =
+          Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+      if (await materialized.exists()) {
+        await materialized.delete(recursive: true);
+      }
+    } catch (_) {}
+  }
+
   Future<void> deleteMaterialized(File file) async {
     try {
       if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  Future<void> wipeAccountVault(String accountId) async {
+    final ownerSubject = _accountSubjectHash(accountId);
+    final removedIds = <String>[];
+    final becameEmpty = await _withIndexLock(() async {
+      final records = await _loadIndex();
+      final owned = records
+          .where((item) => item.ownerAccountSubjectHash == ownerSubject)
+          .toList();
+      if (owned.isEmpty) return false;
+      for (final item in owned) {
+        removedIds.add(item.hcvId);
+        for (final path in [
+          item.encryptedMediaPath,
+          item.encryptedHcvpackPath,
+          item.certificatePath,
+        ]) {
+          try {
+            final file = File(path);
+            if (await file.exists()) await file.delete();
+          } catch (_) {}
+        }
+      }
+      records.removeWhere(
+        (item) => item.ownerAccountSubjectHash == ownerSubject,
+      );
+      if (records.isEmpty) {
+        final dir = await _vaultDirectory();
+        if (await dir.exists()) await dir.delete(recursive: true);
+        return true;
+      }
+      await _saveIndex(records);
+      return false;
+    });
+    if (becameEmpty) {
+      await HCVSecureStore.delete(_masterKeyStoreKey);
+    }
+    if (removedIds.isEmpty) return;
+    try {
+      final tempRoot = await getTemporaryDirectory();
+      final materialized =
+          Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+      if (!await materialized.exists()) return;
+      await for (final entity in materialized.list()) {
+        if (entity is! File) continue;
+        final name = p.basename(entity.path);
+        if (removedIds.any((hcvId) => name.startsWith(hcvId))) {
+          try {
+            await entity.delete();
+          } catch (_) {}
+        }
+      }
     } catch (_) {}
   }
 
