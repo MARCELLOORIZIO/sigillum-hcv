@@ -89,6 +89,15 @@ void main() {
     expect(home, isNot(contains('verified_originals_consent_page.dart')));
   });
 
+  test('account removal erases the local encrypted vault and its key', () {
+    final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
+    final profile = File('lib/commercial_profile_page.dart').readAsStringSync();
+
+    expect(vault, contains('Future<void> wipeLocalVault() async'));
+    expect(vault, contains('await HCVSecureStore.delete(_masterKeyStoreKey)'));
+    expect(profile, contains('await const HCVSecureMediaVault().wipeLocalVault()'));
+  });
+
   test('new closed-chain user copy exists in all four languages', () {
     final copy = File('lib/sigillum_localization.dart').readAsStringSync();
 
