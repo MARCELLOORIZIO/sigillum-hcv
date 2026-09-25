@@ -89,7 +89,8 @@ void main() {
     expect(home, isNot(contains('verified_originals_consent_page.dart')));
   });
 
-  test('published reference can be withdrawn without deleting HCV verification', () {
+  test('published reference can be withdrawn without deleting HCV verification',
+      () {
     final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
     final publisher =
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
@@ -111,7 +112,8 @@ void main() {
 
     expect(vault, contains('Future<void> wipeLocalVault() async'));
     expect(vault, contains('await HCVSecureStore.delete(_masterKeyStoreKey)'));
-    expect(profile, contains('await const HCVSecureMediaVault().wipeLocalVault()'));
+    expect(profile,
+        contains('await const HCVSecureMediaVault().wipeLocalVault()'));
   });
 
   test('new closed-chain user copy exists in all four languages', () {
