@@ -78,7 +78,9 @@ void main() {
       isNot(contains('SIGILLUM salva video verificati nella libreria')),
     );
   });
-  test('protected originals show secure previews and direct protected selection', () {
+  test(
+      'protected originals show secure previews and direct protected selection',
+      () {
     final page = File('lib/secure_originals_page.dart').readAsStringSync();
     final preview =
         File('lib/hcv_secure_preview_service.dart').readAsStringSync();
@@ -101,7 +103,13 @@ void main() {
   test('HCVPACK binding signature interpolates actual record values', () {
     final source =
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
-    expect(source, contains('SIGILLUM_HCVPACK_BINDING_V1|${record.hcvId}|${record.mediaSha256}|${record.hcvpackSha256}'));
-    expect(source, isNot(contains(r'SIGILLUM_HCVPACK_BINDING_V1|\${record.hcvId}|\${record.mediaSha256}|\${record.hcvpackSha256}')));
+    expect(
+        source,
+        contains(
+            'SIGILLUM_HCVPACK_BINDING_V1|${record.hcvId}|${record.mediaSha256}|${record.hcvpackSha256}'));
+    expect(
+        source,
+        isNot(contains(
+            r'SIGILLUM_HCVPACK_BINDING_V1|\${record.hcvId}|\${record.mediaSha256}|\${record.hcvpackSha256}')));
   });
 }

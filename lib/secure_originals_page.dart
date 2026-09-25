@@ -26,8 +26,7 @@ class SecureOriginalsPage extends StatefulWidget {
 
 class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
   final HCVSecureMediaVault _vault = const HCVSecureMediaVault();
-  final HCVSecurePreviewService _preview =
-      const HCVSecurePreviewService();
+  final HCVSecurePreviewService _preview = const HCVSecurePreviewService();
   final VerifiedOriginalsPublishService _publisher =
       const VerifiedOriginalsPublishService();
 

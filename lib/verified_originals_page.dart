@@ -228,7 +228,8 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
 
   Future<void> _pickProtected() async {
     try {
-      final selected = await Navigator.of(context).push<HCVSecureOriginalRecord>(
+      final selected =
+          await Navigator.of(context).push<HCVSecureOriginalRecord>(
         MaterialPageRoute<HCVSecureOriginalRecord>(
           builder: (_) => SecureOriginalsPage(
             languageCode: widget.languageCode,
@@ -244,6 +245,7 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
       setState(() => _error = _t('voProtectedPickError'));
     }
   }
+
   Future<void> _pickFile() async {
     try {
       final selected = await FilePicker.platform.pickFiles(
