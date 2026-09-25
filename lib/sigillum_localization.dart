@@ -229,6 +229,10 @@ class SigillumCopy {
       'recording': 'REGISTRAZIONE IN CORSO',
       'cancel': 'ANNULLA',
       'secureOriginalsTitle': 'Originali protetti',
+      'secureOriginalsSelectTitle': 'Scegli originale protetto',
+      'secureOriginalsSelectIntro':
+          'Scegli direttamente un originale cifrato creato con SIGILLUM. Non serve cercarlo nella cartella File.',
+      'secureOriginalsSelect': 'SELEZIONA',
       'secureOriginalsIntro':
           'Gli originali creati con SIGILLUM restano cifrati nell’area privata dell’app. Per visualizzarli o condividerli vengono decifrati solo temporaneamente.',
       'secureOriginalsEmpty':
@@ -283,9 +287,11 @@ class SigillumCopy {
       'verifiedOriginalsAction': 'VERIFICA CODICE / GUARDA ORIGINALE',
       'voPageTitle': 'SIGILLUM · Originali certificati',
       'voIntro':
-          'Verifica un codice oppure seleziona un file dalla libreria. Quando esiste una pubblicazione ufficiale attiva puoi consultare la copia di riferimento certificata.',
+          'Verifica un codice, scegli un originale protetto oppure seleziona un file esterno. Quando esiste una pubblicazione ufficiale attiva puoi consultare la copia di riferimento certificata.',
       'voFindId': 'CERCA HCV-ID',
-      'voSelectFile': 'SELEZIONA FILE DALLA LIBRERIA',
+      'voSelectProtected': 'SCEGLI DAGLI ORIGINALI PROTETTI',
+      'voSelectFile': 'SELEZIONA FILE ESTERNO',
+      'voProtectedPickError': 'Impossibile aprire gli originali protetti.',
       'voInvalidId': 'HCV-ID non valido.',
       'voRegistryError':
           'Registry non raggiungibile o risposta non valida. Nessun risultato di verifica.',
@@ -496,6 +502,10 @@ class SigillumCopy {
       'recording': 'RECORDING',
       'cancel': 'CANCEL',
       'secureOriginalsTitle': 'Protected originals',
+      'secureOriginalsSelectTitle': 'Choose protected original',
+      'secureOriginalsSelectIntro':
+          'Choose an encrypted original created with SIGILLUM directly. You do not need to find it in Files.',
+      'secureOriginalsSelect': 'SELECT',
       'secureOriginalsIntro':
           'Originals created with SIGILLUM remain encrypted inside the app’s private area. They are decrypted only temporarily for viewing or sharing.',
       'secureOriginalsEmpty':
@@ -546,9 +556,11 @@ class SigillumCopy {
       'verifiedOriginalsAction': 'CHECK CODE / WATCH ORIGINAL',
       'voPageTitle': 'SIGILLUM · Certified originals',
       'voIntro':
-          'Check a code or select a file from your library. When an official active publication exists, you can view the certified reference copy.',
+          'Check a code, choose a protected original, or select an external file. When an official active publication exists, you can view the certified reference copy.',
       'voFindId': 'FIND HCV-ID',
-      'voSelectFile': 'SELECT FILE FROM LIBRARY',
+      'voSelectProtected': 'CHOOSE FROM PROTECTED ORIGINALS',
+      'voSelectFile': 'SELECT EXTERNAL FILE',
+      'voProtectedPickError': 'Unable to open protected originals.',
       'voInvalidId': 'Invalid HCV-ID.',
       'voRegistryError':
           'Registry unavailable or invalid response. No verification result.',
@@ -760,6 +772,10 @@ class SigillumCopy {
       'recording': 'GRABANDO',
       'cancel': 'CANCELAR',
       'secureOriginalsTitle': 'Originales protegidos',
+      'secureOriginalsSelectTitle': 'Elegir original protegido',
+      'secureOriginalsSelectIntro':
+          'Elige directamente un original cifrado creado con SIGILLUM. No necesitas buscarlo en Archivos.',
+      'secureOriginalsSelect': 'SELECCIONAR',
       'secureOriginalsIntro':
           'Los originales creados con SIGILLUM permanecen cifrados en el área privada de la app. Solo se descifran temporalmente para verlos o compartirlos.',
       'secureOriginalsEmpty':
@@ -812,9 +828,11 @@ class SigillumCopy {
       'verifiedOriginalsAction': 'VERIFICAR CÓDIGO / VER ORIGINAL',
       'voPageTitle': 'SIGILLUM · Originales certificados',
       'voIntro':
-          'Verifica un código o selecciona un archivo de tu biblioteca. Cuando existe una publicación oficial activa, puedes consultar la copia de referencia certificada.',
+          'Verifica un código, elige un original protegido o selecciona un archivo externo. Cuando existe una publicación oficial activa, puedes consultar la copia de referencia certificada.',
       'voFindId': 'BUSCAR HCV-ID',
-      'voSelectFile': 'SELECCIONAR ARCHIVO DE LA BIBLIOTECA',
+      'voSelectProtected': 'ELEGIR DE ORIGINALES PROTEGIDOS',
+      'voSelectFile': 'SELECCIONAR ARCHIVO EXTERNO',
+      'voProtectedPickError': 'No se pueden abrir los originales protegidos.',
       'voInvalidId': 'HCV-ID no válido.',
       'voRegistryError':
           'Registry no disponible o respuesta no válida. No hay resultado de verificación.',
@@ -1024,6 +1042,10 @@ class SigillumCopy {
       'recording': 'ИДЕТ ЗАПИСЬ',
       'cancel': 'ОТМЕНА',
       'secureOriginalsTitle': 'Защищённые оригиналы',
+      'secureOriginalsSelectTitle': 'Выберите защищённый оригинал',
+      'secureOriginalsSelectIntro':
+          'Выберите зашифрованный оригинал, созданный в SIGILLUM, прямо здесь. Искать его в Files не требуется.',
+      'secureOriginalsSelect': 'ВЫБРАТЬ',
       'secureOriginalsIntro':
           'Оригиналы, созданные в SIGILLUM, остаются зашифрованными в закрытой области приложения. Они временно расшифровываются только для просмотра или отправки.',
       'secureOriginalsEmpty':
@@ -1075,9 +1097,11 @@ class SigillumCopy {
       'verifiedOriginalsAction': 'ПРОВЕРИТЬ КОД / СМОТРЕТЬ ОРИГИНАЛ',
       'voPageTitle': 'SIGILLUM · Сертифицированные оригиналы',
       'voIntro':
-          'Проверьте код или выберите файл из библиотеки. Если существует активная официальная публикация, можно открыть сертифицированную эталонную копию.',
+          'Проверьте код, выберите защищённый оригинал или внешний файл. Если существует активная официальная публикация, можно открыть сертифицированную эталонную копию.',
       'voFindId': 'НАЙТИ HCV-ID',
-      'voSelectFile': 'ВЫБРАТЬ ФАЙЛ ИЗ БИБЛИОТЕКИ',
+      'voSelectProtected': 'ВЫБРАТЬ ИЗ ЗАЩИЩЁННЫХ ОРИГИНАЛОВ',
+      'voSelectFile': 'ВЫБРАТЬ ВНЕШНИЙ ФАЙЛ',
+      'voProtectedPickError': 'Не удалось открыть защищённые оригиналы.',
       'voInvalidId': 'Недействительный HCV-ID.',
       'voRegistryError':
           'Registry недоступен или вернул некорректный ответ. Результат проверки отсутствует.',

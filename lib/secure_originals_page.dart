@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import 'hcv_secure_media_vault.dart';
+import 'hcv_secure_preview_service.dart';
 import 'sigillum_localization.dart';
 import 'verified_originals_publish_service.dart';
 
@@ -12,9 +14,11 @@ class SecureOriginalsPage extends StatefulWidget {
   const SecureOriginalsPage({
     super.key,
     required this.languageCode,
+    this.selectionMode = false,
   });
 
   final String languageCode;
+  final bool selectionMode;
 
   @override
   State<SecureOriginalsPage> createState() => _SecureOriginalsPageState();
@@ -22,9 +26,12 @@ class SecureOriginalsPage extends StatefulWidget {
 
 class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
   final HCVSecureMediaVault _vault = const HCVSecureMediaVault();
+  final HCVSecurePreviewService _preview =
+      const HCVSecurePreviewService();
   final VerifiedOriginalsPublishService _publisher =
       const VerifiedOriginalsPublishService();
 
+  final Map<String, Future<File?>> _previewFutures = {};
   List<HCVSecureOriginalRecord> _records = const [];
   bool _loading = true;
   String? _message;
@@ -38,6 +45,30 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
     _reload();
   }
 
+  @override
+  void dispose() {
+    unawaited(_preview.clearCache());
+    super.dispose();
+  }
+
+  Future<File?> _previewFor(HCVSecureOriginalRecord record) {
+    return _previewFutures.putIfAbsent(
+      record.hcvId,
+      () => _preview.thumbnail(record).catchError((_) => null),
+    );
+  }
+
+  String _recordDate(HCVSecureOriginalRecord record) {
+    final local = record.createdAt.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(local.day)}/${two(local.month)}/${local.year} · '
+        '${two(local.hour)}:${two(local.minute)}';
+  }
+
+  void _select(HCVSecureOriginalRecord record) {
+    Navigator.of(context).pop(record);
+  }
+
   Future<void> _reload() async {
     if (mounted) {
       setState(() {
@@ -48,7 +79,11 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
     try {
       final records = await _vault.list();
       if (!mounted) return;
-      setState(() => _records = records);
+      setState(() {
+        _records = records;
+        final ids = records.map((item) => item.hcvId).toSet();
+        _previewFutures.removeWhere((key, _) => !ids.contains(key));
+      });
     } catch (error) {
       if (!mounted) return;
       setState(() => _message = '${_t('secureOriginalsLoadError')}: $error');
@@ -243,14 +278,22 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_t('secureOriginalsTitle'))),
+      appBar: AppBar(
+        title: Text(
+          widget.selectionMode
+              ? _t('secureOriginalsSelectTitle')
+              : _t('secureOriginalsTitle'),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: _reload,
         child: ListView(
           padding: const EdgeInsets.all(18),
           children: [
             Text(
-              _t('secureOriginalsIntro'),
+              widget.selectionMode
+                  ? _t('secureOriginalsSelectIntro')
+                  : _t('secureOriginalsIntro'),
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 14),
@@ -272,15 +315,53 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: FutureBuilder<File?>(
+                              future: _previewFor(record),
+                              builder: (context, snapshot) {
+                                final file = snapshot.data;
+                                if (file != null) {
+                                  return Image.file(
+                                    file,
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                  );
+                                }
+                                if (snapshot.connectionState !=
+                                    ConnectionState.done) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+                                return ColoredBox(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
+                                  child: Center(
+                                    child: Icon(
+                                      record.mediaType == 'video'
+                                          ? Icons.videocam_outlined
+                                          : Icons.photo_outlined,
+                                      size: 46,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Text(
                           record.hcvId,
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          record.mediaType == 'video'
-                              ? _t('video')
-                              : _t('photo'),
+                          '${record.mediaType == 'video' ? _t('video') : _t('photo')}'
+                          ' · ${_recordDate(record)}',
                         ),
                         Text(
                           record.hasReference
@@ -288,32 +369,41 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                               : _t('secureOriginalsReferencePending'),
                         ),
                         const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed:
-                                  _busyId == null ? () => _view(record) : null,
-                              icon: const Icon(Icons.play_circle_outline),
-                              label: Text(_t('secureOriginalsView')),
-                            ),
-                            FilledButton.icon(
-                              onPressed:
-                                  _busyId == null ? () => _share(record) : null,
-                              icon: const Icon(Icons.ios_share),
-                              label: Text(_t('secureOriginalsShare')),
-                            ),
-                            if (record.hasReference)
+                        if (widget.selectionMode)
+                          FilledButton.icon(
+                            onPressed: () => _select(record),
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: Text(_t('secureOriginalsSelect')),
+                          )
+                        else
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
+                            children: [
                               OutlinedButton.icon(
                                 onPressed: _busyId == null
-                                    ? () => _withdraw(record)
+                                    ? () => _view(record)
                                     : null,
-                                icon: const Icon(Icons.link_off),
-                                label: Text(_t('secureOriginalsWithdraw')),
+                                icon: const Icon(Icons.play_circle_outline),
+                                label: Text(_t('secureOriginalsView')),
                               ),
-                          ],
-                        ),
+                              FilledButton.icon(
+                                onPressed: _busyId == null
+                                    ? () => _share(record)
+                                    : null,
+                                icon: const Icon(Icons.ios_share),
+                                label: Text(_t('secureOriginalsShare')),
+                              ),
+                              if (record.hasReference)
+                                OutlinedButton.icon(
+                                  onPressed: _busyId == null
+                                      ? () => _withdraw(record)
+                                      : null,
+                                  icon: const Icon(Icons.link_off),
+                                  label: Text(_t('secureOriginalsWithdraw')),
+                                ),
+                            ],
+                          ),
                         if (_busyId == record.hcvId) ...[
                           const SizedBox(height: 10),
                           const LinearProgressIndicator(),

@@ -9,8 +9,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'commercial_account_service.dart';
 import 'hcv_import_router_page.dart';
 import 'hcv_registry_service.dart';
+import 'hcv_secure_media_vault.dart';
 import 'hcv_secure_store.dart';
 import 'registry_verify_page.dart';
+import 'secure_originals_page.dart';
 import 'sigillum_localization.dart';
 import 'verified_originals_reference.dart';
 
@@ -224,6 +226,24 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
     }
   }
 
+  Future<void> _pickProtected() async {
+    try {
+      final selected = await Navigator.of(context).push<HCVSecureOriginalRecord>(
+        MaterialPageRoute<HCVSecureOriginalRecord>(
+          builder: (_) => SecureOriginalsPage(
+            languageCode: widget.languageCode,
+            selectionMode: true,
+          ),
+        ),
+      );
+      if (selected == null || !mounted) return;
+      _controller.text = selected.hcvId;
+      await _lookup();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = _t('voProtectedPickError'));
+    }
+  }
   Future<void> _pickFile() async {
     try {
       final selected = await FilePicker.platform.pickFiles(
@@ -284,6 +304,12 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
             onPressed: _busy ? null : _lookup,
             icon: const Icon(Icons.search),
             label: Text(_t('voFindId')),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _pickProtected,
+            icon: const Icon(Icons.lock_outline),
+            label: Text(_t('voSelectProtected')),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(

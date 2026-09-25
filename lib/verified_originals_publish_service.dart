@@ -213,7 +213,7 @@ class VerifiedOriginalsPublishService {
         );
         request.headers.set(HttpHeaders.contentTypeHeader, _mime(record));
         final packageStatement =
-            'SIGILLUM_HCVPACK_BINDING_V1|\${record.hcvId}|\${record.mediaSha256}|\${record.hcvpackSha256}';
+            'SIGILLUM_HCVPACK_BINDING_V1|${record.hcvId}|${record.mediaSha256}|${record.hcvpackSha256}';
         request.headers.set(
           'X-Sigillum-Hcvpack-Signature',
           await HCVKeystoreSigner.sign(packageStatement),

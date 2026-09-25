@@ -689,10 +689,14 @@ class HCVSecureMediaVault {
   Future<void> purgeMaterializedPlaintext() async {
     try {
       final tempRoot = await getTemporaryDirectory();
-      final materialized =
-          Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
-      if (await materialized.exists()) {
-        await materialized.delete(recursive: true);
+      for (final name in const [
+        'sigillum_secure_materialized',
+        'sigillum_secure_previews',
+      ]) {
+        final dir = Directory(p.join(tempRoot.path, name));
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
       }
     } catch (_) {}
   }
