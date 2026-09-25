@@ -1382,6 +1382,13 @@ class _CameraPageState extends State<CameraPage> {
       String hcv = await engine.exportToFile();
 
       final ok = await verifier.verifyFile(hcv);
+      if (ok) {
+        hcv = await moveHcvToUnifiedName(
+          currentPath: hcv,
+          hcvId: preparedHcvId,
+          contentKind: 'photo',
+        );
+      }
 
       String? pack;
 
@@ -1454,7 +1461,9 @@ class _CameraPageState extends State<CameraPage> {
       return dir;
     }
 
-    final dir = await getApplicationDocumentsDirectory();
+    // BUILD133: camera media is processed in private Application Support on iOS.
+    // Documents is exposed through Files because UIFileSharingEnabled is true.
+    final dir = await getApplicationSupportDirectory();
 
     if (!await dir.exists()) {
       await dir.create(recursive: true);
@@ -1524,12 +1533,14 @@ class _CameraPageState extends State<CameraPage> {
   Future<String> moveHcvToUnifiedName({
     required String currentPath,
     required String hcvId,
+    String contentKind = 'video',
   }) async {
     final currentFile = File(currentPath);
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
     final dir = await _downloadsDirectory();
 
-    final newPath = p.join(dir.path, 'hcv_video_$safeId.hcv');
+    final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';
+    final newPath = p.join(dir.path, '${contentPrefix}_$safeId.hcv');
 
     final newFile = File(newPath);
 
