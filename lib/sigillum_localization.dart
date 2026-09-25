@@ -246,6 +246,9 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'Originale SIGILLUM',
       'secureOriginalStored': 'Originale e HCVPACK cifrati nell’area protetta SIGILLUM.',
       'secureOriginalsOpen': 'APRI ORIGINALI PROTETTI',
+      'secureOriginalsHomeSubtitle': 'Visualizza e condividi solo attraverso SIGILLUM; il riferimento ufficiale viene registrato prima dell’uscita verso i social.',
+      'verifiedOriginalsTitle': 'SIGILLUM Verified Originals',
+      'verifiedOriginalsSubtitle': 'Verifica un HCV-ID, un file o guarda la copia di riferimento ufficiale.',
     },
     'en': {
       'identity': 'Identity',
@@ -454,6 +457,9 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'SIGILLUM original',
       'secureOriginalStored': 'Original and HCVPACK encrypted in the protected SIGILLUM area.',
       'secureOriginalsOpen': 'OPEN PROTECTED ORIGINALS',
+      'secureOriginalsHomeSubtitle': 'View and share only through SIGILLUM; the official reference is registered before a file is released to social platforms.',
+      'verifiedOriginalsTitle': 'SIGILLUM Verified Originals',
+      'verifiedOriginalsSubtitle': 'Check an HCV-ID or file, or view the official reference copy.',
     },
     'es': {
       'identity': 'Identidad',
@@ -663,6 +669,9 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'Original SIGILLUM',
       'secureOriginalStored': 'Original y HCVPACK cifrados en el área protegida de SIGILLUM.',
       'secureOriginalsOpen': 'ABRIR ORIGINALES PROTEGIDOS',
+      'secureOriginalsHomeSubtitle': 'Visualiza y comparte solo mediante SIGILLUM; la referencia oficial se registra antes de entregar el archivo a una red social.',
+      'verifiedOriginalsTitle': 'SIGILLUM Verified Originals',
+      'verifiedOriginalsSubtitle': 'Verifica un HCV-ID o un archivo, o consulta la copia de referencia oficial.',
     },
     'ru': {
       'identity': 'Идентичность',
@@ -870,6 +879,9 @@ class SigillumCopy {
       'secureOriginalsViewerTitle': 'Оригинал SIGILLUM',
       'secureOriginalStored': 'Оригинал и HCVPACK зашифрованы в защищённой области SIGILLUM.',
       'secureOriginalsOpen': 'ОТКРЫТЬ ЗАЩИЩЁННЫЕ ОРИГИНАЛЫ',
+      'secureOriginalsHomeSubtitle': 'Просматривайте и отправляйте только через SIGILLUM; официальный эталон регистрируется до передачи файла в социальную сеть.',
+      'verifiedOriginalsTitle': 'SIGILLUM Verified Originals',
+      'verifiedOriginalsSubtitle': 'Проверьте HCV-ID или файл либо откройте официальную эталонную копию.',
     },
   };
 }
