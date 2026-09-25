@@ -139,7 +139,8 @@ class VerifiedOriginalsPublishService {
         reference['originalContentSha256']?.toString().toLowerCase() ?? '';
     final serverHcvpackSha256 =
         reference['hcvpackSha256']?.toString().toLowerCase() ?? '';
-    final derivedFrom = reference['derivedFrom']?.toString().toLowerCase() ?? '';
+    final derivedFrom =
+        reference['derivedFrom']?.toString().toLowerCase() ?? '';
 
     if (publicationId.isEmpty ||
         publicUrl.isEmpty ||
@@ -244,7 +245,8 @@ class VerifiedOriginalsPublishService {
             decoded['originalContentSha256']?.toString().toLowerCase() ?? '';
         final serverHcvpackSha256 =
             decoded['hcvpackSha256']?.toString().toLowerCase() ?? '';
-        final derivedFrom = decoded['derivedFrom']?.toString().toLowerCase() ?? '';
+        final derivedFrom =
+            decoded['derivedFrom']?.toString().toLowerCase() ?? '';
 
         if (publicationId.isEmpty ||
             publicUrl.isEmpty ||

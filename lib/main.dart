@@ -26,9 +26,8 @@ class HCVApp extends StatelessWidget {
       theme: SigillumBuildConfig.isLab
           ? ThemeData(useMaterial3: true)
           : SigillumTheme.userTheme(),
-      home: SigillumBuildConfig.isLab
-          ? const HomePage()
-          : const CommercialGate(),
+      home:
+          SigillumBuildConfig.isLab ? const HomePage() : const CommercialGate(),
     );
   }
 }

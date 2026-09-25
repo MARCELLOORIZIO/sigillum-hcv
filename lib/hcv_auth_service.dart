@@ -251,9 +251,8 @@ class HCVAuthService {
 
   Map<String, dynamic> _accountEnvelope(Map<String, dynamic> response) {
     final raw = response['account'];
-    final account = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : <String, dynamic>{};
+    final account =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     return {
       'ok': response['ok'] == true,
       'expiresAt': response['expiresAt'],
@@ -298,8 +297,8 @@ class HCVAuthService {
           decoded['message']?.toString().isNotEmpty == true
               ? decoded['message'].toString()
               : decoded['error']?.toString().isNotEmpty == true
-              ? decoded['error'].toString()
-              : 'Operazione account non riuscita',
+                  ? decoded['error'].toString()
+                  : 'Operazione account non riuscita',
           statusCode: response.statusCode,
           code: decoded['error']?.toString(),
         );

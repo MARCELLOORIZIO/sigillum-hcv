@@ -13,11 +13,13 @@ void main() {
     expect(vault, contains("sigillum.auth.account.id.v1"));
     expect(auth, contains("accountIdStoreKey = 'sigillum.auth.account.id.v1'"));
     expect(auth, contains("raw['id']"));
-    expect(auth, contains('HCVSecureStore.write(accountIdStoreKey, accountId)'));
+    expect(
+        auth, contains('HCVSecureStore.write(accountIdStoreKey, accountId)'));
     expect(auth, contains('HCVSecureStore.delete(accountIdStoreKey)'));
   });
 
-  test('plaintext lifecycle stays out of iOS Documents and is crash-cleaned', () {
+  test('plaintext lifecycle stays out of iOS Documents and is crash-cleaned',
+      () {
     final watermark =
         File('lib/hcv_location_video_watermark.dart').readAsStringSync();
     final package = File('lib/hcv_package.dart').readAsStringSync();
@@ -26,9 +28,11 @@ void main() {
     final main = File('lib/main.dart').readAsStringSync();
 
     expect(watermark, contains('getApplicationSupportDirectory()'));
-    expect(package, contains('final outputDir = await getTemporaryDirectory()'));
+    expect(
+        package, contains('final outputDir = await getTemporaryDirectory()'));
     expect(camera, contains('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED'));
-    expect(engine, contains('if (await logFile.exists()) await logFile.delete()'));
+    expect(
+        engine, contains('if (await logFile.exists()) await logFile.delete()'));
     expect(
       engine,
       contains('await _attachCaptureProvenance(await getTemporaryDirectory())'),

@@ -116,6 +116,7 @@ class HCVPackage {
 
     return Directory.systemTemp;
   }
+
   Future<String> createPhotoPackage({
     required String photoPath,
     required String hcvPath,
@@ -140,10 +141,8 @@ class HCVPackage {
     final safeExtension = extension == '.png' ? '.png' : '.jpg';
     final contentFile = 'photo$safeExtension';
 
-    final packageIdSource =
-        '$contentSha256|$certificateSha256|$createdAt';
-    final packageId =
-        sha256.convert(utf8.encode(packageIdSource)).toString();
+    final packageIdSource = '$contentSha256|$certificateSha256|$createdAt';
+    final packageId = sha256.convert(utf8.encode(packageIdSource)).toString();
 
     final meta = <String, dynamic>{
       'type': 'HCV_PACKAGE',
@@ -179,5 +178,4 @@ class HCVPackage {
     await output.writeAsBytes(zipBytes, flush: true);
     return output.path;
   }
-
 }
