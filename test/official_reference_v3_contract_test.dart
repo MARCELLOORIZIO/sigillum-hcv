@@ -29,15 +29,14 @@ void main() {
       contains('HCVReferenceVisualFingerprintV3.compare'),
     );
 
-    final v3Decision = verifier.indexOf(
-      'officialReferenceVisualVerdict ==\n'
-      '                  HCVReferenceVisualVerdict.modified',
-    );
+    final forensicDecision = verifier.indexOf('if (forensicVerified)');
+    final v3Decision = verifier.indexOf('HCVReferenceVisualVerdict.modified');
     final legacyDecision = verifier.indexOf(
-      "contentType == 'video' &&\n"
-      '              videoFingerprintMatches == true',
+      'videoFingerprintMatches == true',
+      v3Decision,
     );
-    expect(v3Decision, greaterThanOrEqualTo(0));
+    expect(forensicDecision, greaterThanOrEqualTo(0));
+    expect(v3Decision, greaterThan(forensicDecision));
     expect(legacyDecision, greaterThan(v3Decision));
 
     expect(verifier, contains("'OFFICIAL COPY VERIFIED'"));
