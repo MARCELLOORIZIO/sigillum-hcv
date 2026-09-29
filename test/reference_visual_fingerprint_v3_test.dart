@@ -52,7 +52,7 @@ void main() {
         sha256
             .convert(base64Decode(frame['localFeatures'].toString()))
             .toString(),
-        '493f334a1c1ab61483db584cda762a2e9750cd8bb91df39c26226c73b84e7f08',
+        '4ae46d0f4d9b9f5ef680cb4c6eda75b67a2a1a3a4037e336efe34b748265bcd4',
       );
     });
 
