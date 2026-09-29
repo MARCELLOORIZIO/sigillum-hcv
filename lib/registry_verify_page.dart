@@ -20,6 +20,8 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'hcv_social_fingerprint.dart';
 import 'hcv_spatial_fingerprint_v2.dart';
 import 'hcv_audio_fingerprint.dart';
+import 'hcv_reference_visual_fingerprint_v3.dart';
+import 'verified_originals_publish_service.dart';
 import 'hcv_media_id_ocr.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
