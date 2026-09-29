@@ -797,6 +797,57 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  bool _isCanonicalHcvId(String? value) {
+    if (value == null || value.length != 20 || !value.startsWith('HCV-')) {
+      return false;
+    }
+    final suffix = value.substring(4);
+    return suffix.length == 16 &&
+        suffix.codeUnits.every(
+          (code) =>
+              (code >= 48 && code <= 57) ||
+              (code >= 65 && code <= 70),
+        );
+  }
+
+  Future<HCVReferenceVisualVerdict?> _matchesOfficialReferenceVisualFingerprint(
+    Map<String, dynamic> cert,
+    String? mediaType,
+  ) async {
+    if (mediaPath == null || (mediaType != 'photo' && mediaType != 'video')) {
+      return null;
+    }
+
+    final meta = cert['meta'];
+    final certificateId = meta is Map
+        ? meta['hcvId']?.toString().trim().toUpperCase()
+        : null;
+    final enteredId = idController.text.trim().toUpperCase();
+    final hcvId = _isCanonicalHcvId(certificateId)
+        ? certificateId!
+        : enteredId;
+    if (!_isCanonicalHcvId(hcvId)) return null;
+
+    try {
+      final availability = await const VerifiedOriginalsPublishService()
+          .publicAvailability(hcvId);
+      if (availability['availability'] != 'REFERENCE_AVAILABLE') {
+        return null;
+      }
+      final raw = availability['referenceVisualFingerprint'];
+      if (!HCVReferenceVisualFingerprintV3.isValid(raw)) return null;
+
+      final current = mediaType == 'photo'
+          ? await HCVReferenceVisualFingerprintV3.buildFromPhoto(mediaPath!)
+          : await HCVReferenceVisualFingerprintV3.buildFromVideo(mediaPath!);
+      return HCVReferenceVisualFingerprintV3.compare(
+        raw as Map,
+        current,
+      ).verdict;
+    } catch (_) {
+      return null;
+    }
+  }
   Future<bool?> _matchesCertifiedImageFingerprint(
     Map<String, dynamic> cert,
   ) async {
