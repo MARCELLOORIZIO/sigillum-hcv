@@ -48,6 +48,18 @@ class RegistryVerifyCopy {
           'CONTENUTO CERTIFICATO COMPATIBILE\nIl testo pubblicato contiene il footer SIGILLUM/HCV-ID e il contenuto certificato corrisponde, anche se il file non è identico byte per byte.',
       'genericDerived':
           'CONTENUTO CERTIFICATO COMPATIBILE\nIl file è diverso dall’originale certificato ma supera i controlli di compatibilità disponibili per questo tipo di media.',
+      'officialReferenceConforming':
+          'COPIA CONFORME\nIl contenuto corrisponde alla copia ufficiale SIGILLUM. Le differenze rilevate sono compatibili con ricompressione o trasformazioni tecniche social tollerate.',
+      'officialReferenceConformingDetail':
+          'Confronto locale V3 compatibile con la fingerprint firmata della copia ufficiale SIGILLUM.',
+      'officialReferenceModified':
+          'COPIA MODIFICATA\nIl contenuto presenta differenze locali significative rispetto alla copia ufficiale SIGILLUM.',
+      'officialReferenceModifiedDetail':
+          'Il confronto locale V3 ha rilevato variazioni non compatibili con la sola ricompressione social, incluse possibili aggiunte, rimozioni o alterazioni di elementi.',
+      'officialReferenceInconclusive':
+          'VERIFICA NON CONCLUSIVA\nLa copia ufficiale SIGILLUM è disponibile, ma il confronto non produce evidenza sufficiente per dichiarare il contenuto conforme o modificato.',
+      'officialReferenceInconclusiveDetail':
+          'Qualità, ritaglio, trasformazioni o allineamento non consentono un confronto locale V3 affidabile.',
       'audioMismatchDetected':
           'HCV-ID e fingerprint visivo sono compatibili, ma il fingerprint audio non corrisponde. Possibile audio sostituito, rimosso o alterato oltre la tolleranza di ricompressione.',
       'audioMismatchProvided':
@@ -173,6 +185,18 @@ class RegistryVerifyCopy {
           'CERTIFIED COMPATIBLE CONTENT\nThe published text includes the SIGILLUM/HCV-ID footer and the certified content matches, although the file is not byte-for-byte identical.',
       'genericDerived':
           'CERTIFIED COMPATIBLE CONTENT\nThe file differs from the certified original but passes the compatibility checks available for this media type.',
+      'officialReferenceConforming':
+          'CONFORMING COPY\nThe content matches the official SIGILLUM copy. Detected differences are compatible with tolerated social recompression or technical transformations.',
+      'officialReferenceConformingDetail':
+          'Local V3 comparison is compatible with the signed fingerprint of the official SIGILLUM copy.',
+      'officialReferenceModified':
+          'MODIFIED COPY\nThe content contains significant local differences from the official SIGILLUM copy.',
+      'officialReferenceModifiedDetail':
+          'Local V3 comparison detected changes not compatible with social recompression alone, including possible inserted, removed, or altered elements.',
+      'officialReferenceInconclusive':
+          'VERIFICATION INCONCLUSIVE\nThe official SIGILLUM copy is available, but the comparison does not provide enough evidence to classify the content as conforming or modified.',
+      'officialReferenceInconclusiveDetail':
+          'Quality, cropping, transformations, or alignment prevent a reliable local V3 comparison.',
       'audioMismatchDetected':
           'The HCV-ID and visual fingerprint are compatible, but the audio fingerprint does not match. Audio may have been replaced, removed, or altered beyond recompression tolerance.',
       'audioMismatchProvided':
@@ -300,6 +324,18 @@ class RegistryVerifyCopy {
           'CONTENIDO CERTIFICADO COMPATIBLE\nEl texto publicado incluye el pie SIGILLUM/HCV-ID y coincide con el contenido certificado, aunque el archivo no sea idéntico byte por byte.',
       'genericDerived':
           'CONTENIDO CERTIFICADO COMPATIBLE\nEl archivo difiere del original certificado, pero supera los controles de compatibilidad disponibles para este tipo de media.',
+      'officialReferenceConforming':
+          'COPIA CONFORME\nEl contenido coincide con la copia oficial SIGILLUM. Las diferencias detectadas son compatibles con recompresión social o transformaciones técnicas toleradas.',
+      'officialReferenceConformingDetail':
+          'La comparación local V3 es compatible con la huella firmada de la copia oficial SIGILLUM.',
+      'officialReferenceModified':
+          'COPIA MODIFICADA\nEl contenido presenta diferencias locales significativas respecto de la copia oficial SIGILLUM.',
+      'officialReferenceModifiedDetail':
+          'La comparación local V3 detectó cambios no compatibles únicamente con recompresión social, incluidas posibles inserciones, eliminaciones o alteraciones de elementos.',
+      'officialReferenceInconclusive':
+          'VERIFICACIÓN NO CONCLUYENTE\nLa copia oficial SIGILLUM está disponible, pero la comparación no aporta evidencia suficiente para clasificar el contenido como conforme o modificado.',
+      'officialReferenceInconclusiveDetail':
+          'La calidad, el recorte, las transformaciones o la alineación impiden una comparación local V3 fiable.',
       'audioMismatchDetected':
           'El HCV-ID y la huella visual son compatibles, pero la huella de audio no coincide. El audio puede haber sido sustituido, eliminado o modificado más allá de la tolerancia de recompresión.',
       'audioMismatchProvided':
@@ -424,6 +460,18 @@ class RegistryVerifyCopy {
           'СОВМЕСТИМЫЙ СЕРТИФИЦИРОВАННЫЙ КОНТЕНТ\nОпубликованный текст содержит подпись SIGILLUM/HCV-ID и соответствует сертифицированному содержанию, хотя файл не идентичен побайтно.',
       'genericDerived':
           'СОВМЕСТИМЫЙ СЕРТИФИЦИРОВАННЫЙ КОНТЕНТ\nФайл отличается от сертифицированного оригинала, но проходит доступные для этого типа медиа проверки совместимости.',
+      'officialReferenceConforming':
+          'СООТВЕТСТВУЮЩАЯ КОПИЯ\nСодержимое соответствует официальной копии SIGILLUM. Обнаруженные различия совместимы с допустимым социальным перекодированием или техническими преобразованиями.',
+      'officialReferenceConformingDetail':
+          'Локальное сравнение V3 совместимо с подписанным отпечатком официальной копии SIGILLUM.',
+      'officialReferenceModified':
+          'ИЗМЕНЁННАЯ КОПИЯ\nВ содержимом обнаружены значимые локальные отличия от официальной копии SIGILLUM.',
+      'officialReferenceModifiedDetail':
+          'Локальное сравнение V3 выявило изменения, не объясняемые только социальным перекодированием, включая возможное добавление, удаление или изменение элементов.',
+      'officialReferenceInconclusive':
+          'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА\nОфициальная копия SIGILLUM доступна, но данных недостаточно, чтобы классифицировать содержимое как соответствующее или изменённое.',
+      'officialReferenceInconclusiveDetail':
+          'Качество, кадрирование, преобразования или выравнивание не позволяют выполнить надёжное локальное сравнение V3.',
       'audioMismatchDetected':
           'HCV-ID и визуальный отпечаток совместимы, но аудиоотпечаток не совпадает. Аудио могло быть заменено, удалено или изменено сверх допустимого при перекодировании.',
       'audioMismatchProvided':
