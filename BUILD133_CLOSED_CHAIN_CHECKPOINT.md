@@ -75,3 +75,13 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Official-copy search is HCV-ID-only and no longer duplicates file verification or protected-original selection.
 - Fixed Russian landing-copy syntax regression and updated obsolete Verified Originals contract tests.
 - BUILD133 formatter materialized the UX changes before TestFlight sync.
+
+## 2026-09-29 Official-copy local verification V3
+
+- Added `HCVReferenceVisualFingerprintV3`: 128x72 grayscale normalization, 16x9 local grid, mean/range/edge tile features, 64-bit global frame hash, 2 fps video sampling, temporal alignment and three-way verdict (`conforming`, `modified`, `inconclusive`).
+- Regression contract: social-like recompression remains conforming while a small synthetic UFO inserted into a local region is detected as modified, including when present only in a subset of video frames.
+- Public `VERIFICA CONTENUTO` now prefers the signed official-copy V3 fingerprint when available; exact SHA-256 original verification remains the strongest path and legacy fingerprints remain fallback-only.
+- User-facing outcomes added in IT/EN/ES/RU: COPIA CONFORME, COPIA MODIFICATA, VERIFICA NON CONCLUSIVA.
+- Cross-language golden locked with backend: globalHash `03030f0f1f1f7f7f`; local-feature SHA-256 `4ae46d0f4d9b9f5ef680cb4c6eda75b67a2a1a3a4037e336efe34b748265bcd4`.
+- App CI GREEN before this documentation-only checkpoint: focused Verified Originals suite and full BUILD133 suite (format, analyze, tests, architecture guard).
+- No TestFlight build created. Accumulate fixes for one consolidated build later.
