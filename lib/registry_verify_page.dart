@@ -797,8 +797,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
-  Future<HCVReferenceVisualVerdict?>
-      _matchesOfficialReferenceVisualFingerprint(
+  Future<HCVReferenceVisualVerdict?> _matchesOfficialReferenceVisualFingerprint(
     Map<String, dynamic> cert,
     String? mediaType,
   ) async {
@@ -809,8 +808,38 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final meta = cert['meta'];
     final certificateId = meta is Map ? meta['hcvId']?.toString() : null;
     final enteredId = idController.text.trim().toUpperCase();
-    final hcvId =
-        RegExp(r'^HCV-[A-F0-9]{16}    Map<String, dynamic> cert,
+    final hcvId = RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(certificateId ?? '')
+        ? certificateId!
+        : enteredId;
+    if (!RegExp(r'^HCV-[A-F0-9]{16}$').hasMatch(hcvId)) {
+      return null;
+    }
+
+    try {
+      final availability =
+          await const VerifiedOriginalsPublishService().publicAvailability(hcvId);
+      if (availability['availability'] != 'REFERENCE_AVAILABLE') {
+        return null;
+      }
+      final raw = availability['referenceVisualFingerprint'];
+      if (!HCVReferenceVisualFingerprintV3.isValid(raw)) {
+        return null;
+      }
+
+      final current = mediaType == 'photo'
+          ? await HCVReferenceVisualFingerprintV3.buildFromPhoto(mediaPath!)
+          : await HCVReferenceVisualFingerprintV3.buildFromVideo(mediaPath!);
+      return HCVReferenceVisualFingerprintV3.compare(
+        raw as Map,
+        current,
+      ).verdict;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool?> _matchesCertifiedImageFingerprint(
+    Map<String, dynamic> cert,
   ) async {
     if (mediaPath == null) {
       return null;
