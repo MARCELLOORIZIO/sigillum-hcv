@@ -449,9 +449,14 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent
     let rawExtension = URL(fileURLWithPath: originalLeaf).pathExtension
     let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
-    let preservedName = originalLeaf.isEmpty
-      ? "hcv_original_\(UUID().uuidString).\(fileExtension)"
-      : "hcv_original_\(UUID().uuidString)_\(originalLeaf)"
+    let preservedName: String
+    if originalLeaf.isEmpty {
+      preservedName = "hcv_original_\(UUID().uuidString).\(fileExtension)"
+    } else if rawExtension.isEmpty {
+      preservedName = "hcv_original_\(UUID().uuidString)_\(originalLeaf).\(fileExtension)"
+    } else {
+      preservedName = "hcv_original_\(UUID().uuidString)_\(originalLeaf)"
+    }
     let output = FileManager.default.temporaryDirectory.appendingPathComponent(
       preservedName
     )
