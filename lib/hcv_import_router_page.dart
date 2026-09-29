@@ -37,8 +37,7 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
   }
 
   Future<void> processFile() async {
-    final path = widget.path;
-    final lower = path.toLowerCase();
+    var path = widget.path;
 
     if (!await File(path).exists()) {
       setState(() {
@@ -46,6 +45,9 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
       });
       return;
     }
+
+    path = await _normalizeExtensionlessMedia(path);
+    final lower = path.toLowerCase();
 
     if (lower.endsWith(".hcvpack")) {
       if (!mounted) return;
@@ -106,6 +108,59 @@ class _HCVImportRouterPageState extends State<HCVImportRouterPage> {
     setState(() {
       status = "${_t('unknownFormat')}:\n$path";
     });
+  }
+
+  Future<String> _normalizeExtensionlessMedia(String path) async {
+    final lower = path.toLowerCase();
+    if (_isPhotoOrVideo(lower) || _isOtherMediaOrTextFile(lower)) {
+      return path;
+    }
+
+    String? extension;
+    RandomAccessFile? handle;
+    try {
+      handle = await File(path).open();
+      final bytes = await handle.read(16);
+
+      final isJpeg = bytes.length >= 3 &&
+          bytes[0] == 0xff &&
+          bytes[1] == 0xd8 &&
+          bytes[2] == 0xff;
+      final isPng = bytes.length >= 8 &&
+          bytes[0] == 0x89 &&
+          bytes[1] == 0x50 &&
+          bytes[2] == 0x4e &&
+          bytes[3] == 0x47 &&
+          bytes[4] == 0x0d &&
+          bytes[5] == 0x0a &&
+          bytes[6] == 0x1a &&
+          bytes[7] == 0x0a;
+      final isIsoBaseMedia = bytes.length >= 12 &&
+          bytes[4] == 0x66 &&
+          bytes[5] == 0x74 &&
+          bytes[6] == 0x79 &&
+          bytes[7] == 0x70;
+
+      if (isJpeg) {
+        extension = '.jpg';
+      } else if (isPng) {
+        extension = '.png';
+      } else if (isIsoBaseMedia) {
+        extension = '.mp4';
+      }
+    } catch (_) {
+      return path;
+    } finally {
+      await handle?.close();
+    }
+
+    if (extension == null) return path;
+
+    final normalized = File('$path$extension');
+    if (!await normalized.exists()) {
+      await File(path).copy(normalized.path);
+    }
+    return normalized.path;
   }
 
   bool _isPhotoOrVideo(String lower) {
