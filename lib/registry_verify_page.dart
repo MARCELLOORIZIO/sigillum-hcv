@@ -1366,6 +1366,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       contentType = contentTypeForVerification;
 
       final forensicVerified = actualHash == expectedHash;
+      final officialReferenceVisualVerdict =
+          await _matchesOfficialReferenceVisualFingerprint(
+        cert,
+        contentTypeForVerification,
+      );
       final videoFingerprintMatches = await _matchesCertifiedVideoFingerprint(
         cert,
       );
