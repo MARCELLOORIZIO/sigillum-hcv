@@ -1478,7 +1478,66 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
           final hcvIdProvided = idController.text.trim().isNotEmpty;
 
-          if (contentType == 'video' &&
+          if ((contentType == 'photo' || contentType == 'video') &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.modified) {
+            status = _r('officialReferenceModified');
+            result = 'OFFICIAL COPY MODIFIED';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; confronto eseguito con la copia ufficiale SIGILLUM.',
+              integrity: 'Copia modificata',
+              integrityDetail: _r('officialReferenceModifiedDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'Il controllo riguarda la corrispondenza con la copia ufficiale, non la scena di cattura.',
+              derivation: 'Non conforme',
+              derivationDetail: _r('officialReferenceModifiedDetail'),
+            );
+          } else if ((contentType == 'photo' || contentType == 'video') &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.inconclusive) {
+            status = _r('officialReferenceInconclusive');
+            result = 'OFFICIAL COPY INCONCLUSIVE';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; la copia ufficiale è disponibile.',
+              integrity: 'Non conclusiva',
+              integrityDetail: _r('officialReferenceInconclusiveDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'Il confronto non produce evidenza sufficiente per un verdetto forte.',
+              derivation: 'Non conclusiva',
+              derivationDetail: _r('officialReferenceInconclusiveDetail'),
+            );
+          } else if (contentType == 'video' &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.conforming &&
+              audioFingerprintMatches == false) {
+            status = hcvIdWasDetectedInMedia
+                ? _r('audioMismatchDetected')
+                : _r('audioMismatchProvided');
+            result = 'ID VALID / MEDIA NOT VERIFIED';
+          } else if ((contentType == 'photo' || contentType == 'video') &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.conforming) {
+            status = _r('officialReferenceConforming');
+            result = 'OFFICIAL COPY VERIFIED';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; confronto eseguito con la copia ufficiale SIGILLUM.',
+              integrity: 'Copia conforme',
+              integrityDetail: _r('officialReferenceConformingDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'Le differenze rilevate sono compatibili con una trasformazione social tollerata.',
+              derivation: 'Conforme alla copia ufficiale',
+              derivationDetail: _r('officialReferenceConformingDetail'),
+            );
+          } else if (contentType == 'video' &&
               videoFingerprintMatches == true &&
               audioFingerprintMatches == false) {
             status = hcvIdWasDetectedInMedia
