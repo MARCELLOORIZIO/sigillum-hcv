@@ -85,3 +85,11 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Cross-language golden locked with backend: globalHash `03030f0f1f1f7f7f`; local-feature SHA-256 `4ae46d0f4d9b9f5ef680cb4c6eda75b67a2a1a3a4037e336efe34b748265bcd4`.
 - App CI GREEN before this documentation-only checkpoint: focused Verified Originals suite and full BUILD133 suite (format, analyze, tests, architecture guard).
 - No TestFlight build created. Accumulate fixes for one consolidated build later.
+
+## 2026-09-30 V3 RGB hardening
+
+- V3 upgraded from grayscale-only local features to RGB-aware local features: algorithm `SIGILLUM_LOCAL_RGB_GRID_V3`, 6 bytes/tile (luma mean/range/edge + mean R/G/B), 16x9 grid on normalized 128x72 RGB24 frames.
+- Exact original SHA-256 remains the strongest verification path. For derived/social copies the order is: signed official-copy V3 -> legacy fallback.
+- Local Dart regression now requires: social-like recompression = conforming; small inserted UFO = modified; colour-only edit = modified; brightness edit = modified; geometric translation = modified.
+- App and backend cross-language golden updated: feature SHA-256 `f5df80936c5d9050b35e5a606c92b55a7eb2bec873f5805f9c81d37f14a4afbc`.
+- Both Flutter workflows GREEN after RGB hardening. No TestFlight build created.
