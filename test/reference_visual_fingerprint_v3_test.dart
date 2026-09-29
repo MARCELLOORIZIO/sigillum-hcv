@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_reference_visual_fingerprint_v3.dart';
 
@@ -38,6 +40,22 @@ Uint8List _addSmallUfo(Uint8List source) {
 
 void main() {
   group('reference visual fingerprint V3 local tamper detection', () {
+    test('Dart fingerprint matches the backend golden representation', () {
+      final fingerprint = HCVReferenceVisualFingerprintV3.buildFromGrayFrames(
+        <Uint8List>[_baseFrame()],
+        mediaType: 'photo',
+      );
+      final frame = (fingerprint['frames'] as List).single as Map;
+
+      expect(frame['globalHash'], '03030f0f1f1f7f7f');
+      expect(
+        sha256
+            .convert(base64Decode(frame['localFeatures'].toString()))
+            .toString(),
+        '493f334a1c1ab61483db584cda762a2e9750cd8bb91df39c26226c73b84e7f08',
+      );
+    });
+
     test('social-like recompression remains conforming', () {
       final expected = HCVReferenceVisualFingerprintV3.buildFromGrayFrames(
         <Uint8List>[_baseFrame()],
