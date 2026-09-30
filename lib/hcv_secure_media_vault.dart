@@ -516,6 +516,17 @@ class HCVSecureMediaVault {
       throw StateError('SECURE_VAULT_SOURCE_EMPTY');
     }
 
+    await _upsertPendingSeal(
+      hcvId: cleanId,
+      ownerCreatorId: ownerCreatorId,
+      ownerAccountSubjectHash: ownerAccountSubjectHash,
+      mediaType: mediaType,
+      mediaPath: media.absolute.path,
+      hcvpackPath: pack.absolute.path,
+      certificatePath: certificate.absolute.path,
+      expectedMediaSha256: expectedMediaSha256,
+    );
+
     final existingBefore = await _withIndexLock(() async {
       final records = await _loadIndex();
       for (final item in records) {
@@ -537,6 +548,7 @@ class HCVSecureMediaVault {
         await File(existingBefore.encryptedHcvpackPath).exists()) {
       await media.delete();
       await pack.delete();
+      await _removePendingSeal(cleanId);
       return existingBefore;
     }
 
@@ -618,7 +630,61 @@ class HCVSecureMediaVault {
 
     await media.delete();
     await pack.delete();
+    await _removePendingSeal(cleanId);
     return record;
+  }
+
+  Future<int> recoverPendingSeals() async {
+    final ownerCreatorId = await _currentCreatorId();
+    final ownerAccountSubjectHash = await _currentAccountSubjectHash();
+    final pending = await _withPendingSealLock(_loadPendingSeals);
+    var recovered = 0;
+
+    for (final item in pending) {
+      final hcvId = item['hcvId']?.toString().trim().toUpperCase() ?? '';
+      if (!_hcvPattern.hasMatch(hcvId) ||
+          item['ownerCreatorId']?.toString() != ownerCreatorId ||
+          item['ownerAccountSubjectHash']?.toString() !=
+              ownerAccountSubjectHash) {
+        continue;
+      }
+
+      final existing = await find(hcvId);
+      if (existing != null) {
+        await _removePendingSeal(hcvId);
+        continue;
+      }
+
+      final mediaPath = item['mediaPath']?.toString() ?? '';
+      final hcvpackPath = item['hcvpackPath']?.toString() ?? '';
+      final certificatePath = item['certificatePath']?.toString() ?? '';
+      final mediaType = item['mediaType']?.toString() ?? '';
+      final expectedMediaSha256 =
+          item['expectedMediaSha256']?.toString().toLowerCase() ?? '';
+
+      if ((mediaType != 'video' && mediaType != 'photo') ||
+          !_shaPattern.hasMatch(expectedMediaSha256) ||
+          !await File(mediaPath).exists() ||
+          !await File(hcvpackPath).exists() ||
+          !await File(certificatePath).exists()) {
+        continue;
+      }
+
+      try {
+        await seal(
+          hcvId: hcvId,
+          mediaType: mediaType,
+          mediaPath: mediaPath,
+          hcvpackPath: hcvpackPath,
+          certificatePath: certificatePath,
+          expectedMediaSha256: expectedMediaSha256,
+        );
+        recovered++;
+      } catch (_) {
+        // Leave the journal entry intact. A later app start may recover it.
+      }
+    }
+    return recovered;
   }
 
   Future<List<HCVSecureOriginalRecord>> list() async {
