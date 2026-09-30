@@ -10,6 +10,7 @@ import 'hcv_registry_service.dart';
 import 'hcv_secure_store.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
+import 'verified_originals_publish_service.dart';
 import 'verified_originals_reference.dart';
 
 /// Public reference discovery. This screen never certifies third-party social
@@ -31,6 +32,8 @@ class VerifiedOriginalsPage extends StatefulWidget {
 class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
   static final RegExp _validId = RegExp(r'^HCV-[A-F0-9]{16}$');
   final HCVRegistryService _registry = const HCVRegistryService();
+  final VerifiedOriginalsPublishService _publisher =
+      const VerifiedOriginalsPublishService();
   final TextEditingController _controller = TextEditingController();
 
   bool _referenceAvailable = false;
@@ -144,66 +147,21 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
         );
       }
 
-      final token = await HCVSecureStore.read('sigillum.auth.session.v1');
-      if (token == null || token.isEmpty) {
-        throw const CommercialAccountException(
-          'AUTH_REQUIRED',
-          statusCode: 401,
-          code: 'AUTH_REQUIRED',
-        );
+      final decoded = await _publisher.entitledLiveReference(id);
+      final reference = VerifiedOriginalsReference.fromRegistry(
+        decoded,
+        requestedHcvId: id,
+      );
+      if (reference == null) {
+        throw const FormatException('Invalid paid reference');
       }
 
-      final base = _registry.baseUrl.endsWith('/')
-          ? _registry.baseUrl.substring(0, _registry.baseUrl.length - 1)
-          : _registry.baseUrl;
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 12);
-      try {
-        final request = await client
-            .getUrl(Uri.parse('$base/api/verified-originals/$id/view'))
-            .timeout(const Duration(seconds: 12));
-        request.headers.set(
-          HttpHeaders.authorizationHeader,
-          'Bearer $token',
-        );
-        final response =
-            await request.close().timeout(const Duration(seconds: 12));
-        final body = await utf8.decoder
-            .bind(response)
-            .join()
-            .timeout(const Duration(seconds: 12));
-        final decoded = jsonDecode(body);
-        if (decoded is! Map<String, dynamic>) {
-          throw const FormatException('Invalid Registry response');
-        }
-        if (response.statusCode == 402) {
-          throw const CommercialAccountException(
-            'SUBSCRIPTION_REQUIRED',
-            statusCode: 402,
-            code: 'SUBSCRIPTION_REQUIRED',
-          );
-        }
-        if (response.statusCode != 200) {
-          throw const FormatException('Reference service unavailable');
-        }
-
-        final reference = VerifiedOriginalsReference.fromRegistry(
-          decoded,
-          requestedHcvId: id,
-        );
-        if (reference == null) {
-          throw const FormatException('Invalid paid reference');
-        }
-
-        final opened = await launchUrl(
-          reference.publicUrl,
-          mode: LaunchMode.externalApplication,
-        );
-        if (!opened) {
-          throw const FormatException('Unable to open reference');
-        }
-      } finally {
-        client.close(force: true);
+      final opened = await launchUrl(
+        reference.publicUrl,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        throw const FormatException('Unable to open reference');
       }
     } on CommercialAccountException catch (error) {
       if (!mounted) return;
@@ -212,10 +170,12 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
             ? _t('voSubscriptionRequired')
             : _t('voAuthRequired');
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = _t('voOpenError');
+        _error = error.toString().contains('REFERENCE_PLATFORM_UNAVAILABLE')
+            ? _t('voNotAvailable')
+            : _t('voOpenError');
       });
     } finally {
       if (mounted) setState(() => _busy = false);
