@@ -3164,6 +3164,7 @@ class _CameraPageState extends State<CameraPage> {
       ),
     );
   }
+}
 
 class _SubtitleExportDecision {
   const _SubtitleExportDecision({
