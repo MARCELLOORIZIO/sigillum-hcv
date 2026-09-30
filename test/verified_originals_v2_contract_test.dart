@@ -67,8 +67,7 @@ void main() {
       greaterThan(recovery),
     );
 
-    final sealStart =
-        vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
+    final sealStart = vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
     final journalBeforeHash =
         vault.indexOf('await _upsertPendingSeal(', sealStart);
     final mediaHash =
@@ -141,7 +140,8 @@ void main() {
     expect(referenceGate, greaterThanOrEqualTo(0));
     expect(materializePack, greaterThan(referenceGate));
     expect(sharePack, greaterThan(materializePack));
-    expect(packMethod, contains('await _secureVault.deleteMaterialized(clearPack)'));
+    expect(packMethod,
+        contains('await _secureVault.deleteMaterialized(clearPack)'));
     expect(packMethod, isNot(contains('XFile(packagePath!')));
     expect(camera, isNot(contains('if (packagePath != null) ...[')));
   });
