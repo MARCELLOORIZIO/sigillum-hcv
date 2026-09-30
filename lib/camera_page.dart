@@ -2042,13 +2042,17 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _recoverPendingSecureOriginals() async {
     try {
+      final beforeIds =
+          (await _secureVault.list()).map((record) => record.hcvId).toSet();
       final recovered = await _secureVault.recoverPendingSeals();
       if (recovered == 0) return;
 
       // A hard kill can occur after the seal journal is persisted but before
-      // the Registry outbox entry is written. Recovery therefore re-enqueues
-      // every recovered certificate idempotently before retrying the network.
-      final recoveredRecords = await _secureVault.list();
+      // the Registry outbox entry is written. Only records newly materialized
+      // by this recovery need re-enqueueing; already-indexed records had
+      // reached the Registry queue before seal() started.
+      final recoveredRecords = (await _secureVault.list())
+          .where((record) => !beforeIds.contains(record.hcvId));
       for (final record in recoveredRecords) {
         final certificate = File(record.certificatePath);
         if (await certificate.exists()) {
