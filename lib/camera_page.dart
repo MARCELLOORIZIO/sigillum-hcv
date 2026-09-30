@@ -2630,290 +2630,327 @@ class _CameraPageState extends State<CameraPage> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: _popCameraIfSafe,
-        ),
-        title: Text(_t('cameraTitle')),
-        actions: [
-          IconButton(
-            tooltip: _c('printGpsCoordinates'),
-            onPressed: _locationBusy ? null : _toggleCoordinateStamp,
-            icon: Icon(
-              _printCoordinates ? Icons.location_on : Icons.location_off,
-              color: _printCoordinates ? Colors.greenAccent : Colors.white,
-            ),
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          iconTheme: const IconThemeData(color: Colors.white),
+          titleTextStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-          IconButton(
-            icon: Icon(
-              currentFlashMode == FlashMode.off
-                  ? Icons.flash_off
-                  : Icons.flash_on,
-              color: Colors.white,
-            ),
-            onPressed: toggleFlash,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: _popCameraIfSafe,
           ),
-          IconButton(
-            icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
-            onPressed: switchCamera,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // FOTO and VIDEO must display the same uncropped camera texture.
-          // BoxFit.cover in VIDEO previously enlarged the apparent 1x zoom.
-          // The shared geometry also handles landscape rotation in both modes.
-          if (ok)
-            Positioned.fill(
-              child: OrientationBuilder(
-                builder: (context, orientation) {
-                  final previewSize = controller!.value.previewSize!;
-                  final isPortrait = orientation == Orientation.portrait;
-                  return FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width:
-                          isPortrait ? previewSize.height : previewSize.width,
-                      height:
-                          isPortrait ? previewSize.width : previewSize.height,
-                      child: CameraPreview(controller!),
-                    ),
-                  );
-                },
+          title: Text(_t('cameraTitle')),
+          actions: [
+            IconButton(
+              tooltip: _c('printGpsCoordinates'),
+              onPressed: _locationBusy ? null : _toggleCoordinateStamp,
+              icon: Icon(
+                _printCoordinates ? Icons.location_on : Icons.location_off,
+                color: _printCoordinates ? Colors.greenAccent : Colors.white,
               ),
             ),
-          if (result != null)
-            Positioned.fill(
-              child: Container(color: Colors.black.withValues(alpha: 0.65)),
+            IconButton(
+              icon: Icon(
+                currentFlashMode == FlashMode.off
+                    ? Icons.flash_off
+                    : Icons.flash_on,
+                color: Colors.white,
+              ),
+              onPressed: toggleFlash,
             ),
-          Positioned(
-            top: 18,
-            left: 20,
-            right: 20,
-            child: SafeArea(
-              child: Center(
+            IconButton(
+              icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+              onPressed: switchCamera,
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            // FOTO and VIDEO must display the same uncropped camera texture.
+            // BoxFit.cover in VIDEO previously enlarged the apparent 1x zoom.
+            // The shared geometry also handles landscape rotation in both modes.
+            if (ok)
+              Positioned.fill(
+                child: OrientationBuilder(
+                  builder: (context, orientation) {
+                    final previewSize = controller!.value.previewSize!;
+                    final isPortrait = orientation == Orientation.portrait;
+                    return FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width:
+                            isPortrait ? previewSize.height : previewSize.width,
+                        height:
+                            isPortrait ? previewSize.width : previewSize.height,
+                        child: CameraPreview(controller!),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            if (result != null)
+              Positioned.fill(
+                child: Container(color: Colors.black.withValues(alpha: 0.65)),
+              ),
+            Positioned(
+              top: 18,
+              left: 20,
+              right: 20,
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: _statusBadge(),
+                  ),
+                ),
+              ),
+            ),
+            if (ok && result == null && maxZoom > minZoom)
+              Positioned(
+                left: 30,
+                right: 30,
+                bottom: 305,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
+                    horizontal: 16,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(22),
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(30),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.28),
+                      color: Colors.white.withValues(alpha: 0.22),
                     ),
                   ),
-                  child: _statusBadge(),
-                ),
-              ),
-            ),
-          ),
-          if (ok && result == null && maxZoom > minZoom)
-            Positioned(
-              left: 30,
-              right: 30,
-              bottom: 305,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.22),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.zoom_out, color: Colors.white, size: 18),
-                    Expanded(
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: Colors.white,
-                          inactiveTrackColor: Colors.white.withValues(
-                            alpha: 0.25,
-                          ),
-                          thumbColor: Colors.white,
-                          overlayColor: Colors.white.withValues(alpha: 0.15),
-                          trackHeight: 2.5,
-                        ),
-                        child: Slider(
-                          value: currentZoom.clamp(minZoom, maxZoom),
-                          min: minZoom,
-                          max: maxZoom,
-                          onChanged: (value) async {
-                            await setZoom(value);
-                          },
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${currentZoom.toStringAsFixed(1)}x',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          if (result == null)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: SafeArea(
-                child: Container(
-                  padding: const EdgeInsets.only(bottom: 14, top: 58),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.98),
-                        Colors.black.withValues(alpha: 0.65),
-                        Colors.black.withValues(alpha: 0.0),
-                      ],
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ChoiceChip(
-                            label: Text(_t('video')),
-                            selected: !photoMode,
-                            showCheckmark: false,
-                            selectedColor: Colors.white,
-                            backgroundColor: Colors.black,
-                            side: const BorderSide(color: Colors.white70),
-                            labelStyle: TextStyle(
-                              color: !photoMode ? Colors.black : Colors.white,
-                              fontWeight: FontWeight.bold,
+                      const Icon(Icons.zoom_out, color: Colors.white, size: 18),
+                      Expanded(
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            activeTrackColor: Colors.white,
+                            inactiveTrackColor: Colors.white.withValues(
+                              alpha: 0.25,
                             ),
-                            onSelected: (_) async {
-                              await _setCaptureMode(false);
+                            thumbColor: Colors.white,
+                            overlayColor: Colors.white.withValues(alpha: 0.15),
+                            trackHeight: 2.5,
+                          ),
+                          child: Slider(
+                            value: currentZoom.clamp(minZoom, maxZoom),
+                            min: minZoom,
+                            max: maxZoom,
+                            onChanged: (value) async {
+                              await setZoom(value);
                             },
-                          ),
-                          const SizedBox(width: 14),
-                          ChoiceChip(
-                            label: Text(_t('photo')),
-                            selected: photoMode,
-                            showCheckmark: false,
-                            selectedColor: Colors.white,
-                            backgroundColor: Colors.black,
-                            side: const BorderSide(color: Colors.white70),
-                            labelStyle: TextStyle(
-                              color: photoMode ? Colors.black : Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            onSelected: (_) async {
-                              await _setCaptureMode(true);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      GestureDetector(
-                        onTap: !ready || _videoFinalizeInProgress
-                            ? null
-                            : () async {
-                                if (photoMode) {
-                                  await takePhoto();
-                                  return;
-                                }
-
-                                if (recording) {
-                                  await stop();
-                                  return;
-                                }
-
-                                await start();
-                              },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          width: recording ? 78 : 86,
-                          height: recording ? 78 : 86,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: recording ? Colors.red : Colors.white,
-                            border: Border.all(color: Colors.white70, width: 5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                blurRadius: 18,
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: recording
-                                ? Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(7),
-                                    ),
-                                  )
-                                : Icon(
-                                    photoMode
-                                        ? Icons.camera_alt
-                                        : Icons.videocam,
-                                    color: Colors.black,
-                                    size: 34,
-                                  ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 18),
                       Text(
-                        recording
-                            ? _t('recording')
-                            : photoMode
-                                ? _t('photoMode')
-                                : _t('videoMode'),
+                        '${currentZoom.toStringAsFixed(1)}x',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-          if (result != null)
-            Positioned.fill(
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.white,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.black,
+            if (result == null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.only(bottom: 14, top: 58),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.98),
+                          Colors.black.withValues(alpha: 0.65),
+                          Colors.black.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ChoiceChip(
+                              label: Text(_t('video')),
+                              selected: !photoMode,
+                              showCheckmark: false,
+                              selectedColor: Colors.white,
+                              backgroundColor: Colors.black,
+                              side: const BorderSide(color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: !photoMode ? Colors.black : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              onSelected: (_) async {
+                                await _setCaptureMode(false);
+                              },
+                            ),
+                            const SizedBox(width: 14),
+                            ChoiceChip(
+                              label: Text(_t('photo')),
+                              selected: photoMode,
+                              showCheckmark: false,
+                              selectedColor: Colors.white,
+                              backgroundColor: Colors.black,
+                              side: const BorderSide(color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: photoMode ? Colors.black : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              onSelected: (_) async {
+                                await _setCaptureMode(true);
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        GestureDetector(
+                          onTap: !ready || _videoFinalizeInProgress
+                              ? null
+                              : () async {
+                                  if (photoMode) {
+                                    await takePhoto();
+                                    return;
+                                  }
+
+                                  if (recording) {
+                                    await stop();
+                                    return;
+                                  }
+
+                                  await start();
+                                },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: recording ? 78 : 86,
+                            height: recording ? 78 : 86,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: recording ? Colors.red : Colors.white,
+                              border:
+                                  Border.all(color: Colors.white70, width: 5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                  blurRadius: 18,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: recording
+                                  ? Container(
+                                      width: 28,
+                                      height: 28,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(7),
+                                      ),
+                                    )
+                                  : Icon(
+                                      photoMode
+                                          ? Icons.camera_alt
+                                          : Icons.videocam,
+                                      color: Colors.black,
+                                      size: 34,
+                                    ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          recording
+                              ? _t('recording')
+                              : photoMode
+                                  ? _t('photoMode')
+                                  : _t('videoMode'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (result != null)
+              Positioned.fill(
+                child: SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.black,
+                              ),
+                              onPressed: () {
+                                if (_criticalFinalizationInProgress) {
+                                  _showFinalizationBlocked();
+                                  return;
+                                }
+                                setState(() {
+                                  status = _c('ready');
+                                  result = null;
+                                  videoPath = null;
+                                  hcvPath = null;
+                                  packagePath = null;
+                                  hcvId = null;
+                                  verificationUrl = null;
+                                  registryStatus = null;
+                                  _videoTranscript = null;
+                                  _subtitlePath = null;
+                                  _captionedVideoPath = null;
+                                  recording = false;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _verifiedCard(),
+                        _registryCard(),
+                        _actionButtons(),
+                        _createdFilesCard(),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: 260,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white),
                             ),
                             onPressed: () {
                               if (_criticalFinalizationInProgress) {
@@ -2929,56 +2966,20 @@ class _CameraPageState extends State<CameraPage> {
                                 hcvId = null;
                                 verificationUrl = null;
                                 registryStatus = null;
-                                _videoTranscript = null;
-                                _subtitlePath = null;
-                                _captionedVideoPath = null;
                                 recording = false;
                               });
                             },
+                            icon: const Icon(Icons.refresh),
+                            label: Text(_c('backToCamera')),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      _verifiedCard(),
-                      _registryCard(),
-                      _actionButtons(),
-                      _createdFilesCard(),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: 260,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white),
-                          ),
-                          onPressed: () {
-                            if (_criticalFinalizationInProgress) {
-                              _showFinalizationBlocked();
-                              return;
-                            }
-                            setState(() {
-                              status = _c('ready');
-                              result = null;
-                              videoPath = null;
-                              hcvPath = null;
-                              packagePath = null;
-                              hcvId = null;
-                              verificationUrl = null;
-                              registryStatus = null;
-                              recording = false;
-                            });
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: Text(_c('backToCamera')),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

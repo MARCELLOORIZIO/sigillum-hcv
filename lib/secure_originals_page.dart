@@ -398,7 +398,8 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                                   const SizedBox(height: 2),
                                   Text(
                                     record.hasReference
-                                        ? _t('secureOriginalsReferencePublished')
+                                        ? _t(
+                                            'secureOriginalsReferencePublished')
                                         : _t('secureOriginalsReferencePending'),
                                   ),
                                 ],
