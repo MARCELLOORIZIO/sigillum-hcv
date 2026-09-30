@@ -60,6 +60,12 @@ void main() {
     expect(vault, contains('_upsertPendingSeal('));
     expect(vault, contains('_removePendingSeal('));
     expect(vault, contains('Future<int> recoverPendingSeals()'));
+    final recovery = vault.indexOf('Future<int> recoverPendingSeals()');
+    expect(recovery, greaterThanOrEqualTo(0));
+    expect(
+      vault.indexOf('await seal(', recovery),
+      greaterThan(recovery),
+    );
   });
 
   test('protected-original list uses compact previews', () {
@@ -87,6 +93,27 @@ void main() {
     expect(vault, contains('if (!committed)'));
     expect(vault, contains('await media.delete();'));
     expect(vault, contains('await pack.delete();'));
+  });
+
+  test('camera cannot bypass the vault with direct original sharing', () {
+    final camera = File('lib/camera_page.dart').readAsStringSync();
+
+    final shareStart =
+        camera.indexOf('Future<void> shareVideoAndCertificate() async');
+    final shareEnd =
+        camera.indexOf('Future<bool> saveContentToGallery', shareStart);
+    final shareMethod = camera.substring(shareStart, shareEnd);
+
+    expect(shareStart, greaterThanOrEqualTo(0));
+    expect(shareMethod, contains('_criticalFinalizationInProgress'));
+    expect(shareMethod, contains('await _secureVault.find(currentId)'));
+    expect(shareMethod, contains("status = _c('secureShareRequiresVault')"));
+    expect(shareMethod, isNot(contains('Share.shareXFiles(')));
+
+    expect(
+      camera,
+      contains('if (_secureOriginalRecord != null) ...['),
+    );
   });
 
   test('social export is fail closed behind the official reference', () {
