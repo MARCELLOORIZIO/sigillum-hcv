@@ -120,8 +120,7 @@ class VerifiedOriginalsPublishService {
   Future<Map<String, dynamic>> entitledLiveReference(String hcvId) async {
     final live = await verificationReference(hcvId);
     final available = live['availability'] == 'REFERENCE_AVAILABLE' &&
-        live['youtubeLive'] == true &&
-        live['commentsDisabled'] == true;
+        live['youtubeLive'] == true;
     if (!available) {
       throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
     }
@@ -218,8 +217,7 @@ class VerifiedOriginalsPublishService {
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
       final live = await verificationReference(record.hcvId);
       final liveAvailable = live['availability'] == 'REFERENCE_AVAILABLE' &&
-          live['youtubeLive'] == true &&
-          live['commentsDisabled'] == true;
+          live['youtubeLive'] == true;
       if (!liveAvailable) {
         throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
       }

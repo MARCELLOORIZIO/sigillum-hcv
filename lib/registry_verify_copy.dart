@@ -69,7 +69,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailable':
           'VERIFICA NON ESEGUIBILE\nLa reference ufficiale SIGILLUM non è verificabile su YouTube in questo momento. Nessun controllo più debole viene usato per dichiarare conforme il file social.',
       'officialReferenceUnavailableDetail':
-          'La reference YouTube deve risultare realmente presente, elaborata, unlisted e con commenti disabilitati prima della verifica di una copia social.',
+          'La reference YouTube deve risultare realmente presente, elaborata e unlisted prima della verifica di una copia social. Lo stato dei commenti resta un dato diagnostico e non determina la validità della reference.',
       'manualCompareTitle': 'CONFRONTO MANUALE',
       'manualCompareAction': 'CONFRONTA MANUALMENTE',
       'manualCompareSubscriberOnly':
@@ -252,7 +252,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailable':
           'VERIFICATION CANNOT BE COMPLETED\nThe official SIGILLUM reference cannot currently be verified on YouTube. No weaker check is used to declare the social file conforming.',
       'officialReferenceUnavailableDetail':
-          'The YouTube reference must be confirmed as present, processed, unlisted and with comments disabled before a social copy can be verified.',
+          'The YouTube reference must be confirmed as present, processed and unlisted before a social copy can be verified. Comment state remains diagnostic and does not determine reference validity.',
       'manualCompareTitle': 'MANUAL COMPARISON',
       'manualCompareAction': 'COMPARE MANUALLY',
       'manualCompareSubscriberOnly':
@@ -436,7 +436,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailable':
           'VERIFICACIÓN NO EJECUTABLE\nLa referencia oficial de SIGILLUM no puede verificarse actualmente en YouTube. No se usa un control más débil para declarar conforme el archivo social.',
       'officialReferenceUnavailableDetail':
-          'La referencia de YouTube debe estar realmente presente, procesada, no listada y con los comentarios desactivados antes de verificar una copia social.',
+          'La referencia de YouTube debe estar realmente presente, procesada y no listada antes de verificar una copia social. El estado de los comentarios es solo diagnóstico y no determina la validez de la referencia.',
       'manualCompareTitle': 'COMPARACIÓN MANUAL',
       'manualCompareAction': 'COMPARAR MANUALMENTE',
       'manualCompareSubscriberOnly':
@@ -620,7 +620,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailable':
           'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\nОфициальный эталон SIGILLUM сейчас нельзя подтвердить на YouTube. Более слабая проверка не используется для признания файла из соцсети соответствующим.',
       'officialReferenceUnavailableDetail':
-          'Перед проверкой копии из соцсети эталон YouTube должен быть подтвержден как существующий, обработанный, доступный по unlisted-ссылке и с отключенными комментариями.',
+          'Перед проверкой копии из соцсети эталон YouTube должен быть подтвержден как существующий, обработанный и доступный по unlisted-ссылке. Состояние комментариев остаётся только диагностическим и не определяет действительность эталона.',
       'manualCompareTitle': 'РУЧНОЕ СРАВНЕНИЕ',
       'manualCompareAction': 'СРАВНИТЬ ВРУЧНУЮ',
       'manualCompareSubscriberOnly': 'Функция доступна подписчикам SIGILLUM.',

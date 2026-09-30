@@ -182,3 +182,13 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - New comparison UI/copy is complete in IT/EN/ES/RU and is covered by the BUILD133 live-reference contract.
 - Functional app HEAD `1737f2067b490d708e633f7308c7f5574782f88d` validated GREEN: BUILD133 run `36709783319` and Verified Originals v0.2 app run `36709788936`.
 - No TestFlight/Codemagic release build was created by this pass.
+
+
+## 2026-09-30 Live YouTube correction — comments are advisory diagnostics
+
+- The real OAuth/channel demo succeeded and a real YouTube API upload was processed successfully as `unlisted`; `videos.delete` also succeeded.
+- The same API upload reported comments enabled even though both YouTube Studio upload defaults and channel moderation defaults were already configured with comments Off. The app must therefore not treat comment state as an availability/security gate.
+- Modern social verification remains fail-closed on the official YouTube object itself: backend `REFERENCE_AVAILABLE`, `youtubeLive=true`, successful processing and `unlisted` privacy. Signed V3 is still disclosed only while that official reference is live.
+- `commentsDisabled` remains visible in technical diagnostics when YouTube can report it, but false/unknown no longer produces OFFICIAL REFERENCE UNAVAILABLE.
+- Protected-original share, HCVPACK export, paid `/view` access and manual visual/audio comparison still require a live official reference; only the unsupported comments hard-gate was removed.
+- No TestFlight/Codemagic build, release merge, Render deploy, production-flag mutation or RSA-key migration was performed by this correction.

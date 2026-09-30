@@ -835,11 +835,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _officialReferenceLiveAvailable =
           availability['availability'] == 'REFERENCE_AVAILABLE' &&
               availability['youtubeLive'] == true;
+      final commentsDisabled = availability['commentsDisabled'];
       _officialReferenceCommentsDisabled =
-          availability['commentsDisabled'] == true;
+          commentsDisabled is bool ? commentsDisabled : null;
 
-      if (!_officialReferenceLiveAvailable ||
-          !_officialReferenceCommentsDisabled) {
+      if (!_officialReferenceLiveAvailable) {
         return null;
       }
 
@@ -859,7 +859,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       ).verdict;
     } catch (_) {
       _officialReferenceLiveAvailable = false;
-      _officialReferenceCommentsDisabled = false;
+      _officialReferenceCommentsDisabled = null;
       return null;
     }
   }
@@ -974,7 +974,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   bool hcvIdDetectedByOcr = false;
   bool _officialReferenceChecked = false;
   bool _officialReferenceLiveAvailable = false;
-  bool _officialReferenceCommentsDisabled = false;
+  bool? _officialReferenceCommentsDisabled;
   int? _officialReferenceServerMs;
   int? _officialReferenceLocalMs;
   int? _verificationTotalMs;
@@ -1186,7 +1186,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       result = null;
       _officialReferenceChecked = false;
       _officialReferenceLiveAvailable = false;
-      _officialReferenceCommentsDisabled = false;
+      _officialReferenceCommentsDisabled = null;
       _officialReferenceServerMs = null;
       _officialReferenceLocalMs = null;
       _verificationTotalMs = null;
@@ -1533,8 +1533,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
           if ((contentType == 'photo' || contentType == 'video') &&
               _officialReferenceChecked &&
-              (!_officialReferenceLiveAvailable ||
-                  !_officialReferenceCommentsDisabled)) {
+              !_officialReferenceLiveAvailable) {
             status = _r('officialReferenceUnavailable');
             result = 'OFFICIAL REFERENCE UNAVAILABLE';
             _setVerificationAxes(

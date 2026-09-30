@@ -142,7 +142,10 @@ void main() {
     );
     expect(verifier, contains('.verificationReference(hcvId)'));
     expect(verifier, contains("availability['youtubeLive'] == true"));
-    expect(verifier, contains("availability['commentsDisabled'] == true"));
+    expect(
+      verifier,
+      isNot(contains("availability['commentsDisabled'] == true")),
+    );
     expect(verifier, contains("result = 'OFFICIAL REFERENCE UNAVAILABLE';"));
     expect(
       verifier,
@@ -172,7 +175,10 @@ void main() {
     expect(publicLookup, greaterThanOrEqualTo(0));
     expect(liveLookup, greaterThan(publicLookup));
     expect(method, contains("live['youtubeLive'] == true"));
-    expect(method, contains("live['commentsDisabled'] == true"));
+    expect(
+      method,
+      isNot(contains("live['commentsDisabled'] == true")),
+    );
     expect(
       method,
       contains("StateError('REFERENCE_PLATFORM_UNAVAILABLE')"),
@@ -196,7 +202,10 @@ void main() {
     expect(localReferenceGate, greaterThanOrEqualTo(0));
     expect(liveReferenceGate, greaterThan(localReferenceGate));
     expect(method, contains("live['youtubeLive'] == true"));
-    expect(method, contains("live['commentsDisabled'] == true"));
+    expect(
+      method,
+      isNot(contains("live['commentsDisabled'] == true")),
+    );
     expect(materialize, greaterThan(liveReferenceGate));
     expect(share, greaterThan(materialize));
   });
@@ -238,7 +247,10 @@ void main() {
     final entitled = publisher.substring(methodStart, methodEnd);
     expect(entitled, contains('verificationReference(hcvId)'));
     expect(entitled, contains("live['youtubeLive'] == true"));
-    expect(entitled, contains("live['commentsDisabled'] == true"));
+    expect(
+      entitled,
+      isNot(contains("live['commentsDisabled'] == true")),
+    );
     expect(entitled, contains("'/api/verified-originals/\$hcvId/view'"));
     expect(entitled, contains('authenticated: true'));
 
