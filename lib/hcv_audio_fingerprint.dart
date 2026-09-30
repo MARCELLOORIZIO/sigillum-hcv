@@ -22,6 +22,7 @@ class HCVAudioFingerprint {
   static const int _hopSamples = sampleRate ~/ 2;
   static const int _minimumFrameSamples = sampleRate ~/ 4;
   static const int _maxFrames = 29;
+  static const double _maxAnalyzedSeconds = 15.0;
   static const double _maxFrameDistance = 18.0;
   static const List<int> _correlationLags = <int>[
     8,
@@ -59,7 +60,8 @@ class HCVAudioFingerprint {
     final safeOutput = _escapePath(rawFile.path);
 
     try {
-      final command = "-y -i '$safeInput' -vn -ac 1 -ar $sampleRate "
+      final command =
+          "-y -i '$safeInput' -t $_maxAnalyzedSeconds -vn -ac 1 -ar $sampleRate "
           "-acodec pcm_s16le -f s16le '$safeOutput'";
       final session = await FFmpegKit.execute(command);
       final code = await session.getReturnCode();
