@@ -134,3 +134,17 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Important YouTube API constraint recorded: the official YouTube Data API does not expose the transcoded media bytes of an uploaded video as a supported download endpoint. No scraper, yt-dlp or undocumented media extraction was introduced into SIGILLUM. Therefore the current compliant verification mode is YOUTUBE_LIVE_ATTESTED_SIGNED_V3: the backend attests that the actual YouTube object still exists in the required platform state, while the app compares the social file against the signed V3 representation generated from the exact trusted derivative uploaded to that object. Direct byte/media-frame comparison against a freshly downloaded YouTube transcode remains unimplemented unless a supported media-byte source becomes available.
 - App BUILD133 validation GREEN at commit 27261515cba835828fcb9835308145a74d7fcddd: run 36700467776. PR workflow Verified Originals v0.2 app also GREEN at the same head: run 36700472819.
 - No TestFlight/Codemagic release build, Render deploy, release merge or RSA-key migration was performed.
+
+
+### 2026-09-30 final follow-up before device/live tests
+
+- HCVPACK export now revalidates the live YouTube reference immediately before decrypt/materialize/share. A stale local `hasReference` flag is insufficient: export requires REFERENCE_AVAILABLE + youtubeLive + commentsDisabled, otherwise it remains blocked.
+- Hard-kill recovery now requeues only certificates for records newly sealed during that recovery pass. Already-indexed historical vault records are not redundantly re-enqueued.
+- Audio fingerprint extraction is bounded to the first 15 seconds / existing 29-frame analysis window, preventing FFmpeg from decoding an entire long soundtrack when the verifier only consumes the bounded fingerprint.
+- Messenger/extensionless import is locked by regression coverage for JPEG, PNG and ISO-BMFF `ftyp` magic-byte normalization to .jpg/.png/.mp4; native iPhone verification is still required.
+- Production copy maps now have permanent exact-key parity coverage across IT/EN/ES/RU. Current key counts are equal in each language for the principal copy modules.
+- Live-reference hardening is validated on pull requests as well as the feature-branch workflow. Exact feature HEAD before this documentation-only checkpoint: `a4c2c1d62315ba140fb4805c0f840b9cec8cbc92`; Verified Originals v0.2 app run `36701958172` GREEN.
+- Current branch is 179 commits ahead and 0 behind `release/testflight-final-20260827`.
+- Render production inspection: `sigillum-registry-production` tracks `release/reconciled-prelaunch-backend-clean-20260824`, has auto-deploy OFF, and its live deploy is still commit `3e62c5afc2c94f2585dbfefbe7c0981a1233b083` from 2026-09-25. None of the 2026-09-30 feature-branch changes were deployed.
+- Remaining work is intentionally external/device-bound: controlled hard-kill tests on iPhone, subtitle E2E on iPhone, real Messenger/Instagram/Facebook/WhatsApp generations, measured iPhone verification timing, live YouTube OAuth/channel/comments-off publication test, then final backend reconciliation + Render deploy + one consolidated TestFlight build.
+- No TestFlight/Codemagic release build, Render deploy, production environment-variable mutation, release merge/rebase, or RSA-key migration was performed.
