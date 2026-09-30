@@ -200,6 +200,14 @@ class VerifiedOriginalsPublishService {
   }) async {
     final availability = await publicAvailability(record.hcvId);
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
+      final live = await verificationReference(record.hcvId);
+      final liveAvailable =
+          live['availability'] == 'REFERENCE_AVAILABLE' &&
+          live['youtubeLive'] == true &&
+          live['commentsDisabled'] == true;
+      if (!liveAvailable) {
+        throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
+      }
       return _existingReference(record);
     }
 
