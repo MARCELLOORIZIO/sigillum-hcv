@@ -1402,20 +1402,41 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       contentType = contentTypeForVerification;
 
       final forensicVerified = actualHash == expectedHash;
-      final officialReferenceVisualVerdict =
-          await _matchesOfficialReferenceVisualFingerprint(
-        cert,
-        contentTypeForVerification,
-      );
-      final videoFingerprintMatches = await _matchesCertifiedVideoFingerprint(
-        cert,
-      );
-      final audioFingerprintMatches = await _matchesCertifiedAudioFingerprint(
-        cert,
-      );
-      final imageFingerprintMatches = await _matchesCertifiedImageFingerprint(
-        cert,
-      );
+
+      HCVReferenceVisualVerdict? officialReferenceVisualVerdict;
+      bool? videoFingerprintMatches;
+      bool? audioFingerprintMatches;
+      bool? imageFingerprintMatches;
+
+      // Exact originals do not need a network reference lookup. For derived
+      // photo/video content, the official live YouTube reference is checked
+      // first. Legacy V1/V2 visual matching remains available only for content
+      // that cannot enter the modern official-reference path.
+      if (!forensicVerified && !socialTextVerified) {
+        officialReferenceVisualVerdict =
+            await _matchesOfficialReferenceVisualFingerprint(
+          cert,
+          contentTypeForVerification,
+        );
+
+        if (contentTypeForVerification == 'video' &&
+            officialReferenceVisualVerdict ==
+                HCVReferenceVisualVerdict.conforming) {
+          audioFingerprintMatches = await _matchesCertifiedAudioFingerprint(
+            cert,
+          );
+        } else if (!_officialReferenceChecked) {
+          if (contentTypeForVerification == 'video') {
+            videoFingerprintMatches =
+                await _matchesCertifiedVideoFingerprint(cert);
+            audioFingerprintMatches =
+                await _matchesCertifiedAudioFingerprint(cert);
+          } else if (contentTypeForVerification == 'photo') {
+            imageFingerprintMatches =
+                await _matchesCertifiedImageFingerprint(cert);
+          }
+        }
+      }
       _verificationTotalMs = verificationStopwatch.elapsedMilliseconds;
 
       setState(() {
@@ -1541,7 +1562,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; confronto eseguito con la copia ufficiale SIGILLUM.',
+                  'HCV-ID e certificato Registry validi; reference YouTube attiva e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
               integrity: 'Copia modificata',
               integrityDetail: _r('officialReferenceModifiedDetail'),
               scene: 'Non applicabile',
@@ -1558,7 +1579,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; la copia ufficiale è disponibile.',
+                  'HCV-ID e certificato Registry validi; la reference YouTube ufficiale è attiva, ma il confronto V3 non è conclusivo.',
               integrity: 'Non conclusiva',
               integrityDetail: _r('officialReferenceInconclusiveDetail'),
               scene: 'Non applicabile',
@@ -1583,7 +1604,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; confronto eseguito con la copia ufficiale SIGILLUM.',
+                  'HCV-ID e certificato Registry validi; reference YouTube attiva e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
               integrity: 'Copia conforme',
               integrityDetail: _r('officialReferenceConformingDetail'),
               scene: 'Non applicabile',
