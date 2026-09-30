@@ -576,17 +576,6 @@ class HCVSecureMediaVault {
       throw StateError('SECURE_VAULT_SOURCE_MISSING');
     }
 
-    final mediaHash = await _sha256File(media);
-    if (mediaHash != expectedMediaSha256) {
-      throw StateError('SECURE_VAULT_MEDIA_HASH_MISMATCH');
-    }
-    final packHash = await _sha256File(pack);
-    final mediaSize = await media.length();
-    final packSize = await pack.length();
-    if (mediaSize <= 0 || packSize <= 0) {
-      throw StateError('SECURE_VAULT_SOURCE_EMPTY');
-    }
-
     await _upsertPendingSeal(
       hcvId: cleanId,
       ownerCreatorId: ownerCreatorId,
@@ -597,6 +586,22 @@ class HCVSecureMediaVault {
       certificatePath: certificate.absolute.path,
       expectedMediaSha256: expectedMediaSha256,
     );
+
+    // Persist recovery metadata before hashing potentially large media. If the
+    // process is killed during hashing/encryption, startup recovery can resume
+    // from the staged plaintext instead of leaving an unindexed orphan.
+    final mediaHash = await _sha256File(media);
+    if (mediaHash != expectedMediaSha256) {
+      await _removePendingSeal(cleanId);
+      throw StateError('SECURE_VAULT_MEDIA_HASH_MISMATCH');
+    }
+    final packHash = await _sha256File(pack);
+    final mediaSize = await media.length();
+    final packSize = await pack.length();
+    if (mediaSize <= 0 || packSize <= 0) {
+      await _removePendingSeal(cleanId);
+      throw StateError('SECURE_VAULT_SOURCE_EMPTY');
+    }
 
     final existingBefore = await _withIndexLock(() async {
       final records = await _loadIndex();

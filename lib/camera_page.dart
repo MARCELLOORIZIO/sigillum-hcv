@@ -2287,21 +2287,54 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> sharePackage() async {
-    if (packagePath == null) {
-      setState(() => status = _c('noPackToShare'));
+    if (_criticalFinalizationInProgress) {
+      _showFinalizationBlocked();
       return;
     }
 
+    var record = _secureOriginalRecord;
+    final currentId = hcvId;
+    if (record == null && currentId != null) {
+      record = await _secureVault.find(currentId);
+    }
+    if (record == null) {
+      if (mounted) setState(() => status = _c('secureShareRequiresVault'));
+      return;
+    }
+
+    final refreshed = await _secureVault.find(record.hcvId);
+    final securedRecord = refreshed ?? record;
+    if (!securedRecord.hasReference) {
+      if (mounted) {
+        setState(() => status = _t('secureOriginalsReferencePending'));
+      }
+      return;
+    }
+
+    File? clearPack;
     try {
+      clearPack = await _secureVault.materializeHcvpack(
+        securedRecord,
+        purpose: 'share-package',
+      );
       await Share.shareXFiles(
-        [XFile(packagePath!, mimeType: 'application/octet-stream')],
-        text: hcvId == null
-            ? 'HCVPACK offline SIGILLUM'
-            : 'HCVPACK offline SIGILLUM\nID: $hcvId',
+        [
+          XFile(
+            clearPack.path,
+            mimeType: 'application/vnd.sigillum.hcvpack',
+          ),
+        ],
+        text: 'HCVPACK offline SIGILLUM\nID: ${securedRecord.hcvId}',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
-      setState(() => status = '${_c('sharePackError')}: $e');
+      if (mounted) {
+        setState(() => status = '${_c('sharePackError')}: $e');
+      }
+    } finally {
+      if (clearPack != null) {
+        await _secureVault.deleteMaterialized(clearPack);
+      }
     }
   }
 
@@ -2647,7 +2680,7 @@ class _CameraPageState extends State<CameraPage> {
               textAlign: TextAlign.center,
             ),
           ],
-          if (packagePath != null) ...[
+          if (_secureOriginalRecord != null) ...[
             const SizedBox(height: 5),
             Text(
               'HCVPACK: ${fileName(packagePath)}',

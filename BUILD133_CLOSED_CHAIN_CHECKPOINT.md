@@ -105,3 +105,18 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - iOS App Store warning ITMS-90683 addressed by adding `NSLocationAlwaysAndWhenInUseUsageDescription` while keeping the geolocator Always bypass and explicitly stating that SIGILLUM does not continuously track location in background.
 - App CI was GREEN after the functional/security fixes; a final documentation/hardening-test commit follows without creating TestFlight.
 - No TestFlight build created.
+
+## 2026-09-30 Full branch audit hardening — HCVPACK export and early seal journal
+
+- Re-read both feature checkpoints, verified exact branch HEADs/CI, and traversed the complete recursive Git trees before changing code.
+- App audit found one stale camera bypass: `sharePackage()` could expose the plaintext HCVPACK during the interval after package creation but before secure-vault commit. The HCVPACK contains the canonical media, so this violated the closed-chain rule even though direct original sharing was already blocked.
+- `sharePackage()` is now fail-closed: it refuses during critical finalization, requires a valid secure-vault record and a confirmed original reference, materializes the encrypted HCVPACK only temporarily, opens the share sheet from that temporary copy, then deletes it.
+- The old result-screen condition `packagePath != null` no longer exposes the pre-seal plaintext package action; the action is tied to a completed secure-vault record.
+- `pending_seals.json` is now written before SHA-256 calculation of potentially large media. A crash during hashing therefore leaves recovery metadata already persisted. Deterministic hash/empty-source validation failures remove the journal entry; transient interruption leaves it for startup recovery.
+- Contract tests now cover the HCVPACK path explicitly and assert journal-before-hash ordering.
+- Verified during audit: subtitle MP4/SRT export remains derived-reference-gated; `activeReference()` filters only `ORIGINAL_REFERENCE`; withdrawal revokes original + derived publications and app clears local reference state only after completed platform takedown; V3 decision order remains exact SHA-256 -> official signed V3 -> legacy fallback; V3 Dart/Node golden remains `f5df80936c5d9050b35e5a606c92b55a7eb2bec873f5805f9c81d37f14a4afbc`.
+- Repository hygiene note: many historical source copies remain outside the active `lib/` runtime tree (`MODIFICHE/`, `VERSIONE FUNZIONANTE*/`, `hcv_modifiche_complete/`). They were not deleted because they are archival and may still be useful for forensic comparison.
+- Backend branch is currently 22 commits ahead and 1 commit behind `release/reconciled-prelaunch-backend-clean-20260824` (diverged). No merge/rebase/deploy performed; reconcile only when preparing the final consolidated release.
+- iOS audit note: current `SceneDelegate.swift` generates a 2048-bit RSA device key. This was not changed because key-size migration affects enrolled device identity and existing certificate/account bindings.
+- No TestFlight build, Codemagic build, Render deploy, or release-branch merge was created by this hardening pass.
+

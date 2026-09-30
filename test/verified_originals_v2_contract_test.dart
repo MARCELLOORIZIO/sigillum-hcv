@@ -66,6 +66,16 @@ void main() {
       vault.indexOf('await seal(', recovery),
       greaterThan(recovery),
     );
+
+    final sealStart =
+        vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
+    final journalBeforeHash =
+        vault.indexOf('await _upsertPendingSeal(', sealStart);
+    final mediaHash =
+        vault.indexOf('final mediaHash = await _sha256File(media);', sealStart);
+    expect(sealStart, greaterThanOrEqualTo(0));
+    expect(journalBeforeHash, greaterThan(sealStart));
+    expect(mediaHash, greaterThan(journalBeforeHash));
   });
 
   test('protected-original list uses compact previews', () {
@@ -114,6 +124,26 @@ void main() {
       camera,
       contains('if (_secureOriginalRecord != null) ...['),
     );
+
+    final packStart = camera.indexOf('Future<void> sharePackage() async');
+    final packEnd = camera.indexOf(
+      'String get _createdContentLabel',
+      packStart,
+    );
+    final packMethod = camera.substring(packStart, packEnd);
+    final referenceGate = packMethod.indexOf('!securedRecord.hasReference');
+    final materializePack = packMethod.indexOf('materializeHcvpack(');
+    final sharePack = packMethod.indexOf('Share.shareXFiles(', materializePack);
+
+    expect(packStart, greaterThanOrEqualTo(0));
+    expect(packMethod, contains('_criticalFinalizationInProgress'));
+    expect(packMethod, contains('await _secureVault.find(currentId)'));
+    expect(referenceGate, greaterThanOrEqualTo(0));
+    expect(materializePack, greaterThan(referenceGate));
+    expect(sharePack, greaterThan(materializePack));
+    expect(packMethod, contains('await _secureVault.deleteMaterialized(clearPack)'));
+    expect(packMethod, isNot(contains('XFile(packagePath!')));
+    expect(camera, isNot(contains('if (packagePath != null) ...[')));
   });
 
   test('social export is fail closed behind the official reference', () {
