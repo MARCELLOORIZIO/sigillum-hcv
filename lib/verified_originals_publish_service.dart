@@ -110,6 +110,13 @@ class VerifiedOriginalsPublishService {
     return _json('GET', '/api/verified-originals/$hcvId');
   }
 
+  Future<Map<String, dynamic>> verificationReference(String hcvId) {
+    return _json(
+      'GET',
+      '/api/verified-originals/$hcvId/verification-reference',
+    );
+  }
+
   Future<String> _ensureConsent(
     HCVSecureOriginalRecord record, {
     required bool monetizationConsent,
