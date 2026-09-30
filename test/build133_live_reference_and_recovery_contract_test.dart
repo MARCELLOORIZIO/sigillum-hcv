@@ -11,6 +11,8 @@ void main() {
   final copy = File('lib/registry_verify_copy.dart').readAsStringSync();
   final audioFingerprint =
       File('lib/hcv_audio_fingerprint.dart').readAsStringSync();
+  final secureOriginals =
+      File('lib/secure_originals_page.dart').readAsStringSync();
 
   test('photo and video stage recovery before Registry queue and vault seal',
       () {
@@ -65,6 +67,34 @@ void main() {
     );
     expect(recovery, contains('registry.enqueueCertificateFile'));
     expect(recovery, contains('unawaited(_retryPendingRegistryUploads())'));
+  });
+
+  test('Protected Originals recovery also restores the Registry outbox', () {
+    final reloadStart = secureOriginals.indexOf('Future<void> _reload()');
+    final reloadEnd = secureOriginals.indexOf(
+      'Future<void> _retryRecoveredRegistryUploads()',
+      reloadStart,
+    );
+    final reload = secureOriginals.substring(reloadStart, reloadEnd);
+
+    expect(reload, contains('final beforeIds ='));
+    expect(reload, contains('recoverPendingSeals()'));
+    expect(
+      reload,
+      contains('records.where((record) => !beforeIds.contains(record.hcvId))'),
+    );
+    expect(reload, contains('_registry.enqueueCertificateFile'));
+    expect(reload, contains('unawaited(_retryRecoveredRegistryUploads())'));
+
+    final retryStart = secureOriginals.indexOf(
+      'Future<void> _retryRecoveredRegistryUploads()',
+    );
+    final retryEnd = secureOriginals.indexOf(
+      'Future<void> _view(',
+      retryStart,
+    );
+    final retry = secureOriginals.substring(retryStart, retryEnd);
+    expect(retry, contains('_registry.retryPendingUploads()'));
   });
 
   test('vault exposes durable staging and clears deterministic stale journals',
