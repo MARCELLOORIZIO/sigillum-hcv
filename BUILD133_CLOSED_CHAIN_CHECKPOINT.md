@@ -216,3 +216,5 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Production flags remain unchanged while review is pending: no claim of Google approval and no `PRODUCTION_LIVE` activation.
 - Final app polish localized the remaining Creator entitlement/network message, Stripe Identity runtime status/action labels, text-certificate Registry queue/upload messages and the HCVPACK share caption across IT/EN/ES/RU.
 - No closed-chain, cryptographic, camera/FOV, OCR, Registry, billing or YouTube-reference semantics were changed by this localization-only functional pass.
+
+- Localization hardening test literal was corrected after the first CI analyze pass; a fresh full BUILD133 validation is required at the corrected head before this pass is considered green.
