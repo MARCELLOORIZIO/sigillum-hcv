@@ -649,6 +649,16 @@ class HCVSecureMediaVault {
       referenceUrl: existingBefore?.referenceUrl,
       referenceSha256: existingBefore?.referenceSha256,
       publishedAt: existingBefore?.publishedAt,
+      captionedMediaSha256: existingBefore?.captionedMediaSha256,
+      captionedMediaSize: existingBefore?.captionedMediaSize,
+      encryptedCaptionedMediaPath: existingBefore?.encryptedCaptionedMediaPath,
+      subtitleSha256: existingBefore?.subtitleSha256,
+      subtitleSize: existingBefore?.subtitleSize,
+      encryptedSubtitlePath: existingBefore?.encryptedSubtitlePath,
+      subtitlePublicationId: existingBefore?.subtitlePublicationId,
+      subtitleReferenceUrl: existingBefore?.subtitleReferenceUrl,
+      subtitleReferenceSha256: existingBefore?.subtitleReferenceSha256,
+      subtitlePublishedAt: existingBefore?.subtitlePublishedAt,
     );
 
     var committed = false;
@@ -877,6 +887,16 @@ class HCVSecureMediaVault {
         referenceUrl: referenceUrl,
         referenceSha256: referenceSha256,
         publishedAt: DateTime.now().toUtc(),
+        captionedMediaSha256: current.captionedMediaSha256,
+        captionedMediaSize: current.captionedMediaSize,
+        encryptedCaptionedMediaPath: current.encryptedCaptionedMediaPath,
+        subtitleSha256: current.subtitleSha256,
+        subtitleSize: current.subtitleSize,
+        encryptedSubtitlePath: current.encryptedSubtitlePath,
+        subtitlePublicationId: current.subtitlePublicationId,
+        subtitleReferenceUrl: current.subtitleReferenceUrl,
+        subtitleReferenceSha256: current.subtitleReferenceSha256,
+        subtitlePublishedAt: current.subtitlePublishedAt,
       );
       await _saveIndex(records);
     });
@@ -906,6 +926,16 @@ class HCVSecureMediaVault {
         encryptedHcvpackPath: current.encryptedHcvpackPath,
         certificatePath: current.certificatePath,
         createdAt: current.createdAt,
+        captionedMediaSha256: current.captionedMediaSha256,
+        captionedMediaSize: current.captionedMediaSize,
+        encryptedCaptionedMediaPath: current.encryptedCaptionedMediaPath,
+        subtitleSha256: current.subtitleSha256,
+        subtitleSize: current.subtitleSize,
+        encryptedSubtitlePath: current.encryptedSubtitlePath,
+        subtitlePublicationId: current.subtitlePublicationId,
+        subtitleReferenceUrl: current.subtitleReferenceUrl,
+        subtitleReferenceSha256: current.subtitleReferenceSha256,
+        subtitlePublishedAt: current.subtitlePublishedAt,
       );
       await _saveIndex(records);
     });
