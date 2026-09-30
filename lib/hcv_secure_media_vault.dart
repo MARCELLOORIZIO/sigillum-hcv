@@ -851,6 +851,274 @@ class HCVSecureMediaVault {
     return target;
   }
 
+  Future<HCVSecureOriginalRecord> sealSubtitleDerivative({
+    required HCVSecureOriginalRecord original,
+    required String captionedVideoPath,
+    required String subtitlePath,
+  }) async {
+    if (original.mediaType != 'video') {
+      throw ArgumentError('SECURE_VAULT_SUBTITLE_SOURCE_NOT_VIDEO');
+    }
+    if (original.ownerCreatorId != await _currentCreatorId() ||
+        original.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+      throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
+    }
+
+    final captioned = File(captionedVideoPath);
+    final subtitle = File(subtitlePath);
+    if (!await captioned.exists() || !await subtitle.exists()) {
+      throw StateError('SECURE_VAULT_SUBTITLE_SOURCE_MISSING');
+    }
+
+    final captionedHash = await _sha256File(captioned);
+    final subtitleHash = await _sha256File(subtitle);
+    final captionedSize = await captioned.length();
+    final subtitleSize = await subtitle.length();
+    if (captionedSize <= 0 || subtitleSize <= 0) {
+      throw StateError('SECURE_VAULT_SUBTITLE_SOURCE_EMPTY');
+    }
+
+    final current = await find(original.hcvId);
+    if (current == null) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
+
+    if (current.captionedMediaSha256 == captionedHash &&
+        current.subtitleSha256 == subtitleHash &&
+        current.encryptedCaptionedMediaPath != null &&
+        current.encryptedSubtitlePath != null &&
+        await File(current.encryptedCaptionedMediaPath!).exists() &&
+        await File(current.encryptedSubtitlePath!).exists()) {
+      await captioned.delete();
+      await subtitle.delete();
+      return current;
+    }
+
+    final dir = await _vaultDirectory();
+    final safe = original.hcvId.replaceAll(RegExp(r'[^A-Z0-9-]'), '');
+    final encryptedCaptioned = File(
+      p.join(
+        dir.path,
+        '$safe.${captionedHash.substring(0, 16)}.captioned.enc',
+      ),
+    );
+    final encryptedSubtitle = File(
+      p.join(
+        dir.path,
+        '$safe.${subtitleHash.substring(0, 16)}.subtitle.enc',
+      ),
+    );
+
+    for (final target in [encryptedCaptioned, encryptedSubtitle]) {
+      if (await target.exists()) await target.delete();
+    }
+
+    final oldCaptionedPath = current.encryptedCaptionedMediaPath;
+    final oldSubtitlePath = current.encryptedSubtitlePath;
+    var committed = false;
+    try {
+      await _encryptFile(
+        source: captioned,
+        destination: encryptedCaptioned,
+        sha256Hex: captionedHash,
+        mimeType: 'video/mp4',
+        originalName: p.basename(captioned.path),
+      );
+      await _encryptFile(
+        source: subtitle,
+        destination: encryptedSubtitle,
+        sha256Hex: subtitleHash,
+        mimeType: 'application/x-subrip',
+        originalName: p.basename(subtitle.path),
+      );
+
+      late HCVSecureOriginalRecord updated;
+      await _withIndexLock(() async {
+        final records = await _loadIndex();
+        final index =
+            records.indexWhere((item) => item.hcvId == original.hcvId);
+        if (index < 0) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
+        final latest = records[index];
+        if (latest.ownerAccountSubjectHash !=
+            await _currentAccountSubjectHash()) {
+          throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
+        }
+
+        updated = HCVSecureOriginalRecord(
+          hcvId: latest.hcvId,
+          ownerCreatorId: latest.ownerCreatorId,
+          ownerAccountSubjectHash: latest.ownerAccountSubjectHash,
+          mediaType: latest.mediaType,
+          originalName: latest.originalName,
+          mediaSha256: latest.mediaSha256,
+          mediaSize: latest.mediaSize,
+          encryptedMediaPath: latest.encryptedMediaPath,
+          hcvpackSha256: latest.hcvpackSha256,
+          hcvpackSize: latest.hcvpackSize,
+          encryptedHcvpackPath: latest.encryptedHcvpackPath,
+          certificatePath: latest.certificatePath,
+          createdAt: latest.createdAt,
+          publicationId: latest.publicationId,
+          referenceUrl: latest.referenceUrl,
+          referenceSha256: latest.referenceSha256,
+          publishedAt: latest.publishedAt,
+          captionedMediaSha256: captionedHash,
+          captionedMediaSize: captionedSize,
+          encryptedCaptionedMediaPath: encryptedCaptioned.path,
+          subtitleSha256: subtitleHash,
+          subtitleSize: subtitleSize,
+          encryptedSubtitlePath: encryptedSubtitle.path,
+        );
+        records[index] = updated;
+        await _saveIndex(records);
+      });
+      committed = true;
+
+      for (final oldPath in [oldCaptionedPath, oldSubtitlePath]) {
+        if (oldPath == null ||
+            oldPath == encryptedCaptioned.path ||
+            oldPath == encryptedSubtitle.path) {
+          continue;
+        }
+        try {
+          final old = File(oldPath);
+          if (await old.exists()) await old.delete();
+        } catch (_) {}
+      }
+
+      await captioned.delete();
+      await subtitle.delete();
+      return updated;
+    } finally {
+      if (!committed) {
+        for (final target in [encryptedCaptioned, encryptedSubtitle]) {
+          try {
+            if (await target.exists()) await target.delete();
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
+  Future<File> materializeCaptionedVideo(
+    HCVSecureOriginalRecord record, {
+    String purpose = 'subtitle-reference',
+  }) async {
+    if (!record.hasSubtitleDerivative ||
+        record.encryptedCaptionedMediaPath == null ||
+        record.captionedMediaSha256 == null) {
+      throw StateError('SECURE_VAULT_SUBTITLE_DERIVATION_MISSING');
+    }
+    if (record.ownerCreatorId != await _currentCreatorId() ||
+        record.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+      throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
+    }
+    final tempRoot = await getTemporaryDirectory();
+    final dir =
+        Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final target = File(
+      p.join(
+        dir.path,
+        '${record.hcvId}_$purpose_${DateTime.now().microsecondsSinceEpoch}.mp4',
+      ),
+    );
+    await _decryptFile(
+      encrypted: File(record.encryptedCaptionedMediaPath!),
+      destination: target,
+      expectedSha256: record.captionedMediaSha256!,
+    );
+    return target;
+  }
+
+  Future<File> materializeSubtitle(
+    HCVSecureOriginalRecord record, {
+    String purpose = 'subtitle-export',
+  }) async {
+    if (!record.hasSubtitleDerivative ||
+        record.encryptedSubtitlePath == null ||
+        record.subtitleSha256 == null) {
+      throw StateError('SECURE_VAULT_SUBTITLE_DERIVATION_MISSING');
+    }
+    if (record.ownerCreatorId != await _currentCreatorId() ||
+        record.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+      throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
+    }
+    final tempRoot = await getTemporaryDirectory();
+    final dir =
+        Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final target = File(
+      p.join(
+        dir.path,
+        '${record.hcvId}_$purpose_${DateTime.now().microsecondsSinceEpoch}.srt',
+      ),
+    );
+    await _decryptFile(
+      encrypted: File(record.encryptedSubtitlePath!),
+      destination: target,
+      expectedSha256: record.subtitleSha256!,
+    );
+    return target;
+  }
+
+  Future<void> markSubtitleReference({
+    required String hcvId,
+    required String publicationId,
+    required String referenceUrl,
+    required String referenceSha256,
+    required String captionedMediaSha256,
+    required String subtitleSha256,
+  }) async {
+    if (!_shaPattern.hasMatch(referenceSha256) ||
+        !_shaPattern.hasMatch(captionedMediaSha256) ||
+        !_shaPattern.hasMatch(subtitleSha256)) {
+      throw ArgumentError('SECURE_VAULT_SUBTITLE_REFERENCE_HASH_INVALID');
+    }
+
+    await _withIndexLock(() async {
+      final records = await _loadIndex();
+      final index = records.indexWhere((item) => item.hcvId == hcvId);
+      if (index < 0) throw StateError('SECURE_VAULT_RECORD_NOT_FOUND');
+      final current = records[index];
+      if (current.ownerAccountSubjectHash !=
+              await _currentAccountSubjectHash() ||
+          current.captionedMediaSha256 != captionedMediaSha256 ||
+          current.subtitleSha256 != subtitleSha256) {
+        throw StateError('SECURE_VAULT_SUBTITLE_REFERENCE_BINDING_MISMATCH');
+      }
+
+      records[index] = HCVSecureOriginalRecord(
+        hcvId: current.hcvId,
+        ownerCreatorId: current.ownerCreatorId,
+        ownerAccountSubjectHash: current.ownerAccountSubjectHash,
+        mediaType: current.mediaType,
+        originalName: current.originalName,
+        mediaSha256: current.mediaSha256,
+        mediaSize: current.mediaSize,
+        encryptedMediaPath: current.encryptedMediaPath,
+        hcvpackSha256: current.hcvpackSha256,
+        hcvpackSize: current.hcvpackSize,
+        encryptedHcvpackPath: current.encryptedHcvpackPath,
+        certificatePath: current.certificatePath,
+        createdAt: current.createdAt,
+        publicationId: current.publicationId,
+        referenceUrl: current.referenceUrl,
+        referenceSha256: current.referenceSha256,
+        publishedAt: current.publishedAt,
+        captionedMediaSha256: current.captionedMediaSha256,
+        captionedMediaSize: current.captionedMediaSize,
+        encryptedCaptionedMediaPath: current.encryptedCaptionedMediaPath,
+        subtitleSha256: current.subtitleSha256,
+        subtitleSize: current.subtitleSize,
+        encryptedSubtitlePath: current.encryptedSubtitlePath,
+        subtitlePublicationId: publicationId,
+        subtitleReferenceUrl: referenceUrl,
+        subtitleReferenceSha256: referenceSha256,
+        subtitlePublishedAt: DateTime.now().toUtc(),
+      );
+      await _saveIndex(records);
+    });
+  }
+
   Future<void> markReference({
     required String hcvId,
     required String publicationId,
