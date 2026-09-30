@@ -93,3 +93,15 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Local Dart regression now requires: social-like recompression = conforming; small inserted UFO = modified; colour-only edit = modified; brightness edit = modified; geometric translation = modified.
 - App and backend cross-language golden updated: feature SHA-256 `f5df80936c5d9050b35e5a606c92b55a7eb2bec873f5805f9c81d37f14a4afbc`.
 - Both Flutter workflows GREEN after RGB hardening. No TestFlight build created.
+
+## 2026-09-30 Closed-chain subtitles, compact vault UX, and offline-safe finalization
+
+- Protected Originals cards now use compact ~132 px 16:9 previews beside HCV-ID/date/status so long vault lists remain usable.
+- Camera finalization is now fail-closed around local persistence: certificate upload is queued locally first, original media + HCVPACK are sealed into the encrypted vault before Registry network retry, and camera exit/back is blocked while the vault commit is still critical.
+- Added persistent `pending_seals.json` journal and `recoverPendingSeals()`; interrupted seals are retried on camera/open-vault startup. Recovery also routes already-indexed items back through `seal()` so plaintext staged files are deleted after a crash between index commit and cleanup.
+- Direct camera sharing before vault commit has been removed. Original sharing becomes available only from a valid secure-vault record and then flows through Protected Originals, where the official reference gate applies.
+- Caption workflow changed to closed chain: captioned MP4 + SRT are produced in private Application Support, encrypted into the vault, plaintext working files removed, and Save to Photos / Share captioned video / Share SRT all require a confirmed official derived reference first.
+- Captioned publication is device-bound with `SIGILLUM_SUBTITLE_DERIVATION_BINDING_V1`, including HCV-ID, original SHA-256, captioned-video SHA-256, SRT SHA-256 and HCVPACK SHA-256.
+- iOS App Store warning ITMS-90683 addressed by adding `NSLocationAlwaysAndWhenInUseUsageDescription` while keeping the geolocator Always bypass and explicitly stating that SIGILLUM does not continuously track location in background.
+- App CI was GREEN after the functional/security fixes; a final documentation/hardening-test commit follows without creating TestFlight.
+- No TestFlight build created.
