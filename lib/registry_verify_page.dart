@@ -23,6 +23,7 @@ import 'hcv_audio_fingerprint.dart';
 import 'hcv_reference_visual_fingerprint_v3.dart';
 import 'verified_originals_publish_service.dart';
 import 'hcv_media_id_ocr.dart';
+import 'manual_reference_compare_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
 import 'verification_ui_copy.dart';
@@ -2172,6 +2173,43 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return '-';
   }
 
+  bool get _canManualCompare {
+    final path = mediaPath;
+    final id = idController.text.trim().toUpperCase();
+    if (path == null ||
+        certificate == null ||
+        result == null ||
+        _isOfficialReferenceUnavailable ||
+        !_isCanonicalHcvId(id)) {
+      return false;
+    }
+
+    final lower = path.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
+  }
+
+  Future<void> _openManualCompare() async {
+    final path = mediaPath;
+    final id = idController.text.trim().toUpperCase();
+    if (!_canManualCompare || path == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ManualReferenceComparePage(
+          hcvId: id,
+          mediaPath: path,
+          languageCode: widget.languageCode,
+          automaticVerdictTitle: _publicResultTitle,
+        ),
+      ),
+    );
+  }
+
   String get _publicResultTitle {
     if (_isForensicResult) return _v('forensicOk');
     if (_isOfficialReferenceVerified) {
@@ -2462,6 +2500,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                     color: _verificationResultColor,
                   ),
                 ),
+                if (_canManualCompare) ...[
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: _openManualCompare,
+                    icon: const Icon(Icons.compare_arrows_rounded),
+                    label: Text(_r('manualCompareAction')),
+                  ),
+                ],
               ],
               if (creatorName != null ||
                   trustLevel != null ||
