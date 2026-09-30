@@ -2738,9 +2738,8 @@ class _CameraPageState extends State<CameraPage> {
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
-                onPressed: _subtitlePublishing
-                    ? null
-                    : _saveCaptionedVideoToPhotos,
+                onPressed:
+                    _subtitlePublishing ? null : _saveCaptionedVideoToPhotos,
                 icon: const Icon(Icons.photo_library_outlined),
                 label: Text(
                   _subtitlePublishing
@@ -2755,8 +2754,7 @@ class _CameraPageState extends State<CameraPage> {
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
-                onPressed:
-                    _subtitlePublishing ? null : _shareCaptionedVideo,
+                onPressed: _subtitlePublishing ? null : _shareCaptionedVideo,
                 icon: const Icon(Icons.closed_caption_rounded),
                 label: Text(_c('shareCaptionedVideo')),
               ),

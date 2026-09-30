@@ -119,7 +119,8 @@ class HCVSecureOriginalRecord {
           'publishedAt': publishedAt!.toUtc().toIso8601String(),
         if (captionedMediaSha256 != null)
           'captionedMediaSha256': captionedMediaSha256,
-        if (captionedMediaSize != null) 'captionedMediaSize': captionedMediaSize,
+        if (captionedMediaSize != null)
+          'captionedMediaSize': captionedMediaSize,
         if (encryptedCaptionedMediaPath != null)
           'encryptedCaptionedMediaPath': encryptedCaptionedMediaPath,
         if (subtitleSha256 != null) 'subtitleSha256': subtitleSha256,
@@ -133,8 +134,7 @@ class HCVSecureOriginalRecord {
         if (subtitleReferenceSha256 != null)
           'subtitleReferenceSha256': subtitleReferenceSha256,
         if (subtitlePublishedAt != null)
-          'subtitlePublishedAt':
-              subtitlePublishedAt!.toUtc().toIso8601String(),
+          'subtitlePublishedAt': subtitlePublishedAt!.toUtc().toIso8601String(),
       };
 
   factory HCVSecureOriginalRecord.fromJson(Map<String, dynamic> json) {
@@ -863,7 +863,8 @@ class HCVSecureMediaVault {
       throw ArgumentError('SECURE_VAULT_SUBTITLE_SOURCE_NOT_VIDEO');
     }
     if (original.ownerCreatorId != await _currentCreatorId() ||
-        original.ownerAccountSubjectHash != await _currentAccountSubjectHash()) {
+        original.ownerAccountSubjectHash !=
+            await _currentAccountSubjectHash()) {
       throw StateError('SECURE_VAULT_ACCOUNT_MISMATCH');
     }
 
