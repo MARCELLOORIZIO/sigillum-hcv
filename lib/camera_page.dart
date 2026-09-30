@@ -2482,7 +2482,6 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   @override
-  void dispose() {  @override
   void dispose() {
     controller?.dispose();
     super.dispose();
@@ -2588,9 +2587,7 @@ class _CameraPageState extends State<CameraPage> {
     if (_secureOriginalRecord == null &&
         videoPath == null &&
         hcvPath == null &&
-        packagePath == null &&
-        _captionedVideoPath == null &&
-        _subtitlePath == null) {
+        packagePath == null) {
       return const SizedBox.shrink();
     }
 
@@ -2662,19 +2659,23 @@ class _CameraPageState extends State<CameraPage> {
               textAlign: TextAlign.center,
             ),
           ],
-          if (_captionedVideoPath != null) ...[
-            const SizedBox(height: 5),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true) ...[
+            const SizedBox(height: 8),
             Text(
-              '${_c('captionedVideo')}: ${fileName(_captionedVideoPath)}',
+              _c('captionedProtected'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-          ],
-          if (_subtitlePath != null) ...[
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
-              '${_c('srtSubtitles')}: ${fileName(_subtitlePath)}',
+              _secureOriginalRecord?.hasSubtitleReference == true
+                  ? _c('subtitleReferenceReady')
+                  : _c('subtitleReferencePending'),
               textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF7A6EAA),
+                fontSize: 12.5,
+              ),
             ),
           ],
           const SizedBox(height: 12),
@@ -2733,27 +2734,36 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const SizedBox(height: 10),
-          if (_captionedVideoPath != null)
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
-                onPressed: _saveCaptionedVideoToPhotos,
+                onPressed: _subtitlePublishing
+                    ? null
+                    : _saveCaptionedVideoToPhotos,
                 icon: const Icon(Icons.photo_library_outlined),
-                label: Text(_c('saveCaptionedPhotos')),
+                label: Text(
+                  _subtitlePublishing
+                      ? _c('subtitleReferencePublishing')
+                      : _c('saveCaptionedPhotos'),
+                ),
               ),
             ),
-          if (_captionedVideoPath != null) const SizedBox(height: 10),
-          if (_captionedVideoPath != null)
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
+            const SizedBox(height: 10),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
-                onPressed: _shareCaptionedVideo,
+                onPressed:
+                    _subtitlePublishing ? null : _shareCaptionedVideo,
                 icon: const Icon(Icons.closed_caption_rounded),
                 label: Text(_c('shareCaptionedVideo')),
               ),
             ),
-          if (_captionedVideoPath != null) const SizedBox(height: 10),
-          if (_subtitlePath != null)
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
+            const SizedBox(height: 10),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
@@ -2762,12 +2772,13 @@ class _CameraPageState extends State<CameraPage> {
                   foregroundColor: const Color(0xFF280D5F),
                   minimumSize: const Size.fromHeight(64),
                 ),
-                onPressed: _shareSubtitleFile,
+                onPressed: _subtitlePublishing ? null : _shareSubtitleFile,
                 icon: const Icon(Icons.ios_share_rounded),
                 label: Text(_c('shareSrt')),
               ),
             ),
-          if (_subtitlePath != null) const SizedBox(height: 10),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
+            const SizedBox(height: 10),
         ],
       ],
     );
@@ -3153,4 +3164,11 @@ class _CameraPageState extends State<CameraPage> {
       ),
     );
   }
+
+class _SubtitleExportDecision {
+  const _SubtitleExportDecision({
+    required this.monetizationConsent,
+  });
+
+  final bool monetizationConsent;
 }
