@@ -56,8 +56,13 @@ void main() {
         'Future<void> _retryPendingRegistryUploads()', recoveryStart);
     final recovery = camera.substring(recoveryStart, recoveryEnd);
 
+    expect(recovery, contains('final beforeIds ='));
     expect(recovery, contains('recoverPendingSeals()'));
     expect(recovery, contains('_secureVault.list()'));
+    expect(
+      recovery,
+      contains('.where((record) => !beforeIds.contains(record.hcvId))'),
+    );
     expect(recovery, contains('registry.enqueueCertificateFile'));
     expect(recovery, contains('unawaited(_retryPendingRegistryUploads())'));
   });
