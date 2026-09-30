@@ -200,3 +200,11 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - BUILD133 closed-chain validation run `36734681081` completed GREEN: formatter, Flutter analyze, complete Flutter tests and release architecture guard passed.
 - Verified Originals v0.2 app run `36734687262` completed GREEN, including the updated live-reference/recovery contract that forbids comment state from acting as a hard gate.
 - PR #123 remains open/draft; no merge and no TestFlight/Codemagic release build were created.
+
+
+### 2026-09-30 final live YouTube scope proof
+
+- The corrected backend was exercised again with the real Google OAuth grant after the comments hard-gate removal.
+- Real temporary upload completed with processing succeeded and unlisted privacy; comment state was reported only as diagnostics; final `videos.delete` succeeded and the scope demo completed successfully.
+- This confirms the app-side decision to require a live official reference while no longer requiring `commentsDisabled=true`.
+- Google verification submission remains external/pending; PR #123 remains draft and no TestFlight build was created.
