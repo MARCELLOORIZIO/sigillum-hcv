@@ -730,12 +730,6 @@ class HCVSecureMediaVault {
         continue;
       }
 
-      final existing = await find(hcvId);
-      if (existing != null) {
-        await _removePendingSeal(hcvId);
-        continue;
-      }
-
       final mediaPath = item['mediaPath']?.toString() ?? '';
       final hcvpackPath = item['hcvpackPath']?.toString() ?? '';
       final certificatePath = item['certificatePath']?.toString() ?? '';
