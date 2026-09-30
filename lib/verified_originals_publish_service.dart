@@ -385,7 +385,8 @@ class VerifiedOriginalsPublishService {
             .bind(response)
             .join()
             .timeout(const Duration(minutes: 2));
-        final decoded = jsonDecode(raw);
+        final decoded =
+            raw.trim().isEmpty ? <String, dynamic>{} : jsonDecode(raw);
         if (decoded is! Map<String, dynamic>) {
           throw StateError('REGISTRY_RESPONSE_INVALID');
         }
@@ -405,37 +406,18 @@ class VerifiedOriginalsPublishService {
             decoded['subtitleSha256']?.toString().toLowerCase() ?? '';
         final originalContentSha256 =
             decoded['originalContentSha256']?.toString().toLowerCase() ?? '';
+        final serverHcvpackSha256 =
+            decoded['hcvpackSha256']?.toString().toLowerCase() ?? '';
         final role = decoded['referenceRole']?.toString() ?? '';
         final derivationType = decoded['derivationType']?.toString() ?? '';
 
         if (publicationId.isEmpty ||
             publicUrl.isEmpty ||
-            !RegExp(r'^[a-f0-9]{64}    final response = await _json(
-      'POST',
-      '/api/verified-originals/consents/${record.hcvId}/withdraw',
-      authenticated: true,
-    );
-    if (response['referenceAvailable'] == true) {
-      throw StateError('REFERENCE_WITHDRAWAL_INCOMPLETE');
-    }
-    final takedown = response['platformTakedown']?.toString() ?? '';
-    if (takedown != 'COMPLETED') {
-      throw StateError('REFERENCE_TAKEDOWN_$takedown');
-    }
-    await vault.clearReference(record.hcvId);
-  }
-
-  String _mime(HCVSecureOriginalRecord record) {
-    if (record.mediaType == 'video') return 'video/mp4';
-    final lower = record.originalName.toLowerCase();
-    if (lower.endsWith('.png')) return 'image/png';
-    return 'image/jpeg';
-  }
-}
-).hasMatch(referenceSha256) ||
+            !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256) ||
             sourceSha256 != captionedSha256 ||
             serverSubtitleSha256 != subtitleSha256 ||
             originalContentSha256 != refreshed.mediaSha256 ||
+            serverHcvpackSha256 != refreshed.hcvpackSha256 ||
             role != 'DERIVED_REFERENCE' ||
             derivationType != 'subtitle_burn_in_reference_v1') {
           throw StateError('SUBTITLE_REFERENCE_RESPONSE_INVALID');
