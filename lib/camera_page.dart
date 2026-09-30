@@ -1448,6 +1448,14 @@ class _CameraPageState extends State<CameraPage> {
         recording = false;
       });
       if (ok && pack != null) {
+        await _secureVault.stagePendingSeal(
+          hcvId: preparedHcvId,
+          mediaType: 'photo',
+          mediaPath: publishedPhoto,
+          hcvpackPath: pack,
+          certificatePath: hcv,
+          expectedMediaSha256: hash,
+        );
         await registry.enqueueCertificateFile(File(hcv).absolute.path);
         final secured = await _secureVault.seal(
           hcvId: preparedHcvId,
@@ -1972,6 +1980,14 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     if (ok && pack != null) {
+      await _secureVault.stagePendingSeal(
+        hcvId: detectedId,
+        mediaType: 'video',
+        mediaPath: savedVideoPath,
+        hcvpackPath: pack,
+        certificatePath: hcv,
+        expectedMediaSha256: videoHash,
+      );
       await registry.enqueueCertificateFile(File(hcv).absolute.path);
       final secured = await _secureVault.seal(
         hcvId: detectedId,
@@ -2027,13 +2043,27 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> _recoverPendingSecureOriginals() async {
     try {
       final recovered = await _secureVault.recoverPendingSeals();
-      if (!mounted || recovered == 0) return;
+      if (recovered == 0) return;
+
+      // A hard kill can occur after the seal journal is persisted but before
+      // the Registry outbox entry is written. Recovery therefore re-enqueues
+      // every recovered certificate idempotently before retrying the network.
+      final recoveredRecords = await _secureVault.list();
+      for (final record in recoveredRecords) {
+        final certificate = File(record.certificatePath);
+        if (await certificate.exists()) {
+          await registry.enqueueCertificateFile(certificate.absolute.path);
+        }
+      }
+
+      if (!mounted) return;
       setState(() {
         status = _t('secureOriginalStored');
         registryStatus = _c('registryPending');
       });
+      unawaited(_retryPendingRegistryUploads());
     } catch (_) {
-      // Recovery remains journaled and will be retried on a later app start.
+      // Recovery remains journaled/outboxed and will be retried later.
     }
   }
 
