@@ -387,8 +387,7 @@ const _commercialGateCopy = <String, Map<String, String>>{
         'Проверка отправлена в Stripe и сейчас обрабатывается.',
     'kycAdditionalStep':
         'Stripe требует дополнительный шаг. Завершите проверку и вернитесь в SIGILLUM.',
-    'kycCanceled':
-        'Проверка отменена. Можно начать новую проверку.',
+    'kycCanceled': 'Проверка отменена. Можно начать новую проверку.',
     'kycStatus': 'Статус проверки личности: {status}',
     'identityVerifiedAction': 'ЛИЧНОСТЬ ПОДТВЕРЖДЕНА',
     'identityProcessingAction': 'ПРОВЕРКА ВЫПОЛНЯЕТСЯ',
