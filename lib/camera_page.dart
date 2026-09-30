@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -340,6 +341,10 @@ class _CameraPageState extends State<CameraPage> {
   bool ready = false;
   bool recording = false;
   bool _videoFinalizeInProgress = false;
+  bool _secureFinalizeInProgress = false;
+
+  bool get _criticalFinalizationInProgress =>
+      _videoFinalizeInProgress || _secureFinalizeInProgress;
 
   bool photoMode = false;
 
@@ -435,6 +440,7 @@ class _CameraPageState extends State<CameraPage> {
     photoMode = widget.initialPhotoMode;
     status = _c('initializing');
     initCamera();
+    Future.microtask(_recoverPendingSecureOriginals);
     Future.microtask(_retryPendingRegistryUploads);
   }
 
@@ -1094,7 +1100,9 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> takePhoto() async {
     if (controller == null || !controller!.value.isInitialized) return;
-    if (controller!.value.isRecordingVideo) return;
+    if (controller!.value.isRecordingVideo || _criticalFinalizationInProgress) {
+      return;
+    }
 
     final captureLocation = await _locationForCapture();
     if (_printCoordinates && captureLocation == null) return;
@@ -1104,6 +1112,9 @@ class _CameraPageState extends State<CameraPage> {
     Map<String, dynamic>? temporalProbe;
     Map<String, dynamic>? temporalFrequencyProbe;
     Map<String, dynamic>? sceneContextProbe;
+
+    _secureFinalizeInProgress = true;
+    if (mounted) setState(() {});
 
     try {
       // One user tap starts the technical clip and automatically finishes with
@@ -1420,7 +1431,7 @@ class _CameraPageState extends State<CameraPage> {
         recording = false;
       });
       if (ok && pack != null) {
-        await uploadCertificateToRegistry();
+        await registry.enqueueCertificateFile(File(hcv).absolute.path);
         final secured = await _secureVault.seal(
           hcvId: preparedHcvId,
           mediaType: 'photo',
@@ -1429,25 +1440,32 @@ class _CameraPageState extends State<CameraPage> {
           certificatePath: hcv,
           expectedMediaSha256: hash,
         );
+        _secureFinalizeInProgress = false;
         if (mounted) {
           setState(() {
             _secureOriginalRecord = secured;
             videoPath = null;
             packagePath = null;
             status = _t('secureOriginalStored');
-            registryStatus = registryStatus == null
-                ? _t('secureOriginalStored')
-                : '$registryStatus\n${_t('secureOriginalStored')}';
+            registryStatus = _c('registryPending');
           });
         }
+        unawaited(_retryPendingRegistryUploads());
       }
     } catch (e) {
       if (temporalClip != null) {
         await temporalProbeEngine.discard(temporalClip.path);
       }
-      setState(() {
-        status = '${_c('photoError')}: $e';
-      });
+      if (mounted) {
+        setState(() {
+          status = '${_c('photoError')}: $e';
+        });
+      }
+    } finally {
+      if (_secureFinalizeInProgress) {
+        _secureFinalizeInProgress = false;
+        if (mounted) setState(() {});
+      }
     }
   }
 
@@ -1937,7 +1955,7 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     if (ok && pack != null) {
-      await uploadCertificateToRegistry();
+      await registry.enqueueCertificateFile(File(hcv).absolute.path);
       final secured = await _secureVault.seal(
         hcvId: detectedId,
         mediaType: 'video',
@@ -1952,11 +1970,10 @@ class _CameraPageState extends State<CameraPage> {
           videoPath = null;
           packagePath = null;
           status = _t('secureOriginalStored');
-          registryStatus = registryStatus == null
-              ? _t('secureOriginalStored')
-              : '$registryStatus\n${_t('secureOriginalStored')}';
+          registryStatus = _c('registryPending');
         });
       }
+      unawaited(_retryPendingRegistryUploads());
     }
   }
 
@@ -1964,23 +1981,42 @@ class _CameraPageState extends State<CameraPage> {
     if (hcvPath == null) return;
     final currentPath = File(hcvPath!).absolute.path;
 
-    setState(() {
-      registryStatus = _c('registryPublishing');
-    });
+    if (mounted) {
+      setState(() {
+        registryStatus = _c('registryPublishing');
+      });
+    }
 
     try {
       await registry.enqueueCertificateFile(currentPath);
       final report = await registry.retryPendingUploads();
       final currentUploaded = report.uploadedPaths.contains(currentPath);
-      setState(() {
-        registryStatus = currentUploaded
-            ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
-            : _c('registryPending');
-      });
+      if (mounted) {
+        setState(() {
+          registryStatus = currentUploaded
+              ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
+              : _c('registryPending');
+        });
+      }
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          registryStatus = '${_c('registryUnavailableLocal')}: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _recoverPendingSecureOriginals() async {
+    try {
+      final recovered = await _secureVault.recoverPendingSeals();
+      if (!mounted || recovered == 0) return;
       setState(() {
-        registryStatus = '${_c('registryUnavailableLocal')}: $e';
+        status = _t('secureOriginalStored');
+        registryStatus = _c('registryPending');
       });
+    } catch (_) {
+      // Recovery remains journaled and will be retried on a later app start.
     }
   }
 
