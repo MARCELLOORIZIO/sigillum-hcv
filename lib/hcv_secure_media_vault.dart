@@ -1022,7 +1022,7 @@ class HCVSecureMediaVault {
     final target = File(
       p.join(
         dir.path,
-        '${record.hcvId}_$purpose_${DateTime.now().microsecondsSinceEpoch}.mp4',
+        '${record.hcvId}_${purpose}_${DateTime.now().microsecondsSinceEpoch}.mp4',
       ),
     );
     await _decryptFile(
@@ -1053,7 +1053,7 @@ class HCVSecureMediaVault {
     final target = File(
       p.join(
         dir.path,
-        '${record.hcvId}_$purpose_${DateTime.now().microsecondsSinceEpoch}.srt',
+        '${record.hcvId}_${purpose}_${DateTime.now().microsecondsSinceEpoch}.srt',
       ),
     );
     await _decryptFile(
