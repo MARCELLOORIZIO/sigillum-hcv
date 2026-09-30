@@ -845,13 +845,11 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       if (!_officialReferenceLiveAvailable ||
           !_officialReferenceCommentsDisabled) {
-        _officialReferenceTotalMs = total.elapsedMilliseconds;
         return null;
       }
 
       final raw = availability['referenceVisualFingerprint'];
       if (!HCVReferenceVisualFingerprintV3.isValid(raw)) {
-        _officialReferenceTotalMs = total.elapsedMilliseconds;
         return HCVReferenceVisualVerdict.inconclusive;
       }
 
@@ -860,7 +858,6 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           ? await HCVReferenceVisualFingerprintV3.buildFromPhoto(mediaPath!)
           : await HCVReferenceVisualFingerprintV3.buildFromVideo(mediaPath!);
       _officialReferenceLocalMs = local.elapsedMilliseconds;
-      _officialReferenceTotalMs = total.elapsedMilliseconds;
       return HCVReferenceVisualFingerprintV3.compare(
         raw as Map,
         current,
@@ -868,7 +865,6 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     } catch (_) {
       _officialReferenceLiveAvailable = false;
       _officialReferenceCommentsDisabled = false;
-      _officialReferenceTotalMs = total.elapsedMilliseconds;
       return null;
     }
   }
@@ -986,7 +982,6 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   bool _officialReferenceCommentsDisabled = false;
   int? _officialReferenceServerMs;
   int? _officialReferenceLocalMs;
-  int? _officialReferenceTotalMs;
   int? _verificationTotalMs;
   String? _officialReferenceComparisonMode;
 
@@ -1199,7 +1194,6 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _officialReferenceCommentsDisabled = false;
       _officialReferenceServerMs = null;
       _officialReferenceLocalMs = null;
-      _officialReferenceTotalMs = null;
       _verificationTotalMs = null;
       _officialReferenceComparisonMode = null;
 
