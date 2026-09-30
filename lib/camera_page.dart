@@ -2279,7 +2279,7 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  void _openCameraQuickGuide() {  void _openCameraQuickGuide() {
+  void _openCameraQuickGuide() {
     Navigator.push(
       context,
       MaterialPageRoute(
