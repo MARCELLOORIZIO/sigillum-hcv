@@ -218,3 +218,5 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - No closed-chain, cryptographic, camera/FOV, OCR, Registry, billing or YouTube-reference semantics were changed by this localization-only functional pass.
 
 - Localization hardening test literal was corrected after the first CI analyze pass; a fresh full BUILD133 validation is required at the corrected head before this pass is considered green.
+
+- Final release metadata prepared without creating a build: Flutter build number advanced from 129 to 136 so the next consolidated TestFlight upload is above the previously used 135, and package_info_plus 9.0.1 is now declared as a direct dependency instead of relying on a transitive dependency. No TestFlight upload was triggered.
