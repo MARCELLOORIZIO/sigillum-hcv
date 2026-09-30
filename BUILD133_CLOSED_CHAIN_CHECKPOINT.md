@@ -192,3 +192,11 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - `commentsDisabled` remains visible in technical diagnostics when YouTube can report it, but false/unknown no longer produces OFFICIAL REFERENCE UNAVAILABLE.
 - Protected-original share, HCVPACK export, paid `/view` access and manual visual/audio comparison still require a live official reference; only the unsupported comments hard-gate was removed.
 - No TestFlight/Codemagic build, release merge, Render deploy, production-flag mutation or RSA-key migration was performed by this correction.
+
+
+### Validation status for comments-advisory correction
+
+- App functional correction commit: `6de138a2b25eed612bcc5d527c7e391763ed9fc2`.
+- BUILD133 closed-chain validation run `36734681081` completed GREEN: formatter, Flutter analyze, complete Flutter tests and release architecture guard passed.
+- Verified Originals v0.2 app run `36734687262` completed GREEN, including the updated live-reference/recovery contract that forbids comment state from acting as a hard gate.
+- PR #123 remains open/draft; no merge and no TestFlight/Codemagic release build were created.
