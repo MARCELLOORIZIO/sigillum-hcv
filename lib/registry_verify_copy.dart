@@ -70,6 +70,34 @@ class RegistryVerifyCopy {
           'VERIFICA NON ESEGUIBILE\nLa reference ufficiale SIGILLUM non è verificabile su YouTube in questo momento. Nessun controllo più debole viene usato per dichiarare conforme il file social.',
       'officialReferenceUnavailableDetail':
           'La reference YouTube deve risultare realmente presente, elaborata, unlisted e con commenti disabilitati prima della verifica di una copia social.',
+      'manualCompareTitle': 'CONFRONTO MANUALE',
+      'manualCompareSubscriberOnly':
+          'Funzione riservata agli abbonati SIGILLUM.',
+      'manualCompareIntro':
+          'Controlla personalmente immagini e audio del file ricevuto e confrontali con la copia ufficiale pubblicata da SIGILLUM su YouTube.',
+      'manualCompareAutomaticVerdict': 'Esito automatico',
+      'manualCompareLocalTitle': 'FILE DA CONTROLLARE',
+      'manualCompareOfficialTitle': 'COPIA UFFICIALE SIGILLUM',
+      'manualCompareVideoHelp':
+          'Porta il file al punto che vuoi controllare, poi apri la copia ufficiale allo stesso timestamp. Puoi confrontare immagini, voce, suoni, tagli e sequenza.',
+      'manualComparePhotoHelp':
+          'Osserva la foto ricevuta, poi apri la copia ufficiale SIGILLUM su YouTube per il confronto visivo.',
+      'manualCompareOpenOfficial': 'APRI COPIA UFFICIALE',
+      'manualCompareOpenAtTime': 'APRI COPIA UFFICIALE A {time}',
+      'manualCompareReturnHelp':
+          'YouTube viene aperto esternamente. Torna a SIGILLUM per continuare il confronto.',
+      'manualComparePlayPause': 'Riproduci / pausa',
+      'manualCompareAudio': 'Audio',
+      'manualCompareSubscriptionRequired':
+          'Questa funzione richiede un abbonamento SIGILLUM attivo.',
+      'manualCompareReferenceUnavailable':
+          'La copia ufficiale YouTube non è verificabile in questo momento.',
+      'manualCompareMediaUnavailable':
+          'Il file da confrontare non è più disponibile sul dispositivo.',
+      'manualCompareLoadError':
+          'Impossibile preparare il confronto manuale.',
+      'manualCompareOpenError':
+          'Impossibile aprire la copia ufficiale su YouTube.',
       'verificationTiming':
           'Tempo verifica: {total} s · YouTube {youtube} s · confronto locale {local} s',
       'techReferenceVerification': 'RIFERIMENTO UFFICIALE YOUTUBE',
@@ -225,6 +253,34 @@ class RegistryVerifyCopy {
           'VERIFICATION CANNOT BE COMPLETED\nThe official SIGILLUM reference cannot currently be verified on YouTube. No weaker check is used to declare the social file conforming.',
       'officialReferenceUnavailableDetail':
           'The YouTube reference must be confirmed as present, processed, unlisted and with comments disabled before a social copy can be verified.',
+      'manualCompareTitle': 'MANUAL COMPARISON',
+      'manualCompareSubscriberOnly':
+          'This feature is available to SIGILLUM subscribers.',
+      'manualCompareIntro':
+          'Personally inspect the images and audio of the received file and compare them with the official copy published by SIGILLUM on YouTube.',
+      'manualCompareAutomaticVerdict': 'Automatic result',
+      'manualCompareLocalTitle': 'FILE TO CHECK',
+      'manualCompareOfficialTitle': 'OFFICIAL SIGILLUM COPY',
+      'manualCompareVideoHelp':
+          'Move the file to the moment you want to inspect, then open the official copy at the same timestamp. Compare images, voice, sounds, cuts and sequence.',
+      'manualComparePhotoHelp':
+          'Inspect the received photo, then open the official SIGILLUM copy on YouTube for a visual comparison.',
+      'manualCompareOpenOfficial': 'OPEN OFFICIAL COPY',
+      'manualCompareOpenAtTime': 'OPEN OFFICIAL COPY AT {time}',
+      'manualCompareReturnHelp':
+          'YouTube opens externally. Return to SIGILLUM to continue the comparison.',
+      'manualComparePlayPause': 'Play / pause',
+      'manualCompareAudio': 'Audio',
+      'manualCompareSubscriptionRequired':
+          'This feature requires an active SIGILLUM subscription.',
+      'manualCompareReferenceUnavailable':
+          'The official YouTube copy cannot be verified at this time.',
+      'manualCompareMediaUnavailable':
+          'The file to compare is no longer available on this device.',
+      'manualCompareLoadError':
+          'Unable to prepare the manual comparison.',
+      'manualCompareOpenError':
+          'Unable to open the official copy on YouTube.',
       'verificationTiming':
           'Verification time: {total} s · YouTube {youtube} s · local comparison {local} s',
       'techReferenceVerification': 'OFFICIAL YOUTUBE REFERENCE',
@@ -382,6 +438,34 @@ class RegistryVerifyCopy {
           'VERIFICACIÓN NO EJECUTABLE\nLa referencia oficial de SIGILLUM no puede verificarse actualmente en YouTube. No se usa un control más débil para declarar conforme el archivo social.',
       'officialReferenceUnavailableDetail':
           'La referencia de YouTube debe estar realmente presente, procesada, no listada y con los comentarios desactivados antes de verificar una copia social.',
+      'manualCompareTitle': 'COMPARACIÓN MANUAL',
+      'manualCompareSubscriberOnly':
+          'Esta función está reservada a suscriptores de SIGILLUM.',
+      'manualCompareIntro':
+          'Comprueba personalmente las imágenes y el audio del archivo recibido y compáralos con la copia oficial publicada por SIGILLUM en YouTube.',
+      'manualCompareAutomaticVerdict': 'Resultado automático',
+      'manualCompareLocalTitle': 'ARCHIVO A COMPROBAR',
+      'manualCompareOfficialTitle': 'COPIA OFICIAL SIGILLUM',
+      'manualCompareVideoHelp':
+          'Lleva el archivo al punto que quieres revisar y abre después la copia oficial en el mismo instante. Compara imágenes, voz, sonidos, cortes y secuencia.',
+      'manualComparePhotoHelp':
+          'Observa la foto recibida y abre después la copia oficial SIGILLUM en YouTube para realizar la comparación visual.',
+      'manualCompareOpenOfficial': 'ABRIR COPIA OFICIAL',
+      'manualCompareOpenAtTime': 'ABRIR COPIA OFICIAL EN {time}',
+      'manualCompareReturnHelp':
+          'YouTube se abre externamente. Vuelve a SIGILLUM para continuar la comparación.',
+      'manualComparePlayPause': 'Reproducir / pausa',
+      'manualCompareAudio': 'Audio',
+      'manualCompareSubscriptionRequired':
+          'Esta función requiere una suscripción SIGILLUM activa.',
+      'manualCompareReferenceUnavailable':
+          'La copia oficial de YouTube no se puede verificar en este momento.',
+      'manualCompareMediaUnavailable':
+          'El archivo que se va a comparar ya no está disponible en el dispositivo.',
+      'manualCompareLoadError':
+          'No se puede preparar la comparación manual.',
+      'manualCompareOpenError':
+          'No se puede abrir la copia oficial en YouTube.',
       'verificationTiming':
           'Tiempo de verificación: {total} s · YouTube {youtube} s · comparación local {local} s',
       'techReferenceVerification': 'REFERENCIA OFICIAL DE YOUTUBE',
@@ -538,6 +622,34 @@ class RegistryVerifyCopy {
           'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\nОфициальный эталон SIGILLUM сейчас нельзя подтвердить на YouTube. Более слабая проверка не используется для признания файла из соцсети соответствующим.',
       'officialReferenceUnavailableDetail':
           'Перед проверкой копии из соцсети эталон YouTube должен быть подтвержден как существующий, обработанный, доступный по unlisted-ссылке и с отключенными комментариями.',
+      'manualCompareTitle': 'РУЧНОЕ СРАВНЕНИЕ',
+      'manualCompareSubscriberOnly':
+          'Функция доступна подписчикам SIGILLUM.',
+      'manualCompareIntro':
+          'Самостоятельно проверьте изображение и звук полученного файла и сравните их с официальной копией SIGILLUM, опубликованной на YouTube.',
+      'manualCompareAutomaticVerdict': 'Автоматический результат',
+      'manualCompareLocalTitle': 'ПРОВЕРЯЕМЫЙ ФАЙЛ',
+      'manualCompareOfficialTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ SIGILLUM',
+      'manualCompareVideoHelp':
+          'Перейдите в файле к нужному моменту, затем откройте официальную копию на том же времени. Сравните изображение, голос, звуки, монтаж и последовательность.',
+      'manualComparePhotoHelp':
+          'Рассмотрите полученную фотографию, затем откройте официальную копию SIGILLUM на YouTube для визуального сравнения.',
+      'manualCompareOpenOfficial': 'ОТКРЫТЬ ОФИЦИАЛЬНУЮ КОПИЮ',
+      'manualCompareOpenAtTime': 'ОТКРЫТЬ ОФИЦИАЛЬНУЮ КОПИЮ НА {time}',
+      'manualCompareReturnHelp':
+          'YouTube откроется во внешнем приложении. Вернитесь в SIGILLUM, чтобы продолжить сравнение.',
+      'manualComparePlayPause': 'Воспроизведение / пауза',
+      'manualCompareAudio': 'Звук',
+      'manualCompareSubscriptionRequired':
+          'Для этой функции требуется активная подписка SIGILLUM.',
+      'manualCompareReferenceUnavailable':
+          'Официальную копию YouTube сейчас невозможно подтвердить.',
+      'manualCompareMediaUnavailable':
+          'Проверяемый файл больше недоступен на устройстве.',
+      'manualCompareLoadError':
+          'Не удалось подготовить ручное сравнение.',
+      'manualCompareOpenError':
+          'Не удалось открыть официальную копию на YouTube.',
       'verificationTiming':
           'Время проверки: {total} с · YouTube {youtube} с · локальное сравнение {local} с',
       'techReferenceVerification': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН YOUTUBE',
