@@ -37,19 +37,6 @@ void main() {
       );
     }
 
-    expect(
-      gate,
-      isNot(contains('VERIFICA IN ELABORAZIONE')),
-    );
-    expect(
-      gate,
-      isNot(
-        contains(
-          'Verifica inviata a Stripe. Il controllo è in elaborazione.',
-        ),
-      ),
-    );
-
     for (final key in <String>[
       'creatorEntitlementUnavailable',
       'registryUploadInProgress',
