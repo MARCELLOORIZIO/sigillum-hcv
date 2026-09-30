@@ -287,9 +287,9 @@ void main() {
       'manualCompareOpenError',
     ]) {
       expect(
-        RegExp("'\$key'").allMatches(copy).length,
+        RegExp("'$key'").allMatches(copy).length,
         4,
-        reason: 'Expected four localized entries for \$key',
+        reason: 'Expected four localized entries for $key',
       );
     }
   });
