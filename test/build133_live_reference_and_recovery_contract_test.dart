@@ -221,10 +221,12 @@ void main() {
     expect(router, contains("extension = '.mp4'"));
   });
 
-  test('manual comparison remains subscriber-only and live-reference gated', () {
+  test('manual comparison remains subscriber-only and live-reference gated',
+      () {
     expect(
       publisher,
-      contains('Future<Map<String, dynamic>> entitledLiveReference(String hcvId)'),
+      contains(
+          'Future<Map<String, dynamic>> entitledLiveReference(String hcvId)'),
     );
     final methodStart = publisher.indexOf(
       'Future<Map<String, dynamic>> entitledLiveReference(String hcvId)',

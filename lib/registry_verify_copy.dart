@@ -95,8 +95,7 @@ class RegistryVerifyCopy {
           'La copia ufficiale YouTube non è verificabile in questo momento.',
       'manualCompareMediaUnavailable':
           'Il file da confrontare non è più disponibile sul dispositivo.',
-      'manualCompareLoadError':
-          'Impossibile preparare il confronto manuale.',
+      'manualCompareLoadError': 'Impossibile preparare il confronto manuale.',
       'manualCompareOpenError':
           'Impossibile aprire la copia ufficiale su YouTube.',
       'verificationTiming':
@@ -279,10 +278,8 @@ class RegistryVerifyCopy {
           'The official YouTube copy cannot be verified at this time.',
       'manualCompareMediaUnavailable':
           'The file to compare is no longer available on this device.',
-      'manualCompareLoadError':
-          'Unable to prepare the manual comparison.',
-      'manualCompareOpenError':
-          'Unable to open the official copy on YouTube.',
+      'manualCompareLoadError': 'Unable to prepare the manual comparison.',
+      'manualCompareOpenError': 'Unable to open the official copy on YouTube.',
       'verificationTiming':
           'Verification time: {total} s · YouTube {youtube} s · local comparison {local} s',
       'techReferenceVerification': 'OFFICIAL YOUTUBE REFERENCE',
@@ -465,8 +462,7 @@ class RegistryVerifyCopy {
           'La copia oficial de YouTube no se puede verificar en este momento.',
       'manualCompareMediaUnavailable':
           'El archivo que se va a comparar ya no está disponible en el dispositivo.',
-      'manualCompareLoadError':
-          'No se puede preparar la comparación manual.',
+      'manualCompareLoadError': 'No se puede preparar la comparación manual.',
       'manualCompareOpenError':
           'No se puede abrir la copia oficial en YouTube.',
       'verificationTiming':
@@ -627,8 +623,7 @@ class RegistryVerifyCopy {
           'Перед проверкой копии из соцсети эталон YouTube должен быть подтвержден как существующий, обработанный, доступный по unlisted-ссылке и с отключенными комментариями.',
       'manualCompareTitle': 'РУЧНОЕ СРАВНЕНИЕ',
       'manualCompareAction': 'СРАВНИТЬ ВРУЧНУЮ',
-      'manualCompareSubscriberOnly':
-          'Функция доступна подписчикам SIGILLUM.',
+      'manualCompareSubscriberOnly': 'Функция доступна подписчикам SIGILLUM.',
       'manualCompareIntro':
           'Самостоятельно проверьте изображение и звук полученного файла и сравните их с официальной копией SIGILLUM, опубликованной на YouTube.',
       'manualCompareAutomaticVerdict': 'Автоматический результат',
@@ -650,8 +645,7 @@ class RegistryVerifyCopy {
           'Официальную копию YouTube сейчас невозможно подтвердить.',
       'manualCompareMediaUnavailable':
           'Проверяемый файл больше недоступен на устройстве.',
-      'manualCompareLoadError':
-          'Не удалось подготовить ручное сравнение.',
+      'manualCompareLoadError': 'Не удалось подготовить ручное сравнение.',
       'manualCompareOpenError':
           'Не удалось открыть официальную копию на YouTube.',
       'verificationTiming':

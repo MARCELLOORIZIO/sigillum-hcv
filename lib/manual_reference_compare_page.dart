@@ -40,8 +40,7 @@ class _ManualReferenceComparePageState
   bool _loading = true;
   bool _muted = false;
 
-  String _r(String key) =>
-      RegistryVerifyCopy.t(widget.languageCode, key);
+  String _r(String key) => RegistryVerifyCopy.t(widget.languageCode, key);
 
   bool get _isVideo {
     final lower = widget.mediaPath.toLowerCase();
@@ -216,17 +215,17 @@ class _ManualReferenceComparePageState
 
     final duration = controller.value.duration;
     final position = controller.value.position;
-    final maxMs = duration.inMilliseconds <= 0
-        ? 1.0
-        : duration.inMilliseconds.toDouble();
+    final maxMs =
+        duration.inMilliseconds <= 0 ? 1.0 : duration.inMilliseconds.toDouble();
     final positionMs =
         position.inMilliseconds.clamp(0, maxMs.toInt()).toDouble();
 
     return Column(
       children: [
         AspectRatio(
-          aspectRatio:
-              controller.value.aspectRatio <= 0 ? 16 / 9 : controller.value.aspectRatio,
+          aspectRatio: controller.value.aspectRatio <= 0
+              ? 16 / 9
+              : controller.value.aspectRatio,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: VideoPlayer(controller),
