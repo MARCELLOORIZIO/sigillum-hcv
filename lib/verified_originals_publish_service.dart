@@ -117,6 +117,22 @@ class VerifiedOriginalsPublishService {
     );
   }
 
+  Future<Map<String, dynamic>> entitledLiveReference(String hcvId) async {
+    final live = await verificationReference(hcvId);
+    final available = live['availability'] == 'REFERENCE_AVAILABLE' &&
+        live['youtubeLive'] == true &&
+        live['commentsDisabled'] == true;
+    if (!available) {
+      throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
+    }
+
+    return _json(
+      'GET',
+      '/api/verified-originals/$hcvId/view',
+      authenticated: true,
+    );
+  }
+
   Future<String> _ensureConsent(
     HCVSecureOriginalRecord record, {
     required bool monetizationConsent,
