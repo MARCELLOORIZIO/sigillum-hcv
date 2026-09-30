@@ -23,6 +23,53 @@ void main() {
     );
   });
 
+  test('vault commit precedes Registry network synchronization', () {
+    final camera = File('lib/camera_page.dart').readAsStringSync();
+
+    final photoSeal = camera.indexOf(
+      "mediaType: 'photo'",
+    );
+    final photoRetry = camera.indexOf(
+      'unawaited(_retryPendingRegistryUploads())',
+      photoSeal,
+    );
+    final videoSeal = camera.indexOf(
+      "mediaType: 'video'",
+      photoRetry,
+    );
+    final videoRetry = camera.indexOf(
+      'unawaited(_retryPendingRegistryUploads())',
+      videoSeal,
+    );
+
+    expect(camera, contains('await registry.enqueueCertificateFile('));
+    expect(photoSeal, greaterThanOrEqualTo(0));
+    expect(photoRetry, greaterThan(photoSeal));
+    expect(videoSeal, greaterThan(photoRetry));
+    expect(videoRetry, greaterThan(videoSeal));
+    expect(camera, contains('recoverPendingSeals()'));
+    expect(camera, contains('canPop: !_criticalFinalizationInProgress'));
+    expect(camera, contains("_c('secureFinalizationInProgress')"));
+  });
+
+  test('vault has a persistent interrupted-seal journal', () {
+    final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
+
+    expect(vault, contains("'pending_seals.json'"));
+    expect(vault, contains("'SIGILLUM_PENDING_SEALS'"));
+    expect(vault, contains('_upsertPendingSeal('));
+    expect(vault, contains('_removePendingSeal('));
+    expect(vault, contains('Future<int> recoverPendingSeals()'));
+  });
+
+  test('protected-original list uses compact previews', () {
+    final page = File('lib/secure_originals_page.dart').readAsStringSync();
+
+    expect(page, contains('width: 132'));
+    expect(page, contains('crossAxisAlignment: CrossAxisAlignment.start'));
+    expect(page, contains('await _vault.recoverPendingSeals()'));
+  });
+
   test('secure vault uses authenticated AES-256-GCM and Keychain-backed secret',
       () {
     final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
@@ -97,15 +144,39 @@ void main() {
     expect(home, isNot(contains('verified_originals_consent_page.dart')));
   });
 
-  test('caption workflow materializes encrypted video only temporarily', () {
+  test('caption workflow stays encrypted and export is reference-gated', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
+    final vault = File('lib/hcv_secure_media_vault.dart').readAsStringSync();
+    final publisher =
+        File('lib/verified_originals_publish_service.dart').readAsStringSync();
+    final transcription =
+        File('lib/video_transcription_service.dart').readAsStringSync();
 
     expect(camera, contains("purpose: 'caption-source'"));
     expect(
       camera,
       contains('await _secureVault.deleteMaterialized(materializedSource)'),
     );
-    expect(camera, contains("_secureOriginalRecord?.mediaType == 'video'"));
+    expect(camera, contains('await _secureVault.sealSubtitleDerivative('));
+    expect(camera, contains('await _publisher.ensureSubtitleReference('));
+    expect(camera, contains('materializeCaptionedVideo('));
+    expect(camera, contains('materializeSubtitle('));
+    expect(
+      camera,
+      isNot(contains('saveContentToGallery(\n        transcript.captionedVideoPath')),
+    );
+
+    expect(vault, contains('encryptedCaptionedMediaPath'));
+    expect(vault, contains('encryptedSubtitlePath'));
+    expect(vault, contains('AesGcm.with256bits()'));
+    expect(vault, contains('markSubtitleReference'));
+    expect(publisher, contains('/api/verified-originals/publish-subtitle/'));
+    expect(
+      publisher,
+      contains('SIGILLUM_SUBTITLE_DERIVATION_BINDING_V1'),
+    );
+    expect(transcription, contains('getApplicationSupportDirectory()'));
+    expect(transcription, isNot(contains('getApplicationDocumentsDirectory()')));
   });
 
   test('published reference can be withdrawn without deleting HCV verification',
