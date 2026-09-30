@@ -71,6 +71,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailableDetail':
           'La reference YouTube deve risultare realmente presente, elaborata, unlisted e con commenti disabilitati prima della verifica di una copia social.',
       'manualCompareTitle': 'CONFRONTO MANUALE',
+      'manualCompareAction': 'CONFRONTA MANUALMENTE',
       'manualCompareSubscriberOnly':
           'Funzione riservata agli abbonati SIGILLUM.',
       'manualCompareIntro':
@@ -254,6 +255,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailableDetail':
           'The YouTube reference must be confirmed as present, processed, unlisted and with comments disabled before a social copy can be verified.',
       'manualCompareTitle': 'MANUAL COMPARISON',
+      'manualCompareAction': 'COMPARE MANUALLY',
       'manualCompareSubscriberOnly':
           'This feature is available to SIGILLUM subscribers.',
       'manualCompareIntro':
@@ -439,6 +441,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailableDetail':
           'La referencia de YouTube debe estar realmente presente, procesada, no listada y con los comentarios desactivados antes de verificar una copia social.',
       'manualCompareTitle': 'COMPARACIÓN MANUAL',
+      'manualCompareAction': 'COMPARAR MANUALMENTE',
       'manualCompareSubscriberOnly':
           'Esta función está reservada a suscriptores de SIGILLUM.',
       'manualCompareIntro':
@@ -623,6 +626,7 @@ class RegistryVerifyCopy {
       'officialReferenceUnavailableDetail':
           'Перед проверкой копии из соцсети эталон YouTube должен быть подтвержден как существующий, обработанный, доступный по unlisted-ссылке и с отключенными комментариями.',
       'manualCompareTitle': 'РУЧНОЕ СРАВНЕНИЕ',
+      'manualCompareAction': 'СРАВНИТЬ ВРУЧНУЮ',
       'manualCompareSubscriberOnly':
           'Функция доступна подписчикам SIGILLUM.',
       'manualCompareIntro':
