@@ -829,7 +829,6 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (!_isCanonicalHcvId(hcvId)) return null;
 
     _officialReferenceChecked = true;
-    final total = Stopwatch()..start();
     try {
       final availability = await const VerifiedOriginalsPublishService()
           .verificationReference(hcvId);
