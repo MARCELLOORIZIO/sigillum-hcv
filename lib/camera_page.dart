@@ -2341,6 +2341,25 @@ class _CameraPageState extends State<CameraPage> {
       return;
     }
 
+    try {
+      final live = await _publisher.verificationReference(securedRecord.hcvId);
+      final referenceReady =
+          live['availability'] == 'REFERENCE_AVAILABLE' &&
+          live['youtubeLive'] == true &&
+          live['commentsDisabled'] == true;
+      if (!referenceReady) {
+        if (mounted) {
+          setState(() => status = _t('secureOriginalsReferencePending'));
+        }
+        return;
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => status = '${_c('sharePackError')}: $error');
+      }
+      return;
+    }
+
     File? clearPack;
     try {
       clearPack = await _secureVault.materializeHcvpack(
