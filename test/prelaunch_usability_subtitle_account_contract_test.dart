@@ -21,16 +21,29 @@ void main() {
     expect(guide, contains('il file non viene rilasciato al social'));
   });
 
-  test('subtitle actions remain readable and save captioned copy to Photos', () {
+  test('subtitle exports remain readable but are closed-chain gated', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
     final copy = File('lib/camera_ui_extended_copy.dart').readAsStringSync();
+    final service =
+        File('lib/video_transcription_service.dart').readAsStringSync();
+
     expect(camera, contains("_c('saveCaptionedPhotos')"));
-    expect(copy, contains("'saveCaptionedPhotos': 'SALVA VIDEO SOTTOTITOLATO IN FOTO'"));
+    expect(
+      copy,
+      contains("'saveCaptionedPhotos': 'SALVA VIDEO SOTTOTITOLATO IN FOTO'"),
+    );
     expect(camera, contains('minimumSize: const Size.fromHeight(64)'));
-    expect(camera, contains("_c('captionedSavedPhotos')"));
-    expect(copy, contains("'captionedSavedPhotos': 'Video sottotitolato salvato in Foto'"));
-    expect(camera, contains("_c('filesPath')"));
-    expect(copy, contains("'filesPath': 'File > Sul mio iPhone > Fotocamera Sigillum'"));
+    expect(camera, contains('await _secureVault.sealSubtitleDerivative('));
+    expect(camera, contains('await _publisher.ensureSubtitleReference('));
+    expect(camera, contains('materializeCaptionedVideo('));
+    expect(camera, contains('materializeSubtitle('));
+    expect(
+      camera,
+      isNot(contains('saveContentToGallery(\n        transcript.captionedVideoPath')),
+    );
+    expect(service, contains('getApplicationSupportDirectory()'));
+    expect(service, contains("'sigillum_private_derivations'"));
+    expect(service, isNot(contains('getApplicationDocumentsDirectory()')));
   });
 
   test('speech uses app language and keeps most complete cumulative result', () {
