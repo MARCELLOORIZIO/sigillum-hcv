@@ -2144,23 +2144,142 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<void> _saveCaptionedVideoToPhotos() async {
-    final path = _captionedVideoPath;
-    if (path == null) return;
-    final saved = await saveContentToGallery(path);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          saved
-              ? _c('captionedSavedPhotosSentence')
-              : _c('captionedSaveFailed'),
+  Future<_SubtitleExportDecision?> _subtitleExportDecision() async {
+    var rights = false;
+    var monetization = false;
+    return showDialog<_SubtitleExportDecision>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: Text(_t('secureOriginalsShareTitle')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_c('subtitleExportDisclosure')),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: rights,
+                  onChanged: (value) =>
+                      setLocalState(() => rights = value == true),
+                  title: Text(_t('secureOriginalsRightsConfirm')),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: monetization,
+                  onChanged: (value) =>
+                      setLocalState(() => monetization = value),
+                  title: Text(_t('secureOriginalsMonetization')),
+                  subtitle: Text(_t('secureOriginalsMonetizationHint')),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(_t('cancel')),
+            ),
+            FilledButton(
+              onPressed: rights
+                  ? () => Navigator.pop(
+                        dialogContext,
+                        _SubtitleExportDecision(
+                          monetizationConsent: monetization,
+                        ),
+                      )
+                  : null,
+              child: Text(_t('secureOriginalsContinueShare')),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  void _openCameraQuickGuide() {
+  Future<HCVSecureOriginalRecord?> _ensureSubtitleReferenceForExport() async {
+    if (_subtitlePublishing) return null;
+    final local = _secureOriginalRecord;
+    if (local == null) {
+      if (mounted) setState(() => status = _c('subtitleExportBlocked'));
+      return null;
+    }
+
+    final current = await _secureVault.find(local.hcvId) ?? local;
+    if (!current.hasSubtitleDerivative) {
+      if (mounted) setState(() => status = _c('subtitleExportBlocked'));
+      return null;
+    }
+    if (current.hasSubtitleReference) {
+      if (mounted) setState(() => _secureOriginalRecord = current);
+      return current;
+    }
+
+    final decision = await _subtitleExportDecision();
+    if (decision == null || !mounted) return null;
+
+    setState(() {
+      _subtitlePublishing = true;
+      status = _c('subtitleReferencePublishing');
+    });
+
+    try {
+      await _publisher.ensureSubtitleReference(
+        current,
+        monetizationConsent: decision.monetizationConsent,
+      );
+      final refreshed = await _secureVault.find(current.hcvId);
+      if (refreshed == null || !refreshed.hasSubtitleReference) {
+        throw StateError('SUBTITLE_REFERENCE_NOT_CONFIRMED');
+      }
+      if (mounted) {
+        setState(() {
+          _secureOriginalRecord = refreshed;
+          status = _c('subtitleReferenceReady');
+        });
+      }
+      return refreshed;
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          status = '${_c('subtitleExportBlocked')}: $error';
+        });
+      }
+      return null;
+    } finally {
+      if (mounted) setState(() => _subtitlePublishing = false);
+    }
+  }
+
+  Future<void> _saveCaptionedVideoToPhotos() async {
+    final record = await _ensureSubtitleReferenceForExport();
+    if (record == null) return;
+
+    File? clear;
+    try {
+      clear = await _secureVault.materializeCaptionedVideo(
+        record,
+        purpose: 'subtitle-save',
+      );
+      final saved = await saveContentToGallery(clear.path);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            saved
+                ? _c('captionedSavedPhotosSentence')
+                : _c('captionedSaveFailed'),
+          ),
+        ),
+      );
+    } finally {
+      if (clear != null) await _secureVault.deleteMaterialized(clear);
+    }
+  }
+
+  void _openCameraQuickGuide() {  void _openCameraQuickGuide() {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -2211,48 +2330,57 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _transcribeCreatedVideo() async {
-    if (createdContentKind != 'video' || _transcribingAudio) return;
+    if (createdContentKind != 'video' ||
+        _transcribingAudio ||
+        _criticalFinalizationInProgress) {
+      return;
+    }
+
+    final localRecord = _secureOriginalRecord;
+    if (localRecord == null || localRecord.mediaType != 'video') {
+      if (mounted) setState(() => status = _c('subtitleRequiresProtected'));
+      return;
+    }
 
     File? materializedSource;
-    var path = videoPath;
-    try {
-      final secureRecord = _secureOriginalRecord;
-      if (path == null &&
-          secureRecord != null &&
-          secureRecord.mediaType == 'video') {
-        materializedSource = await _secureVault.materializeOriginal(
-          secureRecord,
-          purpose: 'caption-source',
-        );
-        path = materializedSource.path;
-      }
-      if (path == null) return;
-
+    VideoTranscriptionResult? transcript;
+    _secureFinalizeInProgress = true;
+    if (mounted) {
       setState(() {
         _transcribingAudio = true;
         status = _c('transcriptionAudio');
       });
+    }
 
-      final transcript = await const VideoTranscriptionService().transcribe(
-        path,
+    try {
+      final secureRecord =
+          await _secureVault.find(localRecord.hcvId) ?? localRecord;
+      materializedSource = await _secureVault.materializeOriginal(
+        secureRecord,
+        purpose: 'caption-source',
+      );
+
+      transcript = await const VideoTranscriptionService().transcribe(
+        materializedSource.path,
         languageCode: widget.languageCode,
       );
-      if (!mounted) return;
-      setState(() {
-        _videoTranscript = transcript.text;
-        _subtitlePath = transcript.subtitlePath;
-        _captionedVideoPath = transcript.captionedVideoPath;
-        status = _c('captionedReady');
-      });
-      final savedCaptionedToPhotos = await saveContentToGallery(
-        transcript.captionedVideoPath,
+
+      final secured = await _secureVault.sealSubtitleDerivative(
+        original: secureRecord,
+        captionedVideoPath: transcript.captionedVideoPath,
+        subtitlePath: transcript.subtitlePath,
       );
+
+      _secureFinalizeInProgress = false;
       if (!mounted) return;
       setState(() {
-        status = savedCaptionedToPhotos
-            ? _c('captionedReadyPhotos')
-            : _c('captionedReadyFiles');
+        _secureOriginalRecord = secured;
+        _videoTranscript = transcript!.text;
+        _subtitlePath = null;
+        _captionedVideoPath = null;
+        status = _c('captionedProtected');
       });
+
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
@@ -2263,12 +2391,12 @@ class _CameraPageState extends State<CameraPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _c('captionExplanation'),
+                  _c('captionProtectedExplanation'),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 14),
                 SelectableText(
-                  transcript.text.isEmpty
+                  transcript!.text.isEmpty
                       ? _c('subtitlesCreated')
                       : transcript.text,
                 ),
@@ -2284,39 +2412,77 @@ class _CameraPageState extends State<CameraPage> {
         ),
       );
     } catch (error) {
-      if (!mounted) return;
-      setState(() => status = '${_c('transcriptionFailed')}: $error');
+      if (transcript != null) {
+        for (final rawPath in [
+          transcript.captionedVideoPath,
+          transcript.subtitlePath,
+        ]) {
+          try {
+            final file = File(rawPath);
+            if (await file.exists()) await file.delete();
+          } catch (_) {}
+        }
+      }
+      if (mounted) {
+        setState(() => status = '${_c('transcriptionFailed')}: $error');
+      }
     } finally {
       if (materializedSource != null) {
         await _secureVault.deleteMaterialized(materializedSource);
       }
-      if (mounted) setState(() => _transcribingAudio = false);
+      _secureFinalizeInProgress = false;
+      if (mounted) {
+        setState(() {
+          _transcribingAudio = false;
+        });
+      }
     }
   }
 
   Future<void> _shareSubtitleFile() async {
-    final path = _subtitlePath;
-    if (path == null) return;
-    await Share.shareXFiles(
-      [XFile(path, mimeType: 'application/x-subrip')],
-      text: _videoTranscript == null || _videoTranscript!.isEmpty
-          ? _c('subtitleShareText')
-          : _videoTranscript!,
-      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-    );
+    final record = await _ensureSubtitleReferenceForExport();
+    if (record == null) return;
+
+    File? clear;
+    try {
+      clear = await _secureVault.materializeSubtitle(
+        record,
+        purpose: 'subtitle-share',
+      );
+      await Share.shareXFiles(
+        [XFile(clear.path, mimeType: 'application/x-subrip')],
+        text: _videoTranscript == null || _videoTranscript!.isEmpty
+            ? _c('subtitleShareText')
+            : _videoTranscript!,
+        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+      );
+    } finally {
+      if (clear != null) await _secureVault.deleteMaterialized(clear);
+    }
   }
 
   Future<void> _shareCaptionedVideo() async {
-    final path = _captionedVideoPath;
-    if (path == null) return;
-    await Share.shareXFiles(
-      [XFile(path, mimeType: 'video/mp4')],
-      text: _c('shareCaptionedText'),
-      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-    );
+    final record = await _ensureSubtitleReferenceForExport();
+    if (record == null) return;
+
+    File? clear;
+    try {
+      clear = await _secureVault.materializeCaptionedVideo(
+        record,
+        purpose: 'subtitle-share',
+      );
+      await Share.shareXFiles(
+        [XFile(clear.path, mimeType: 'video/mp4')],
+        text: _c('shareCaptionedText'),
+        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+      );
+    } finally {
+      if (clear != null) await _secureVault.deleteMaterialized(clear);
+    }
   }
 
   @override
+  void dispose() {  @override
   void dispose() {
     controller?.dispose();
     super.dispose();
