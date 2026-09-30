@@ -115,6 +115,7 @@ class HCVSecureMediaVault {
   static final RegExp _hcvPattern = RegExp(r'^HCV-[A-F0-9]{16}$');
   static final RegExp _shaPattern = RegExp(r'^[a-f0-9]{64}$');
   static Future<void> _indexTail = Future<void>.value();
+  static Future<void> _pendingSealTail = Future<void>.value();
 
   Future<Directory> _vaultDirectory() async {
     final root = await getApplicationSupportDirectory();
@@ -126,6 +127,96 @@ class HCVSecureMediaVault {
   Future<File> _indexFile() async {
     final dir = await _vaultDirectory();
     return File(p.join(dir.path, 'index.json'));
+  }
+
+  Future<File> _pendingSealFile() async {
+    final dir = await _vaultDirectory();
+    return File(p.join(dir.path, 'pending_seals.json'));
+  }
+
+  Future<T> _withPendingSealLock<T>(Future<T> Function() action) {
+    final previous = _pendingSealTail;
+    final release = Completer<void>();
+    _pendingSealTail = release.future;
+    return () async {
+      await previous;
+      try {
+        return await action();
+      } finally {
+        if (!release.isCompleted) release.complete();
+      }
+    }();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadPendingSeals() async {
+    final file = await _pendingSealFile();
+    if (!await file.exists()) return <Map<String, dynamic>>[];
+    try {
+      final raw = await file.readAsString();
+      if (raw.trim().isEmpty) return <Map<String, dynamic>>[];
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic> || decoded['records'] is! List) {
+        return <Map<String, dynamic>>[];
+      }
+      return (decoded['records'] as List)
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<void> _savePendingSeals(List<Map<String, dynamic>> records) async {
+    final file = await _pendingSealFile();
+    final temp = File('${file.path}.tmp');
+    await temp.writeAsString(
+      jsonEncode({
+        'schema': 'SIGILLUM_PENDING_SEALS',
+        'version': 1,
+        'records': records,
+      }),
+      flush: true,
+    );
+    if (await file.exists()) await file.delete();
+    await temp.rename(file.path);
+  }
+
+  Future<void> _upsertPendingSeal({
+    required String hcvId,
+    required String ownerCreatorId,
+    required String ownerAccountSubjectHash,
+    required String mediaType,
+    required String mediaPath,
+    required String hcvpackPath,
+    required String certificatePath,
+    required String expectedMediaSha256,
+  }) {
+    return _withPendingSealLock(() async {
+      final records = await _loadPendingSeals();
+      records.removeWhere((item) => item['hcvId']?.toString() == hcvId);
+      records.add({
+        'hcvId': hcvId,
+        'ownerCreatorId': ownerCreatorId,
+        'ownerAccountSubjectHash': ownerAccountSubjectHash,
+        'mediaType': mediaType,
+        'mediaPath': File(mediaPath).absolute.path,
+        'hcvpackPath': File(hcvpackPath).absolute.path,
+        'certificatePath': File(certificatePath).absolute.path,
+        'expectedMediaSha256': expectedMediaSha256,
+        'stagedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await _savePendingSeals(records);
+    });
+  }
+
+  Future<void> _removePendingSeal(String hcvId) {
+    return _withPendingSealLock(() async {
+      final records = await _loadPendingSeals();
+      final before = records.length;
+      records.removeWhere((item) => item['hcvId']?.toString() == hcvId);
+      if (records.length != before) await _savePendingSeals(records);
+    });
   }
 
   Future<String> _currentCreatorId() async {
