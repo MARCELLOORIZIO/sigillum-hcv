@@ -434,6 +434,21 @@ class _CameraPageState extends State<CameraPage> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _showFinalizationBlocked() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_c('secureFinalizationInProgress'))),
+    );
+  }
+
+  void _popCameraIfSafe() {
+    if (_criticalFinalizationInProgress) {
+      _showFinalizationBlocked();
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2606,8 +2621,15 @@ class _CameraPageState extends State<CameraPage> {
   Widget build(BuildContext context) {
     final ok = controller != null && controller!.value.isInitialized;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
+    return PopScope<void>(
+      canPop: !_criticalFinalizationInProgress,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _criticalFinalizationInProgress) {
+          _showFinalizationBlocked();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -2618,9 +2640,7 @@ class _CameraPageState extends State<CameraPage> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
+          onPressed: _popCameraIfSafe,
         ),
         title: Text(_t('cameraTitle')),
         actions: [
@@ -2896,6 +2916,10 @@ class _CameraPageState extends State<CameraPage> {
                               color: Colors.black,
                             ),
                             onPressed: () {
+                              if (_criticalFinalizationInProgress) {
+                                _showFinalizationBlocked();
+                                return;
+                              }
                               setState(() {
                                 status = _c('ready');
                                 result = null;
@@ -2928,6 +2952,10 @@ class _CameraPageState extends State<CameraPage> {
                             side: const BorderSide(color: Colors.white),
                           ),
                           onPressed: () {
+                            if (_criticalFinalizationInProgress) {
+                              _showFinalizationBlocked();
+                              return;
+                            }
                             setState(() {
                               status = _c('ready');
                               result = null;
@@ -2950,6 +2978,7 @@ class _CameraPageState extends State<CameraPage> {
               ),
             ),
         ],
+      ),
       ),
     );
   }
