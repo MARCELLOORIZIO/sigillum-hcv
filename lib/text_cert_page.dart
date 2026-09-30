@@ -220,13 +220,14 @@ class _TextCertPageState extends State<TextCertPage> {
 
       if (ok) {
         setState(() {
-          registryStatus = 'Uploading certificate to registry...';
+          registryStatus = _t('registryUploadInProgress');
         });
 
         try {
           final res = await registry.uploadCertificateFile(pairedHcvFile.path);
           setState(() {
-            registryStatus = 'Registry OK: ${res['hcvId'] ?? detectedId}';
+            registryStatus = _t('registryUploadOk')
+                .replaceAll('{id}', '${res['hcvId'] ?? detectedId}');
           });
         } catch (e) {
           try {
@@ -234,7 +235,7 @@ class _TextCertPageState extends State<TextCertPage> {
           } catch (_) {}
           if (mounted) {
             setState(() {
-              registryStatus = 'Registry non disponibile: certificato conservato e accodato per il nuovo invio.';
+              registryStatus = _t('registryQueuedOffline');
             });
           }
         }
@@ -242,7 +243,7 @@ class _TextCertPageState extends State<TextCertPage> {
     } catch (e) {
       setState(() {
         loading = false;
-        status = 'ERRORE: $e';
+        status = '${_t('genericError')}: $e';
         result = 'INVALID';
       });
     }

@@ -98,6 +98,17 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycServerConfirm':
         'La verifica identità deve essere confermata dal server prima di certificare.',
     'kycSyncFailed': 'Impossibile sincronizzare la verifica identità',
+    'kycProcessingMessage':
+        'Verifica inviata a Stripe. Il controllo è in elaborazione.',
+    'kycAdditionalStep':
+        'Stripe richiede un ulteriore passaggio. Completa la verifica e poi torna in SIGILLUM.',
+    'kycCanceled':
+        'La verifica è stata annullata. Puoi avviare una nuova verifica.',
+    'kycStatus': 'Stato verifica identità: {status}',
+    'identityVerifiedAction': 'IDENTITÀ VERIFICATA',
+    'identityProcessingAction': 'VERIFICA IN ELABORAZIONE',
+    'identityContinueAction': 'CONTINUA VERIFICA IDENTITÀ',
+    'identityRetryAction': 'RIPROVA VERIFICA IDENTITÀ',
     'storeError': 'App Store non disponibile',
     'checkingSubscription': 'Verifica abbonamento con App Store...',
     'subscriptionInactive': 'L’abbonamento non risulta attivo sul server.',
@@ -181,6 +192,17 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycServerConfirm':
         'Identity verification must be confirmed by the server before certification.',
     'kycSyncFailed': 'Unable to synchronize identity verification',
+    'kycProcessingMessage':
+        'Verification was submitted to Stripe and is being processed.',
+    'kycAdditionalStep':
+        'Stripe requires an additional step. Complete verification and then return to SIGILLUM.',
+    'kycCanceled':
+        'Verification was canceled. You can start a new verification.',
+    'kycStatus': 'Identity verification status: {status}',
+    'identityVerifiedAction': 'IDENTITY VERIFIED',
+    'identityProcessingAction': 'VERIFICATION IN PROGRESS',
+    'identityContinueAction': 'CONTINUE IDENTITY VERIFICATION',
+    'identityRetryAction': 'RETRY IDENTITY VERIFICATION',
     'storeError': 'App Store unavailable',
     'checkingSubscription': 'Checking subscription with App Store...',
     'subscriptionInactive': 'The subscription is not active on the server.',
@@ -267,6 +289,17 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycServerConfirm':
         'La verificación de identidad debe ser confirmada por el servidor antes de certificar.',
     'kycSyncFailed': 'No se puede sincronizar la verificación de identidad',
+    'kycProcessingMessage':
+        'La verificación se envió a Stripe y está en proceso.',
+    'kycAdditionalStep':
+        'Stripe requiere un paso adicional. Completa la verificación y vuelve a SIGILLUM.',
+    'kycCanceled':
+        'La verificación se canceló. Puedes iniciar una nueva verificación.',
+    'kycStatus': 'Estado de verificación de identidad: {status}',
+    'identityVerifiedAction': 'IDENTIDAD VERIFICADA',
+    'identityProcessingAction': 'VERIFICACIÓN EN CURSO',
+    'identityContinueAction': 'CONTINUAR VERIFICACIÓN DE IDENTIDAD',
+    'identityRetryAction': 'REINTENTAR VERIFICACIÓN DE IDENTIDAD',
     'storeError': 'App Store no disponible',
     'checkingSubscription': 'Verificando la suscripción con App Store...',
     'subscriptionInactive': 'La suscripción no está activa en el servidor.',
@@ -350,6 +383,17 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycServerConfirm':
         'Перед сертификацией сервер должен подтвердить проверку личности.',
     'kycSyncFailed': 'Не удалось синхронизировать проверку личности',
+    'kycProcessingMessage':
+        'Проверка отправлена в Stripe и сейчас обрабатывается.',
+    'kycAdditionalStep':
+        'Stripe требует дополнительный шаг. Завершите проверку и вернитесь в SIGILLUM.',
+    'kycCanceled':
+        'Проверка отменена. Можно начать новую проверку.',
+    'kycStatus': 'Статус проверки личности: {status}',
+    'identityVerifiedAction': 'ЛИЧНОСТЬ ПОДТВЕРЖДЕНА',
+    'identityProcessingAction': 'ПРОВЕРКА ВЫПОЛНЯЕТСЯ',
+    'identityContinueAction': 'ПРОДОЛЖИТЬ ПРОВЕРКУ ЛИЧНОСТИ',
+    'identityRetryAction': 'ПОВТОРИТЬ ПРОВЕРКУ ЛИЧНОСТИ',
     'storeError': 'App Store недоступен',
     'checkingSubscription': 'Проверка подписки через App Store...',
     'subscriptionInactive': 'Подписка не активна на сервере.',
@@ -1168,17 +1212,12 @@ class _CommercialGateState extends State<CommercialGate> {
       }
       if (status == 'processing') {
         if (mounted) {
-          setState(
-            () => _message =
-                'Verifica inviata a Stripe. Il controllo è in elaborazione.',
-          );
+          setState(() => _message = _t('kycProcessingMessage'));
         }
         return;
       }
       if (url.isEmpty) {
-        throw StateError(
-          'Link di verifica identità non disponibile per lo stato $status.',
-        );
+        throw StateError('${_t('kycLinkMissing')} ($status)');
       }
       final opened = await launchUrl(
         Uri.parse(url),
@@ -1188,8 +1227,8 @@ class _CommercialGateState extends State<CommercialGate> {
       if (mounted) {
         setState(
           () => _message = status == 'requires_input'
-              ? 'Stripe richiede un ulteriore passaggio. Completa la verifica e poi torna in SIGILLUM.'
-              : 'Completa la verifica e poi torna in SIGILLUM.',
+              ? _t('kycAdditionalStep')
+              : _t('kycCompleteReturn'),
         );
       }
     });
@@ -1203,13 +1242,10 @@ class _CommercialGateState extends State<CommercialGate> {
       if (status != 'verified') {
         if (mounted) {
           final text = switch (status) {
-            'processing' =>
-              'Verifica inviata a Stripe. Il controllo è in elaborazione.',
-            'requires_input' =>
-              'Stripe richiede un ulteriore passaggio per completare la verifica.',
-            'canceled' =>
-              'La verifica è stata annullata. Puoi avviare una nuova verifica.',
-            _ => 'Stato verifica identità: $status',
+            'processing' => _t('kycProcessingMessage'),
+            'requires_input' => _t('kycAdditionalStep'),
+            'canceled' => _t('kycCanceled'),
+            _ => _t('kycStatus').replaceAll('{status}', status),
           };
           setState(() => _message = text);
         }
@@ -2171,14 +2207,14 @@ class _CommercialGateState extends State<CommercialGate> {
     final canceled = status == 'canceled';
     final verified = status == 'verified';
     final actionLabel = verified
-        ? 'IDENTITÀ VERIFICATA'
+        ? _t('identityVerifiedAction')
         : processing
-            ? 'VERIFICA IN ELABORAZIONE'
+            ? _t('identityProcessingAction')
             : requiresInput
-                ? 'CONTINUA VERIFICA IDENTITÀ'
+                ? _t('identityContinueAction')
                 : canceled
-                    ? 'RIPROVA VERIFICA IDENTITÀ'
-                    : 'VERIFICA IDENTITÀ';
+                    ? _t('identityRetryAction')
+                    : _t('verifyIdentity');
 
     return Column(
       key: const ValueKey('identity'),

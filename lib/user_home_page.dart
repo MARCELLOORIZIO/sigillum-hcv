@@ -113,10 +113,8 @@ class _UserHomePageState extends State<UserHomePage>
   void _showEntitlementVerificationBlocked() {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Impossibile verificare l’abbonamento Creator. Riprova quando la connessione è disponibile.',
-        ),
+      SnackBar(
+        content: Text(_t('creatorEntitlementUnavailable')),
       ),
     );
   }

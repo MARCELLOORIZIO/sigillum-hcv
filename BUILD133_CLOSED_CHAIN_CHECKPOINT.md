@@ -208,3 +208,11 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Real temporary upload completed with processing succeeded and unlisted privacy; comment state was reported only as diagnostics; final `videos.delete` succeeded and the scope demo completed successfully.
 - This confirms the app-side decision to require a live official reference while no longer requiring `commentsDisabled=true`.
 - Google verification submission remains external/pending; PR #123 remains draft and no TestFlight build was created.
+
+
+## 2026-10-01 Google verification submitted + final localization hardening
+
+- Google Auth Platform Data Access verification for the sensitive `youtube.force-ssl` scope was submitted successfully. Verification Center now reports that data access is under review. The unlisted demonstration video must remain available throughout review.
+- Production flags remain unchanged while review is pending: no claim of Google approval and no `PRODUCTION_LIVE` activation.
+- Final app polish localized the remaining Creator entitlement/network message, Stripe Identity runtime status/action labels, text-certificate Registry queue/upload messages and the HCVPACK share caption across IT/EN/ES/RU.
+- No closed-chain, cryptographic, camera/FOV, OCR, Registry, billing or YouTube-reference semantics were changed by this localization-only functional pass.

@@ -2375,7 +2375,7 @@ class _CameraPageState extends State<CameraPage> {
             mimeType: 'application/vnd.sigillum.hcvpack',
           ),
         ],
-        text: 'HCVPACK offline SIGILLUM\nID: ${securedRecord.hcvId}',
+        text: '${_t('shareOfflinePack')}\nHCV-ID: ${securedRecord.hcvId}',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {

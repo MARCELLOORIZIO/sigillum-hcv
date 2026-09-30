@@ -43,6 +43,8 @@ class SigillumCopy {
       'identity': 'Identità',
       'accountTitle': 'ACCOUNT',
       'accountSubtitle': 'Profilo, identità, KYC, sicurezza e dati.',
+      'creatorEntitlementUnavailable':
+          'Impossibile verificare l’abbonamento Creator. Riprova quando la connessione è disponibile.',
       'headline': 'Prova tecnica per contenuti creati da persone reali.',
       'subtitle':
           'SIGILLUM collega foto, video e testi a HCV-ID, identità tecnica, impronta crittografica del file, certificato firmato e Registry online. Per le copie ricompresse usa fingerprint percettivi specifici per il tipo di media.',
@@ -198,6 +200,11 @@ class SigillumCopy {
       'textWritePrompt': 'Scrivi un testo da certificare',
       'enterText': 'Inserisci un testo',
       'creatingTextCertificate': 'Creazione certificato testo...',
+      'registryUploadInProgress': 'Caricamento certificato nel Registry...',
+      'registryUploadOk': 'Registry OK: {id}',
+      'registryQueuedOffline':
+          'Registry non disponibile: certificato conservato e accodato per un nuovo invio.',
+      'genericError': 'ERRORE',
       'textCertified': 'Testo certificato e verificato',
       'certificateCreatedInvalid': 'Certificato creato ma NON valido',
       'textCertificateTitle': 'Certifica testo HCV',
@@ -315,6 +322,8 @@ class SigillumCopy {
       'identity': 'Identity',
       'accountTitle': 'ACCOUNT',
       'accountSubtitle': 'Profile, identity, KYC, security and data.',
+      'creatorEntitlementUnavailable':
+          'Unable to verify the Creator subscription. Try again when a connection is available.',
       'headline': 'Technical proof for content created by real people.',
       'subtitle':
           'SIGILLUM links photos, videos and text to an HCV-ID, technical identity, file fingerprint, signed certificate and online Registry. Changes remain detectable.',
@@ -470,6 +479,11 @@ class SigillumCopy {
       'textWritePrompt': 'Write text to certify',
       'enterText': 'Enter text',
       'creatingTextCertificate': 'Creating text certificate...',
+      'registryUploadInProgress': 'Uploading certificate to the Registry...',
+      'registryUploadOk': 'Registry OK: {id}',
+      'registryQueuedOffline':
+          'Registry unavailable: the certificate was kept and queued for retry.',
+      'genericError': 'ERROR',
       'textCertified': 'Text certified and verified',
       'certificateCreatedInvalid': 'Certificate created but NOT valid',
       'textCertificateTitle': 'Certify HCV text',
@@ -584,6 +598,8 @@ class SigillumCopy {
       'identity': 'Identidad',
       'accountTitle': 'CUENTA',
       'accountSubtitle': 'Perfil, identidad, KYC, seguridad y datos.',
+      'creatorEntitlementUnavailable':
+          'No se puede verificar la suscripción Creator. Inténtalo de nuevo cuando haya conexión.',
       'headline': 'Prueba tecnica para contenidos creados por personas reales.',
       'subtitle':
           'SIGILLUM vincula fotos, videos y textos a un HCV-ID, identidad tecnica, huella del archivo, certificado firmado y Registry online. Las modificaciones siguen siendo detectables.',
@@ -740,6 +756,11 @@ class SigillumCopy {
       'textWritePrompt': 'Escribe un texto para certificar',
       'enterText': 'Introduce un texto',
       'creatingTextCertificate': 'Creando certificado de texto...',
+      'registryUploadInProgress': 'Subiendo el certificado al Registry...',
+      'registryUploadOk': 'Registry OK: {id}',
+      'registryQueuedOffline':
+          'Registry no disponible: el certificado se conservó y quedó en cola para reintentar.',
+      'genericError': 'ERROR',
       'textCertified': 'Texto certificado y verificado',
       'certificateCreatedInvalid': 'Certificado creado pero NO valido',
       'textCertificateTitle': 'Certificar texto HCV',
@@ -856,6 +877,8 @@ class SigillumCopy {
       'identity': 'Идентичность',
       'accountTitle': 'АККАУНТ',
       'accountSubtitle': 'Профиль, личность, KYC, безопасность и данные.',
+      'creatorEntitlementUnavailable':
+          'Не удалось проверить подписку Creator. Повторите попытку при наличии подключения.',
       'headline': 'Техническое доказательство для контента, созданного людьми.',
       'subtitle':
           'SIGILLUM связывает фото, видео и текст с HCV-ID, технической идентичностью, отпечатком файла, подписанным сертификатом и онлайн Registry. Изменения остаются обнаруживаемыми.',
@@ -1010,6 +1033,11 @@ class SigillumCopy {
       'textWritePrompt': 'Напишите текст для сертификации',
       'enterText': 'Введите текст',
       'creatingTextCertificate': 'Создание текстового сертификата...',
+      'registryUploadInProgress': 'Загрузка сертификата в Registry...',
+      'registryUploadOk': 'Registry OK: {id}',
+      'registryQueuedOffline':
+          'Registry недоступен: сертификат сохранён и поставлен в очередь на повторную отправку.',
+      'genericError': 'ОШИБКА',
       'textCertified': 'Текст сертифицирован и проверен',
       'certificateCreatedInvalid': 'Сертификат создан, но НЕ действителен',
       'textCertificateTitle': 'Сертифицировать текст HCV',
