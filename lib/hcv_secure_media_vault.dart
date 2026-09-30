@@ -550,6 +550,43 @@ class HCVSecureMediaVault {
     }();
   }
 
+  Future<void> stagePendingSeal({
+    required String hcvId,
+    required String mediaType,
+    required String mediaPath,
+    required String hcvpackPath,
+    required String certificatePath,
+    required String expectedMediaSha256,
+  }) async {
+    final cleanId = hcvId.trim().toUpperCase();
+    final cleanHash = expectedMediaSha256.trim().toLowerCase();
+    if (!_hcvPattern.hasMatch(cleanId) ||
+        (mediaType != 'video' && mediaType != 'photo') ||
+        !_shaPattern.hasMatch(cleanHash)) {
+      throw ArgumentError('SECURE_VAULT_INPUT_INVALID');
+    }
+
+    final media = File(mediaPath);
+    final pack = File(hcvpackPath);
+    final certificate = File(certificatePath);
+    if (!await media.exists() ||
+        !await pack.exists() ||
+        !await certificate.exists()) {
+      throw StateError('SECURE_VAULT_SOURCE_MISSING');
+    }
+
+    await _upsertPendingSeal(
+      hcvId: cleanId,
+      ownerCreatorId: await _currentCreatorId(),
+      ownerAccountSubjectHash: await _currentAccountSubjectHash(),
+      mediaType: mediaType,
+      mediaPath: media.absolute.path,
+      hcvpackPath: pack.absolute.path,
+      certificatePath: certificate.absolute.path,
+      expectedMediaSha256: cleanHash,
+    );
+  }
+
   Future<HCVSecureOriginalRecord> seal({
     required String hcvId,
     required String mediaType,
@@ -559,9 +596,10 @@ class HCVSecureMediaVault {
     required String expectedMediaSha256,
   }) async {
     final cleanId = hcvId.trim().toUpperCase();
+    final cleanExpectedHash = expectedMediaSha256.trim().toLowerCase();
     if (!_hcvPattern.hasMatch(cleanId) ||
         (mediaType != 'video' && mediaType != 'photo') ||
-        !_shaPattern.hasMatch(expectedMediaSha256)) {
+        !_shaPattern.hasMatch(cleanExpectedHash)) {
       throw ArgumentError('SECURE_VAULT_INPUT_INVALID');
     }
 
@@ -576,22 +614,20 @@ class HCVSecureMediaVault {
       throw StateError('SECURE_VAULT_SOURCE_MISSING');
     }
 
-    await _upsertPendingSeal(
+    await stagePendingSeal(
       hcvId: cleanId,
-      ownerCreatorId: ownerCreatorId,
-      ownerAccountSubjectHash: ownerAccountSubjectHash,
       mediaType: mediaType,
       mediaPath: media.absolute.path,
       hcvpackPath: pack.absolute.path,
       certificatePath: certificate.absolute.path,
-      expectedMediaSha256: expectedMediaSha256,
+      expectedMediaSha256: cleanExpectedHash,
     );
 
     // Persist recovery metadata before hashing potentially large media. If the
     // process is killed during hashing/encryption, startup recovery can resume
     // from the staged plaintext instead of leaving an unindexed orphan.
     final mediaHash = await _sha256File(media);
-    if (mediaHash != expectedMediaSha256) {
+    if (mediaHash != cleanExpectedHash) {
       await _removePendingSeal(cleanId);
       throw StateError('SECURE_VAULT_MEDIA_HASH_MISMATCH');
     }
@@ -616,6 +652,7 @@ class HCVSecureMediaVault {
             existingBefore.ownerAccountSubjectHash != ownerAccountSubjectHash ||
             existingBefore.mediaSha256 != mediaHash ||
             existingBefore.hcvpackSha256 != packHash)) {
+      await _removePendingSeal(cleanId);
       throw StateError('SECURE_VAULT_HCV_CONFLICT');
     }
 
@@ -747,6 +784,7 @@ class HCVSecureMediaVault {
           !await File(mediaPath).exists() ||
           !await File(hcvpackPath).exists() ||
           !await File(certificatePath).exists()) {
+        await _removePendingSeal(hcvId);
         continue;
       }
 
