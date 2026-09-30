@@ -828,26 +828,51 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         : enteredId;
     if (!_isCanonicalHcvId(hcvId)) return null;
 
+    _officialReferenceChecked = true;
+    final total = Stopwatch()..start();
     try {
       final availability = await const VerifiedOriginalsPublishService()
-          .publicAvailability(hcvId);
-      if (availability['availability'] != 'REFERENCE_AVAILABLE') {
+          .verificationReference(hcvId);
+      _officialReferenceServerMs =
+          (availability['youtubeCheckMs'] as num?)?.toInt();
+      _officialReferenceComparisonMode =
+          availability['comparisonMode']?.toString();
+      _officialReferenceLiveAvailable =
+          availability['availability'] == 'REFERENCE_AVAILABLE' &&
+          availability['youtubeLive'] == true;
+      _officialReferenceCommentsDisabled =
+          availability['commentsDisabled'] == true;
+
+      if (!_officialReferenceLiveAvailable ||
+          !_officialReferenceCommentsDisabled) {
+        _officialReferenceTotalMs = total.elapsedMilliseconds;
         return null;
       }
-      final raw = availability['referenceVisualFingerprint'];
-      if (!HCVReferenceVisualFingerprintV3.isValid(raw)) return null;
 
+      final raw = availability['referenceVisualFingerprint'];
+      if (!HCVReferenceVisualFingerprintV3.isValid(raw)) {
+        _officialReferenceTotalMs = total.elapsedMilliseconds;
+        return HCVReferenceVisualVerdict.inconclusive;
+      }
+
+      final local = Stopwatch()..start();
       final current = mediaType == 'photo'
           ? await HCVReferenceVisualFingerprintV3.buildFromPhoto(mediaPath!)
           : await HCVReferenceVisualFingerprintV3.buildFromVideo(mediaPath!);
+      _officialReferenceLocalMs = local.elapsedMilliseconds;
+      _officialReferenceTotalMs = total.elapsedMilliseconds;
       return HCVReferenceVisualFingerprintV3.compare(
         raw as Map,
         current,
       ).verdict;
     } catch (_) {
+      _officialReferenceLiveAvailable = false;
+      _officialReferenceCommentsDisabled = false;
+      _officialReferenceTotalMs = total.elapsedMilliseconds;
       return null;
     }
   }
+
   Future<bool?> _matchesCertifiedImageFingerprint(
     Map<String, dynamic> cert,
   ) async {
@@ -956,6 +981,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   bool loading = false;
   bool hcvIdDetectedByOcr = false;
+  bool _officialReferenceChecked = false;
+  bool _officialReferenceLiveAvailable = false;
+  bool _officialReferenceCommentsDisabled = false;
+  int? _officialReferenceServerMs;
+  int? _officialReferenceLocalMs;
+  int? _officialReferenceTotalMs;
+  int? _verificationTotalMs;
+  String? _officialReferenceComparisonMode;
 
   @override
   void initState() {
@@ -1155,10 +1188,20 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return;
     }
 
+    final verificationStopwatch = Stopwatch()..start();
+
     setState(() {
       loading = true;
 
       result = null;
+      _officialReferenceChecked = false;
+      _officialReferenceLiveAvailable = false;
+      _officialReferenceCommentsDisabled = false;
+      _officialReferenceServerMs = null;
+      _officialReferenceLocalMs = null;
+      _officialReferenceTotalMs = null;
+      _verificationTotalMs = null;
+      _officialReferenceComparisonMode = null;
 
       status = _r('downloadingCertificate');
       _clearVerificationAxes();
@@ -1380,6 +1423,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       final imageFingerprintMatches = await _matchesCertifiedImageFingerprint(
         cert,
       );
+      _verificationTotalMs = verificationStopwatch.elapsedMilliseconds;
 
       setState(() {
         loading = false;
@@ -1479,6 +1523,24 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           final hcvIdProvided = idController.text.trim().isNotEmpty;
 
           if ((contentType == 'photo' || contentType == 'video') &&
+              _officialReferenceChecked &&
+              (!_officialReferenceLiveAvailable ||
+                  !_officialReferenceCommentsDisabled)) {
+            status = _r('officialReferenceUnavailable');
+            result = 'OFFICIAL REFERENCE UNAVAILABLE';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; il riferimento YouTube ufficiale non è verificabile in questo momento.',
+              integrity: 'Non conclusiva',
+              integrityDetail: _r('officialReferenceUnavailableDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'La verifica della copia social non viene sostituita da un controllo più debole.',
+              derivation: 'Non verificabile',
+              derivationDetail: _r('officialReferenceUnavailableDetail'),
+            );
+          } else if ((contentType == 'photo' || contentType == 'video') &&
               officialReferenceVisualVerdict ==
                   HCVReferenceVisualVerdict.modified) {
             status = _r('officialReferenceModified');
@@ -1700,7 +1762,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final value = result ?? '';
     return value.startsWith('HUMAN VERIFIED') ||
         value.startsWith('FORENSIC VERIFIED') ||
-        value.startsWith('SOCIAL VERIFIED');
+        value.startsWith('SOCIAL VERIFIED') ||
+        value == 'OFFICIAL COPY VERIFIED';
   }
 
   bool get isScreenReplayWarning => (result ?? '').contains('SCREEN RISK');
@@ -1862,6 +1925,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       !_isForensicResult;
 
   bool get _isSocialLimited => result == 'SOCIAL LIMITED';
+
+  bool get _isOfficialReferenceVerified =>
+      result == 'OFFICIAL COPY VERIFIED';
+
+  bool get _isOfficialReferenceModified =>
+      result == 'OFFICIAL COPY MODIFIED';
+
+  bool get _isOfficialReferenceInconclusive =>
+      result == 'OFFICIAL COPY INCONCLUSIVE';
+
+  bool get _isOfficialReferenceUnavailable =>
+      result == 'OFFICIAL REFERENCE UNAVAILABLE';
 
   String get _effectiveProvenanceState {
     if (provenanceState != null) return provenanceState!;
@@ -2094,6 +2169,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _publicResultTitle {
     if (_isForensicResult) return _v('forensicOk');
+    if (_isOfficialReferenceVerified) {
+      return _r('officialReferenceConformingTitle');
+    }
+    if (_isOfficialReferenceModified) {
+      return _r('officialReferenceModifiedTitle');
+    }
+    if (_isOfficialReferenceInconclusive) {
+      return _r('officialReferenceInconclusiveTitle');
+    }
+    if (_isOfficialReferenceUnavailable) {
+      return _r('officialReferenceUnavailableTitle');
+    }
     if (_isUnprovenDerivative) return _r('unprovenDerivativeTitle');
     if (_isSocialLimited) return _r('socialLimitedTitle');
     if (_isSocialResult) return _v('socialOk');
@@ -2106,6 +2193,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _publicResultDetail {
     if (_isForensicResult) return _v('forensicOkDetail');
+    if (_isOfficialReferenceVerified) {
+      return _r('officialReferenceConformingDetail');
+    }
+    if (_isOfficialReferenceModified) {
+      return _r('officialReferenceModifiedDetail');
+    }
+    if (_isOfficialReferenceInconclusive) {
+      return _r('officialReferenceInconclusiveDetail');
+    }
+    if (_isOfficialReferenceUnavailable) {
+      return _r('officialReferenceUnavailableDetail');
+    }
     if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
     if (_isSocialLimited) return _r('socialLimitedDetail');
     if (_isSocialResult) return _v('socialOkDetail');
@@ -2123,6 +2222,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _isInvalidResult ||
       _isMediaNotVerified ||
       _isUnprovenDerivative ||
+      _isOfficialReferenceModified ||
       _isStrongDisplayRisk;
 
   bool get _hasIntermediateVerificationIssue =>
@@ -2130,6 +2230,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       (_isRegistryWarningResult ||
           _isDisplayNonConclusive ||
           _isSocialLimited ||
+          _isOfficialReferenceInconclusive ||
+          _isOfficialReferenceUnavailable ||
           isScreenReplayWarning);
 
   Color get _verificationResultColor {
@@ -2208,7 +2310,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         '${_r('techScore')}: ${_diagnosticValue(ml?['screenReplayRiskScore'])}\n'
         '${_r('techMlDecision')}: ${_diagnosticValue(ml?['displayRiskDecision'])}\n'
         '${_r('techReason')}: ${_diagnosticValue(ml?['reason'])}\n'
-        '${_r('techError')}: ${_diagnosticValue(ml?['error'])}';
+        '${_r('techError')}: ${_diagnosticValue(ml?['error'])}\n'
+        '\n${_r('techReferenceVerification')}\n'
+        '${_r('techReferenceMode')}: ${_diagnosticValue(_officialReferenceComparisonMode)}\n'
+        '${_r('techReferenceLive')}: ${_diagnosticValue(_officialReferenceLiveAvailable)}\n'
+        '${_r('techReferenceCommentsDisabled')}: ${_diagnosticValue(_officialReferenceCommentsDisabled)}\n'
+        '${_r('techReferenceServerMs')}: ${_diagnosticValue(_officialReferenceServerMs)}\n'
+        '${_r('techReferenceLocalMs')}: ${_diagnosticValue(_officialReferenceLocalMs)}\n'
+        '${_r('techVerificationTotalMs')}: ${_diagnosticValue(_verificationTotalMs)}';
   }
 
   @override
@@ -2254,6 +2363,28 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               ),
               const SizedBox(height: 20),
               Text(status, textAlign: TextAlign.center),
+              if (_verificationTotalMs != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _r('verificationTiming')
+                      .replaceAll(
+                        '{total}',
+                        (_verificationTotalMs! / 1000).toStringAsFixed(2),
+                      )
+                      .replaceAll(
+                        '{youtube}',
+                        ((_officialReferenceServerMs ?? 0) / 1000)
+                            .toStringAsFixed(2),
+                      )
+                      .replaceAll(
+                        '{local}',
+                        ((_officialReferenceLocalMs ?? 0) / 1000)
+                            .toStringAsFixed(2),
+                      ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 _v('registryHelper'),
