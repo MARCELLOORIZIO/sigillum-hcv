@@ -68,8 +68,7 @@ void main() {
     );
 
     final stageStart = vault.indexOf('Future<void> stagePendingSeal({');
-    final stageJournal =
-        vault.indexOf('await _upsertPendingSeal(', stageStart);
+    final stageJournal = vault.indexOf('await _upsertPendingSeal(', stageStart);
     final sealStart = vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
     final stagedBeforeHash =
         vault.indexOf('await stagePendingSeal(', sealStart);

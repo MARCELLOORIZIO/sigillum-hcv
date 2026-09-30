@@ -10,7 +10,8 @@ void main() {
       File('lib/verified_originals_publish_service.dart').readAsStringSync();
   final copy = File('lib/registry_verify_copy.dart').readAsStringSync();
 
-  test('photo and video stage recovery before Registry queue and vault seal', () {
+  test('photo and video stage recovery before Registry queue and vault seal',
+      () {
     final photoStage = camera.indexOf(
       'await _secureVault.stagePendingSeal(\n'
       "          hcvId: preparedHcvId,",
@@ -49,8 +50,8 @@ void main() {
   test('recovery re-enqueues certificates after a hard-kill seal recovery', () {
     final recoveryStart =
         camera.indexOf('Future<void> _recoverPendingSecureOriginals()');
-    final recoveryEnd =
-        camera.indexOf('Future<void> _retryPendingRegistryUploads()', recoveryStart);
+    final recoveryEnd = camera.indexOf(
+        'Future<void> _retryPendingRegistryUploads()', recoveryStart);
     final recovery = camera.substring(recoveryStart, recoveryEnd);
 
     expect(recovery, contains('recoverPendingSeals()'));
@@ -59,11 +60,12 @@ void main() {
     expect(recovery, contains('unawaited(_retryPendingRegistryUploads())'));
   });
 
-  test('vault exposes durable staging and clears deterministic stale journals', () {
+  test('vault exposes durable staging and clears deterministic stale journals',
+      () {
     expect(vault, contains('Future<void> stagePendingSeal({'));
-    final sealStart =
-        vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
-    final sealEnd = vault.indexOf('Future<int> recoverPendingSeals()', sealStart);
+    final sealStart = vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
+    final sealEnd =
+        vault.indexOf('Future<int> recoverPendingSeals()', sealStart);
     final seal = vault.substring(sealStart, sealEnd);
 
     expect(seal, contains('await stagePendingSeal('));
@@ -88,7 +90,9 @@ void main() {
     expect(recovery, contains('await _removePendingSeal(hcvId);'));
   });
 
-  test('social verification requires a live YouTube reference before V3 verdict', () {
+  test(
+      'social verification requires a live YouTube reference before V3 verdict',
+      () {
     expect(
       publisher,
       contains(

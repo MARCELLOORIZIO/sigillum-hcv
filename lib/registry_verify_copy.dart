@@ -10,7 +10,8 @@ class RegistryVerifyCopy {
     'it': {
       'unprovenDerivativeTitle': 'CONTENUTO NON ORIGINALE VERIFICATO',
       'unprovenDerivativeStatus': 'Originale non verificato',
-      'unprovenDerivativeDetail': 'SHA-256 diverso dall originale certificato. Il fingerprint indica solo somiglianza e NON esclude oggetti aggiunti, scritte o fotogrammi alterati. L HCV-ID valido non autentica questa copia.',
+      'unprovenDerivativeDetail':
+          'SHA-256 diverso dall originale certificato. Il fingerprint indica solo somiglianza e NON esclude oggetti aggiunti, scritte o fotogrammi alterati. L HCV-ID valido non autentica questa copia.',
       'unprovenDerivativeProvenance': 'HCV-ID valido, file non autenticato',
       'unprovenDerivativeAxis': 'Somiglianza non probante',
       'socialLimitedTitle':
@@ -165,7 +166,8 @@ class RegistryVerifyCopy {
     'en': {
       'unprovenDerivativeTitle': 'ORIGINAL CONTENT NOT VERIFIED',
       'unprovenDerivativeStatus': 'Original not verified',
-      'unprovenDerivativeDetail': 'SHA-256 differs from the certified original. The fingerprint indicates resemblance only and CANNOT exclude inserted objects, text overlays, or altered frames. A valid HCV-ID does not authenticate this copy.',
+      'unprovenDerivativeDetail':
+          'SHA-256 differs from the certified original. The fingerprint indicates resemblance only and CANNOT exclude inserted objects, text overlays, or altered frames. A valid HCV-ID does not authenticate this copy.',
       'unprovenDerivativeProvenance': 'HCV-ID valid, file not authenticated',
       'unprovenDerivativeAxis': 'Resemblance is not proof',
       'socialLimitedTitle': 'CERTIFICATE IDENTIFIED — INTEGRITY INCONCLUSIVE',
@@ -218,8 +220,7 @@ class RegistryVerifyCopy {
       'officialReferenceConformingTitle': 'OFFICIAL COPY CONFORMING',
       'officialReferenceModifiedTitle': 'OFFICIAL COPY MODIFIED',
       'officialReferenceInconclusiveTitle': 'VERIFICATION INCONCLUSIVE',
-      'officialReferenceUnavailableTitle':
-          'OFFICIAL REFERENCE UNAVAILABLE',
+      'officialReferenceUnavailableTitle': 'OFFICIAL REFERENCE UNAVAILABLE',
       'officialReferenceUnavailable':
           'VERIFICATION CANNOT BE COMPLETED\nThe official SIGILLUM reference cannot currently be verified on YouTube. No weaker check is used to declare the social file conforming.',
       'officialReferenceUnavailableDetail':
@@ -320,7 +321,8 @@ class RegistryVerifyCopy {
     'es': {
       'unprovenDerivativeTitle': 'CONTENIDO ORIGINAL NO VERIFICADO',
       'unprovenDerivativeStatus': 'Original no verificado',
-      'unprovenDerivativeDetail': 'El SHA-256 difiere del original certificado. La huella solo indica semejanza y NO excluye objetos añadidos, texto superpuesto ni fotogramas alterados. Un HCV-ID válido no autentica esta copia.',
+      'unprovenDerivativeDetail':
+          'El SHA-256 difiere del original certificado. La huella solo indica semejanza y NO excluye objetos añadidos, texto superpuesto ni fotogramas alterados. Un HCV-ID válido no autentica esta copia.',
       'unprovenDerivativeProvenance': 'HCV-ID válido; archivo no autenticado',
       'unprovenDerivativeAxis': 'Semejanza sin prueba',
       'socialLimitedTitle':
@@ -375,8 +377,7 @@ class RegistryVerifyCopy {
       'officialReferenceConformingTitle': 'COPIA OFICIAL CONFORME',
       'officialReferenceModifiedTitle': 'COPIA OFICIAL MODIFICADA',
       'officialReferenceInconclusiveTitle': 'VERIFICACIÓN NO CONCLUYENTE',
-      'officialReferenceUnavailableTitle':
-          'REFERENCIA OFICIAL NO DISPONIBLE',
+      'officialReferenceUnavailableTitle': 'REFERENCIA OFICIAL NO DISPONIBLE',
       'officialReferenceUnavailable':
           'VERIFICACIÓN NO EJECUTABLE\nLa referencia oficial de SIGILLUM no puede verificarse actualmente en YouTube. No se usa un control más débil para declarar conforme el archivo social.',
       'officialReferenceUnavailableDetail':
@@ -477,8 +478,10 @@ class RegistryVerifyCopy {
     'ru': {
       'unprovenDerivativeTitle': 'ПОДЛИННОСТЬ ОРИГИНАЛА НЕ ПОДТВЕРЖДЕНА',
       'unprovenDerivativeStatus': 'Оригинал не подтверждён',
-      'unprovenDerivativeDetail': 'SHA-256 отличается от сертифицированного оригинала. Отпечаток указывает лишь на сходство и НЕ исключает добавленные объекты, надписи или изменённые кадры. Действительный HCV-ID не подтверждает подлинность этой копии.',
-      'unprovenDerivativeProvenance': 'HCV-ID действителен; файл не подтверждён',
+      'unprovenDerivativeDetail':
+          'SHA-256 отличается от сертифицированного оригинала. Отпечаток указывает лишь на сходство и НЕ исключает добавленные объекты, надписи или изменённые кадры. Действительный HCV-ID не подтверждает подлинность этой копии.',
+      'unprovenDerivativeProvenance':
+          'HCV-ID действителен; файл не подтверждён',
       'unprovenDerivativeAxis': 'Сходство не является доказательством',
       'socialLimitedTitle': 'СЕРТИФИКАТ НАЙДЕН — ЦЕЛОСТНОСТЬ НЕ УСТАНОВЛЕНА',
       'socialLimitedStatus':
@@ -528,9 +531,9 @@ class RegistryVerifyCopy {
           'Качество, кадрирование, преобразования или выравнивание не позволяют выполнить надёжное локальное сравнение V3.',
       'officialReferenceConformingTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ СООТВЕТСТВУЕТ',
       'officialReferenceModifiedTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ ИЗМЕНЕНА',
-      'officialReferenceInconclusiveTitle': 'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА',
-      'officialReferenceUnavailableTitle':
-          'ОФИЦИАЛЬНЫЙ ЭТАЛОН НЕДОСТУПЕН',
+      'officialReferenceInconclusiveTitle':
+          'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА',
+      'officialReferenceUnavailableTitle': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН НЕДОСТУПЕН',
       'officialReferenceUnavailable':
           'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\nОфициальный эталон SIGILLUM сейчас нельзя подтвердить на YouTube. Более слабая проверка не используется для признания файла из соцсети соответствующим.',
       'officialReferenceUnavailableDetail':

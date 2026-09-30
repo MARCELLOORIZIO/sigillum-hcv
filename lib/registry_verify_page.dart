@@ -804,9 +804,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final suffix = value.substring(4);
     return suffix.length == 16 &&
         suffix.codeUnits.every(
-          (code) =>
-              (code >= 48 && code <= 57) ||
-              (code >= 65 && code <= 70),
+          (code) => (code >= 48 && code <= 57) || (code >= 65 && code <= 70),
         );
   }
 
@@ -819,13 +817,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
 
     final meta = cert['meta'];
-    final certificateId = meta is Map
-        ? meta['hcvId']?.toString().trim().toUpperCase()
-        : null;
+    final certificateId =
+        meta is Map ? meta['hcvId']?.toString().trim().toUpperCase() : null;
     final enteredId = idController.text.trim().toUpperCase();
-    final hcvId = _isCanonicalHcvId(certificateId)
-        ? certificateId!
-        : enteredId;
+    final hcvId = _isCanonicalHcvId(certificateId) ? certificateId! : enteredId;
     if (!_isCanonicalHcvId(hcvId)) return null;
 
     _officialReferenceChecked = true;
@@ -838,7 +833,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           availability['comparisonMode']?.toString();
       _officialReferenceLiveAvailable =
           availability['availability'] == 'REFERENCE_AVAILABLE' &&
-          availability['youtubeLive'] == true;
+              availability['youtubeLive'] == true;
       _officialReferenceCommentsDisabled =
           availability['commentsDisabled'] == true;
 
@@ -1463,8 +1458,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         void markVerified(String cleanStatus, String cleanResult) {
           final exactOriginal = cleanResult.startsWith('FORENSIC');
-          final unprovenDerivative =
-              cleanResult == _unprovenDerivativeResult;
+          final unprovenDerivative = cleanResult == _unprovenDerivativeResult;
           final sceneWarning = _isStrongDisplayRisk;
           final sceneUncertain = _isDisplayNonConclusive;
           _setVerificationAxes(
@@ -1935,16 +1929,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   // Never transfer signed original-scene claims to an unbound PHOTO/VIDEO copy,
   // including V1-only, fingerprint mismatch and copied-HCV-ID cases.
   bool get _isNonExactPhotoOrVideo =>
-      (contentType == 'photo' || contentType == 'video') &&
-      !_isForensicResult;
+      (contentType == 'photo' || contentType == 'video') && !_isForensicResult;
 
   bool get _isSocialLimited => result == 'SOCIAL LIMITED';
 
-  bool get _isOfficialReferenceVerified =>
-      result == 'OFFICIAL COPY VERIFIED';
+  bool get _isOfficialReferenceVerified => result == 'OFFICIAL COPY VERIFIED';
 
-  bool get _isOfficialReferenceModified =>
-      result == 'OFFICIAL COPY MODIFIED';
+  bool get _isOfficialReferenceModified => result == 'OFFICIAL COPY MODIFIED';
 
   bool get _isOfficialReferenceInconclusive =>
       result == 'OFFICIAL COPY INCONCLUSIVE';
