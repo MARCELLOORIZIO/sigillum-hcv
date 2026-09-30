@@ -67,14 +67,19 @@ void main() {
       greaterThan(recovery),
     );
 
+    final stageStart = vault.indexOf('Future<void> stagePendingSeal({');
+    final stageJournal =
+        vault.indexOf('await _upsertPendingSeal(', stageStart);
     final sealStart = vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
-    final journalBeforeHash =
-        vault.indexOf('await _upsertPendingSeal(', sealStart);
+    final stagedBeforeHash =
+        vault.indexOf('await stagePendingSeal(', sealStart);
     final mediaHash =
         vault.indexOf('final mediaHash = await _sha256File(media);', sealStart);
-    expect(sealStart, greaterThanOrEqualTo(0));
-    expect(journalBeforeHash, greaterThan(sealStart));
-    expect(mediaHash, greaterThan(journalBeforeHash));
+    expect(stageStart, greaterThanOrEqualTo(0));
+    expect(stageJournal, greaterThan(stageStart));
+    expect(sealStart, greaterThan(stageJournal));
+    expect(stagedBeforeHash, greaterThan(sealStart));
+    expect(mediaHash, greaterThan(stagedBeforeHash));
   });
 
   test('protected-original list uses compact previews', () {
