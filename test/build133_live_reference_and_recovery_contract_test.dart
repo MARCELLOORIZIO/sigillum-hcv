@@ -9,6 +9,8 @@ void main() {
   final publisher =
       File('lib/verified_originals_publish_service.dart').readAsStringSync();
   final copy = File('lib/registry_verify_copy.dart').readAsStringSync();
+  final audioFingerprint =
+      File('lib/hcv_audio_fingerprint.dart').readAsStringSync();
 
   test('photo and video stage recovery before Registry queue and vault seal',
       () {
@@ -176,6 +178,13 @@ void main() {
     expect(router, contains("extension = '.jpg'"));
     expect(router, contains("extension = '.png'"));
     expect(router, contains("extension = '.mp4'"));
+  });
+
+  test('audio fingerprint extraction is capped to the analyzed window', () {
+    expect(audioFingerprint, contains('_maxAnalyzedSeconds = 15.0'));
+    expect(audioFingerprint, contains("-t \$_maxAnalyzedSeconds"));
+    expect(audioFingerprint, contains('_maxFrames = 29'));
+    expect(audioFingerprint, contains('_hopSamples = sampleRate ~/ 2'));
   });
 
   test('new live-reference UI copy is localized in all four languages', () {
