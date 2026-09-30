@@ -20,6 +20,9 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SIGILLUM usa la posizione mentre l'app è in uso per associare coordinate GPS ai contenuti certificati quando la funzione di localizzazione è attiva.</string>
 
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>SIGILLUM usa la posizione solo quando la funzione di localizzazione è attiva per associare coordinate GPS ai contenuti certificati. SIGILLUM non effettua tracciamento continuo della posizione in background.</string>
+
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>SIGILLUM usa la rete locale per collegarsi al server AI Trainer durante i test.</string>
 
