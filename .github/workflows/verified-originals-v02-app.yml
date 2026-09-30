@@ -7,6 +7,12 @@ on:
     paths:
       - 'lib/verified_originals_*.dart'
       - 'test/verified_originals_*.dart'
+      - 'test/build133_live_reference_and_recovery_contract_test.dart'
+      - 'lib/registry_verify_page.dart'
+      - 'lib/registry_verify_copy.dart'
+      - 'lib/camera_page.dart'
+      - 'lib/hcv_secure_media_vault.dart'
+      - 'lib/hcv_audio_fingerprint.dart'
       - 'lib/home_page.dart'
       - 'lib/user_home_page.dart'
       - 'lib/commercial_gate.dart'
@@ -24,7 +30,7 @@ jobs:
         with:
           flutter-version: '3.47.1'
       - run: flutter pub get
-      - run: dart format lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart
-      - run: git diff --exit-code -- lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart
-      - run: flutter test test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart --reporter expanded
+      - run: dart format lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart lib/verified_originals_publish_service.dart lib/registry_verify_page.dart lib/registry_verify_copy.dart lib/camera_page.dart lib/hcv_secure_media_vault.dart lib/hcv_audio_fingerprint.dart test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart test/build133_live_reference_and_recovery_contract_test.dart
+      - run: git diff --exit-code -- lib/verified_originals_reference.dart lib/verified_originals_page.dart lib/verified_originals_consent_page.dart lib/verified_originals_publish_service.dart lib/registry_verify_page.dart lib/registry_verify_copy.dart lib/camera_page.dart lib/hcv_secure_media_vault.dart lib/hcv_audio_fingerprint.dart test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart test/build133_live_reference_and_recovery_contract_test.dart
+      - run: flutter test test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart test/build133_live_reference_and_recovery_contract_test.dart --reporter expanded
       - run: flutter analyze --no-fatal-warnings --no-fatal-infos
