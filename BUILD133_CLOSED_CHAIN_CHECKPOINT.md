@@ -170,3 +170,15 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - The focused live-reference/recovery contract explicitly covers this Protected Originals path, including the Registry enqueue and retry.
 - Final functional app HEAD for this pass is `213cd3e1250654cbcc5e64515df73277982feb45`. BUILD133 run `36702677669` is GREEN (format, analyze, complete Flutter tests, release architecture guard) and expanded Verified Originals v0.2 app run `36702682364` is GREEN.
 - At validated functional HEAD `213cd3e1250654cbcc5e64515df73277982feb45`, the app branch comparison was 184 commits ahead and 0 behind `release/testflight-final-20260827`; later checkpoint-only commits do not change the functional delta. PR #123 remains open, draft and mergeable. No release merge or TestFlight build was created.
+
+## 2026-09-30 Subscriber manual visual/audio comparison
+
+- Added `ManualReferenceComparePage` for photo/video verification results. The user can inspect the received file locally and then open the official SIGILLUM YouTube copy for a human visual/audio comparison.
+- VIDEO comparison includes local playback, scrubber, play/pause and audio mute/unmute. Opening the official YouTube copy preserves the current local timestamp through the YouTube `t=` parameter, so the user can compare the same moment in both versions.
+- PHOTO comparison shows the received image locally and opens the corresponding official SIGILLUM YouTube reference for visual inspection.
+- Manual comparison remains subscriber-only. The page checks `CommercialAccountService.billingStatus()` and obtains the locator only through authenticated `/api/verified-originals/:hcvId/view`; free discovery still never exposes the YouTube URL.
+- Added `entitledLiveReference()`: before returning the paid `/view` reference, the app requires live YouTube attestation (`REFERENCE_AVAILABLE`, `youtubeLive=true`, `commentsDisabled=true`). The existing `CERCA COPIA UFFICIALE -> visualizza` flow now uses the same live gate.
+- `RegistryVerifyPage` exposes `CONFRONTA MANUALMENTE` only for photo/video with a loaded certificate and a valid HCV-ID, and suppresses it when the official reference is already known as unavailable.
+- New comparison UI/copy is complete in IT/EN/ES/RU and is covered by the BUILD133 live-reference contract.
+- Functional app HEAD `1737f2067b490d708e633f7308c7f5574782f88d` validated GREEN: BUILD133 run `36709783319` and Verified Originals v0.2 app run `36709788936`.
+- No TestFlight/Codemagic release build was created by this pass.
