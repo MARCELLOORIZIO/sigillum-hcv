@@ -13,6 +13,10 @@ void main() {
       File('lib/hcv_audio_fingerprint.dart').readAsStringSync();
   final secureOriginals =
       File('lib/secure_originals_page.dart').readAsStringSync();
+  final manualCompare =
+      File('lib/manual_reference_compare_page.dart').readAsStringSync();
+  final officialCopyPage =
+      File('lib/verified_originals_page.dart').readAsStringSync();
 
   test('photo and video stage recovery before Registry queue and vault seal',
       () {
@@ -215,6 +219,77 @@ void main() {
     expect(router, contains("extension = '.jpg'"));
     expect(router, contains("extension = '.png'"));
     expect(router, contains("extension = '.mp4'"));
+  });
+
+  test('manual comparison remains subscriber-only and live-reference gated', () {
+    expect(
+      publisher,
+      contains('Future<Map<String, dynamic>> entitledLiveReference(String hcvId)'),
+    );
+    final methodStart = publisher.indexOf(
+      'Future<Map<String, dynamic>> entitledLiveReference(String hcvId)',
+    );
+    final methodEnd = publisher.indexOf(
+      'Future<String> _ensureConsent',
+      methodStart,
+    );
+    final entitled = publisher.substring(methodStart, methodEnd);
+    expect(entitled, contains('verificationReference(hcvId)'));
+    expect(entitled, contains("live['youtubeLive'] == true"));
+    expect(entitled, contains("live['commentsDisabled'] == true"));
+    expect(entitled, contains("'/api/verified-originals/\$hcvId/view'"));
+    expect(entitled, contains('authenticated: true'));
+
+    expect(
+      manualCompare,
+      contains('CommercialAccountService().billingStatus()'),
+    );
+    expect(
+      manualCompare,
+      contains("billing['status']?.toString() != 'active'"),
+    );
+    expect(
+      manualCompare,
+      contains('_publisher.entitledLiveReference(widget.hcvId)'),
+    );
+    expect(manualCompare, contains('VideoPlayerController.file(media)'));
+    expect(manualCompare, contains('target = Uri.https('));
+    expect(manualCompare, contains("'t':"));
+    expect(manualCompare, contains('LaunchMode.externalApplication'));
+
+    expect(verifier, contains('ManualReferenceComparePage('));
+    expect(verifier, contains("_r('manualCompareAction')"));
+    expect(
+      officialCopyPage,
+      contains('_publisher.entitledLiveReference(id)'),
+    );
+  });
+
+  test('manual comparison copy is localized in all four languages', () {
+    for (final key in <String>[
+      'manualCompareTitle',
+      'manualCompareAction',
+      'manualCompareSubscriberOnly',
+      'manualCompareIntro',
+      'manualCompareAutomaticVerdict',
+      'manualCompareLocalTitle',
+      'manualCompareOfficialTitle',
+      'manualCompareVideoHelp',
+      'manualComparePhotoHelp',
+      'manualCompareOpenOfficial',
+      'manualCompareOpenAtTime',
+      'manualCompareSubscriptionRequired',
+      'manualCompareReferenceUnavailable',
+      'manualCompareMediaUnavailable',
+      'manualCompareLoadError',
+      'manualCompareOpenError',
+    ]) {
+      expect(
+        RegExp("'\$key'").allMatches(copy).length,
+        4,
+        reason: 'Expected four localized entries for \$key',
+      );
+    }
   });
 
   test('audio fingerprint extraction is capped to the analyzed window', () {
