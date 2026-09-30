@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
+import 'hcv_registry_service.dart';
 import 'hcv_secure_media_vault.dart';
 import 'hcv_secure_preview_service.dart';
 import 'sigillum_localization.dart';
@@ -27,6 +28,7 @@ class SecureOriginalsPage extends StatefulWidget {
 
 class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
   final HCVSecureMediaVault _vault = const HCVSecureMediaVault();
+  final HCVRegistryService _registry = const HCVRegistryService();
   final HCVSecurePreviewService _preview = const HCVSecurePreviewService();
   final VerifiedOriginalsPublishService _publisher =
       const VerifiedOriginalsPublishService();
@@ -77,8 +79,23 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
       });
     }
     try {
-      await _vault.recoverPendingSeals();
+      final beforeIds =
+          (await _vault.list()).map((record) => record.hcvId).toSet();
+      final recovered = await _vault.recoverPendingSeals();
       final records = await _vault.list();
+
+      if (recovered > 0) {
+        final newlyRecovered =
+            records.where((record) => !beforeIds.contains(record.hcvId));
+        for (final record in newlyRecovered) {
+          final certificate = File(record.certificatePath);
+          if (await certificate.exists()) {
+            await _registry.enqueueCertificateFile(certificate.absolute.path);
+          }
+        }
+        unawaited(_retryRecoveredRegistryUploads());
+      }
+
       if (!mounted) return;
       setState(() {
         _records = records;
@@ -90,6 +107,14 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
       setState(() => _message = '${_t('secureOriginalsLoadError')}: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _retryRecoveredRegistryUploads() async {
+    try {
+      await _registry.retryPendingUploads();
+    } catch (_) {
+      // The local outbox is durable; a later app flow will retry it.
     }
   }
 
