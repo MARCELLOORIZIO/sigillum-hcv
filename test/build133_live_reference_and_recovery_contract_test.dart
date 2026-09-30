@@ -113,6 +113,31 @@ void main() {
     );
   });
 
+  test('protected original export fails closed when live reference is stale', () {
+    final ensureStart = publisher.indexOf(
+      'Future<VerifiedOriginalPublishResult> ensureReference(',
+    );
+    final ensureEnd = publisher.indexOf(
+      'Future<VerifiedSubtitlePublishResult> ensureSubtitleReference(',
+      ensureStart,
+    );
+    final method = publisher.substring(ensureStart, ensureEnd);
+
+    final publicLookup = method.indexOf('publicAvailability(record.hcvId)');
+    final liveLookup = method.indexOf('verificationReference(record.hcvId)');
+    final existingReference = method.indexOf('_existingReference(record)');
+
+    expect(publicLookup, greaterThanOrEqualTo(0));
+    expect(liveLookup, greaterThan(publicLookup));
+    expect(method, contains("live['youtubeLive'] == true"));
+    expect(method, contains("live['commentsDisabled'] == true"));
+    expect(
+      method,
+      contains("StateError('REFERENCE_PLATFORM_UNAVAILABLE')"),
+    );
+    expect(existingReference, greaterThan(liveLookup));
+  });
+
   test('HCVPACK export revalidates the live YouTube reference', () {
     final packStart = camera.indexOf('Future<void> sharePackage() async');
     final packEnd = camera.indexOf('String get _createdContentLabel', packStart);
