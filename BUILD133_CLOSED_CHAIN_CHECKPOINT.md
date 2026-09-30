@@ -163,3 +163,10 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Backend V3 real-media regression now covers four consecutive social-like recompression generations for both photo and video. Generations 1–4 remain conforming; small-object insertion, hue, brightness and crop remain modified.
 - App validation is GREEN at functional HEAD `a4c2c1d62315ba140fb4805c0f840b9cec8cbc92`: BUILD133 run `36701953799` passed formatting, Flutter analyze, the complete Flutter test suite and the release architecture guard; expanded Verified Originals v0.2 app run `36701958172` also passed, including the new live-reference/recovery contract.
 - PR #123 remains open/draft against `release/testflight-final-20260827`. No TestFlight/Codemagic release build, release merge, Render deploy or production credential change was performed in this pass.
+
+### Protected Originals recovery completion
+
+- Recovery is now complete even when the first screen opened after a hard kill is `Originali protetti`, not the camera. `SecureOriginalsPage` snapshots existing vault IDs, runs `recoverPendingSeals()`, persists newly recovered certificate paths into the Registry outbox, and then retries synchronization asynchronously.
+- The focused live-reference/recovery contract explicitly covers this Protected Originals path, including the Registry enqueue and retry.
+- Final functional app HEAD for this pass is `213cd3e1250654cbcc5e64515df73277982feb45`. BUILD133 run `36702677669` is GREEN (format, analyze, complete Flutter tests, release architecture guard) and expanded Verified Originals v0.2 app run `36702682364` is GREEN.
+- App feature branch is 184 commits ahead and 0 behind `release/testflight-final-20260827`; PR #123 remains open, draft and mergeable. No release merge or TestFlight build was created.
