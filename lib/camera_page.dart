@@ -2680,7 +2680,7 @@ class _CameraPageState extends State<CameraPage> {
               textAlign: TextAlign.center,
             ),
           ],
-          if (_secureOriginalRecord != null) ...[
+          if (packagePath != null) ...[
             const SizedBox(height: 5),
             Text(
               'HCVPACK: ${fileName(packagePath)}',
@@ -2733,7 +2733,7 @@ class _CameraPageState extends State<CameraPage> {
           ),
           const SizedBox(height: 10),
         ],
-        if (packagePath != null) ...[
+        if (_secureOriginalRecord != null) ...[
           SizedBox(
             width: 300,
             child: ElevatedButton.icon(

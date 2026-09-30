@@ -143,7 +143,14 @@ void main() {
     expect(packMethod,
         contains('await _secureVault.deleteMaterialized(clearPack)'));
     expect(packMethod, isNot(contains('XFile(packagePath!')));
-    expect(camera, isNot(contains('if (packagePath != null) ...[')));
+
+    final actionButtonsStart = camera.indexOf('Widget _actionButtons()');
+    final actionButtons = camera.substring(actionButtonsStart);
+    expect(actionButtonsStart, greaterThanOrEqualTo(0));
+    expect(
+      actionButtons,
+      isNot(contains('if (packagePath != null) ...[')),
+    );
   });
 
   test('social export is fail closed behind the official reference', () {
