@@ -115,7 +115,8 @@ void main() {
     );
   });
 
-  test('protected original export fails closed when live reference is stale', () {
+  test('protected original export fails closed when live reference is stale',
+      () {
     final ensureStart = publisher.indexOf(
       'Future<VerifiedOriginalPublishResult> ensureReference(',
     );
@@ -142,7 +143,8 @@ void main() {
 
   test('HCVPACK export revalidates the live YouTube reference', () {
     final packStart = camera.indexOf('Future<void> sharePackage() async');
-    final packEnd = camera.indexOf('String get _createdContentLabel', packStart);
+    final packEnd =
+        camera.indexOf('String get _createdContentLabel', packStart);
     final method = camera.substring(packStart, packEnd);
 
     final localReferenceGate = method.indexOf('!securedRecord.hasReference');

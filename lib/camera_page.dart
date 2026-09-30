@@ -2343,8 +2343,7 @@ class _CameraPageState extends State<CameraPage> {
 
     try {
       final live = await _publisher.verificationReference(securedRecord.hcvId);
-      final referenceReady =
-          live['availability'] == 'REFERENCE_AVAILABLE' &&
+      final referenceReady = live['availability'] == 'REFERENCE_AVAILABLE' &&
           live['youtubeLive'] == true &&
           live['commentsDisabled'] == true;
       if (!referenceReady) {

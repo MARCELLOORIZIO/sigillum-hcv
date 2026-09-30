@@ -181,9 +181,8 @@ class HCVAudioFingerprint {
       }
     }
 
-    final requiredMatches = comparable <= 2
-        ? comparable
-        : max(3, (comparable * 0.50).ceil());
+    final requiredMatches =
+        comparable <= 2 ? comparable : max(3, (comparable * 0.50).ceil());
     return matched >= requiredMatches;
   }
 
@@ -202,8 +201,8 @@ class HCVAudioFingerprint {
   }
 
   static String _frameFingerprint(List<int> samples) {
-    final mean = samples.fold<double>(0.0, (sum, value) => sum + value) /
-        samples.length;
+    final mean =
+        samples.fold<double>(0.0, (sum, value) => sum + value) / samples.length;
     final features = <int>[];
 
     for (final lag in _correlationLags) {
@@ -242,7 +241,8 @@ class HCVAudioFingerprint {
     final envelopeMedian = _median(envelope);
     for (final value in envelope) {
       final delta = (value - envelopeMedian).clamp(-2.0, 2.0).toDouble();
-      features.add((((delta + 2.0) / 4.0) * 255.0).round().clamp(0, 255).toInt());
+      features
+          .add((((delta + 2.0) / 4.0) * 255.0).round().clamp(0, 255).toInt());
     }
 
     return features

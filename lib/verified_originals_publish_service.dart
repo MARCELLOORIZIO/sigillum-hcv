@@ -201,8 +201,7 @@ class VerifiedOriginalsPublishService {
     final availability = await publicAvailability(record.hcvId);
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
       final live = await verificationReference(record.hcvId);
-      final liveAvailable =
-          live['availability'] == 'REFERENCE_AVAILABLE' &&
+      final liveAvailable = live['availability'] == 'REFERENCE_AVAILABLE' &&
           live['youtubeLive'] == true &&
           live['commentsDisabled'] == true;
       if (!liveAvailable) {
