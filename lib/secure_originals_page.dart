@@ -77,6 +77,7 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
       });
     }
     try {
+      await _vault.recoverPendingSeals();
       final records = await _vault.list();
       if (!mounted) return;
       setState(() {
@@ -328,58 +329,82 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: AspectRatio(
-                            aspectRatio: 16 / 9,
-                            child: FutureBuilder<File?>(
-                              future: _previewFor(record),
-                              builder: (context, snapshot) {
-                                final file = snapshot.data;
-                                if (file != null) {
-                                  return Image.file(
-                                    file,
-                                    fit: BoxFit.cover,
-                                    gaplessPlayback: true,
-                                  );
-                                }
-                                if (snapshot.connectionState !=
-                                    ConnectionState.done) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-                                return ColoredBox(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHighest,
-                                  child: Center(
-                                    child: Icon(
-                                      record.mediaType == 'video'
-                                          ? Icons.videocam_outlined
-                                          : Icons.photo_outlined,
-                                      size: 46,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 132,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: FutureBuilder<File?>(
+                                    future: _previewFor(record),
+                                    builder: (context, snapshot) {
+                                      final file = snapshot.data;
+                                      if (file != null) {
+                                        return Image.file(
+                                          file,
+                                          fit: BoxFit.cover,
+                                          gaplessPlayback: true,
+                                        );
+                                      }
+                                      if (snapshot.connectionState !=
+                                          ConnectionState.done) {
+                                        return const Center(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return ColoredBox(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        child: Center(
+                                          child: Icon(
+                                            record.mediaType == 'video'
+                                                ? Icons.videocam_outlined
+                                                : Icons.photo_outlined,
+                                            size: 34,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    record.hcvId,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                );
-                              },
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${record.mediaType == 'video' ? _t('video') : _t('photo')}'
+                                    ' · ${_recordDate(record)}',
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    record.hasReference
+                                        ? _t('secureOriginalsReferencePublished')
+                                        : _t('secureOriginalsReferencePending'),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          record.hcvId,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${record.mediaType == 'video' ? _t('video') : _t('photo')}'
-                          ' · ${_recordDate(record)}',
-                        ),
-                        Text(
-                          record.hasReference
-                              ? _t('secureOriginalsReferencePublished')
-                              : _t('secureOriginalsReferencePending'),
+                          ],
                         ),
                         const SizedBox(height: 10),
                         if (widget.selectionMode)
