@@ -29,6 +29,8 @@ class CameraUiExtendedCopy {
       'subtitlesCreated': 'Sottotitoli creati.',
       'captionedCreatedTitle': 'Video sottotitolato creato',
       'backToCamera': 'TORNA ALLA CAMERA',
+      'secureFinalizationInProgress':
+          'SALVATAGGIO PROTETTO IN CORSO — ATTENDI QUALCHE SECONDO',
       'close': 'CHIUDI',
       'transcribing': 'TRASCRIZIONE IN CORSO...',
       'createCaptionedVideo': 'CREA VIDEO CON SOTTOTITOLI',
@@ -82,6 +84,8 @@ class CameraUiExtendedCopy {
       'subtitlesCreated': 'Subtitles created.',
       'captionedCreatedTitle': 'Captioned video created',
       'backToCamera': 'BACK TO CAMERA',
+      'secureFinalizationInProgress':
+          'PROTECTED SAVING IN PROGRESS — PLEASE WAIT A FEW SECONDS',
       'close': 'CLOSE',
       'transcribing': 'TRANSCRIPTION IN PROGRESS...',
       'createCaptionedVideo': 'CREATE CAPTIONED VIDEO',
@@ -135,6 +139,8 @@ class CameraUiExtendedCopy {
       'subtitlesCreated': 'Subtítulos creados.',
       'captionedCreatedTitle': 'Vídeo subtitulado creado',
       'backToCamera': 'VOLVER A LA CÁMARA',
+      'secureFinalizationInProgress':
+          'GUARDADO PROTEGIDO EN CURSO — ESPERA UNOS SEGUNDOS',
       'close': 'CERRAR',
       'transcribing': 'TRANSCRIPCIÓN EN CURSO...',
       'createCaptionedVideo': 'CREAR VÍDEO CON SUBTÍTULOS',
@@ -188,6 +194,8 @@ class CameraUiExtendedCopy {
       'subtitlesCreated': 'Субтитры созданы.',
       'captionedCreatedTitle': 'Видео с субтитрами создано',
       'backToCamera': 'НАЗАД К КАМЕРЕ',
+      'secureFinalizationInProgress':
+          'ИДЁТ ЗАЩИЩЁННОЕ СОХРАНЕНИЕ — ПОДОЖДИТЕ НЕСКОЛЬКО СЕКУНД',
       'close': 'ЗАКРЫТЬ',
       'transcribing': 'ИДЁТ РАСШИФРОВКА...',
       'createCaptionedVideo': 'СОЗДАТЬ ВИДЕО С СУБТИТРАМИ',
