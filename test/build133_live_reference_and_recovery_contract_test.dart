@@ -113,6 +113,46 @@ void main() {
     );
   });
 
+  test('HCVPACK export revalidates the live YouTube reference', () {
+    final packStart = camera.indexOf('Future<void> sharePackage() async');
+    final packEnd = camera.indexOf('String get _createdContentLabel', packStart);
+    final method = camera.substring(packStart, packEnd);
+
+    final localReferenceGate = method.indexOf('!securedRecord.hasReference');
+    final liveReferenceGate =
+        method.indexOf('_publisher.verificationReference(securedRecord.hcvId)');
+    final materialize = method.indexOf('materializeHcvpack(');
+    final share = method.indexOf('Share.shareXFiles(', materialize);
+
+    expect(packStart, greaterThanOrEqualTo(0));
+    expect(localReferenceGate, greaterThanOrEqualTo(0));
+    expect(liveReferenceGate, greaterThan(localReferenceGate));
+    expect(method, contains("live['youtubeLive'] == true"));
+    expect(method, contains("live['commentsDisabled'] == true"));
+    expect(materialize, greaterThan(liveReferenceGate));
+    expect(share, greaterThan(materialize));
+  });
+
+  test('extensionless Messenger media is routed by magic bytes', () {
+    final router = File('lib/hcv_import_router_page.dart').readAsStringSync();
+
+    expect(router, contains('_normalizeExtensionlessMedia(path)'));
+    expect(router, contains('bytes[0] == 0xff'));
+    expect(router, contains('bytes[1] == 0xd8'));
+    expect(router, contains('bytes[2] == 0xff'));
+    expect(router, contains('bytes[0] == 0x89'));
+    expect(router, contains('bytes[1] == 0x50'));
+    expect(router, contains('bytes[2] == 0x4e'));
+    expect(router, contains('bytes[3] == 0x47'));
+    expect(router, contains('bytes[4] == 0x66'));
+    expect(router, contains('bytes[5] == 0x74'));
+    expect(router, contains('bytes[6] == 0x79'));
+    expect(router, contains('bytes[7] == 0x70'));
+    expect(router, contains("extension = '.jpg'"));
+    expect(router, contains("extension = '.png'"));
+    expect(router, contains("extension = '.mp4'"));
+  });
+
   test('new live-reference UI copy is localized in all four languages', () {
     for (final key in <String>[
       'officialReferenceConformingTitle',
