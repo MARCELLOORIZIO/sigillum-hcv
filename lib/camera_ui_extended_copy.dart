@@ -31,6 +31,8 @@ class CameraUiExtendedCopy {
       'backToCamera': 'TORNA ALLA CAMERA',
       'secureFinalizationInProgress':
           'SALVATAGGIO PROTETTO IN CORSO — ATTENDI QUALCHE SECONDO',
+      'secureShareRequiresVault':
+          'CONDIVISIONE BLOCCATA — COMPLETA PRIMA IL SALVATAGGIO PROTETTO',
       'close': 'CHIUDI',
       'transcribing': 'TRASCRIZIONE IN CORSO...',
       'createCaptionedVideo': 'CREA VIDEO CON SOTTOTITOLI',
@@ -102,6 +104,8 @@ class CameraUiExtendedCopy {
       'backToCamera': 'BACK TO CAMERA',
       'secureFinalizationInProgress':
           'PROTECTED SAVING IN PROGRESS — PLEASE WAIT A FEW SECONDS',
+      'secureShareRequiresVault':
+          'SHARING BLOCKED — COMPLETE PROTECTED SAVING FIRST',
       'close': 'CLOSE',
       'transcribing': 'TRANSCRIPTION IN PROGRESS...',
       'createCaptionedVideo': 'CREATE CAPTIONED VIDEO',
@@ -173,6 +177,8 @@ class CameraUiExtendedCopy {
       'backToCamera': 'VOLVER A LA CÁMARA',
       'secureFinalizationInProgress':
           'GUARDADO PROTEGIDO EN CURSO — ESPERA UNOS SEGUNDOS',
+      'secureShareRequiresVault':
+          'COMPARTIR BLOQUEADO — COMPLETA PRIMERO EL GUARDADO PROTEGIDO',
       'close': 'CERRAR',
       'transcribing': 'TRANSCRIPCIÓN EN CURSO...',
       'createCaptionedVideo': 'CREAR VÍDEO CON SUBTÍTULOS',
@@ -244,6 +250,8 @@ class CameraUiExtendedCopy {
       'backToCamera': 'НАЗАД К КАМЕРЕ',
       'secureFinalizationInProgress':
           'ИДЁТ ЗАЩИЩЁННОЕ СОХРАНЕНИЕ — ПОДОЖДИТЕ НЕСКОЛЬКО СЕКУНД',
+      'secureShareRequiresVault':
+          'ОТПРАВКА ЗАБЛОКИРОВАНА — СНАЧАЛА ЗАВЕРШИТЕ ЗАЩИЩЁННОЕ СОХРАНЕНИЕ',
       'close': 'ЗАКРЫТЬ',
       'transcribing': 'ИДЁТ РАСШИФРОВКА...',
       'createCaptionedVideo': 'СОЗДАТЬ ВИДЕО С СУБТИТРАМИ',
