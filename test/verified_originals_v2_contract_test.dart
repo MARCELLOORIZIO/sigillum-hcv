@@ -163,7 +163,8 @@ void main() {
     expect(camera, contains('materializeSubtitle('));
     expect(
       camera,
-      isNot(contains('saveContentToGallery(\n        transcript.captionedVideoPath')),
+      isNot(contains(
+          'saveContentToGallery(\n        transcript.captionedVideoPath')),
     );
 
     expect(vault, contains('encryptedCaptionedMediaPath'));
@@ -176,7 +177,8 @@ void main() {
       contains('SIGILLUM_SUBTITLE_DERIVATION_BINDING_V1'),
     );
     expect(transcription, contains('getApplicationSupportDirectory()'));
-    expect(transcription, isNot(contains('getApplicationDocumentsDirectory()')));
+    expect(
+        transcription, isNot(contains('getApplicationDocumentsDirectory()')));
   });
 
   test('published reference can be withdrawn without deleting HCV verification',
