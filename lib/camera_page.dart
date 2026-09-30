@@ -38,6 +38,7 @@ import 'video_transcription_service.dart';
 import 'sigillum_quick_guide_page.dart';
 import 'hcv_secure_media_vault.dart';
 import 'secure_originals_page.dart';
+import 'verified_originals_publish_service.dart';
 
 int _displayDecisionRank(String decision) {
   switch (decision) {
@@ -323,6 +324,8 @@ class _CameraPageState extends State<CameraPage> {
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
   final HCVSecureMediaVault _secureVault = const HCVSecureMediaVault();
+  final VerifiedOriginalsPublishService _publisher =
+      const VerifiedOriginalsPublishService();
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
@@ -365,6 +368,7 @@ class _CameraPageState extends State<CameraPage> {
   String? registryStatus;
   String? createdContentKind;
   bool _transcribingAudio = false;
+  bool _subtitlePublishing = false;
   String? _videoTranscript;
   String? _subtitlePath;
   String? _captionedVideoPath;
