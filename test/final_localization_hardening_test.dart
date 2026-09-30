@@ -83,7 +83,7 @@ void main() {
 
     expect(
       camera,
-      contains("text: '${_t('shareOfflinePack')}\\nHCV-ID: ${securedRecord.hcvId}'"),
+      contains("text: '\${_t('shareOfflinePack')}\\nHCV-ID: \${securedRecord.hcvId}'"),
     );
   });
 }
