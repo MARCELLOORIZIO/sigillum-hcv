@@ -68,6 +68,17 @@ void main() {
     expect(camera, contains('VIDEO_EXCEEDS_SECURE_PIPELINE_LIMIT_200_MIB'));
   });
 
+  test('iOS location privacy strings satisfy the App Store binary scan', () {
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+
+    expect(plist, contains('<key>NSLocationWhenInUseUsageDescription</key>'));
+    expect(
+      plist,
+      contains('<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>'),
+    );
+    expect(plist, contains('non effettua tracciamento continuo'));
+  });
+
   test('Photos permission text no longer claims canonical originals are saved',
       () {
     final plist = File('ios/Runner/Info.plist').readAsStringSync();
