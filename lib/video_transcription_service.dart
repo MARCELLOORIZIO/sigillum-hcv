@@ -103,7 +103,13 @@ class VideoTranscriptionService {
       fullText: text,
       mediaDuration: (raw['duration'] as num?)?.toDouble(),
     );
-    final directory = await getApplicationDocumentsDirectory();
+    final support = await getApplicationSupportDirectory();
+    final directory = Directory(
+      p.join(support.path, 'sigillum_private_derivations'),
+    );
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
     final base = p.basenameWithoutExtension(videoPath).replaceAll(
           RegExp(r'[^A-Za-z0-9_-]'),
           '_',
