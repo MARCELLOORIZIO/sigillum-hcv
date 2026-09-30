@@ -23,6 +23,26 @@ class VerifiedOriginalPublishResult {
   final String? referenceSha256;
 }
 
+class VerifiedSubtitlePublishResult {
+  const VerifiedSubtitlePublishResult({
+    required this.hcvId,
+    required this.alreadyAvailable,
+    required this.publicationId,
+    required this.publicUrl,
+    required this.referenceSha256,
+    required this.captionedMediaSha256,
+    required this.subtitleSha256,
+  });
+
+  final String hcvId;
+  final bool alreadyAvailable;
+  final String publicationId;
+  final String publicUrl;
+  final String referenceSha256;
+  final String captionedMediaSha256;
+  final String subtitleSha256;
+}
+
 class VerifiedOriginalsPublishService {
   const VerifiedOriginalsPublishService({
     this.registry = const HCVRegistryService(),
@@ -276,6 +296,174 @@ class VerifiedOriginalsPublishService {
       }
     } finally {
       await vault.deleteMaterialized(materialized);
+    }
+  }
+
+  Future<VerifiedSubtitlePublishResult> ensureSubtitleReference(
+    HCVSecureOriginalRecord record, {
+    bool monetizationConsent = false,
+  }) async {
+    if (record.mediaType != 'video' ||
+        !record.hasSubtitleDerivative ||
+        record.captionedMediaSha256 == null ||
+        record.captionedMediaSize == null ||
+        record.subtitleSha256 == null) {
+      throw StateError('SUBTITLE_DERIVATION_NOT_READY');
+    }
+
+    await ensureReference(
+      record,
+      monetizationConsent: monetizationConsent,
+    );
+
+    final refreshed = await vault.find(record.hcvId) ?? record;
+    final consentId = await _ensureConsent(
+      refreshed,
+      monetizationConsent: monetizationConsent,
+    );
+    final captioned = await vault.materializeCaptionedVideo(
+      refreshed,
+      purpose: 'subtitle-publish',
+    );
+
+    try {
+      if (await captioned.length() != refreshed.captionedMediaSize) {
+        throw StateError('SUBTITLE_DERIVATION_SIZE_MISMATCH');
+      }
+
+      final captionedSha256 = refreshed.captionedMediaSha256!;
+      final subtitleSha256 = refreshed.subtitleSha256!;
+      final binding = [
+        'SIGILLUM_SUBTITLE_DERIVATION_BINDING_V1',
+        refreshed.hcvId,
+        refreshed.mediaSha256,
+        captionedSha256,
+        subtitleSha256,
+        refreshed.hcvpackSha256,
+      ].join('|');
+
+      final token = await _sessionToken();
+      final uri = Uri.parse(
+        '$_base/api/verified-originals/publish-subtitle/${refreshed.hcvId}',
+      ).replace(
+        queryParameters: {
+          'consentRecordId': consentId,
+          'monetizationEnabled': monetizationConsent.toString(),
+          'hcvpackSha256': refreshed.hcvpackSha256,
+          'subtitleSha256': subtitleSha256,
+        },
+      );
+
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 20);
+      try {
+        final request =
+            await client.postUrl(uri).timeout(const Duration(seconds: 20));
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer $token',
+        );
+        request.headers.contentType = ContentType('video', 'mp4');
+        request.headers.set(
+          'X-Sigillum-Captioned-Sha256',
+          captionedSha256,
+        );
+        request.headers.set(
+          'X-Sigillum-Subtitle-Binding-Version',
+          '1',
+        );
+        request.headers.set(
+          'X-Sigillum-Subtitle-Derivation-Signature',
+          await HCVKeystoreSigner.sign(binding),
+        );
+        request.contentLength = refreshed.captionedMediaSize!;
+        await request.addStream(captioned.openRead());
+
+        final response =
+            await request.close().timeout(const Duration(minutes: 15));
+        final raw = await utf8.decoder
+            .bind(response)
+            .join()
+            .timeout(const Duration(minutes: 2));
+        final decoded = jsonDecode(raw);
+        if (decoded is! Map<String, dynamic>) {
+          throw StateError('REGISTRY_RESPONSE_INVALID');
+        }
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw StateError(
+            decoded['error']?.toString() ?? 'HTTP_${response.statusCode}',
+          );
+        }
+
+        final publicationId = decoded['publicationId']?.toString() ?? '';
+        final publicUrl = decoded['publicUrl']?.toString() ?? '';
+        final referenceSha256 =
+            decoded['referenceSha256']?.toString().toLowerCase() ?? '';
+        final sourceSha256 =
+            decoded['sourceDerivationSha256']?.toString().toLowerCase() ?? '';
+        final serverSubtitleSha256 =
+            decoded['subtitleSha256']?.toString().toLowerCase() ?? '';
+        final originalContentSha256 =
+            decoded['originalContentSha256']?.toString().toLowerCase() ?? '';
+        final role = decoded['referenceRole']?.toString() ?? '';
+        final derivationType = decoded['derivationType']?.toString() ?? '';
+
+        if (publicationId.isEmpty ||
+            publicUrl.isEmpty ||
+            !RegExp(r'^[a-f0-9]{64}    final response = await _json(
+      'POST',
+      '/api/verified-originals/consents/${record.hcvId}/withdraw',
+      authenticated: true,
+    );
+    if (response['referenceAvailable'] == true) {
+      throw StateError('REFERENCE_WITHDRAWAL_INCOMPLETE');
+    }
+    final takedown = response['platformTakedown']?.toString() ?? '';
+    if (takedown != 'COMPLETED') {
+      throw StateError('REFERENCE_TAKEDOWN_$takedown');
+    }
+    await vault.clearReference(record.hcvId);
+  }
+
+  String _mime(HCVSecureOriginalRecord record) {
+    if (record.mediaType == 'video') return 'video/mp4';
+    final lower = record.originalName.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    return 'image/jpeg';
+  }
+}
+).hasMatch(referenceSha256) ||
+            sourceSha256 != captionedSha256 ||
+            serverSubtitleSha256 != subtitleSha256 ||
+            originalContentSha256 != refreshed.mediaSha256 ||
+            role != 'DERIVED_REFERENCE' ||
+            derivationType != 'subtitle_burn_in_reference_v1') {
+          throw StateError('SUBTITLE_REFERENCE_RESPONSE_INVALID');
+        }
+
+        await vault.markSubtitleReference(
+          hcvId: refreshed.hcvId,
+          publicationId: publicationId,
+          referenceUrl: publicUrl,
+          referenceSha256: referenceSha256,
+          captionedMediaSha256: captionedSha256,
+          subtitleSha256: subtitleSha256,
+        );
+
+        return VerifiedSubtitlePublishResult(
+          hcvId: refreshed.hcvId,
+          alreadyAvailable: decoded['alreadyAvailable'] == true,
+          publicationId: publicationId,
+          publicUrl: publicUrl,
+          referenceSha256: referenceSha256,
+          captionedMediaSha256: captionedSha256,
+          subtitleSha256: subtitleSha256,
+        );
+      } finally {
+        client.close(force: true);
+      }
+    } finally {
+      await vault.deleteMaterialized(captioned);
     }
   }
 
