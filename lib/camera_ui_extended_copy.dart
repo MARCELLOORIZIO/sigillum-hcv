@@ -39,6 +39,22 @@ class CameraUiExtendedCopy {
       'shareSrt': 'CONDIVIDI SOTTOTITOLI .SRT',
       'subtitleShareText': 'Sottotitoli SIGILLUM',
       'captionedReady': 'VIDEO SOTTOTITOLATO PRONTO',
+      'captionedProtected':
+          'VIDEO SOTTOTITOLATO E SRT CIFRATI NELL’AREA PROTETTA SIGILLUM',
+      'captionProtectedExplanation':
+          'Video sottotitolato e file SRT sono stati cifrati nell’area protetta SIGILLUM. Non sono stati salvati in Foto o File. Prima di qualsiasi esportazione verrà creata e confermata la reference ufficiale.',
+      'subtitleRequiresProtected':
+          'CREA PRIMA UN ORIGINALE PROTETTO SIGILLUM',
+      'subtitleReferencePublishing':
+          'PUBBLICAZIONE REFERENCE SOTTOTITOLATA...',
+      'subtitleReferenceReady':
+          'REFERENCE SOTTOTITOLATA PUBBLICATA E VERIFICATA',
+      'subtitleReferencePending':
+          'Reference sottotitolata non ancora pubblicata',
+      'subtitleExportBlocked':
+          'ESPORTAZIONE BLOCCATA — REFERENCE SOTTOTITOLATA NON DISPONIBILE',
+      'subtitleExportDisclosure':
+          'Per salvare o condividere questa derivazione, SIGILLUM deve prima pubblicare e registrare la copia ufficiale sottotitolata collegata all’originale certificato.',
       'captionedReadyPhotos': 'VIDEO SOTTOTITOLATO PRONTO — SALVATO IN FOTO',
       'captionedReadyFiles': 'VIDEO SOTTOTITOLATO PRONTO — DISPONIBILE IN FILE',
       'captionedSavedPhotos': 'Video sottotitolato salvato in Foto',
@@ -94,6 +110,22 @@ class CameraUiExtendedCopy {
       'shareSrt': 'SHARE .SRT SUBTITLES',
       'subtitleShareText': 'SIGILLUM subtitles',
       'captionedReady': 'CAPTIONED VIDEO READY',
+      'captionedProtected':
+          'CAPTIONED VIDEO AND SRT ENCRYPTED IN SIGILLUM PROTECTED STORAGE',
+      'captionProtectedExplanation':
+          'The captioned video and SRT file were encrypted in SIGILLUM protected storage. They were not saved to Photos or Files. The official derived reference must be created and confirmed before any export.',
+      'subtitleRequiresProtected':
+          'CREATE A PROTECTED SIGILLUM ORIGINAL FIRST',
+      'subtitleReferencePublishing':
+          'PUBLISHING CAPTIONED REFERENCE...',
+      'subtitleReferenceReady':
+          'CAPTIONED REFERENCE PUBLISHED AND VERIFIED',
+      'subtitleReferencePending':
+          'Captioned reference not published yet',
+      'subtitleExportBlocked':
+          'EXPORT BLOCKED — CAPTIONED REFERENCE NOT AVAILABLE',
+      'subtitleExportDisclosure':
+          'Before this derivation can be saved or shared, SIGILLUM must publish and register the official captioned copy linked to the certified original.',
       'captionedReadyPhotos': 'CAPTIONED VIDEO READY — SAVED TO PHOTOS',
       'captionedReadyFiles': 'CAPTIONED VIDEO READY — AVAILABLE IN FILES',
       'captionedSavedPhotos': 'Captioned video saved to Photos',
@@ -149,6 +181,22 @@ class CameraUiExtendedCopy {
       'shareSrt': 'COMPARTIR SUBTÍTULOS .SRT',
       'subtitleShareText': 'Subtítulos SIGILLUM',
       'captionedReady': 'VÍDEO SUBTITULADO LISTO',
+      'captionedProtected':
+          'VÍDEO SUBTITULADO Y SRT CIFRADOS EN EL ÁREA PROTEGIDA SIGILLUM',
+      'captionProtectedExplanation':
+          'El vídeo subtitulado y el archivo SRT se han cifrado en el área protegida SIGILLUM. No se han guardado en Fotos ni Archivos. Antes de cualquier exportación debe crearse y confirmarse la referencia oficial derivada.',
+      'subtitleRequiresProtected':
+          'PRIMERO CREA UN ORIGINAL PROTEGIDO SIGILLUM',
+      'subtitleReferencePublishing':
+          'PUBLICANDO REFERENCIA SUBTITULADA...',
+      'subtitleReferenceReady':
+          'REFERENCIA SUBTITULADA PUBLICADA Y VERIFICADA',
+      'subtitleReferencePending':
+          'Referencia subtitulada aún no publicada',
+      'subtitleExportBlocked':
+          'EXPORTACIÓN BLOQUEADA — REFERENCIA SUBTITULADA NO DISPONIBLE',
+      'subtitleExportDisclosure':
+          'Antes de guardar o compartir esta derivación, SIGILLUM debe publicar y registrar la copia oficial subtitulada vinculada al original certificado.',
       'captionedReadyPhotos': 'VÍDEO SUBTITULADO LISTO — GUARDADO EN FOTOS',
       'captionedReadyFiles': 'VÍDEO SUBTITULADO LISTO — DISPONIBLE EN ARCHIVOS',
       'captionedSavedPhotos': 'Vídeo subtitulado guardado en Fotos',
@@ -204,6 +252,22 @@ class CameraUiExtendedCopy {
       'shareSrt': 'ПОДЕЛИТЬСЯ СУБТИТРАМИ .SRT',
       'subtitleShareText': 'Субтитры SIGILLUM',
       'captionedReady': 'ВИДЕО С СУБТИТРАМИ ГОТОВО',
+      'captionedProtected':
+          'ВИДЕО С СУБТИТРАМИ И SRT ЗАШИФРОВАНЫ В ЗАЩИЩЁННОЙ ОБЛАСТИ SIGILLUM',
+      'captionProtectedExplanation':
+          'Видео с субтитрами и файл SRT зашифрованы в защищённой области SIGILLUM. Они не сохранены в Фото или Файлы. Перед экспортом должна быть создана и подтверждена официальная производная эталонная копия.',
+      'subtitleRequiresProtected':
+          'СНАЧАЛА СОЗДАЙТЕ ЗАЩИЩЁННЫЙ ОРИГИНАЛ SIGILLUM',
+      'subtitleReferencePublishing':
+          'ПУБЛИКАЦИЯ ЭТАЛОНА С СУБТИТРАМИ...',
+      'subtitleReferenceReady':
+          'ЭТАЛОН С СУБТИТРАМИ ОПУБЛИКОВАН И ПРОВЕРЕН',
+      'subtitleReferencePending':
+          'Эталон с субтитрами ещё не опубликован',
+      'subtitleExportBlocked':
+          'ЭКСПОРТ ЗАБЛОКИРОВАН — ЭТАЛОН С СУБТИТРАМИ НЕДОСТУПЕН',
+      'subtitleExportDisclosure':
+          'Перед сохранением или отправкой этой производной версии SIGILLUM должен опубликовать и зарегистрировать официальную копию с субтитрами, связанную с сертифицированным оригиналом.',
       'captionedReadyPhotos': 'ВИДЕО С СУБТИТРАМИ ГОТОВО — СОХРАНЕНО В ФОТО',
       'captionedReadyFiles': 'ВИДЕО С СУБТИТРАМИ ГОТОВО — ДОСТУПНО В ФАЙЛАХ',
       'captionedSavedPhotos': 'Видео с субтитрами сохранено в Фото',
