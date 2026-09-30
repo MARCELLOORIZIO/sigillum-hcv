@@ -370,8 +370,6 @@ class _CameraPageState extends State<CameraPage> {
   bool _transcribingAudio = false;
   bool _subtitlePublishing = false;
   String? _videoTranscript;
-  String? _subtitlePath;
-  String? _captionedVideoPath;
   HCVSecureOriginalRecord? _secureOriginalRecord;
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
@@ -2075,33 +2073,32 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> shareVideoAndCertificate() async {
-    if (_secureOriginalRecord != null) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SecureOriginalsPage(
-            languageCode: widget.languageCode,
-          ),
-        ),
-      );
-      return;
-    }
-    if (videoPath == null || hcvPath == null) {
-      setState(() => status = _c('noFileToShare'));
+    if (_criticalFinalizationInProgress) {
+      _showFinalizationBlocked();
       return;
     }
 
-    try {
-      await Share.shareXFiles(
-        [XFile(videoPath!, mimeType: _contentMimeType(videoPath!))],
-        text: hcvId == null
-            ? _c('verifiedContent')
-            : '${_c('verifiedContent')}\nID: $hcvId\nVerify with SIGILLUM',
-        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-      );
-    } catch (e) {
-      setState(() => status = '${_c('shareError')}: $e');
+    var record = _secureOriginalRecord;
+    final currentId = hcvId;
+    if (record == null && currentId != null) {
+      record = await _secureVault.find(currentId);
     }
+    if (record == null) {
+      if (mounted) setState(() => status = _c('secureShareRequiresVault'));
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _secureOriginalRecord = record);
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SecureOriginalsPage(
+          languageCode: widget.languageCode,
+        ),
+      ),
+    );
   }
 
   Future<bool> saveContentToGallery(String path) async {
@@ -2376,8 +2373,6 @@ class _CameraPageState extends State<CameraPage> {
       setState(() {
         _secureOriginalRecord = secured;
         _videoTranscript = transcript!.text;
-        _subtitlePath = null;
-        _captionedVideoPath = null;
         status = _c('captionedProtected');
       });
 
@@ -2692,8 +2687,7 @@ class _CameraPageState extends State<CameraPage> {
   Widget _actionButtons() {
     return Column(
       children: [
-        if (_secureOriginalRecord != null ||
-            (videoPath != null && hcvPath != null)) ...[
+        if (_secureOriginalRecord != null) ...[
           SizedBox(
             width: 300,
             child: ElevatedButton.icon(
@@ -3110,8 +3104,6 @@ class _CameraPageState extends State<CameraPage> {
                                   verificationUrl = null;
                                   registryStatus = null;
                                   _videoTranscript = null;
-                                  _subtitlePath = null;
-                                  _captionedVideoPath = null;
                                   recording = false;
                                 });
                               },
