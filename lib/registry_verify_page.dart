@@ -1932,8 +1932,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       (contentType == 'photo' || contentType == 'video') && !_isForensicResult;
 
   bool get _canShowCertifiedOriginalScene =>
-      _isNonExactPhotoOrVideo &&
-      (_isOfficialReferenceVerified || _isSocialResult);
+      _isNonExactPhotoOrVideo && _isOfficialReferenceVerified;
 
   bool get _isSocialLimited => result == 'SOCIAL LIMITED';
 
