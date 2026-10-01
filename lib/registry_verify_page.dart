@@ -2494,14 +2494,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                       : _verificationAxisSubtitle('scene'),
                   value: _localizedAxisState('scene', _effectiveSceneState),
                   detail: _localizedAxisDetail('scene'),
-                  color: _isNonExactPhotoOrVideo &&
-                          !_canShowCertifiedOriginalScene
-                      ? Colors.red
-                      : _isStrongDisplayRisk
+                  color:
+                      _isNonExactPhotoOrVideo && !_canShowCertifiedOriginalScene
                           ? Colors.red
-                          : _isDisplayNonConclusive
-                              ? Colors.orange
-                              : _axisColor(_effectiveSceneState),
+                          : _isStrongDisplayRisk
+                              ? Colors.red
+                              : _isDisplayNonConclusive
+                                  ? Colors.orange
+                                  : _axisColor(_effectiveSceneState),
                 ),
                 if (_effectiveDerivationState != null) ...[
                   const SizedBox(height: 10),
