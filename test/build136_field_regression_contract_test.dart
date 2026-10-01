@@ -10,6 +10,9 @@ void main() {
         File('lib/manual_reference_compare_page.dart').readAsStringSync();
     final secure = File('lib/secure_originals_page.dart').readAsStringSync();
     final camera = File('lib/camera_page.dart').readAsStringSync();
+    final shareExtension = File(
+      'ios/SigillumShareExtension/ShareViewController.swift',
+    ).readAsStringSync();
 
     test('warm iOS share handoff survives a non-root visible route', () {
       expect(gate, contains('with WidgetsBindingObserver'));
@@ -33,7 +36,20 @@ void main() {
     test('manual YouTube comparison explicitly seeks even at zero', () {
       expect(manual, contains("'start': '\$seconds'"));
       expect(manual, contains("'t': '\${seconds}s'"));
+      expect(manual, contains('position >= duration - const Duration(seconds: 1)'));
+      expect(manual, contains('await controller.seekTo(Duration.zero);'));
       expect(manual, isNot(contains('if (seconds > 0)')));
+    });
+
+    test('share-extension photo handoff adds no lossy JPEG recompression', () {
+      expect(
+        shareExtension,
+        isNot(contains('jpegData(compressionQuality: 0.95)')),
+      );
+      expect(shareExtension, contains('prepareImageData'));
+      expect(shareExtension, contains('return (data, "jpg")'));
+      expect(shareExtension, contains('return (data, "png")'));
+      expect(shareExtension, contains('image.pngData()'));
     });
 
     test('protected originals expose the full verifier again', () {

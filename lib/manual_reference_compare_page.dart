@@ -169,7 +169,15 @@ class _ManualReferenceComparePageState
     final controller = _videoController;
     if (controller != null && controller.value.isInitialized) {
       await controller.pause();
-      seconds = max(0, controller.value.position.inSeconds);
+      final position = controller.value.position;
+      final duration = controller.value.duration;
+      final atEnd = duration > Duration.zero &&
+          position >= duration - const Duration(seconds: 1);
+      if (atEnd) {
+        await controller.seekTo(Duration.zero);
+      } else {
+        seconds = max(0, position.inSeconds);
+      }
     }
 
     final target = Uri.https(
