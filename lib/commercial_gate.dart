@@ -515,7 +515,8 @@ enum _GateStage {
   creator,
 }
 
-class _CommercialGateState extends State<CommercialGate> {
+class _CommercialGateState extends State<CommercialGate>
+    with WidgetsBindingObserver {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
 
   final CommercialAccountService _account = const CommercialAccountService();
@@ -550,6 +551,7 @@ class _CommercialGateState extends State<CommercialGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     CommercialBillingService.instance.startListening();
     _purchaseSub = CommercialBillingService.instance.purchases.listen(
       _onPurchases,
@@ -562,6 +564,7 @@ class _CommercialGateState extends State<CommercialGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _intentChannel.setMethodCallHandler(null);
     _purchaseSub?.cancel();
     _name.dispose();
@@ -570,6 +573,15 @@ class _CommercialGateState extends State<CommercialGate> {
     _code.dispose();
     _newPassword.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_checkInitialIntent());
+    });
   }
 
   Future<void> _loadRecentAccounts() async {
@@ -613,12 +625,6 @@ class _CommercialGateState extends State<CommercialGate> {
     if (path == null || path.isEmpty) return null;
 
     _queueImportedPath(path);
-    try {
-      await _intentChannel
-          .invokeMethod<bool>('ackSharedPath', <String, dynamic>{
-        'path': path,
-      });
-    } catch (_) {}
     return null;
   }
 
@@ -630,6 +636,17 @@ class _CommercialGateState extends State<CommercialGate> {
       }
     } catch (error) {
       debugPrint('Intent error: $error');
+    }
+  }
+
+  Future<void> _ackSharedPath(String path) async {
+    try {
+      await _intentChannel.invokeMethod<bool>(
+        'ackSharedPath',
+        <String, dynamic>{'path': path},
+      );
+    } catch (_) {
+      // Keep the native pending path available for the next resume/cold start.
     }
   }
 
@@ -660,15 +677,14 @@ class _CommercialGateState extends State<CommercialGate> {
     if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
     if (!await File(path).exists()) return;
     if (!mounted) return;
-    _lastOpenedSharedPath = path;
 
+    final navigator = Navigator.of(context, rootNavigator: true);
     final lower = path.toLowerCase();
     if (lower.endsWith('.txt')) {
       try {
         final sharedText = await File(path).readAsString();
         if (!mounted) return;
-        await Navigator.push(
-          context,
+        final navigation = navigator.push(
           MaterialPageRoute(
             builder: (_) => TextSocialVerifyPage(
               languageCode: _languageCode,
@@ -676,17 +692,22 @@ class _CommercialGateState extends State<CommercialGate> {
             ),
           ),
         );
+        _lastOpenedSharedPath = path;
+        await _ackSharedPath(path);
+        await navigation;
       } catch (_) {}
       return;
     }
 
-    await Navigator.push(
-      context,
+    final navigation = navigator.push(
       MaterialPageRoute(
         builder: (_) =>
             HCVImportRouterPage(path: path, languageCode: _languageCode),
       ),
     );
+    _lastOpenedSharedPath = path;
+    await _ackSharedPath(path);
+    await navigation;
   }
 
   void _openQuickGuide() {

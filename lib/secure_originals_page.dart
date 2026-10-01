@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import 'hcv_registry_service.dart';
 import 'hcv_secure_media_vault.dart';
 import 'hcv_secure_preview_service.dart';
+import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
 import 'verified_originals_publish_service.dart';
 
@@ -138,6 +139,35 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
     } catch (error) {
       if (mounted) {
         setState(() => _message = '${_t('secureOriginalsViewError')}: $error');
+      }
+    } finally {
+      if (clear != null) await _vault.deleteMaterialized(clear);
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
+  Future<void> _verify(HCVSecureOriginalRecord record) async {
+    if (_busyId != null) return;
+    setState(() => _busyId = record.hcvId);
+    File? clear;
+    try {
+      clear = await _vault.materializeOriginal(record, purpose: 'verify');
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RegistryVerifyPage(
+            initialMediaPath: clear!.path,
+            initialHcvId: record.hcvId,
+            languageCode: widget.languageCode,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _message = '${_t('secureOriginalsViewError')}: $error',
+        );
       }
     } finally {
       if (clear != null) await _vault.deleteMaterialized(clear);
@@ -450,6 +480,13 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                                     : null,
                                 icon: const Icon(Icons.play_circle_outline),
                                 label: Text(_t('secureOriginalsView')),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _busyId == null
+                                    ? () => _verify(record)
+                                    : null,
+                                icon: const Icon(Icons.verified_user_outlined),
+                                label: Text(_t('verifyTitle')),
                               ),
                               FilledButton.icon(
                                 onPressed: _busyId == null

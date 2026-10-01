@@ -2077,7 +2077,7 @@ class _CameraPageState extends State<CameraPage> {
       if (!mounted || report.uploaded == 0) return;
       setState(() {
         registryStatus = report.pending == 0
-            ? _c('registrySynced')
+            ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
             : 'Registry: ${report.uploaded} ${_c('registryPublished')}, ${report.pending} ${_c('registryWaiting')}';
       });
     } catch (_) {
@@ -2647,7 +2647,8 @@ class _CameraPageState extends State<CameraPage> {
       return const SizedBox.shrink();
     }
 
-    final ok = registryStatus!.startsWith('Registry OK');
+    final ok = registryStatus!.startsWith(_c('registryOk')) ||
+        registryStatus == _c('registrySynced');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

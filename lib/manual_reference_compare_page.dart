@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -164,22 +165,22 @@ class _ManualReferenceComparePageState
     final reference = _reference;
     if (reference == null) return;
 
-    var target = reference.publicUrl;
+    var seconds = 0;
     final controller = _videoController;
     if (controller != null && controller.value.isInitialized) {
       await controller.pause();
-      final seconds = controller.value.position.inSeconds;
-      if (seconds > 0) {
-        target = Uri.https(
-          reference.publicUrl.host,
-          reference.publicUrl.path,
-          <String, String>{
-            ...reference.publicUrl.queryParameters,
-            't': '${seconds}s',
-          },
-        );
-      }
+      seconds = max(0, controller.value.position.inSeconds);
     }
+
+    final target = Uri.https(
+      reference.publicUrl.host,
+      reference.publicUrl.path,
+      <String, String>{
+        ...reference.publicUrl.queryParameters,
+        'start': '$seconds',
+        't': '${seconds}s',
+      },
+    );
 
     final opened = await launchUrl(
       target,
