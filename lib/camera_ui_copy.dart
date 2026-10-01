@@ -40,6 +40,10 @@ class CameraUiCopy {
           'Certificato salvato: pubblicazione Registry in attesa',
       'registryUnavailableLocal':
           'Certificato salvato localmente. Registry non raggiungibile',
+      'registrySubscriptionRequired':
+          'CERTIFICATO SALVATO — ABBONAMENTO CREATOR NON ATTIVO. RIATTIVA L’ABBONAMENTO PER PUBBLICARE NEL REGISTRY.',
+      'registryCreatorSessionRequired':
+          'CERTIFICATO SALVATO — SESSIONE CREATOR SCADUTA. ACCEDI DI NUOVO PER PUBBLICARE NEL REGISTRY.',
       'registrySynced': 'Registry sincronizzato',
       'registryPublished': 'pubblicati',
       'registryWaiting': 'in attesa',
@@ -95,6 +99,10 @@ class CameraUiCopy {
       'registryPending': 'Certificate saved: Registry publication pending',
       'registryUnavailableLocal':
           'Certificate saved locally. Registry unavailable',
+      'registrySubscriptionRequired':
+          'CERTIFICATE SAVED — CREATOR SUBSCRIPTION NOT ACTIVE. REACTIVATE IT TO PUBLISH TO THE REGISTRY.',
+      'registryCreatorSessionRequired':
+          'CERTIFICATE SAVED — CREATOR SESSION EXPIRED. SIGN IN AGAIN TO PUBLISH TO THE REGISTRY.',
       'registrySynced': 'Registry synchronized',
       'registryPublished': 'published',
       'registryWaiting': 'pending',
@@ -151,6 +159,10 @@ class CameraUiCopy {
           'Certificado guardado: publicación en el Registry pendiente',
       'registryUnavailableLocal':
           'Certificado guardado localmente. Registry no disponible',
+      'registrySubscriptionRequired':
+          'CERTIFICADO GUARDADO — SUSCRIPCIÓN CREATOR NO ACTIVA. REACTÍVALA PARA PUBLICAR EN EL REGISTRY.',
+      'registryCreatorSessionRequired':
+          'CERTIFICADO GUARDADO — SESIÓN CREATOR CADUCADA. INICIA SESIÓN DE NUEVO PARA PUBLICAR EN EL REGISTRY.',
       'registrySynced': 'Registry sincronizado',
       'registryPublished': 'publicados',
       'registryWaiting': 'pendientes',
@@ -206,6 +218,10 @@ class CameraUiCopy {
       'registryPending': 'Сертификат сохранён: публикация в Registry ожидается',
       'registryUnavailableLocal':
           'Сертификат сохранён локально. Registry недоступен',
+      'registrySubscriptionRequired':
+          'СЕРТИФИКАТ СОХРАНЁН — ПОДПИСКА CREATOR НЕ АКТИВНА. ВОЗОБНОВИТЕ ЕЁ ДЛЯ ПУБЛИКАЦИИ В REGISTRY.',
+      'registryCreatorSessionRequired':
+          'СЕРТИФИКАТ СОХРАНЁН — СЕССИЯ CREATOR ИСТЕКЛА. ВОЙДИТЕ СНОВА ДЛЯ ПУБЛИКАЦИИ В REGISTRY.',
       'registrySynced': 'Registry синхронизирован',
       'registryPublished': 'опубликовано',
       'registryWaiting': 'ожидает',
