@@ -220,3 +220,23 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - Final localization/release-metadata head `48453e5de0a45e081cf21324ac697743af64580c` is GREEN in BUILD133 run `36787444001`: dependency resolution, formatting, Flutter analyze, complete Flutter tests and release architecture guard all passed.
 
 - Final release metadata prepared without creating a build: Flutter build number advanced from 129 to 136 so the next consolidated TestFlight upload is above the previously used 135, and package_info_plus 9.0.1 is now declared as a direct dependency instead of relying on a transitive dependency. No TestFlight upload was triggered.
+
+
+## 2026-10-01 BUILD137 field regression fixes after first iPhone photo/video test
+
+- First iPhone field test exposed four concrete regressions without changing the closed-chain design:
+  1. iOS share-in did not reliably start verification when SIGILLUM was already open on a nested Creator route; closing/reopening the app made the pending share work.
+  2. The shared PHOTO was classified as `COPIA UFFICIALE MODIFICATA` even though the source was the newly shared social copy.
+  3. Manual VIDEO comparison could reopen YouTube at the end of the video after a previous comparison.
+  4. Protected Originals allowed view/share but no longer exposed the complete `VERIFICA CONTENUTO` flow. The Registry success message also appeared orange as `Registry sincronizzato` instead of the prior green `Registry OK`.
+- The iOS share handoff is now durable until Flutter really opens the verification route. `getSharedPath` is non-destructive, acknowledgement is deferred until after Navigator push, and the root commercial gate rechecks the pending share on every app resume. This covers warm-app delivery even when the visible page is Camera/Creator content creation.
+- The Share Extension no longer introduces a second lossy JPEG(0.95) transcode for images supplied as decoded/Data payloads. JPEG/PNG provider bytes are preserved exactly after UIKit decode preflight; opaque decoded image fallbacks use lossless PNG. This directly addresses the observed PHOTO V3 false modification path while keeping corruption preflight.
+- Manual YouTube comparison now emits explicit `start=` and `t=` parameters even at 00:00. If the local comparison video is already within one second of its end, it seeks the local controller back to 00:00 and opens the official YouTube copy from the beginning.
+- Protected Originals now expose a direct `VERIFICA CONTENUTO` action. The encrypted original is materialized only for the verification session, passed to `RegistryVerifyPage` with its HCV-ID, then the clear temporary file is deleted after returning.
+- Successful Registry outbox completion is rendered again as green `Registry OK: <HCV-ID>`; orange remains reserved for pending/unavailable states.
+- Real production Registry rows for the test HCV-IDs were inspected: both photo `HCV-04EA1D714E544814` and video `HCV-E0D9CF529B634907` have live official YouTube publications with signed V3 reference fingerprints. The photo failure was therefore investigated on the app/share-in path, not by weakening V3 thresholds.
+- Version prepared for the next iPhone package: `1.0.0+137`.
+- Final functional HEAD for these fixes: `ff4601e56e3070ac4d433220d289d5b477b59ec8`.
+- BUILD133 closed-chain validation run `36846757972` GREEN: formatter, Flutter analyze, complete Flutter tests and release architecture guard all passed.
+- Verified Originals v0.2 app run `36846763091` GREEN.
+- Google Data Access review remains pending and production remains PRELAUNCH. No Google approval, `PRODUCTION_LIVE` activation, release merge or production readiness flag was claimed by this pass.
