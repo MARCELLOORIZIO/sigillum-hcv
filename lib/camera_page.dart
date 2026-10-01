@@ -2031,6 +2031,18 @@ class _CameraPageState extends State<CameraPage> {
               : _c('registryPending');
         });
       }
+    } on HCVRegistryException catch (e) {
+      if (mounted) {
+        setState(() {
+          if (e.statusCode == 402) {
+            registryStatus = _c('registrySubscriptionRequired');
+          } else if (e.statusCode == 401) {
+            registryStatus = _c('registryCreatorSessionRequired');
+          } else {
+            registryStatus = '${_c('registryUnavailableLocal')}: ${e.message}';
+          }
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -2074,11 +2086,23 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> _retryPendingRegistryUploads() async {
     try {
       final report = await registry.retryPendingUploads();
-      if (!mounted || report.uploaded == 0) return;
+      if (!mounted) return;
+      if (report.uploaded == 0) return;
       setState(() {
         registryStatus = report.pending == 0
             ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
             : 'Registry: ${report.uploaded} ${_c('registryPublished')}, ${report.pending} ${_c('registryWaiting')}';
+      });
+    } on HCVRegistryException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        if (e.statusCode == 402) {
+          registryStatus = _c('registrySubscriptionRequired');
+        } else if (e.statusCode == 401) {
+          registryStatus = _c('registryCreatorSessionRequired');
+        } else {
+          registryStatus = '${_c('registryUnavailableLocal')}: ${e.message}';
+        }
       });
     } catch (_) {
       // La certificazione locale resta valida; il retry avverra al prossimo avvio.
