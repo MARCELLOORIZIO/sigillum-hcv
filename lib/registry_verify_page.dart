@@ -1931,6 +1931,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   bool get _isNonExactPhotoOrVideo =>
       (contentType == 'photo' || contentType == 'video') && !_isForensicResult;
 
+  bool get _canShowCertifiedOriginalScene =>
+      _isNonExactPhotoOrVideo &&
+      (_isOfficialReferenceVerified || _isSocialResult);
+
   bool get _isSocialLimited => result == 'SOCIAL LIMITED';
 
   bool get _isOfficialReferenceVerified => result == 'OFFICIAL COPY VERIFIED';
@@ -1990,31 +1994,45 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String get _effectiveSceneState {
-    if (_isNonExactPhotoOrVideo) return 'Non verificata';
-    if (sceneState != null) return sceneState!;
+    if (_isNonExactPhotoOrVideo && !_canShowCertifiedOriginalScene) {
+      return 'Non verificata';
+    }
+    if (sceneState != null && !_canShowCertifiedOriginalScene) {
+      return sceneState!;
+    }
     if (_isStrongDisplayRisk) return 'Forte rischio display';
     if (_isDisplayNonConclusive) return 'Non conclusiva';
-    if (screenReplayRisk != null) return 'Nessun indizio display';
+    if (displayRiskDecision == 'NO_DISPLAY_EVIDENCE' ||
+        screenReplayRisk != null) {
+      return 'Nessun indizio display';
+    }
     if (_isInvalidResult || _isMediaNotVerified) return 'Non conclusiva';
-    return '-';
+    return 'Non analizzata';
   }
 
   String get _effectiveSceneDetail {
-    if (_isNonExactPhotoOrVideo) return _r('unprovenDerivativeDetail');
-    if (sceneDetail != null) return sceneDetail!;
+    if (_isNonExactPhotoOrVideo && !_canShowCertifiedOriginalScene) {
+      return _r('unprovenDerivativeDetail');
+    }
+
+    String detail;
     if (_isStrongDisplayRisk) {
-      return 'Piu segnali coerenti indicano una possibile ripresa da schermo.';
+      detail = _v('screenDetail');
+    } else if (_isDisplayNonConclusive) {
+      detail = _v('uncertainDetail');
+    } else if (displayRiskDecision == 'NO_DISPLAY_EVIDENCE' ||
+        screenReplayRisk != null) {
+      detail = _v('noScreenDetail');
+    } else if (sceneDetail != null && !_canShowCertifiedOriginalScene) {
+      detail = sceneDetail!;
+    } else {
+      detail = _v('notAnalyzed');
     }
-    if (_isDisplayNonConclusive) {
-      return 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.';
+
+    if (_canShowCertifiedOriginalScene) {
+      return '$detail ${_v('originalSceneCopyQualifier')}';
     }
-    if (screenReplayRisk != null) {
-      return 'Nessun indizio tecnico sufficiente di ripresa da schermo.';
-    }
-    if (_isInvalidResult || _isMediaNotVerified) {
-      return 'La scena non viene usata per dichiarare il contenuto originale.';
-    }
-    return '-';
+    return detail;
   }
 
   String? get _effectiveDerivationState {
@@ -2114,7 +2132,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isUnprovenDerivative && axis == 'integrity') {
       return _v('notVerified');
     }
-    if (_isNonExactPhotoOrVideo && axis == 'scene') {
+    if (_isNonExactPhotoOrVideo &&
+        !_canShowCertifiedOriginalScene &&
+        axis == 'scene') {
       return _v('notVerified');
     }
     if (_isUnprovenDerivative && axis == 'derivation') {
@@ -2146,8 +2166,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String _localizedAxisDetail(String axis) {
-    if (axis == 'scene' && _isNonExactPhotoOrVideo) {
+    if (axis == 'scene' &&
+        _isNonExactPhotoOrVideo &&
+        !_canShowCertifiedOriginalScene) {
       return _r('unprovenDerivativeDetail');
+    }
+    if (axis == 'scene' && _canShowCertifiedOriginalScene) {
+      return _effectiveSceneDetail;
     }
     if (axis == 'scene' && _signedRealityScene) return _v('realityDetail');
     if (_isUnprovenDerivative) {
@@ -2461,11 +2486,16 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                 const SizedBox(height: 10),
                 _VerificationAxisCard(
                   icon: Icons.visibility_outlined,
-                  title: _v('scene'),
-                  subtitle: _verificationAxisSubtitle('scene'),
+                  title: _canShowCertifiedOriginalScene
+                      ? _v('originalScene')
+                      : _v('scene'),
+                  subtitle: _canShowCertifiedOriginalScene
+                      ? _v('originalSceneHint')
+                      : _verificationAxisSubtitle('scene'),
                   value: _localizedAxisState('scene', _effectiveSceneState),
                   detail: _localizedAxisDetail('scene'),
-                  color: _isNonExactPhotoOrVideo
+                  color: _isNonExactPhotoOrVideo &&
+                          !_canShowCertifiedOriginalScene
                       ? Colors.red
                       : _isStrongDisplayRisk
                           ? Colors.red
