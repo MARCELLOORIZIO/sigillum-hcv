@@ -240,3 +240,24 @@ Do not start again from the design discussion. Resume from the first unfinished 
 - BUILD133 closed-chain validation run `36846757972` GREEN: formatter, Flutter analyze, complete Flutter tests and release architecture guard all passed.
 - Verified Originals v0.2 app run `36846763091` GREEN.
 - Google Data Access review remains pending and production remains PRELAUNCH. No Google approval, `PRODUCTION_LIVE` activation, release merge or production readiness flag was claimed by this pass.
+
+
+## 2026-10-01 BUILD137 text UX + social scene semantics
+
+- User review of the iPhone verification screens identified two additional UX/semantics issues:
+  - in the text-certification result page, `VERIFICA TESTO PUBBLICATO` and the reset/new-text action were below the generated-file paths and required unnecessary scrolling;
+  - in social PHOTO/VIDEO verification, the copy-scene axis correctly remained fail-closed, but the UI hid the signed scene assessment that belongs to the certified original, creating the misleading impression that the original screen/reality assessment had disappeared.
+- Text UX fix:
+  - `VERIFICA TESTO PUBBLICATO` and the reset/new-text action now render immediately after the other text actions and before the generated-file path card;
+  - text verification remains Registry + signed certificate + SHA-256/text-integrity based;
+  - no YouTube reference/publication path is introduced for text.
+- Scene semantics fix:
+  - the SOCIAL COPY scene axis remains fail-closed as `Non verificata`; an altered/derived file still cannot inherit the certified-original scene verdict as if the copy itself had been scene-verified;
+  - when and only when a modern official-reference comparison is conforming (`OFFICIAL COPY VERIFIED`), the UI adds a distinct second card `Scena dell’originale`;
+  - that second card shows the signed capture-time scene assessment from the certificate (e.g. possible screen / inconclusive / no display evidence) and explicitly states that this assessment belongs to the certified original and is not recalculated on the social copy;
+  - labels/details were added for IT/EN/ES/RU.
+- Regression contract added in `test/build137_text_scene_ux_contract_test.dart`.
+- Current validated HEAD: `5516bcf8a8f7c7ce7936b46a73128f5a88766d65`.
+- BUILD133 closed-chain validation `36862756745`: GREEN.
+- Verified Originals v0.2 app `36862763131`: GREEN.
+- App version remains `1.0.0+137`; BUILD137 TestFlight has not yet been generated.
