@@ -19,7 +19,9 @@ void main() {
       expect(gate, contains('HCVImportRouterPage('));
       expect(gate, contains("MethodChannel('hcv.intent')"));
       expect(gate, contains("invokeMethod<String>('getSharedPath')"));
-      expect(gate, contains("invokeMethod<bool>('ackSharedPath'"));
+      expect(gate, contains("invokeMethod<bool>("));
+      expect(gate, contains("'ackSharedPath'"));
+      expect(gate, contains('await _ackSharedPath(path);'));
       expect(
         gate.indexOf("MethodChannel('hcv.intent')"),
         lessThan(gate.indexOf("if (_stage == _GateStage.creator)")),
