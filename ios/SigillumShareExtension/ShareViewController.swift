@@ -245,6 +245,12 @@ final class ShareViewController: UIViewController {
   }
 
   private func prepareImageData(_ data: Data) -> (data: Data, ext: String)? {
+    // Reject corrupt image payloads before they reach OCR/verification, while
+    // preserving the provider bytes whenever the representation is JPEG/PNG.
+    guard let image = UIImage(data: data) else {
+      return nil
+    }
+
     // Preserve provider bytes exactly whenever they are already a JPEG or PNG.
     // This avoids a second lossy SIGILLUM-side transcode before V3 comparison.
     if data.count >= 3,
@@ -266,9 +272,9 @@ final class ShareViewController: UIViewController {
       return (data, "png")
     }
 
-    // Some share providers expose only a decoded/opaque image representation.
+    // Some share providers expose only an opaque/decoded representation.
     // A lossless PNG is safer than the former JPEG(0.95) fallback.
-    guard let image = UIImage(data: data), let png = image.pngData() else {
+    guard let png = image.pngData() else {
       return nil
     }
     return (png, "png")
