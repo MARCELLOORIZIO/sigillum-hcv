@@ -485,6 +485,40 @@ class _TextCertPageState extends State<TextCertPage> {
     );
   }
 
+  Widget _verificationAndResetActions() {
+    if (!isValid && result == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          width: 300,
+          child: OutlinedButton.icon(
+            onPressed: openPublishedTextVerification,
+            icon: const Icon(Icons.fact_check_outlined),
+            label: Text(
+              widget.languageCode.toLowerCase().startsWith('it')
+                  ? 'VERIFICA TESTO PUBBLICATO'
+                  : 'VERIFY PUBLISHED TEXT',
+            ),
+          ),
+        ),
+        if (result != null) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 300,
+            child: OutlinedButton.icon(
+              onPressed: resetPage,
+              icon: const Icon(Icons.refresh),
+              label: Text(_t('newText')),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _createdFilesCard() {
     if (hcvPath == null && textPath == null) {
       return const SizedBox.shrink();
@@ -584,31 +618,9 @@ class _TextCertPageState extends State<TextCertPage> {
               _verifiedCard(),
               _registryCard(),
               _actionButtons(),
+              const SizedBox(height: 10),
+              _verificationAndResetActions(),
               _createdFilesCard(),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: 300,
-                child: OutlinedButton.icon(
-                  onPressed: openPublishedTextVerification,
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: Text(
-                    widget.languageCode.toLowerCase().startsWith('it')
-                        ? 'VERIFICA TESTO PUBBLICATO'
-                        : 'VERIFY PUBLISHED TEXT',
-                  ),
-                ),
-              ),
-              if (result != null) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: 260,
-                  child: OutlinedButton.icon(
-                    onPressed: resetPage,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(_t('newText')),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
