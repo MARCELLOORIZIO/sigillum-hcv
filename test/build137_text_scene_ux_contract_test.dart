@@ -30,22 +30,22 @@ void main() {
       expect(textVerify, isNot(contains('ManualReferenceComparePage')));
     });
 
-    test('verified official social copy shows signed scene assessment of original', () {
+    test('verified official social copy keeps copy scene fail-closed and shows original scene separately', () {
       expect(
         verifier,
         contains(
           '_isNonExactPhotoOrVideo && _isOfficialReferenceVerified',
         ),
       );
+      expect(
+        verifier,
+        contains("if (_isNonExactPhotoOrVideo) return 'Non verificata';"),
+      );
       expect(verifier, contains("_v('originalScene')"));
       expect(verifier, contains("_v('originalSceneHint')"));
       expect(verifier, contains("_v('originalSceneCopyQualifier')"));
-      expect(
-        verifier,
-        contains(
-          "_isNonExactPhotoOrVideo && !_canShowCertifiedOriginalScene",
-        ),
-      );
+      expect(verifier, contains('_localizedCertifiedOriginalSceneState'));
+      expect(verifier, contains('_certifiedOriginalSceneDetail'));
     });
 
     test('original scene copy is complete in all selectable languages', () {
