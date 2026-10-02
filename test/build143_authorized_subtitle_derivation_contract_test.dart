@@ -6,10 +6,11 @@ void main() {
   test('subtitle export no longer asks for monetization consent', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
 
-    final start =
-        camera.indexOf('Future<_SubtitleExportDecision?> _subtitleExportDecision()');
-    final end =
-        camera.indexOf('Future<HCVSecureOriginalRecord?> _ensureSubtitleReferenceForExport()', start);
+    final start = camera
+        .indexOf('Future<_SubtitleExportDecision?> _subtitleExportDecision()');
+    final end = camera.indexOf(
+        'Future<HCVSecureOriginalRecord?> _ensureSubtitleReferenceForExport()',
+        start);
     expect(start, greaterThanOrEqualTo(0));
     expect(end, greaterThan(start));
 
@@ -20,7 +21,8 @@ void main() {
     expect(camera, contains('monetizationConsent: false'));
   });
 
-  test('subtitle verification accepts only a registered authorized derivation', () {
+  test('subtitle verification accepts only a registered authorized derivation',
+      () {
     final verifier = File('lib/registry_verify_page.dart').readAsStringSync();
 
     expect(verifier, contains("availability['authorizedDerivations']"));

@@ -72,8 +72,7 @@ class RegistryVerifyCopy {
           'Il riferimento tecnico SIGILLUM deve risultare registrato e disponibile prima della verifica di una copia social. Se la registrazione è ancora in corso, riprova tra poco.',
       'authorizedSubtitleConforming':
           'DERIVAZIONE SIGILLUM VERIFICATA\nIl video con sottotitoli corrisponde a una derivazione autorizzata e registrata da SIGILLUM a partire dall’originale certificato.',
-      'authorizedSubtitleConformingTitle':
-          'DERIVAZIONE SIGILLUM VERIFICATA',
+      'authorizedSubtitleConformingTitle': 'DERIVAZIONE SIGILLUM VERIFICATA',
       'authorizedSubtitleConformingDetail':
           'I sottotitoli sono un’aggiunta editoriale dichiarata. Il file non viene classificato come manipolazione non autorizzata.',
       'authorizedSubtitleProvenanceState': 'Verificata',
@@ -476,8 +475,7 @@ class RegistryVerifyCopy {
           'La referencia técnica de SIGILLUM debe estar registrada y disponible antes de verificar una copia social. Si el registro sigue en curso, inténtalo de nuevo en breve.',
       'authorizedSubtitleConforming':
           'DERIVACIÓN SIGILLUM VERIFICADA\nEl vídeo subtitulado coincide con una derivación autorizada y registrada por SIGILLUM a partir del original certificado.',
-      'authorizedSubtitleConformingTitle':
-          'DERIVACIÓN SIGILLUM VERIFICADA',
+      'authorizedSubtitleConformingTitle': 'DERIVACIÓN SIGILLUM VERIFICADA',
       'authorizedSubtitleConformingDetail':
           'Los subtítulos son una adición editorial declarada. El archivo no se clasifica como una manipulación no autorizada.',
       'authorizedSubtitleProvenanceState': 'Verificada',
