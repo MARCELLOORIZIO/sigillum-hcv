@@ -828,13 +828,16 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     try {
       final availability = await const VerifiedOriginalsPublishService()
           .verificationReference(hcvId);
+      final serverTiming =
+          availability['providerCheckMs'] ?? availability['youtubeCheckMs'];
       _officialReferenceServerMs =
-          (availability['youtubeCheckMs'] as num?)?.toInt();
+          serverTiming is num ? serverTiming.toInt() : null;
       _officialReferenceComparisonMode =
           availability['comparisonMode']?.toString();
       _officialReferenceLiveAvailable =
           availability['availability'] == 'REFERENCE_AVAILABLE' &&
-              availability['youtubeLive'] == true;
+              (availability['referenceLive'] == true ||
+                  availability['youtubeLive'] == true);
       final commentsDisabled = availability['commentsDisabled'];
       _officialReferenceCommentsDisabled =
           commentsDisabled is bool ? commentsDisabled : null;

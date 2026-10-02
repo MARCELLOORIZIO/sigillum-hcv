@@ -2372,7 +2372,7 @@ class _CameraPageState extends State<CameraPage> {
     try {
       final live = await _publisher.verificationReference(securedRecord.hcvId);
       final referenceReady = live['availability'] == 'REFERENCE_AVAILABLE' &&
-          live['youtubeLive'] == true;
+          (live['referenceLive'] == true || live['youtubeLive'] == true);
       if (!referenceReady) {
         if (mounted) {
           setState(() => status = _t('secureOriginalsReferencePending'));

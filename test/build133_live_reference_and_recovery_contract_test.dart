@@ -141,7 +141,7 @@ void main() {
       ),
     );
     expect(verifier, contains('.verificationReference(hcvId)'));
-    expect(verifier, contains("availability['youtubeLive'] == true"));
+    expect(verifier, contains("availability['referenceLive'] == true"));
     expect(
       verifier,
       isNot(contains("availability['commentsDisabled'] == true")),
@@ -174,7 +174,7 @@ void main() {
 
     expect(publicLookup, greaterThanOrEqualTo(0));
     expect(liveLookup, greaterThan(publicLookup));
-    expect(method, contains("live['youtubeLive'] == true"));
+    expect(method, contains('_isLiveReference(live)'));
     expect(
       method,
       isNot(contains("live['commentsDisabled'] == true")),
@@ -201,7 +201,7 @@ void main() {
     expect(packStart, greaterThanOrEqualTo(0));
     expect(localReferenceGate, greaterThanOrEqualTo(0));
     expect(liveReferenceGate, greaterThan(localReferenceGate));
-    expect(method, contains("live['youtubeLive'] == true"));
+    expect(method, contains("live['referenceLive'] == true"));
     expect(
       method,
       isNot(contains("live['commentsDisabled'] == true")),
@@ -246,7 +246,7 @@ void main() {
     );
     final entitled = publisher.substring(methodStart, methodEnd);
     expect(entitled, contains('verificationReference(hcvId)'));
-    expect(entitled, contains("live['youtubeLive'] == true"));
+    expect(entitled, contains('_isLiveReference(live)'));
     expect(
       entitled,
       isNot(contains("live['commentsDisabled'] == true")),
@@ -270,6 +270,8 @@ void main() {
     expect(manualCompare, contains('target = Uri.https('));
     expect(manualCompare, contains("'t':"));
     expect(manualCompare, contains('LaunchMode.externalApplication'));
+    expect(
+        manualCompare, contains('materializeEntitledReference(widget.hcvId)'));
 
     expect(verifier, contains('ManualReferenceComparePage('));
     expect(verifier, contains("_r('manualCompareAction')"));
