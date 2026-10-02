@@ -2,10 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
 import 'hcv_registry_service.dart';
 import 'hcv_keystore_signer.dart';
 import 'hcv_secure_media_vault.dart';
 import 'hcv_secure_store.dart';
+import 'verified_originals_reference.dart';
 
 class VerifiedOriginalPublishResult {
   const VerifiedOriginalPublishResult({
@@ -37,7 +42,7 @@ class VerifiedSubtitlePublishResult {
   final String hcvId;
   final bool alreadyAvailable;
   final String publicationId;
-  final String publicUrl;
+  final String? publicUrl;
   final String referenceSha256;
   final String captionedMediaSha256;
   final String subtitleSha256;
@@ -117,11 +122,14 @@ class VerifiedOriginalsPublishService {
     );
   }
 
+  bool _isLiveReference(Map<String, dynamic> live) {
+    return live['availability'] == 'REFERENCE_AVAILABLE' &&
+        (live['referenceLive'] == true || live['youtubeLive'] == true);
+  }
+
   Future<Map<String, dynamic>> entitledLiveReference(String hcvId) async {
     final live = await verificationReference(hcvId);
-    final available = live['availability'] == 'REFERENCE_AVAILABLE' &&
-        live['youtubeLive'] == true;
-    if (!available) {
+    if (!_isLiveReference(live)) {
       throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
     }
 
@@ -175,7 +183,9 @@ class VerifiedOriginalsPublishService {
     );
 
     final publicationId = reference['publicationId']?.toString() ?? '';
+    final platform = reference['platform']?.toString() ?? '';
     final publicUrl = reference['publicUrl']?.toString() ?? '';
+    final referenceAccess = reference['referenceAccess']?.toString() ?? '';
     final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
     final originalContentSha256 =
         reference['originalContentSha256']?.toString().toLowerCase() ?? '';
@@ -184,8 +194,14 @@ class VerifiedOriginalsPublishService {
     final derivedFrom =
         reference['derivedFrom']?.toString().toLowerCase() ?? '';
 
+    final locatorValid = platform == 'youtube'
+        ? publicUrl.isNotEmpty
+        : platform == 'r2' &&
+            referenceAccess == 'SHORT_LIVED_AUTHORIZATION' &&
+            publicUrl.isEmpty;
+
     if (publicationId.isEmpty ||
-        publicUrl.isEmpty ||
+        !locatorValid ||
         originalContentSha256 != record.mediaSha256 ||
         serverHcvpackSha256 != record.hcvpackSha256 ||
         derivedFrom != record.mediaSha256 ||
@@ -196,7 +212,7 @@ class VerifiedOriginalsPublishService {
     await vault.markReference(
       hcvId: record.hcvId,
       publicationId: publicationId,
-      referenceUrl: publicUrl,
+      referenceUrl: publicUrl.isEmpty ? null : publicUrl,
       referenceSha256: referenceSha256,
     );
 
@@ -204,7 +220,7 @@ class VerifiedOriginalsPublishService {
       hcvId: record.hcvId,
       alreadyAvailable: true,
       publicationId: publicationId,
-      publicUrl: publicUrl,
+      publicUrl: publicUrl.isEmpty ? null : publicUrl,
       referenceSha256: referenceSha256,
     );
   }
@@ -216,8 +232,7 @@ class VerifiedOriginalsPublishService {
     final availability = await publicAvailability(record.hcvId);
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
       final live = await verificationReference(record.hcvId);
-      final liveAvailable = live['availability'] == 'REFERENCE_AVAILABLE' &&
-          live['youtubeLive'] == true;
+      final liveAvailable = _isLiveReference(live);
       if (!liveAvailable) {
         throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
       }
@@ -287,7 +302,9 @@ class VerifiedOriginalsPublishService {
         }
 
         final publicationId = decoded['publicationId']?.toString() ?? '';
+        final platform = decoded['platform']?.toString() ?? '';
         final publicUrl = decoded['publicUrl']?.toString() ?? '';
+        final referenceAccess = decoded['referenceAccess']?.toString() ?? '';
         final referenceSha256 = decoded['referenceSha256']?.toString() ?? '';
         final originalContentSha256 =
             decoded['originalContentSha256']?.toString().toLowerCase() ?? '';
@@ -296,8 +313,14 @@ class VerifiedOriginalsPublishService {
         final derivedFrom =
             decoded['derivedFrom']?.toString().toLowerCase() ?? '';
 
+        final locatorValid = platform == 'youtube'
+            ? publicUrl.isNotEmpty
+            : platform == 'r2' &&
+                referenceAccess == 'SHORT_LIVED_AUTHORIZATION' &&
+                publicUrl.isEmpty;
+
         if (publicationId.isEmpty ||
-            publicUrl.isEmpty ||
+            !locatorValid ||
             originalContentSha256 != record.mediaSha256 ||
             serverHcvpackSha256 != record.hcvpackSha256 ||
             derivedFrom != record.mediaSha256 ||
@@ -308,7 +331,7 @@ class VerifiedOriginalsPublishService {
         await vault.markReference(
           hcvId: record.hcvId,
           publicationId: publicationId,
-          referenceUrl: publicUrl,
+          referenceUrl: publicUrl.isEmpty ? null : publicUrl,
           referenceSha256: referenceSha256,
         );
 
@@ -316,7 +339,7 @@ class VerifiedOriginalsPublishService {
           hcvId: record.hcvId,
           alreadyAvailable: false,
           publicationId: publicationId,
-          publicUrl: publicUrl,
+          publicUrl: publicUrl.isEmpty ? null : publicUrl,
           referenceSha256: referenceSha256,
         );
       } finally {
@@ -425,7 +448,9 @@ class VerifiedOriginalsPublishService {
         }
 
         final publicationId = decoded['publicationId']?.toString() ?? '';
+        final platform = decoded['platform']?.toString() ?? '';
         final publicUrl = decoded['publicUrl']?.toString() ?? '';
+        final referenceAccess = decoded['referenceAccess']?.toString() ?? '';
         final referenceSha256 =
             decoded['referenceSha256']?.toString().toLowerCase() ?? '';
         final sourceSha256 =
@@ -439,9 +464,174 @@ class VerifiedOriginalsPublishService {
         final role = decoded['referenceRole']?.toString() ?? '';
         final derivationType = decoded['derivationType']?.toString() ?? '';
 
+        final locatorValid = platform == 'youtube'
+            ? publicUrl.isNotEmpty
+            : platform == 'r2' &&
+                referenceAccess == 'SHORT_LIVED_AUTHORIZATION' &&
+                publicUrl.isEmpty;
+
         if (publicationId.isEmpty ||
-            publicUrl.isEmpty ||
-            !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256) ||
+            !locatorValid ||
+            !RegExp(r'^[a-f0-9]{64}
+            sourceSha256 != captionedSha256 ||
+            serverSubtitleSha256 != subtitleSha256 ||
+            originalContentSha256 != refreshed.mediaSha256 ||
+            serverHcvpackSha256 != refreshed.hcvpackSha256 ||
+            role != 'DERIVED_REFERENCE' ||
+            derivationType != 'subtitle_burn_in_reference_v1') {
+          throw StateError('SUBTITLE_REFERENCE_RESPONSE_INVALID');
+        }
+
+        await vault.markSubtitleReference(
+          hcvId: refreshed.hcvId,
+          publicationId: publicationId,
+          referenceUrl: publicUrl.isEmpty ? null : publicUrl,
+          referenceSha256: referenceSha256,
+          captionedMediaSha256: captionedSha256,
+          subtitleSha256: subtitleSha256,
+        );
+
+        return VerifiedSubtitlePublishResult(
+          hcvId: refreshed.hcvId,
+          alreadyAvailable: decoded['alreadyAvailable'] == true,
+          publicationId: publicationId,
+          publicUrl: publicUrl.isEmpty ? null : publicUrl,
+          referenceSha256: referenceSha256,
+          captionedMediaSha256: captionedSha256,
+          subtitleSha256: subtitleSha256,
+        );
+      } finally {
+        client.close(force: true);
+      }
+    } finally {
+      await vault.deleteMaterialized(captioned);
+    }
+  }
+
+  Future<File> materializeEntitledReference(String hcvId) async {
+    final view = await entitledLiveReference(hcvId);
+    final reference = VerifiedOriginalsReference.fromRegistry(
+      view,
+      requestedHcvId: hcvId,
+    );
+    if (reference == null) {
+      throw StateError('REFERENCE_RESPONSE_INVALID');
+    }
+    if (!reference.isPrivateR2) {
+      throw StateError('REFERENCE_EXTERNAL_URL_ONLY');
+    }
+
+    final authorization = await _json(
+      'POST',
+      '/api/verified-originals/$hcvId/read-authorization',
+      authenticated: true,
+    );
+    final readPath = authorization['readPath']?.toString() ?? '';
+    if (!readPath.startsWith('/api/verified-originals/reference-read/') ||
+        readPath.contains('..') ||
+        readPath.contains('://')) {
+      throw StateError('REFERENCE_READ_AUTH_INVALID');
+    }
+
+    final token = await _sessionToken();
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 20);
+    File? target;
+    try {
+      final request = await client
+          .getUrl(Uri.parse('$_base$readPath'))
+          .timeout(const Duration(seconds: 20));
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer $token',
+      );
+      final response = await request.close().timeout(
+            const Duration(minutes: 2),
+          );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final raw = await utf8.decoder.bind(response).join();
+        String code = 'HTTP_${response.statusCode}';
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map<String, dynamic>) {
+            code = decoded['error']?.toString() ?? code;
+          }
+        } catch (_) {}
+        throw StateError(code);
+      }
+
+      final mime = response.headers.contentType?.mimeType ?? '';
+      final extension = mime == 'video/mp4'
+          ? '.mp4'
+          : mime == 'image/png'
+              ? '.png'
+              : mime == 'image/jpeg'
+                  ? '.jpg'
+                  : '';
+      if (extension.isEmpty) {
+        throw StateError('REFERENCE_MEDIA_TYPE_UNSUPPORTED');
+      }
+
+      final root = await getTemporaryDirectory();
+      final directory = Directory(
+        p.join(root.path, 'sigillum_reference_reads'),
+      );
+      await directory.create(recursive: true);
+      target = File(
+        p.join(
+          directory.path,
+          '${hcvId}_${DateTime.now().microsecondsSinceEpoch}$extension',
+        ),
+      );
+      final sink = target.openWrite(mode: FileMode.writeOnly);
+      try {
+        await response.pipe(sink);
+      } finally {
+        await sink.close();
+      }
+
+      final digest = await sha256.bind(target.openRead()).first;
+      if (digest.toString().toLowerCase() !=
+          reference.referenceSha256.toLowerCase()) {
+        throw StateError('REFERENCE_DOWNLOADED_SHA256_MISMATCH');
+      }
+      return target;
+    } catch (_) {
+      if (target != null) {
+        try {
+          if (await target.exists()) await target.delete();
+        } catch (_) {}
+      }
+      rethrow;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<void> withdrawReference(HCVSecureOriginalRecord record) async {
+    final response = await _json(
+      'POST',
+      '/api/verified-originals/consents/${record.hcvId}/withdraw',
+      authenticated: true,
+    );
+    if (response['referenceAvailable'] == true) {
+      throw StateError('REFERENCE_WITHDRAWAL_INCOMPLETE');
+    }
+    final takedown = response['platformTakedown']?.toString() ?? '';
+    if (takedown != 'COMPLETED') {
+      throw StateError('REFERENCE_TAKEDOWN_$takedown');
+    }
+    await vault.clearReference(record.hcvId);
+  }
+
+  String _mime(HCVSecureOriginalRecord record) {
+    if (record.mediaType == 'video') return 'video/mp4';
+    final lower = record.originalName.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    return 'image/jpeg';
+  }
+}
+).hasMatch(referenceSha256) ||
             sourceSha256 != captionedSha256 ||
             serverSubtitleSha256 != subtitleSha256 ||
             originalContentSha256 != refreshed.mediaSha256 ||
