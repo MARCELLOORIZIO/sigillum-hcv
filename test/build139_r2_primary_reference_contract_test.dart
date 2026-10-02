@@ -11,8 +11,7 @@ void main() {
   final verifier = File('lib/registry_verify_page.dart').readAsStringSync();
   final camera = File('lib/camera_page.dart').readAsStringSync();
   final originals = File('lib/secure_originals_page.dart').readAsStringSync();
-  final discovery =
-      File('lib/verified_originals_page.dart').readAsStringSync();
+  final discovery = File('lib/verified_originals_page.dart').readAsStringSync();
   final manual =
       File('lib/manual_reference_compare_page.dart').readAsStringSync();
   final viewer =
@@ -29,7 +28,8 @@ void main() {
     expect(reference, contains('bool get isPrivateR2'));
   });
 
-  test('publisher uses provider-neutral live gate and authenticated R2 read', () {
+  test('publisher uses provider-neutral live gate and authenticated R2 read',
+      () {
     expect(publisher, contains("live['referenceLive'] == true"));
     expect(publisher, contains("live['youtubeLive'] == true"));
     expect(

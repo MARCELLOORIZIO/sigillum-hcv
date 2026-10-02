@@ -596,6 +596,7 @@ class VerifiedOriginalsPublishService {
       client.close(force: true);
     }
   }
+
   Future<void> withdrawReference(HCVSecureOriginalRecord record) async {
     final response = await _json(
       'POST',

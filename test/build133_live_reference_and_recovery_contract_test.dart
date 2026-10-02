@@ -270,7 +270,8 @@ void main() {
     expect(manualCompare, contains('target = Uri.https('));
     expect(manualCompare, contains("'t':"));
     expect(manualCompare, contains('LaunchMode.externalApplication'));
-    expect(manualCompare, contains('materializeEntitledReference(widget.hcvId)'));
+    expect(
+        manualCompare, contains('materializeEntitledReference(widget.hcvId)'));
 
     expect(verifier, contains('ManualReferenceComparePage('));
     expect(verifier, contains("_r('manualCompareAction')"));
