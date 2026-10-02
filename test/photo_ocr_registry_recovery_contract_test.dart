@@ -11,7 +11,7 @@ void main() {
     expect(ocr, contains('extractFocusedFromImage(String path)'));
     expect(ocr, contains('_buildYellowIdMask('));
     expect(ocr, contains('img.Interpolation.nearest'));
-    expect(ocr, contains('hcv_id_ocr_focused_${stamp}_yellow.png'));
+    expect(ocr, contains(r'hcv_id_ocr_focused_${stamp}_yellow.png'));
     expect(ocr, contains('extractCandidatesFromImage(String path)'));
     expect(ocr, contains('buildRegistryRecoveryVariants('));
     expect(ocr, contains("'0' => 'C'"));
