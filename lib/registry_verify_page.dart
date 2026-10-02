@@ -1408,7 +1408,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       bool? imageFingerprintMatches;
 
       // Exact originals do not need a network reference lookup. For derived
-      // photo/video content, the official live YouTube reference is checked
+      // photo/video content, the official SIGILLUM reference is checked
       // first. Legacy V1/V2 visual matching remains available only for content
       // that cannot enter the modern official-reference path.
       if (!forensicVerified && !socialTextVerified) {
@@ -1542,7 +1542,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; il riferimento YouTube ufficiale non è verificabile in questo momento.',
+                  'HCV-ID e certificato Registry validi; il riferimento ufficiale SIGILLUM non è disponibile in questo momento.',
               integrity: 'Non conclusiva',
               integrityDetail: _r('officialReferenceUnavailableDetail'),
               scene: 'Non applicabile',
@@ -1559,7 +1559,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; reference YouTube attiva e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
+                  'HCV-ID e certificato Registry validi; riferimento ufficiale SIGILLUM disponibile e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
               integrity: 'Copia modificata',
               integrityDetail: _r('officialReferenceModifiedDetail'),
               scene: 'Non applicabile',
@@ -1576,7 +1576,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; la reference YouTube ufficiale è attiva, ma il confronto V3 non è conclusivo.',
+                  'HCV-ID e certificato Registry validi; il riferimento ufficiale SIGILLUM è disponibile, ma il confronto V3 non è conclusivo.',
               integrity: 'Non conclusiva',
               integrityDetail: _r('officialReferenceInconclusiveDetail'),
               scene: 'Non applicabile',
@@ -1601,7 +1601,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; reference YouTube attiva e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
+                  'HCV-ID e certificato Registry validi; riferimento ufficiale SIGILLUM disponibile e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
               integrity: 'Copia conforme',
               integrityDetail: _r('officialReferenceConformingDetail'),
               scene: 'Non applicabile',
