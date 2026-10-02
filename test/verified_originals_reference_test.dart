@@ -49,7 +49,7 @@ void main() {
       requestedHcvId: id,
     );
     expect(ref, isNotNull);
-    expect(ref!.publicUrl.host, 'www.youtube.com');
+    expect(ref!.publicUrl!.host, 'www.youtube.com');
     expect(ref.platform, 'youtube');
   });
 
