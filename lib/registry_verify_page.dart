@@ -825,6 +825,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (!_isCanonicalHcvId(hcvId)) return null;
 
     _officialReferenceChecked = true;
+    _officialReferenceMatchedDerivationType = null;
     try {
       final availability = await const VerifiedOriginalsPublishService()
           .verificationReference(hcvId);
@@ -846,23 +847,58 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return null;
       }
 
-      final raw = availability['referenceVisualFingerprint'];
-      if (!HCVReferenceVisualFingerprintV3.isValid(raw)) {
-        return HCVReferenceVisualVerdict.inconclusive;
-      }
-
       final local = Stopwatch()..start();
       final current = mediaType == 'photo'
           ? await HCVReferenceVisualFingerprintV3.buildFromPhoto(mediaPath!)
           : await HCVReferenceVisualFingerprintV3.buildFromVideo(mediaPath!);
+
+      HCVReferenceVisualVerdict primaryVerdict =
+          HCVReferenceVisualVerdict.inconclusive;
+      final raw = availability['referenceVisualFingerprint'];
+      if (HCVReferenceVisualFingerprintV3.isValid(raw)) {
+        primaryVerdict = HCVReferenceVisualFingerprintV3.compare(
+          raw as Map,
+          current,
+        ).verdict;
+        if (primaryVerdict == HCVReferenceVisualVerdict.conforming) {
+          _officialReferenceLocalMs = local.elapsedMilliseconds;
+          return primaryVerdict;
+        }
+      }
+
+      if (mediaType == 'video') {
+        final authorized = availability['authorizedDerivations'];
+        if (authorized is List) {
+          for (final entry in authorized) {
+            if (entry is! Map) continue;
+            if (entry['referenceRole'] != 'DERIVED_REFERENCE' ||
+                entry['editorialImpact'] != 'caption_overlay') {
+              continue;
+            }
+            final fingerprint = entry['referenceVisualFingerprint'];
+            if (!HCVReferenceVisualFingerprintV3.isValid(fingerprint)) {
+              continue;
+            }
+            final comparison = HCVReferenceVisualFingerprintV3.compare(
+              fingerprint as Map,
+              current,
+            );
+            if (comparison.verdict == HCVReferenceVisualVerdict.conforming) {
+              _officialReferenceMatchedDerivationType =
+                  entry['derivationType']?.toString();
+              _officialReferenceLocalMs = local.elapsedMilliseconds;
+              return HCVReferenceVisualVerdict.conforming;
+            }
+          }
+        }
+      }
+
       _officialReferenceLocalMs = local.elapsedMilliseconds;
-      return HCVReferenceVisualFingerprintV3.compare(
-        raw as Map,
-        current,
-      ).verdict;
+      return primaryVerdict;
     } catch (_) {
       _officialReferenceLiveAvailable = false;
       _officialReferenceCommentsDisabled = null;
+      _officialReferenceMatchedDerivationType = null;
       return null;
     }
   }
@@ -982,6 +1018,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   int? _officialReferenceLocalMs;
   int? _verificationTotalMs;
   String? _officialReferenceComparisonMode;
+  String? _officialReferenceMatchedDerivationType;
 
   @override
   void initState() {
@@ -1194,6 +1231,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _officialReferenceLocalMs = null;
       _verificationTotalMs = null;
       _officialReferenceComparisonMode = null;
+      _officialReferenceMatchedDerivationType = null;
 
       status = _r('downloadingCertificate');
       _clearVerificationAxes();
@@ -1588,6 +1626,24 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           } else if (contentType == 'video' &&
               officialReferenceVisualVerdict ==
                   HCVReferenceVisualVerdict.conforming &&
+              _officialReferenceMatchedDerivationType ==
+                  'subtitle_burn_in_reference_v1' &&
+              audioFingerprintMatches != false) {
+            status = _r('authorizedSubtitleConforming');
+            result = 'AUTHORIZED SUBTITLE DERIVATIVE VERIFIED';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail: _r('authorizedSubtitleProvenanceDetail'),
+              integrity: 'Derivazione autorizzata',
+              integrityDetail: _r('authorizedSubtitleIntegrityDetail'),
+              scene: 'Scena originale certificata',
+              sceneDetail: _r('authorizedSubtitleSceneDetail'),
+              derivation: 'Sottotitoli autorizzati',
+              derivationDetail: _r('authorizedSubtitleDerivationDetail'),
+            );
+          } else if (contentType == 'video' &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.conforming &&
               audioFingerprintMatches == false) {
             status = hcvIdWasDetectedInMedia
                 ? _r('audioMismatchDetected')
@@ -1774,7 +1830,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return value.startsWith('HUMAN VERIFIED') ||
         value.startsWith('FORENSIC VERIFIED') ||
         value.startsWith('SOCIAL VERIFIED') ||
-        value == 'OFFICIAL COPY VERIFIED';
+        value == 'OFFICIAL COPY VERIFIED' ||
+        value == 'AUTHORIZED SUBTITLE DERIVATIVE VERIFIED';
   }
 
   bool get isScreenReplayWarning => (result ?? '').contains('SCREEN RISK');
@@ -1929,10 +1986,15 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   bool get _isUnprovenDerivative => result == _unprovenDerivativeResult;
 
+  bool get _isAuthorizedSubtitleDerivative =>
+      result == 'AUTHORIZED SUBTITLE DERIVATIVE VERIFIED';
+
   // Never transfer signed original-scene claims to an unbound PHOTO/VIDEO copy,
   // including V1-only, fingerprint mismatch and copied-HCV-ID cases.
   bool get _isNonExactPhotoOrVideo =>
-      (contentType == 'photo' || contentType == 'video') && !_isForensicResult;
+      (contentType == 'photo' || contentType == 'video') &&
+      !_isForensicResult &&
+      !_isAuthorizedSubtitleDerivative;
 
   bool get _canShowCertifiedOriginalScene =>
       _isNonExactPhotoOrVideo && _isOfficialReferenceVerified;
@@ -2148,6 +2210,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String _localizedAxisState(String axis, String? raw) {
     final value = (raw ?? '').toLowerCase();
+    if (_isAuthorizedSubtitleDerivative) {
+      switch (axis) {
+        case 'provenance':
+          return _r('authorizedSubtitleProvenanceState');
+        case 'integrity':
+          return _r('authorizedSubtitleIntegrityState');
+        case 'scene':
+          return _r('authorizedSubtitleSceneState');
+        case 'derivation':
+          return _r('authorizedSubtitleDerivationState');
+      }
+    }
     if (_isUnprovenDerivative && axis == 'provenance') {
       return _r('unprovenDerivativeProvenance');
     }
@@ -2186,6 +2260,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   }
 
   String _localizedAxisDetail(String axis) {
+    if (_isAuthorizedSubtitleDerivative) {
+      switch (axis) {
+        case 'provenance':
+          return _r('authorizedSubtitleProvenanceDetail');
+        case 'integrity':
+          return _r('authorizedSubtitleIntegrityDetail');
+        case 'scene':
+          return _r('authorizedSubtitleSceneDetail');
+        case 'derivation':
+          return _r('authorizedSubtitleDerivationDetail');
+      }
+    }
     if (axis == 'scene' && _isNonExactPhotoOrVideo) {
       return _r('unprovenDerivativeDetail');
     }
@@ -2219,6 +2305,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         certificate == null ||
         result == null ||
         _isOfficialReferenceUnavailable ||
+        _isAuthorizedSubtitleDerivative ||
         !_isCanonicalHcvId(id)) {
       return false;
     }
@@ -2251,6 +2338,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _publicResultTitle {
     if (_isForensicResult) return _v('forensicOk');
+    if (_isAuthorizedSubtitleDerivative) {
+      return _r('authorizedSubtitleConformingTitle');
+    }
     if (_isOfficialReferenceVerified) {
       return _r('officialReferenceConformingTitle');
     }
@@ -2275,6 +2365,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _publicResultDetail {
     if (_isForensicResult) return _v('forensicOkDetail');
+    if (_isAuthorizedSubtitleDerivative) {
+      return _r('authorizedSubtitleConformingDetail');
+    }
     if (_isOfficialReferenceVerified) {
       return _r('officialReferenceConformingDetail');
     }

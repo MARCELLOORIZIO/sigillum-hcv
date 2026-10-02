@@ -2201,13 +2201,12 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<_SubtitleExportDecision?> _subtitleExportDecision() async {
     var rights = false;
-    var monetization = false;
     return showDialog<_SubtitleExportDecision>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
-          title: Text(_t('secureOriginalsShareTitle')),
+          title: Text(_c('subtitleExportTitle')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2221,14 +2220,6 @@ class _CameraPageState extends State<CameraPage> {
                       setLocalState(() => rights = value == true),
                   title: Text(_t('secureOriginalsRightsConfirm')),
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: monetization,
-                  onChanged: (value) =>
-                      setLocalState(() => monetization = value),
-                  title: Text(_t('secureOriginalsMonetization')),
-                  subtitle: Text(_t('secureOriginalsMonetizationHint')),
-                ),
               ],
             ),
           ),
@@ -2241,9 +2232,7 @@ class _CameraPageState extends State<CameraPage> {
               onPressed: rights
                   ? () => Navigator.pop(
                         dialogContext,
-                        _SubtitleExportDecision(
-                          monetizationConsent: monetization,
-                        ),
+                        const _SubtitleExportDecision(),
                       )
                   : null,
               child: Text(_t('secureOriginalsContinueShare')),
@@ -2283,7 +2272,7 @@ class _CameraPageState extends State<CameraPage> {
     try {
       await _publisher.ensureSubtitleReference(
         current,
-        monetizationConsent: decision.monetizationConsent,
+        monetizationConsent: false,
       );
       final refreshed = await _secureVault.find(current.hcvId);
       if (refreshed == null || !refreshed.hasSubtitleReference) {
@@ -3266,9 +3255,5 @@ class _CameraPageState extends State<CameraPage> {
 }
 
 class _SubtitleExportDecision {
-  const _SubtitleExportDecision({
-    required this.monetizationConsent,
-  });
-
-  final bool monetizationConsent;
+  const _SubtitleExportDecision();
 }
