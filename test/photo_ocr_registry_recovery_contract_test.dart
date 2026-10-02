@@ -62,7 +62,8 @@ void main() {
     expect(helper, contains("lower.endsWith('.m4v')"));
     expect(helper, contains('_deepVideoOcrCandidates(path)'));
     expect(helper, contains('return await _fetchCertificateExact(hcvId);'));
-    expect(helper, contains('candidateError.kind == HCVRegistryFailureKind.notFound'));
+    expect(helper,
+        contains('candidateError.kind == HCVRegistryFailureKind.notFound'));
     expect(helper, contains('maxVariants: 24'));
     expect(helper, isNot(contains('_b8Variants(')));
     expect(helper, isNot(contains('_fetchCertificate(candidate)')));

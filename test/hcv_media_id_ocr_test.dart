@@ -82,8 +82,8 @@ void main() {
       );
     });
 
-
-    test('Registry recovery covers the physical Messenger C-to-0 OCR error', () {
+    test('Registry recovery covers the physical Messenger C-to-0 OCR error',
+        () {
       final variants = HCVMediaIdOcr.buildRegistryRecoveryVariants(const [
         'HCV-58499808ECB04900',
       ]);
