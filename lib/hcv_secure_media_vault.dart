@@ -28,7 +28,9 @@ class HCVSecureOriginalRecord {
     required this.certificatePath,
     required this.createdAt,
     this.publicationId,
+    this.referencePlatform,
     this.referenceUrl,
+    this.referenceReadAuthorizationPath,
     this.referenceSha256,
     this.publishedAt,
     this.captionedMediaSha256,
@@ -38,6 +40,7 @@ class HCVSecureOriginalRecord {
     this.subtitleSize,
     this.encryptedSubtitlePath,
     this.subtitlePublicationId,
+    this.subtitleReferencePlatform,
     this.subtitleReferenceUrl,
     this.subtitleReferenceSha256,
     this.subtitlePublishedAt,
@@ -57,7 +60,9 @@ class HCVSecureOriginalRecord {
   final String certificatePath;
   final DateTime createdAt;
   final String? publicationId;
+  final String? referencePlatform;
   final String? referenceUrl;
+  final String? referenceReadAuthorizationPath;
   final String? referenceSha256;
   final DateTime? publishedAt;
   final String? captionedMediaSha256;
@@ -67,6 +72,7 @@ class HCVSecureOriginalRecord {
   final int? subtitleSize;
   final String? encryptedSubtitlePath;
   final String? subtitlePublicationId;
+  final String? subtitleReferencePlatform;
   final String? subtitleReferenceUrl;
   final String? subtitleReferenceSha256;
   final DateTime? subtitlePublishedAt;
@@ -81,22 +87,48 @@ class HCVSecureOriginalRecord {
       encryptedSubtitlePath != null &&
       encryptedSubtitlePath!.isNotEmpty;
 
-  bool get hasSubtitleReference =>
-      subtitlePublicationId != null &&
-      subtitlePublicationId!.isNotEmpty &&
-      subtitleReferenceUrl != null &&
-      subtitleReferenceUrl!.isNotEmpty &&
-      subtitleReferenceSha256 != null &&
-      _shaLike(subtitleReferenceSha256!);
+  String? get effectiveReferencePlatform {
+    final explicit = referencePlatform?.trim().toLowerCase();
+    if (explicit == 'youtube' || explicit == 'r2') return explicit;
+    if ((referenceUrl?.trim().isNotEmpty ?? false)) return 'youtube';
+    return null;
+  }
+
+  String? get effectiveSubtitleReferencePlatform {
+    final explicit = subtitleReferencePlatform?.trim().toLowerCase();
+    if (explicit == 'youtube' || explicit == 'r2') return explicit;
+    if ((subtitleReferenceUrl?.trim().isNotEmpty ?? false)) return 'youtube';
+    return null;
+  }
+
+  bool get hasSubtitleReference {
+    final platform = effectiveSubtitleReferencePlatform;
+    final locatorValid = platform == 'r2' ||
+        (platform == 'youtube' &&
+            (subtitleReferenceUrl?.trim().isNotEmpty ?? false));
+    return subtitlePublicationId != null &&
+        subtitlePublicationId!.isNotEmpty &&
+        subtitleReferenceSha256 != null &&
+        _shaLike(subtitleReferenceSha256!) &&
+        locatorValid;
+  }
 
   static bool _shaLike(String value) =>
       RegExp(r'^[a-f0-9]{64}$').hasMatch(value);
 
-  bool get hasReference =>
-      publicationId != null &&
-      publicationId!.isNotEmpty &&
-      referenceUrl != null &&
-      referenceUrl!.isNotEmpty;
+  bool get hasReference {
+    final platform = effectiveReferencePlatform;
+    final locatorValid =
+        (platform == 'youtube' &&
+            (referenceUrl?.trim().isNotEmpty ?? false)) ||
+        (platform == 'r2' &&
+            (referenceReadAuthorizationPath?.trim().isNotEmpty ?? false));
+    return publicationId != null &&
+        publicationId!.isNotEmpty &&
+        referenceSha256 != null &&
+        _shaLike(referenceSha256!) &&
+        locatorValid;
+  }
 
   Map<String, dynamic> toJson() => {
         'hcvId': hcvId,
@@ -113,7 +145,10 @@ class HCVSecureOriginalRecord {
         'certificatePath': certificatePath,
         'createdAt': createdAt.toUtc().toIso8601String(),
         if (publicationId != null) 'publicationId': publicationId,
+        if (referencePlatform != null) 'referencePlatform': referencePlatform,
         if (referenceUrl != null) 'referenceUrl': referenceUrl,
+        if (referenceReadAuthorizationPath != null)
+          'referenceReadAuthorizationPath': referenceReadAuthorizationPath,
         if (referenceSha256 != null) 'referenceSha256': referenceSha256,
         if (publishedAt != null)
           'publishedAt': publishedAt!.toUtc().toIso8601String(),
@@ -129,6 +164,8 @@ class HCVSecureOriginalRecord {
           'encryptedSubtitlePath': encryptedSubtitlePath,
         if (subtitlePublicationId != null)
           'subtitlePublicationId': subtitlePublicationId,
+        if (subtitleReferencePlatform != null)
+          'subtitleReferencePlatform': subtitleReferencePlatform,
         if (subtitleReferenceUrl != null)
           'subtitleReferenceUrl': subtitleReferenceUrl,
         if (subtitleReferenceSha256 != null)
@@ -155,7 +192,13 @@ class HCVSecureOriginalRecord {
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       publicationId: json['publicationId']?.toString(),
+      referencePlatform: json['referencePlatform']?.toString() ??
+          ((json['referenceUrl']?.toString().isNotEmpty ?? false)
+              ? 'youtube'
+              : null),
       referenceUrl: json['referenceUrl']?.toString(),
+      referenceReadAuthorizationPath:
+          json['referenceReadAuthorizationPath']?.toString(),
       referenceSha256: json['referenceSha256']?.toString(),
       publishedAt: DateTime.tryParse(json['publishedAt']?.toString() ?? ''),
       captionedMediaSha256: json['captionedMediaSha256']?.toString(),
@@ -166,6 +209,11 @@ class HCVSecureOriginalRecord {
       subtitleSize: (json['subtitleSize'] as num?)?.toInt(),
       encryptedSubtitlePath: json['encryptedSubtitlePath']?.toString(),
       subtitlePublicationId: json['subtitlePublicationId']?.toString(),
+      subtitleReferencePlatform:
+          json['subtitleReferencePlatform']?.toString() ??
+              ((json['subtitleReferenceUrl']?.toString().isNotEmpty ?? false)
+                  ? 'youtube'
+                  : null),
       subtitleReferenceUrl: json['subtitleReferenceUrl']?.toString(),
       subtitleReferenceSha256: json['subtitleReferenceSha256']?.toString(),
       subtitlePublishedAt:
@@ -691,7 +739,10 @@ class HCVSecureMediaVault {
       certificatePath: certificate.absolute.path,
       createdAt: existingBefore?.createdAt ?? DateTime.now().toUtc(),
       publicationId: existingBefore?.publicationId,
+      referencePlatform: existingBefore?.referencePlatform,
       referenceUrl: existingBefore?.referenceUrl,
+      referenceReadAuthorizationPath:
+          existingBefore?.referenceReadAuthorizationPath,
       referenceSha256: existingBefore?.referenceSha256,
       publishedAt: existingBefore?.publishedAt,
       captionedMediaSha256: existingBefore?.captionedMediaSha256,
@@ -701,6 +752,7 @@ class HCVSecureMediaVault {
       subtitleSize: existingBefore?.subtitleSize,
       encryptedSubtitlePath: existingBefore?.encryptedSubtitlePath,
       subtitlePublicationId: existingBefore?.subtitlePublicationId,
+      subtitleReferencePlatform: existingBefore?.subtitleReferencePlatform,
       subtitleReferenceUrl: existingBefore?.subtitleReferenceUrl,
       subtitleReferenceSha256: existingBefore?.subtitleReferenceSha256,
       subtitlePublishedAt: existingBefore?.subtitlePublishedAt,
@@ -998,7 +1050,10 @@ class HCVSecureMediaVault {
           certificatePath: latest.certificatePath,
           createdAt: latest.createdAt,
           publicationId: latest.publicationId,
+          referencePlatform: latest.referencePlatform,
           referenceUrl: latest.referenceUrl,
+          referenceReadAuthorizationPath:
+              latest.referenceReadAuthorizationPath,
           referenceSha256: latest.referenceSha256,
           publishedAt: latest.publishedAt,
           captionedMediaSha256: captionedHash,
@@ -1104,7 +1159,8 @@ class HCVSecureMediaVault {
   Future<void> markSubtitleReference({
     required String hcvId,
     required String publicationId,
-    required String referenceUrl,
+    required String referencePlatform,
+    String? referenceUrl,
     required String referenceSha256,
     required String captionedMediaSha256,
     required String subtitleSha256,
@@ -1113,6 +1169,13 @@ class HCVSecureMediaVault {
         !_shaPattern.hasMatch(captionedMediaSha256) ||
         !_shaPattern.hasMatch(subtitleSha256)) {
       throw ArgumentError('SECURE_VAULT_SUBTITLE_REFERENCE_HASH_INVALID');
+    }
+    final platform = referencePlatform.trim().toLowerCase();
+    final locatorValid = platform == 'r2' ||
+        (platform == 'youtube' &&
+            (referenceUrl?.trim().isNotEmpty ?? false));
+    if (!locatorValid) {
+      throw ArgumentError('SECURE_VAULT_SUBTITLE_REFERENCE_LOCATOR_INVALID');
     }
 
     await _withIndexLock(() async {
@@ -1142,7 +1205,10 @@ class HCVSecureMediaVault {
         certificatePath: current.certificatePath,
         createdAt: current.createdAt,
         publicationId: current.publicationId,
+        referencePlatform: current.referencePlatform,
         referenceUrl: current.referenceUrl,
+        referenceReadAuthorizationPath:
+            current.referenceReadAuthorizationPath,
         referenceSha256: current.referenceSha256,
         publishedAt: current.publishedAt,
         captionedMediaSha256: current.captionedMediaSha256,
@@ -1152,6 +1218,7 @@ class HCVSecureMediaVault {
         subtitleSize: current.subtitleSize,
         encryptedSubtitlePath: current.encryptedSubtitlePath,
         subtitlePublicationId: publicationId,
+        subtitleReferencePlatform: platform,
         subtitleReferenceUrl: referenceUrl,
         subtitleReferenceSha256: referenceSha256,
         subtitlePublishedAt: DateTime.now().toUtc(),
@@ -1163,11 +1230,22 @@ class HCVSecureMediaVault {
   Future<void> markReference({
     required String hcvId,
     required String publicationId,
-    required String referenceUrl,
+    required String referencePlatform,
+    String? referenceUrl,
+    String? referenceReadAuthorizationPath,
     required String referenceSha256,
   }) async {
     if (!_shaPattern.hasMatch(referenceSha256)) {
       throw ArgumentError('SECURE_VAULT_REFERENCE_HASH_INVALID');
+    }
+    final platform = referencePlatform.trim().toLowerCase();
+    final locatorValid =
+        (platform == 'youtube' &&
+            (referenceUrl?.trim().isNotEmpty ?? false)) ||
+        (platform == 'r2' &&
+            (referenceReadAuthorizationPath?.trim().isNotEmpty ?? false));
+    if (!locatorValid) {
+      throw ArgumentError('SECURE_VAULT_REFERENCE_LOCATOR_INVALID');
     }
     await _withIndexLock(() async {
       final records = await _loadIndex();
@@ -1193,7 +1271,9 @@ class HCVSecureMediaVault {
         certificatePath: current.certificatePath,
         createdAt: current.createdAt,
         publicationId: publicationId,
+        referencePlatform: platform,
         referenceUrl: referenceUrl,
+        referenceReadAuthorizationPath: referenceReadAuthorizationPath,
         referenceSha256: referenceSha256,
         publishedAt: DateTime.now().toUtc(),
         captionedMediaSha256: current.captionedMediaSha256,
@@ -1203,6 +1283,7 @@ class HCVSecureMediaVault {
         subtitleSize: current.subtitleSize,
         encryptedSubtitlePath: current.encryptedSubtitlePath,
         subtitlePublicationId: current.subtitlePublicationId,
+        subtitleReferencePlatform: current.subtitleReferencePlatform,
         subtitleReferenceUrl: current.subtitleReferenceUrl,
         subtitleReferenceSha256: current.subtitleReferenceSha256,
         subtitlePublishedAt: current.subtitlePublishedAt,
@@ -1242,6 +1323,7 @@ class HCVSecureMediaVault {
         subtitleSize: current.subtitleSize,
         encryptedSubtitlePath: current.encryptedSubtitlePath,
         subtitlePublicationId: current.subtitlePublicationId,
+        subtitleReferencePlatform: current.subtitleReferencePlatform,
         subtitleReferenceUrl: current.subtitleReferenceUrl,
         subtitleReferenceSha256: current.subtitleReferenceSha256,
         subtitlePublishedAt: current.subtitlePublishedAt,
