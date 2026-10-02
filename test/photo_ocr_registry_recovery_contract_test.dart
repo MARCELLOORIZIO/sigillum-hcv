@@ -8,6 +8,10 @@ void main() {
     final registry = File('lib/registry_verify_page.dart').readAsStringSync();
     final ocr = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
 
+    expect(ocr, contains('extractFocusedFromImage(String path)'));
+    expect(ocr, contains('_buildYellowIdMask('));
+    expect(ocr, contains('img.Interpolation.nearest'));
+    expect(ocr, contains('hcv_id_ocr_focused_${stamp}_yellow.png'));
     expect(ocr, contains('extractCandidatesFromImage(String path)'));
     expect(ocr, contains('buildRegistryRecoveryVariants('));
     expect(ocr, contains("'0' => 'C'"));
