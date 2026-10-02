@@ -26,6 +26,19 @@ void main() {
       );
     });
 
+    test('repairs the BUILD141 recompressed photo OCR shape', () {
+      expect(
+        HCVMediaIdOcr.extractFromRecognizedText('HCV-74I6CO67C2O74FF4'),
+        'HCV-7416C067C2074FF4',
+      );
+    });
+
+    test('yellow watermark gate keeps gold ID pixels but rejects neutrals', () {
+      expect(HCVMediaIdOcr.isSigillumIdYellow(245, 205, 30), isTrue);
+      expect(HCVMediaIdOcr.isSigillumIdYellow(205, 205, 205), isFalse);
+      expect(HCVMediaIdOcr.isSigillumIdYellow(125, 105, 25), isFalse);
+    });
+
     test('consensus rejects a single 6-to-0 OCR error', () {
       expect(
         HCVMediaIdOcr.selectConsensusCandidate(const [
