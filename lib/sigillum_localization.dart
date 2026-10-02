@@ -1097,8 +1097,7 @@ class SigillumCopy {
       'secureOriginalsShareComplete': 'Отправка завершена или закрыта.',
       'secureOriginalsShareBlocked': 'Отправка заблокирована',
       'secureOriginalsReferencePublished': 'Официальный эталон зарегистрирован',
-      'secureOriginalsReferencePending':
-          'Официальный эталон ещё недоступен',
+      'secureOriginalsReferencePending': 'Официальный эталон ещё недоступен',
       'secureOriginalsWithdraw': 'ОТОЗВАТЬ ОФИЦИАЛЬНУЮ КОПИЮ',
       'secureOriginalsWithdrawTitle': 'Отозвать официальную копию',
       'secureOriginalsWithdrawBody':
