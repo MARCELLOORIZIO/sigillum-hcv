@@ -12,6 +12,7 @@ import 'hcv_secure_preview_service.dart';
 import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
 import 'verified_originals_publish_service.dart';
+import 'verified_reference_viewer_page.dart';
 
 class SecureOriginalsPage extends StatefulWidget {
   const SecureOriginalsPage({
@@ -282,15 +283,54 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
   }
 
   Future<void> _openOfficialCopy(HCVSecureOriginalRecord record) async {
-    final raw = record.referenceUrl?.trim() ?? '';
-    final uri = Uri.tryParse(raw);
-    if (uri == null || !uri.hasScheme) {
-      setState(() => _message = _t('voOpenError'));
-      return;
-    }
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      setState(() => _message = _t('voOpenError'));
+    if (_busyId != null) return;
+    setState(() {
+      _busyId = record.hcvId;
+      _message = null;
+    });
+
+    File? privateReference;
+    try {
+      final raw = record.referenceUrl?.trim() ?? '';
+      final uri = Uri.tryParse(raw);
+      if (uri != null && uri.hasScheme) {
+        final opened =
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!opened) {
+          throw StateError('REFERENCE_OPEN_FAILED');
+        }
+        return;
+      }
+
+      privateReference =
+          await _publisher.materializeEntitledReference(record.hcvId);
+      if (!mounted) {
+        try {
+          await privateReference.delete();
+        } catch (_) {}
+        return;
+      }
+      final ownedFile = privateReference;
+      privateReference = null;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => VerifiedReferenceViewerPage(
+            file: ownedFile,
+            title: _t('secureOriginalsOfficialCopy'),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (privateReference != null) {
+        try {
+          await privateReference.delete();
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() => _message = _t('voOpenError'));
+      }
+    } finally {
+      if (mounted) setState(() => _busyId = null);
     }
   }
 
