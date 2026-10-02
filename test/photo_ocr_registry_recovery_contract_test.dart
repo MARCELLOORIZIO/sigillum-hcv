@@ -8,6 +8,10 @@ void main() {
     final registry = File('lib/registry_verify_page.dart').readAsStringSync();
     final ocr = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
 
+    expect(ocr, contains('extractFocusedFromImage(String path)'));
+    expect(ocr, contains('_buildYellowIdMask('));
+    expect(ocr, contains('img.Interpolation.nearest'));
+    expect(ocr, contains(r'hcv_id_ocr_focused_${stamp}_yellow.png'));
     expect(ocr, contains('extractCandidatesFromImage(String path)'));
     expect(ocr, contains('buildRegistryRecoveryVariants('));
     expect(ocr, contains("'0' => 'C'"));
@@ -58,7 +62,8 @@ void main() {
     expect(helper, contains("lower.endsWith('.m4v')"));
     expect(helper, contains('_deepVideoOcrCandidates(path)'));
     expect(helper, contains('return await _fetchCertificateExact(hcvId);'));
-    expect(helper, contains('candidateError.kind == HCVRegistryFailureKind.notFound'));
+    expect(helper,
+        contains('candidateError.kind == HCVRegistryFailureKind.notFound'));
     expect(helper, contains('maxVariants: 24'));
     expect(helper, isNot(contains('_b8Variants(')));
     expect(helper, isNot(contains('_fetchCertificate(candidate)')));

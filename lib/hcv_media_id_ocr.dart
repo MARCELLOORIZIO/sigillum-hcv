@@ -96,6 +96,28 @@ class HCVMediaIdOcr {
     return ranked.isEmpty ? null : ranked.first;
   }
 
+  /// Color gate for the yellow HCV-ID rendered by SIGILLUM photo
+  /// watermarks. The thresholds are deliberately broad enough to survive
+  /// JPEG/social recompression while still excluding neutral highlights.
+  static bool isSigillumIdYellow(num r, num g, num b) {
+    return r >= 145 &&
+        g >= 110 &&
+        b <= 165 &&
+        (r - b) >= 50 &&
+        (g - b) >= 30 &&
+        r >= (g - 55);
+  }
+
+  static img.Image _buildYellowIdMask(img.Image source) {
+    final mask = img.Image(width: source.width, height: source.height);
+    for (final pixel in source) {
+      final isId = isSigillumIdYellow(pixel.r, pixel.g, pixel.b);
+      final value = isId ? 0 : 255;
+      mask.setPixelRgb(pixel.x, pixel.y, value, value, value);
+    }
+    return mask;
+  }
+
   /// Fast precheck: exactly one native OCR pass.
   ///
   /// Video verification uses this bounded path on one extracted frame. Photo
@@ -109,15 +131,17 @@ class HCVMediaIdOcr {
 
   /// Bounded still-image fallback for the public PHOTO precheck.
   ///
-  /// The fast pass has already inspected the full image. This method performs
-  /// exactly one additional OCR reading on an enlarged top crop, where the
-  /// visible SIGILLUM HCV-ID watermark is rendered. Full multi-crop consensus
-  /// remains reserved for deeper Registry recovery.
+  /// The fast pass has already inspected the full image. This method first
+  /// reads an enlarged top crop. If that misses, it performs one additional
+  /// OCR pass on a high-contrast chroma mask that isolates the yellow HCV-ID.
+  /// This specifically protects socially recompressed photos where the yellow
+  /// ID remains visible to a person but loses enough luminance contrast for
+  /// the normal OCR pass.
   static Future<String?> extractFocusedFromImage(String path) async {
     final source = File(path);
     if (!await source.exists()) return null;
 
-    File? candidate;
+    final temporaryCandidates = <File>[];
     try {
       final bytes = await source.readAsBytes();
       final decoded = img.decodeImage(bytes);
@@ -142,30 +166,51 @@ class HCVMediaIdOcr {
         120,
         (cropped.height * targetWidth / cropped.width).round(),
       );
+      final tempDir = await getTemporaryDirectory();
+      final stamp = DateTime.now().microsecondsSinceEpoch;
+
       final enlarged = img.copyResize(
         cropped,
         width: targetWidth,
         height: targetHeight,
         interpolation: img.Interpolation.cubic,
       );
-
-      final tempDir = await getTemporaryDirectory();
-      candidate = File(
-        p.join(
-          tempDir.path,
-          'hcv_id_ocr_focused_${DateTime.now().microsecondsSinceEpoch}.png',
-        ),
+      final normalCandidate = File(
+        p.join(tempDir.path, 'hcv_id_ocr_focused_${stamp}_normal.png'),
       );
-      await candidate.writeAsBytes(img.encodePng(enlarged), flush: true);
-      return await _recognizePath(candidate.path);
+      await normalCandidate.writeAsBytes(img.encodePng(enlarged), flush: true);
+      temporaryCandidates.add(normalCandidate);
+
+      final normalId = await _recognizePath(normalCandidate.path);
+      if (normalId != null) return normalId;
+
+      final masked = _buildYellowIdMask(cropped);
+      final maskedEnlarged = img.copyResize(
+        masked,
+        width: targetWidth,
+        height: targetHeight,
+        interpolation: img.Interpolation.nearest,
+      );
+      final maskCandidate = File(
+        p.join(tempDir.path, 'hcv_id_ocr_focused_${stamp}_yellow.png'),
+      );
+      await maskCandidate.writeAsBytes(
+        img.encodePng(maskedEnlarged),
+        flush: true,
+      );
+      temporaryCandidates.add(maskCandidate);
+
+      return await _recognizePath(maskCandidate.path);
     } catch (_) {
       return null;
     } finally {
-      try {
-        if (candidate != null && await candidate.exists()) {
-          await candidate.delete();
-        }
-      } catch (_) {}
+      for (final candidate in temporaryCandidates) {
+        try {
+          if (await candidate.exists()) {
+            await candidate.delete();
+          }
+        } catch (_) {}
+      }
     }
   }
 
@@ -226,6 +271,41 @@ class HCVMediaIdOcr {
         await candidate.writeAsBytes(img.encodePng(enlarged), flush: true);
         temporaryCandidates.add(candidate);
       }
+
+      final yellowCropHeight = max(
+        32,
+        min(decoded.height, (decoded.height * 0.20).round()),
+      );
+      final yellowCrop = img.copyCrop(
+        decoded,
+        x: 0,
+        y: 0,
+        width: max(32, (decoded.width * 0.98).round()),
+        height: yellowCropHeight,
+      );
+      final yellowMask = _buildYellowIdMask(yellowCrop);
+      final yellowWidth = min(2400, max(1200, yellowCrop.width * 4));
+      final yellowHeight = max(
+        120,
+        (yellowCrop.height * yellowWidth / yellowCrop.width).round(),
+      );
+      final yellowEnlarged = img.copyResize(
+        yellowMask,
+        width: yellowWidth,
+        height: yellowHeight,
+        interpolation: img.Interpolation.nearest,
+      );
+      final yellowCandidate = File(
+        p.join(
+          tempDir.path,
+          'hcv_id_ocr_yellow_${DateTime.now().microsecondsSinceEpoch}.png',
+        ),
+      );
+      await yellowCandidate.writeAsBytes(
+        img.encodePng(yellowEnlarged),
+        flush: true,
+      );
+      temporaryCandidates.add(yellowCandidate);
 
       for (final candidate in temporaryCandidates) {
         detections.add(await _recognizePath(candidate.path));
