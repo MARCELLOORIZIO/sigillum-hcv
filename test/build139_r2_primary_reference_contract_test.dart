@@ -34,13 +34,13 @@ void main() {
     expect(publisher, contains("live['youtubeLive'] == true"));
     expect(
       publisher,
-      contains("'/api/verified-originals/$hcvId/read-authorization'"),
+      contains(r"'/api/verified-originals/$hcvId/read-authorization'"),
     );
     expect(
       publisher,
       contains("'/api/verified-originals/reference-read/'"),
     );
-    expect(publisher, contains("'Bearer $token'"));
+    expect(publisher, contains(r"'Bearer $token'"));
     expect(publisher, contains('sha256.bind(target.openRead()).first'));
     expect(
       publisher,
