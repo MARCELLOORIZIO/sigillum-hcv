@@ -99,7 +99,7 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'Impossibile aprire il riferimento ufficiale SIGILLUM.',
       'verificationTiming':
-          'Tempo verifica: {total} s · riferimento {youtube} s · confronto locale {local} s',
+          'Tempo verifica: {total} s · riferimento {reference} s · confronto locale {local} s',
       'techReferenceVerification': 'RIFERIMENTO UFFICIALE SIGILLUM',
       'techReferenceMode': 'Modalità confronto',
       'techReferenceLive': 'Riferimento ufficiale disponibile',
@@ -282,7 +282,7 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'Unable to open the official SIGILLUM reference.',
       'verificationTiming':
-          'Verification time: {total} s · reference {youtube} s · local comparison {local} s',
+          'Verification time: {total} s · reference {reference} s · local comparison {local} s',
       'techReferenceVerification': 'OFFICIAL SIGILLUM REFERENCE',
       'techReferenceMode': 'Comparison mode',
       'techReferenceLive': 'Official reference available',
@@ -467,7 +467,7 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'No se puede abrir la referencia oficial de SIGILLUM.',
       'verificationTiming':
-          'Tiempo de verificación: {total} s · referencia {youtube} s · comparación local {local} s',
+          'Tiempo de verificación: {total} s · referencia {reference} s · comparación local {local} s',
       'techReferenceVerification': 'REFERENCIA OFICIAL DE SIGILLUM',
       'techReferenceMode': 'Modo de comparación',
       'techReferenceLive': 'Referencia oficial disponible',
@@ -650,7 +650,7 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'Не удалось открыть официальный эталон SIGILLUM.',
       'verificationTiming':
-          'Время проверки: {total} с · эталон {youtube} с · локальное сравнение {local} с',
+          'Время проверки: {total} с · эталон {reference} с · локальное сравнение {local} с',
       'techReferenceVerification': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН SIGILLUM',
       'techReferenceMode': 'Режим сравнения',
       'techReferenceLive': 'Официальный эталон доступен',
