@@ -305,17 +305,24 @@ class VerifiedOriginalsPublishService {
         }
 
         final publicationId = decoded['publicationId']?.toString() ?? '';
+        final platform = decoded['platform']?.toString() ?? '';
         final publicUrl = decoded['publicUrl']?.toString() ?? '';
-        final referenceSha256 = decoded['referenceSha256']?.toString() ?? '';
+        final referenceAccess = decoded['referenceAccess']?.toString() ?? '';
+        final referenceSha256 =
+            decoded['referenceSha256']?.toString().toLowerCase() ?? '';
         final originalContentSha256 =
             decoded['originalContentSha256']?.toString().toLowerCase() ?? '';
         final serverHcvpackSha256 =
             decoded['hcvpackSha256']?.toString().toLowerCase() ?? '';
         final derivedFrom =
             decoded['derivedFrom']?.toString().toLowerCase() ?? '';
+        final locatorValid =
+            (platform == 'youtube' && publicUrl.isNotEmpty) ||
+                (platform == 'r2' &&
+                    referenceAccess == 'SHORT_LIVED_AUTHORIZATION');
 
         if (publicationId.isEmpty ||
-            publicUrl.isEmpty ||
+            !locatorValid ||
             originalContentSha256 != record.mediaSha256 ||
             serverHcvpackSha256 != record.hcvpackSha256 ||
             derivedFrom != record.mediaSha256 ||
@@ -323,19 +330,13 @@ class VerifiedOriginalsPublishService {
           throw StateError('REFERENCE_PUBLICATION_RESPONSE_INVALID');
         }
 
-        await vault.markReference(
-          hcvId: record.hcvId,
-          publicationId: publicationId,
-          referenceUrl: publicUrl,
-          referenceSha256: referenceSha256,
-        );
-
-        return VerifiedOriginalPublishResult(
-          hcvId: record.hcvId,
+        final live = await verificationReference(record.hcvId);
+        if (!_liveReferenceAvailable(live)) {
+          throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
+        }
+        return _existingReference(
+          record,
           alreadyAvailable: false,
-          publicationId: publicationId,
-          publicUrl: publicUrl,
-          referenceSha256: referenceSha256,
         );
       } finally {
         client.close(force: true);
