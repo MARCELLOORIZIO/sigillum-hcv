@@ -2454,7 +2454,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                         (_verificationTotalMs! / 1000).toStringAsFixed(2),
                       )
                       .replaceAll(
-                        '{youtube}',
+                        '{reference}',
                         ((_officialReferenceServerMs ?? 0) / 1000)
                             .toStringAsFixed(2),
                       )
