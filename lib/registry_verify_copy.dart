@@ -10,7 +10,8 @@ class RegistryVerifyCopy {
     'it': {
       'unprovenDerivativeTitle': 'CONTENUTO NON ORIGINALE VERIFICATO',
       'unprovenDerivativeStatus': 'Originale non verificato',
-      'unprovenDerivativeDetail': 'SHA-256 diverso dall originale certificato. Il fingerprint indica solo somiglianza e NON esclude oggetti aggiunti, scritte o fotogrammi alterati. L HCV-ID valido non autentica questa copia.',
+      'unprovenDerivativeDetail':
+          'SHA-256 diverso dall originale certificato. Il fingerprint indica solo somiglianza e NON esclude oggetti aggiunti, scritte o fotogrammi alterati. L HCV-ID valido non autentica questa copia.',
       'unprovenDerivativeProvenance': 'HCV-ID valido, file non autenticato',
       'unprovenDerivativeAxis': 'Somiglianza non probante',
       'socialLimitedTitle':
@@ -48,6 +49,64 @@ class RegistryVerifyCopy {
           'CONTENUTO CERTIFICATO COMPATIBILE\nIl testo pubblicato contiene il footer SIGILLUM/HCV-ID e il contenuto certificato corrisponde, anche se il file non è identico byte per byte.',
       'genericDerived':
           'CONTENUTO CERTIFICATO COMPATIBILE\nIl file è diverso dall’originale certificato ma supera i controlli di compatibilità disponibili per questo tipo di media.',
+      'officialReferenceConforming':
+          'COPIA CONFORME\nIl contenuto corrisponde alla copia ufficiale SIGILLUM. Le differenze rilevate sono compatibili con ricompressione o trasformazioni tecniche social tollerate.',
+      'officialReferenceConformingDetail':
+          'Confronto locale V3 compatibile con la fingerprint firmata della copia ufficiale SIGILLUM.',
+      'officialReferenceModified':
+          'COPIA MODIFICATA\nIl contenuto presenta differenze locali significative rispetto alla copia ufficiale SIGILLUM.',
+      'officialReferenceModifiedDetail':
+          'Il confronto locale V3 ha rilevato variazioni non compatibili con la sola ricompressione social, incluse possibili aggiunte, rimozioni o alterazioni di elementi.',
+      'officialReferenceInconclusive':
+          'VERIFICA NON CONCLUSIVA\nLa copia ufficiale SIGILLUM è disponibile, ma il confronto non produce evidenza sufficiente per dichiarare il contenuto conforme o modificato.',
+      'officialReferenceInconclusiveDetail':
+          'Qualità, ritaglio, trasformazioni o allineamento non consentono un confronto locale V3 affidabile.',
+      'officialReferenceConformingTitle': 'COPIA UFFICIALE CONFORME',
+      'officialReferenceModifiedTitle': 'COPIA UFFICIALE MODIFICATA',
+      'officialReferenceInconclusiveTitle': 'VERIFICA NON CONCLUSIVA',
+      'officialReferenceUnavailableTitle':
+          'RIFERIMENTO UFFICIALE NON DISPONIBILE',
+      'officialReferenceUnavailable':
+          'VERIFICA NON ESEGUIBILE\nLa reference ufficiale SIGILLUM non è verificabile su YouTube in questo momento. Nessun controllo più debole viene usato per dichiarare conforme il file social.',
+      'officialReferenceUnavailableDetail':
+          'La reference YouTube deve risultare realmente presente, elaborata e unlisted prima della verifica di una copia social. Lo stato dei commenti resta un dato diagnostico e non determina la validità della reference.',
+      'manualCompareTitle': 'CONFRONTO MANUALE',
+      'manualCompareAction': 'CONFRONTA MANUALMENTE',
+      'manualCompareSubscriberOnly':
+          'Funzione riservata agli abbonati SIGILLUM.',
+      'manualCompareIntro':
+          'Controlla personalmente immagini e audio del file ricevuto e confrontali con la copia ufficiale pubblicata da SIGILLUM su YouTube.',
+      'manualCompareAutomaticVerdict': 'Esito automatico',
+      'manualCompareLocalTitle': 'FILE DA CONTROLLARE',
+      'manualCompareOfficialTitle': 'COPIA UFFICIALE SIGILLUM',
+      'manualCompareVideoHelp':
+          'Porta il file al punto che vuoi controllare, poi apri la copia ufficiale allo stesso timestamp. Puoi confrontare immagini, voce, suoni, tagli e sequenza.',
+      'manualComparePhotoHelp':
+          'Osserva la foto ricevuta, poi apri la copia ufficiale SIGILLUM su YouTube per il confronto visivo.',
+      'manualCompareOpenOfficial': 'APRI COPIA UFFICIALE',
+      'manualCompareOpenAtTime': 'APRI COPIA UFFICIALE A {time}',
+      'manualCompareReturnHelp':
+          'YouTube viene aperto esternamente. Torna a SIGILLUM per continuare il confronto.',
+      'manualComparePlayPause': 'Riproduci / pausa',
+      'manualCompareAudio': 'Audio',
+      'manualCompareSubscriptionRequired':
+          'Questa funzione richiede un abbonamento SIGILLUM attivo.',
+      'manualCompareReferenceUnavailable':
+          'La copia ufficiale YouTube non è verificabile in questo momento.',
+      'manualCompareMediaUnavailable':
+          'Il file da confrontare non è più disponibile sul dispositivo.',
+      'manualCompareLoadError': 'Impossibile preparare il confronto manuale.',
+      'manualCompareOpenError':
+          'Impossibile aprire la copia ufficiale su YouTube.',
+      'verificationTiming':
+          'Tempo verifica: {total} s · YouTube {youtube} s · confronto locale {local} s',
+      'techReferenceVerification': 'RIFERIMENTO UFFICIALE YOUTUBE',
+      'techReferenceMode': 'Modalità confronto',
+      'techReferenceLive': 'Reference YouTube live',
+      'techReferenceCommentsDisabled': 'Commenti disabilitati',
+      'techReferenceServerMs': 'Controllo YouTube ms',
+      'techReferenceLocalMs': 'Confronto locale ms',
+      'techVerificationTotalMs': 'Verifica totale ms',
       'audioMismatchDetected':
           'HCV-ID e fingerprint visivo sono compatibili, ma il fingerprint audio non corrisponde. Possibile audio sostituito, rimosso o alterato oltre la tolleranza di ricompressione.',
       'audioMismatchProvided':
@@ -135,7 +194,8 @@ class RegistryVerifyCopy {
     'en': {
       'unprovenDerivativeTitle': 'ORIGINAL CONTENT NOT VERIFIED',
       'unprovenDerivativeStatus': 'Original not verified',
-      'unprovenDerivativeDetail': 'SHA-256 differs from the certified original. The fingerprint indicates resemblance only and CANNOT exclude inserted objects, text overlays, or altered frames. A valid HCV-ID does not authenticate this copy.',
+      'unprovenDerivativeDetail':
+          'SHA-256 differs from the certified original. The fingerprint indicates resemblance only and CANNOT exclude inserted objects, text overlays, or altered frames. A valid HCV-ID does not authenticate this copy.',
       'unprovenDerivativeProvenance': 'HCV-ID valid, file not authenticated',
       'unprovenDerivativeAxis': 'Resemblance is not proof',
       'socialLimitedTitle': 'CERTIFICATE IDENTIFIED — INTEGRITY INCONCLUSIVE',
@@ -173,6 +233,62 @@ class RegistryVerifyCopy {
           'CERTIFIED COMPATIBLE CONTENT\nThe published text includes the SIGILLUM/HCV-ID footer and the certified content matches, although the file is not byte-for-byte identical.',
       'genericDerived':
           'CERTIFIED COMPATIBLE CONTENT\nThe file differs from the certified original but passes the compatibility checks available for this media type.',
+      'officialReferenceConforming':
+          'CONFORMING COPY\nThe content matches the official SIGILLUM copy. Detected differences are compatible with tolerated social recompression or technical transformations.',
+      'officialReferenceConformingDetail':
+          'Local V3 comparison is compatible with the signed fingerprint of the official SIGILLUM copy.',
+      'officialReferenceModified':
+          'MODIFIED COPY\nThe content contains significant local differences from the official SIGILLUM copy.',
+      'officialReferenceModifiedDetail':
+          'Local V3 comparison detected changes not compatible with social recompression alone, including possible inserted, removed, or altered elements.',
+      'officialReferenceInconclusive':
+          'VERIFICATION INCONCLUSIVE\nThe official SIGILLUM copy is available, but the comparison does not provide enough evidence to classify the content as conforming or modified.',
+      'officialReferenceInconclusiveDetail':
+          'Quality, cropping, transformations, or alignment prevent a reliable local V3 comparison.',
+      'officialReferenceConformingTitle': 'OFFICIAL COPY CONFORMING',
+      'officialReferenceModifiedTitle': 'OFFICIAL COPY MODIFIED',
+      'officialReferenceInconclusiveTitle': 'VERIFICATION INCONCLUSIVE',
+      'officialReferenceUnavailableTitle': 'OFFICIAL REFERENCE UNAVAILABLE',
+      'officialReferenceUnavailable':
+          'VERIFICATION CANNOT BE COMPLETED\nThe official SIGILLUM reference cannot currently be verified on YouTube. No weaker check is used to declare the social file conforming.',
+      'officialReferenceUnavailableDetail':
+          'The YouTube reference must be confirmed as present, processed and unlisted before a social copy can be verified. Comment state remains diagnostic and does not determine reference validity.',
+      'manualCompareTitle': 'MANUAL COMPARISON',
+      'manualCompareAction': 'COMPARE MANUALLY',
+      'manualCompareSubscriberOnly':
+          'This feature is available to SIGILLUM subscribers.',
+      'manualCompareIntro':
+          'Personally inspect the images and audio of the received file and compare them with the official copy published by SIGILLUM on YouTube.',
+      'manualCompareAutomaticVerdict': 'Automatic result',
+      'manualCompareLocalTitle': 'FILE TO CHECK',
+      'manualCompareOfficialTitle': 'OFFICIAL SIGILLUM COPY',
+      'manualCompareVideoHelp':
+          'Move the file to the moment you want to inspect, then open the official copy at the same timestamp. Compare images, voice, sounds, cuts and sequence.',
+      'manualComparePhotoHelp':
+          'Inspect the received photo, then open the official SIGILLUM copy on YouTube for a visual comparison.',
+      'manualCompareOpenOfficial': 'OPEN OFFICIAL COPY',
+      'manualCompareOpenAtTime': 'OPEN OFFICIAL COPY AT {time}',
+      'manualCompareReturnHelp':
+          'YouTube opens externally. Return to SIGILLUM to continue the comparison.',
+      'manualComparePlayPause': 'Play / pause',
+      'manualCompareAudio': 'Audio',
+      'manualCompareSubscriptionRequired':
+          'This feature requires an active SIGILLUM subscription.',
+      'manualCompareReferenceUnavailable':
+          'The official YouTube copy cannot be verified at this time.',
+      'manualCompareMediaUnavailable':
+          'The file to compare is no longer available on this device.',
+      'manualCompareLoadError': 'Unable to prepare the manual comparison.',
+      'manualCompareOpenError': 'Unable to open the official copy on YouTube.',
+      'verificationTiming':
+          'Verification time: {total} s · YouTube {youtube} s · local comparison {local} s',
+      'techReferenceVerification': 'OFFICIAL YOUTUBE REFERENCE',
+      'techReferenceMode': 'Comparison mode',
+      'techReferenceLive': 'Live YouTube reference',
+      'techReferenceCommentsDisabled': 'Comments disabled',
+      'techReferenceServerMs': 'YouTube check ms',
+      'techReferenceLocalMs': 'Local comparison ms',
+      'techVerificationTotalMs': 'Total verification ms',
       'audioMismatchDetected':
           'The HCV-ID and visual fingerprint are compatible, but the audio fingerprint does not match. Audio may have been replaced, removed, or altered beyond recompression tolerance.',
       'audioMismatchProvided':
@@ -260,7 +376,8 @@ class RegistryVerifyCopy {
     'es': {
       'unprovenDerivativeTitle': 'CONTENIDO ORIGINAL NO VERIFICADO',
       'unprovenDerivativeStatus': 'Original no verificado',
-      'unprovenDerivativeDetail': 'El SHA-256 difiere del original certificado. La huella solo indica semejanza y NO excluye objetos añadidos, texto superpuesto ni fotogramas alterados. Un HCV-ID válido no autentica esta copia.',
+      'unprovenDerivativeDetail':
+          'El SHA-256 difiere del original certificado. La huella solo indica semejanza y NO excluye objetos añadidos, texto superpuesto ni fotogramas alterados. Un HCV-ID válido no autentica esta copia.',
       'unprovenDerivativeProvenance': 'HCV-ID válido; archivo no autenticado',
       'unprovenDerivativeAxis': 'Semejanza sin prueba',
       'socialLimitedTitle':
@@ -300,6 +417,63 @@ class RegistryVerifyCopy {
           'CONTENIDO CERTIFICADO COMPATIBLE\nEl texto publicado incluye el pie SIGILLUM/HCV-ID y coincide con el contenido certificado, aunque el archivo no sea idéntico byte por byte.',
       'genericDerived':
           'CONTENIDO CERTIFICADO COMPATIBLE\nEl archivo difiere del original certificado, pero supera los controles de compatibilidad disponibles para este tipo de media.',
+      'officialReferenceConforming':
+          'COPIA CONFORME\nEl contenido coincide con la copia oficial SIGILLUM. Las diferencias detectadas son compatibles con recompresión social o transformaciones técnicas toleradas.',
+      'officialReferenceConformingDetail':
+          'La comparación local V3 es compatible con la huella firmada de la copia oficial SIGILLUM.',
+      'officialReferenceModified':
+          'COPIA MODIFICADA\nEl contenido presenta diferencias locales significativas respecto de la copia oficial SIGILLUM.',
+      'officialReferenceModifiedDetail':
+          'La comparación local V3 detectó cambios no compatibles únicamente con recompresión social, incluidas posibles inserciones, eliminaciones o alteraciones de elementos.',
+      'officialReferenceInconclusive':
+          'VERIFICACIÓN NO CONCLUYENTE\nLa copia oficial SIGILLUM está disponible, pero la comparación no aporta evidencia suficiente para clasificar el contenido como conforme o modificado.',
+      'officialReferenceInconclusiveDetail':
+          'La calidad, el recorte, las transformaciones o la alineación impiden una comparación local V3 fiable.',
+      'officialReferenceConformingTitle': 'COPIA OFICIAL CONFORME',
+      'officialReferenceModifiedTitle': 'COPIA OFICIAL MODIFICADA',
+      'officialReferenceInconclusiveTitle': 'VERIFICACIÓN NO CONCLUYENTE',
+      'officialReferenceUnavailableTitle': 'REFERENCIA OFICIAL NO DISPONIBLE',
+      'officialReferenceUnavailable':
+          'VERIFICACIÓN NO EJECUTABLE\nLa referencia oficial de SIGILLUM no puede verificarse actualmente en YouTube. No se usa un control más débil para declarar conforme el archivo social.',
+      'officialReferenceUnavailableDetail':
+          'La referencia de YouTube debe estar realmente presente, procesada y no listada antes de verificar una copia social. El estado de los comentarios es solo diagnóstico y no determina la validez de la referencia.',
+      'manualCompareTitle': 'COMPARACIÓN MANUAL',
+      'manualCompareAction': 'COMPARAR MANUALMENTE',
+      'manualCompareSubscriberOnly':
+          'Esta función está reservada a suscriptores de SIGILLUM.',
+      'manualCompareIntro':
+          'Comprueba personalmente las imágenes y el audio del archivo recibido y compáralos con la copia oficial publicada por SIGILLUM en YouTube.',
+      'manualCompareAutomaticVerdict': 'Resultado automático',
+      'manualCompareLocalTitle': 'ARCHIVO A COMPROBAR',
+      'manualCompareOfficialTitle': 'COPIA OFICIAL SIGILLUM',
+      'manualCompareVideoHelp':
+          'Lleva el archivo al punto que quieres revisar y abre después la copia oficial en el mismo instante. Compara imágenes, voz, sonidos, cortes y secuencia.',
+      'manualComparePhotoHelp':
+          'Observa la foto recibida y abre después la copia oficial SIGILLUM en YouTube para realizar la comparación visual.',
+      'manualCompareOpenOfficial': 'ABRIR COPIA OFICIAL',
+      'manualCompareOpenAtTime': 'ABRIR COPIA OFICIAL EN {time}',
+      'manualCompareReturnHelp':
+          'YouTube se abre externamente. Vuelve a SIGILLUM para continuar la comparación.',
+      'manualComparePlayPause': 'Reproducir / pausa',
+      'manualCompareAudio': 'Audio',
+      'manualCompareSubscriptionRequired':
+          'Esta función requiere una suscripción SIGILLUM activa.',
+      'manualCompareReferenceUnavailable':
+          'La copia oficial de YouTube no se puede verificar en este momento.',
+      'manualCompareMediaUnavailable':
+          'El archivo que se va a comparar ya no está disponible en el dispositivo.',
+      'manualCompareLoadError': 'No se puede preparar la comparación manual.',
+      'manualCompareOpenError':
+          'No se puede abrir la copia oficial en YouTube.',
+      'verificationTiming':
+          'Tiempo de verificación: {total} s · YouTube {youtube} s · comparación local {local} s',
+      'techReferenceVerification': 'REFERENCIA OFICIAL DE YOUTUBE',
+      'techReferenceMode': 'Modo de comparación',
+      'techReferenceLive': 'Referencia YouTube activa',
+      'techReferenceCommentsDisabled': 'Comentarios desactivados',
+      'techReferenceServerMs': 'Control YouTube ms',
+      'techReferenceLocalMs': 'Comparación local ms',
+      'techVerificationTotalMs': 'Verificación total ms',
       'audioMismatchDetected':
           'El HCV-ID y la huella visual son compatibles, pero la huella de audio no coincide. El audio puede haber sido sustituido, eliminado o modificado más allá de la tolerancia de recompresión.',
       'audioMismatchProvided':
@@ -387,8 +561,10 @@ class RegistryVerifyCopy {
     'ru': {
       'unprovenDerivativeTitle': 'ПОДЛИННОСТЬ ОРИГИНАЛА НЕ ПОДТВЕРЖДЕНА',
       'unprovenDerivativeStatus': 'Оригинал не подтверждён',
-      'unprovenDerivativeDetail': 'SHA-256 отличается от сертифицированного оригинала. Отпечаток указывает лишь на сходство и НЕ исключает добавленные объекты, надписи или изменённые кадры. Действительный HCV-ID не подтверждает подлинность этой копии.',
-      'unprovenDerivativeProvenance': 'HCV-ID действителен; файл не подтверждён',
+      'unprovenDerivativeDetail':
+          'SHA-256 отличается от сертифицированного оригинала. Отпечаток указывает лишь на сходство и НЕ исключает добавленные объекты, надписи или изменённые кадры. Действительный HCV-ID не подтверждает подлинность этой копии.',
+      'unprovenDerivativeProvenance':
+          'HCV-ID действителен; файл не подтверждён',
       'unprovenDerivativeAxis': 'Сходство не является доказательством',
       'socialLimitedTitle': 'СЕРТИФИКАТ НАЙДЕН — ЦЕЛОСТНОСТЬ НЕ УСТАНОВЛЕНА',
       'socialLimitedStatus':
@@ -424,6 +600,63 @@ class RegistryVerifyCopy {
           'СОВМЕСТИМЫЙ СЕРТИФИЦИРОВАННЫЙ КОНТЕНТ\nОпубликованный текст содержит подпись SIGILLUM/HCV-ID и соответствует сертифицированному содержанию, хотя файл не идентичен побайтно.',
       'genericDerived':
           'СОВМЕСТИМЫЙ СЕРТИФИЦИРОВАННЫЙ КОНТЕНТ\nФайл отличается от сертифицированного оригинала, но проходит доступные для этого типа медиа проверки совместимости.',
+      'officialReferenceConforming':
+          'СООТВЕТСТВУЮЩАЯ КОПИЯ\nСодержимое соответствует официальной копии SIGILLUM. Обнаруженные различия совместимы с допустимым социальным перекодированием или техническими преобразованиями.',
+      'officialReferenceConformingDetail':
+          'Локальное сравнение V3 совместимо с подписанным отпечатком официальной копии SIGILLUM.',
+      'officialReferenceModified':
+          'ИЗМЕНЁННАЯ КОПИЯ\nВ содержимом обнаружены значимые локальные отличия от официальной копии SIGILLUM.',
+      'officialReferenceModifiedDetail':
+          'Локальное сравнение V3 выявило изменения, не объясняемые только социальным перекодированием, включая возможное добавление, удаление или изменение элементов.',
+      'officialReferenceInconclusive':
+          'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА\nОфициальная копия SIGILLUM доступна, но данных недостаточно, чтобы классифицировать содержимое как соответствующее или изменённое.',
+      'officialReferenceInconclusiveDetail':
+          'Качество, кадрирование, преобразования или выравнивание не позволяют выполнить надёжное локальное сравнение V3.',
+      'officialReferenceConformingTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ СООТВЕТСТВУЕТ',
+      'officialReferenceModifiedTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ ИЗМЕНЕНА',
+      'officialReferenceInconclusiveTitle':
+          'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА',
+      'officialReferenceUnavailableTitle': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН НЕДОСТУПЕН',
+      'officialReferenceUnavailable':
+          'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\nОфициальный эталон SIGILLUM сейчас нельзя подтвердить на YouTube. Более слабая проверка не используется для признания файла из соцсети соответствующим.',
+      'officialReferenceUnavailableDetail':
+          'Перед проверкой копии из соцсети эталон YouTube должен быть подтвержден как существующий, обработанный и доступный по unlisted-ссылке. Состояние комментариев остаётся только диагностическим и не определяет действительность эталона.',
+      'manualCompareTitle': 'РУЧНОЕ СРАВНЕНИЕ',
+      'manualCompareAction': 'СРАВНИТЬ ВРУЧНУЮ',
+      'manualCompareSubscriberOnly': 'Функция доступна подписчикам SIGILLUM.',
+      'manualCompareIntro':
+          'Самостоятельно проверьте изображение и звук полученного файла и сравните их с официальной копией SIGILLUM, опубликованной на YouTube.',
+      'manualCompareAutomaticVerdict': 'Автоматический результат',
+      'manualCompareLocalTitle': 'ПРОВЕРЯЕМЫЙ ФАЙЛ',
+      'manualCompareOfficialTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ SIGILLUM',
+      'manualCompareVideoHelp':
+          'Перейдите в файле к нужному моменту, затем откройте официальную копию на том же времени. Сравните изображение, голос, звуки, монтаж и последовательность.',
+      'manualComparePhotoHelp':
+          'Рассмотрите полученную фотографию, затем откройте официальную копию SIGILLUM на YouTube для визуального сравнения.',
+      'manualCompareOpenOfficial': 'ОТКРЫТЬ ОФИЦИАЛЬНУЮ КОПИЮ',
+      'manualCompareOpenAtTime': 'ОТКРЫТЬ ОФИЦИАЛЬНУЮ КОПИЮ НА {time}',
+      'manualCompareReturnHelp':
+          'YouTube откроется во внешнем приложении. Вернитесь в SIGILLUM, чтобы продолжить сравнение.',
+      'manualComparePlayPause': 'Воспроизведение / пауза',
+      'manualCompareAudio': 'Звук',
+      'manualCompareSubscriptionRequired':
+          'Для этой функции требуется активная подписка SIGILLUM.',
+      'manualCompareReferenceUnavailable':
+          'Официальную копию YouTube сейчас невозможно подтвердить.',
+      'manualCompareMediaUnavailable':
+          'Проверяемый файл больше недоступен на устройстве.',
+      'manualCompareLoadError': 'Не удалось подготовить ручное сравнение.',
+      'manualCompareOpenError':
+          'Не удалось открыть официальную копию на YouTube.',
+      'verificationTiming':
+          'Время проверки: {total} с · YouTube {youtube} с · локальное сравнение {local} с',
+      'techReferenceVerification': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН YOUTUBE',
+      'techReferenceMode': 'Режим сравнения',
+      'techReferenceLive': 'Эталон YouTube доступен',
+      'techReferenceCommentsDisabled': 'Комментарии отключены',
+      'techReferenceServerMs': 'Проверка YouTube, мс',
+      'techReferenceLocalMs': 'Локальное сравнение, мс',
+      'techVerificationTotalMs': 'Общее время проверки, мс',
       'audioMismatchDetected':
           'HCV-ID и визуальный отпечаток совместимы, но аудиоотпечаток не совпадает. Аудио могло быть заменено, удалено или изменено сверх допустимого при перекодировании.',
       'audioMismatchProvided':

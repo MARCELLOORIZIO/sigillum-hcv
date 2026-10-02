@@ -188,6 +188,6 @@ class HCVLocationVideoWatermark {
         return Directory(p.join(userProfile, 'Documents'));
       }
     }
-    return getApplicationDocumentsDirectory();
+    return getApplicationSupportDirectory();
   }
 }

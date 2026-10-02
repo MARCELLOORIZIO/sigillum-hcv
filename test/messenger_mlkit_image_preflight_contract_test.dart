@@ -35,7 +35,8 @@ void main() {
     expect(share, contains('UIImage(contentsOfFile: url.path) == nil'));
     expect(share,
         contains('provider.loadItem(forTypeIdentifier: type, options: nil)'));
-    expect(share, contains('let image = UIImage(data: data)'));
-    expect(share, contains('let image = UIImage(data: swiftData)'));
+    expect(share, contains('guard let image = UIImage(data: data)'));
+    expect(share, contains('prepareImageData(data)'));
+    expect(share, contains('prepareImageData(swiftData)'));
   });
 }

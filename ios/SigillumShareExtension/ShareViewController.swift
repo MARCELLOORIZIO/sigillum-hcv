@@ -177,9 +177,11 @@ final class ShareViewController: UIViewController {
         )
       }
 
-      if let image = item as? UIImage, let data = image.jpegData(compressionQuality: 0.95) {
+      if let image = item as? UIImage, let data = image.pngData() {
+        // UIImage is already a decoded representation. Use lossless PNG rather
+        // than introducing another JPEG generation before HCV verification.
         let destination = inbox.appendingPathComponent(
-          fileName(ext: "jpg", originalName: suggestedName)
+          fileName(ext: "png", originalName: suggestedName)
         )
         try data.write(to: destination, options: .atomic)
         return destination
@@ -187,16 +189,13 @@ final class ShareViewController: UIViewController {
 
       if let data = item as? Data {
         if isImageType(preferredType) {
-          guard
-            let image = UIImage(data: data),
-            let normalized = image.jpegData(compressionQuality: 0.95)
-          else {
+          guard let prepared = prepareImageData(data) else {
             return nil
           }
           let destination = inbox.appendingPathComponent(
-            fileName(ext: "jpg", originalName: suggestedName)
+            fileName(ext: prepared.ext, originalName: suggestedName)
           )
-          try normalized.write(to: destination, options: .atomic)
+          try prepared.data.write(to: destination, options: .atomic)
           return destination
         }
         let destination = inbox.appendingPathComponent(
@@ -212,16 +211,13 @@ final class ShareViewController: UIViewController {
       if let data = item as? NSData {
         let swiftData = data as Data
         if isImageType(preferredType) {
-          guard
-            let image = UIImage(data: swiftData),
-            let normalized = image.jpegData(compressionQuality: 0.95)
-          else {
+          guard let prepared = prepareImageData(swiftData) else {
             return nil
           }
           let destination = inbox.appendingPathComponent(
-            fileName(ext: "jpg", originalName: suggestedName)
+            fileName(ext: prepared.ext, originalName: suggestedName)
           )
-          try normalized.write(to: destination, options: .atomic)
+          try prepared.data.write(to: destination, options: .atomic)
           return destination
         }
         let destination = inbox.appendingPathComponent(
@@ -246,6 +242,42 @@ final class ShareViewController: UIViewController {
     }
 
     return nil
+  }
+
+  private func prepareImageData(_ data: Data) -> (data: Data, ext: String)? {
+    // Reject corrupt image payloads before they reach OCR/verification, while
+    // preserving the provider bytes whenever the representation is JPEG/PNG.
+    guard let image = UIImage(data: data) else {
+      return nil
+    }
+
+    // Preserve provider bytes exactly whenever they are already a JPEG or PNG.
+    // This avoids a second lossy SIGILLUM-side transcode before V3 comparison.
+    if data.count >= 3,
+       data[data.startIndex] == 0xff,
+       data[data.startIndex + 1] == 0xd8,
+       data[data.startIndex + 2] == 0xff {
+      return (data, "jpg")
+    }
+
+    if data.count >= 8,
+       data[data.startIndex] == 0x89,
+       data[data.startIndex + 1] == 0x50,
+       data[data.startIndex + 2] == 0x4e,
+       data[data.startIndex + 3] == 0x47,
+       data[data.startIndex + 4] == 0x0d,
+       data[data.startIndex + 5] == 0x0a,
+       data[data.startIndex + 6] == 0x1a,
+       data[data.startIndex + 7] == 0x0a {
+      return (data, "png")
+    }
+
+    // Some share providers expose only an opaque/decoded representation.
+    // A lossless PNG is safer than the former JPEG(0.95) fallback.
+    guard let png = image.pngData() else {
+      return nil
+    }
+    return (png, "png")
   }
 
   private func copyFileUrlToSharedContainer(

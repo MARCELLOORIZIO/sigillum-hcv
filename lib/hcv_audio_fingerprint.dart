@@ -22,6 +22,7 @@ class HCVAudioFingerprint {
   static const int _hopSamples = sampleRate ~/ 2;
   static const int _minimumFrameSamples = sampleRate ~/ 4;
   static const int _maxFrames = 29;
+  static const double _maxAnalyzedSeconds = 15.0;
   static const double _maxFrameDistance = 18.0;
   static const List<int> _correlationLags = <int>[
     8,
@@ -59,7 +60,8 @@ class HCVAudioFingerprint {
     final safeOutput = _escapePath(rawFile.path);
 
     try {
-      final command = "-y -i '$safeInput' -vn -ac 1 -ar $sampleRate "
+      final command =
+          "-y -i '$safeInput' -t $_maxAnalyzedSeconds -vn -ac 1 -ar $sampleRate "
           "-acodec pcm_s16le -f s16le '$safeOutput'";
       final session = await FFmpegKit.execute(command);
       final code = await session.getReturnCode();
@@ -179,9 +181,8 @@ class HCVAudioFingerprint {
       }
     }
 
-    final requiredMatches = comparable <= 2
-        ? comparable
-        : max(3, (comparable * 0.50).ceil());
+    final requiredMatches =
+        comparable <= 2 ? comparable : max(3, (comparable * 0.50).ceil());
     return matched >= requiredMatches;
   }
 
@@ -200,8 +201,8 @@ class HCVAudioFingerprint {
   }
 
   static String _frameFingerprint(List<int> samples) {
-    final mean = samples.fold<double>(0.0, (sum, value) => sum + value) /
-        samples.length;
+    final mean =
+        samples.fold<double>(0.0, (sum, value) => sum + value) / samples.length;
     final features = <int>[];
 
     for (final lag in _correlationLags) {
@@ -240,7 +241,8 @@ class HCVAudioFingerprint {
     final envelopeMedian = _median(envelope);
     for (final value in envelope) {
       final delta = (value - envelopeMedian).clamp(-2.0, 2.0).toDouble();
-      features.add((((delta + 2.0) / 4.0) * 255.0).round().clamp(0, 255).toInt());
+      features
+          .add((((delta + 2.0) / 4.0) * 255.0).round().clamp(0, 255).toInt());
     }
 
     return features

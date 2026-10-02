@@ -27,9 +27,20 @@ void main() {
     expect(manifest, contains('HCV-5C3AC7391A834F99'));
   });
 
-  test('BUILD127 does not change the bundled model before balanced retraining',
+  test('BUILD127 keeps the bundled ML fallback set before balanced retraining',
       () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
-    expect(pubspec, contains('version: 1.0.0+129'));
+    expect(
+      pubspec,
+      contains('- assets/ml/sigillum_screen_replay_v2.tflite'),
+    );
+    expect(
+      pubspec,
+      contains('- assets/ml/sigillum_screen_replay_v3_multihead.tflite'),
+    );
+    expect(
+      pubspec,
+      contains('- assets/ml/sigillum_screen_replay_v1.tflite'),
+    );
   });
 }

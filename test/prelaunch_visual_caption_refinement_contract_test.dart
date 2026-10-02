@@ -39,7 +39,9 @@ void main() {
         File('lib/video_transcription_service.dart').readAsStringSync();
     final scene = File('ios/Runner/SceneDelegate.swift').readAsStringSync();
     expect(camera, contains("_c('shareCaptionedVideo')"));
-    expect(camera, contains("_c('captionExplanation')"));
+    expect(camera, contains("_c('captionProtectedExplanation')"));
+    expect(camera, contains('await _secureVault.sealSubtitleDerivative('));
+    expect(camera, contains('await _publisher.ensureSubtitleReference('));
     expect(service, contains('captionedVideoPath'));
     expect(service, contains("'burnSubtitles'"));
     expect(scene, contains('call.method == "burnSubtitles"'));

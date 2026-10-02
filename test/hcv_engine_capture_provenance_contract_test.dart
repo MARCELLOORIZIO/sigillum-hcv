@@ -13,8 +13,9 @@ void main() {
     expect(source, contains('"provenance": binding.toClaim(hcvId: hcvId)'));
 
     final attachIdentity = source.indexOf('await _attachIdentity();');
-    final attachProvenance =
-        source.indexOf('await _attachCaptureProvenance(dir);');
+    final attachProvenance = source.indexOf(
+      'await _attachCaptureProvenance(await getTemporaryDirectory());',
+    );
     final computeRoot = source.indexOf('final rootHash = _computeRootHash();');
     final buildPayload =
         source.indexOf('final signedPayload = _buildSignedPayload(');

@@ -41,8 +41,11 @@ void main() {
     );
     expect(
       scene,
-      contains('"hcv_original_\\(UUID().uuidString)_\\(originalLeaf)"'),
+      contains(
+        '"hcv_original_\\(UUID().uuidString)_\\(originalLeaf).\\(fileExtension)"',
+      ),
     );
+    expect(scene, contains('else if rawExtension.isEmpty'));
 
     // PHPicker itself must not be blocked by read/write Photos authorization:
     // a user-picked image is still readable through its item provider when
@@ -74,5 +77,17 @@ void main() {
 
     expect(scene, isNot(contains('Selected Photos asset was not found')));
     expect(scene, isNot(contains('PHOTO_ASSET_NOT_FOUND')));
+  });
+
+  test('public verification recovers extensionless Messenger images by content signature',
+      () {
+    final router = File('lib/hcv_import_router_page.dart').readAsStringSync();
+
+    expect(router, contains('_normalizeExtensionlessMedia'));
+    expect(router, contains('bytes[0] == 0xff'));
+    expect(router, contains("extension = '.jpg'"));
+    expect(router, contains("extension = '.png'"));
+    expect(router, contains("extension = '.mp4'"));
+    expect(router, contains("final normalized = File('\$path\$extension');"));
   });
 }

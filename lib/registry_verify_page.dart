@@ -20,7 +20,10 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'hcv_social_fingerprint.dart';
 import 'hcv_spatial_fingerprint_v2.dart';
 import 'hcv_audio_fingerprint.dart';
+import 'hcv_reference_visual_fingerprint_v3.dart';
+import 'verified_originals_publish_service.dart';
 import 'hcv_media_id_ocr.dart';
+import 'manual_reference_compare_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
 import 'verification_ui_copy.dart';
@@ -795,6 +798,75 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     }
   }
 
+  bool _isCanonicalHcvId(String? value) {
+    if (value == null || value.length != 20 || !value.startsWith('HCV-')) {
+      return false;
+    }
+    final suffix = value.substring(4);
+    return suffix.length == 16 &&
+        suffix.codeUnits.every(
+          (code) => (code >= 48 && code <= 57) || (code >= 65 && code <= 70),
+        );
+  }
+
+  Future<HCVReferenceVisualVerdict?> _matchesOfficialReferenceVisualFingerprint(
+    Map<String, dynamic> cert,
+    String? mediaType,
+  ) async {
+    if (mediaPath == null || (mediaType != 'photo' && mediaType != 'video')) {
+      return null;
+    }
+
+    final meta = cert['meta'];
+    final certificateId =
+        meta is Map ? meta['hcvId']?.toString().trim().toUpperCase() : null;
+    final enteredId = idController.text.trim().toUpperCase();
+    final hcvId = _isCanonicalHcvId(certificateId) ? certificateId! : enteredId;
+    if (!_isCanonicalHcvId(hcvId)) return null;
+
+    _officialReferenceChecked = true;
+    try {
+      final availability = await const VerifiedOriginalsPublishService()
+          .verificationReference(hcvId);
+      final serverTiming =
+          availability['providerCheckMs'] ?? availability['youtubeCheckMs'];
+      _officialReferenceServerMs =
+          serverTiming is num ? serverTiming.toInt() : null;
+      _officialReferenceComparisonMode =
+          availability['comparisonMode']?.toString();
+      _officialReferenceLiveAvailable =
+          availability['availability'] == 'REFERENCE_AVAILABLE' &&
+              (availability['referenceLive'] == true ||
+                  availability['youtubeLive'] == true);
+      final commentsDisabled = availability['commentsDisabled'];
+      _officialReferenceCommentsDisabled =
+          commentsDisabled is bool ? commentsDisabled : null;
+
+      if (!_officialReferenceLiveAvailable) {
+        return null;
+      }
+
+      final raw = availability['referenceVisualFingerprint'];
+      if (!HCVReferenceVisualFingerprintV3.isValid(raw)) {
+        return HCVReferenceVisualVerdict.inconclusive;
+      }
+
+      final local = Stopwatch()..start();
+      final current = mediaType == 'photo'
+          ? await HCVReferenceVisualFingerprintV3.buildFromPhoto(mediaPath!)
+          : await HCVReferenceVisualFingerprintV3.buildFromVideo(mediaPath!);
+      _officialReferenceLocalMs = local.elapsedMilliseconds;
+      return HCVReferenceVisualFingerprintV3.compare(
+        raw as Map,
+        current,
+      ).verdict;
+    } catch (_) {
+      _officialReferenceLiveAvailable = false;
+      _officialReferenceCommentsDisabled = null;
+      return null;
+    }
+  }
+
   Future<bool?> _matchesCertifiedImageFingerprint(
     Map<String, dynamic> cert,
   ) async {
@@ -903,6 +975,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   bool loading = false;
   bool hcvIdDetectedByOcr = false;
+  bool _officialReferenceChecked = false;
+  bool _officialReferenceLiveAvailable = false;
+  bool? _officialReferenceCommentsDisabled;
+  int? _officialReferenceServerMs;
+  int? _officialReferenceLocalMs;
+  int? _verificationTotalMs;
+  String? _officialReferenceComparisonMode;
 
   @override
   void initState() {
@@ -1102,10 +1181,19 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return;
     }
 
+    final verificationStopwatch = Stopwatch()..start();
+
     setState(() {
       loading = true;
 
       result = null;
+      _officialReferenceChecked = false;
+      _officialReferenceLiveAvailable = false;
+      _officialReferenceCommentsDisabled = null;
+      _officialReferenceServerMs = null;
+      _officialReferenceLocalMs = null;
+      _verificationTotalMs = null;
+      _officialReferenceComparisonMode = null;
 
       status = _r('downloadingCertificate');
       _clearVerificationAxes();
@@ -1313,15 +1401,42 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       contentType = contentTypeForVerification;
 
       final forensicVerified = actualHash == expectedHash;
-      final videoFingerprintMatches = await _matchesCertifiedVideoFingerprint(
-        cert,
-      );
-      final audioFingerprintMatches = await _matchesCertifiedAudioFingerprint(
-        cert,
-      );
-      final imageFingerprintMatches = await _matchesCertifiedImageFingerprint(
-        cert,
-      );
+
+      HCVReferenceVisualVerdict? officialReferenceVisualVerdict;
+      bool? videoFingerprintMatches;
+      bool? audioFingerprintMatches;
+      bool? imageFingerprintMatches;
+
+      // Exact originals do not need a network reference lookup. For derived
+      // photo/video content, the official live YouTube reference is checked
+      // first. Legacy V1/V2 visual matching remains available only for content
+      // that cannot enter the modern official-reference path.
+      if (!forensicVerified && !socialTextVerified) {
+        officialReferenceVisualVerdict =
+            await _matchesOfficialReferenceVisualFingerprint(
+          cert,
+          contentTypeForVerification,
+        );
+
+        if (contentTypeForVerification == 'video' &&
+            officialReferenceVisualVerdict ==
+                HCVReferenceVisualVerdict.conforming) {
+          audioFingerprintMatches = await _matchesCertifiedAudioFingerprint(
+            cert,
+          );
+        } else if (!_officialReferenceChecked) {
+          if (contentTypeForVerification == 'video') {
+            videoFingerprintMatches =
+                await _matchesCertifiedVideoFingerprint(cert);
+            audioFingerprintMatches =
+                await _matchesCertifiedAudioFingerprint(cert);
+          } else if (contentTypeForVerification == 'photo') {
+            imageFingerprintMatches =
+                await _matchesCertifiedImageFingerprint(cert);
+          }
+        }
+      }
+      _verificationTotalMs = verificationStopwatch.elapsedMilliseconds;
 
       setState(() {
         loading = false;
@@ -1347,8 +1462,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
         void markVerified(String cleanStatus, String cleanResult) {
           final exactOriginal = cleanResult.startsWith('FORENSIC');
-          final unprovenDerivative =
-              cleanResult == _unprovenDerivativeResult;
+          final unprovenDerivative = cleanResult == _unprovenDerivativeResult;
           final sceneWarning = _isStrongDisplayRisk;
           final sceneUncertain = _isDisplayNonConclusive;
           _setVerificationAxes(
@@ -1420,7 +1534,83 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
           final hcvIdProvided = idController.text.trim().isNotEmpty;
 
-          if (contentType == 'video' &&
+          if ((contentType == 'photo' || contentType == 'video') &&
+              _officialReferenceChecked &&
+              !_officialReferenceLiveAvailable) {
+            status = _r('officialReferenceUnavailable');
+            result = 'OFFICIAL REFERENCE UNAVAILABLE';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; il riferimento YouTube ufficiale non è verificabile in questo momento.',
+              integrity: 'Non conclusiva',
+              integrityDetail: _r('officialReferenceUnavailableDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'La verifica della copia social non viene sostituita da un controllo più debole.',
+              derivation: 'Non verificabile',
+              derivationDetail: _r('officialReferenceUnavailableDetail'),
+            );
+          } else if ((contentType == 'photo' || contentType == 'video') &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.modified) {
+            status = _r('officialReferenceModified');
+            result = 'OFFICIAL COPY MODIFIED';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; reference YouTube attiva e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
+              integrity: 'Copia modificata',
+              integrityDetail: _r('officialReferenceModifiedDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'Il controllo riguarda la corrispondenza con la copia ufficiale, non la scena di cattura.',
+              derivation: 'Non conforme',
+              derivationDetail: _r('officialReferenceModifiedDetail'),
+            );
+          } else if ((contentType == 'photo' || contentType == 'video') &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.inconclusive) {
+            status = _r('officialReferenceInconclusive');
+            result = 'OFFICIAL COPY INCONCLUSIVE';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; la reference YouTube ufficiale è attiva, ma il confronto V3 non è conclusivo.',
+              integrity: 'Non conclusiva',
+              integrityDetail: _r('officialReferenceInconclusiveDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'Il confronto non produce evidenza sufficiente per un verdetto forte.',
+              derivation: 'Non conclusiva',
+              derivationDetail: _r('officialReferenceInconclusiveDetail'),
+            );
+          } else if (contentType == 'video' &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.conforming &&
+              audioFingerprintMatches == false) {
+            status = hcvIdWasDetectedInMedia
+                ? _r('audioMismatchDetected')
+                : _r('audioMismatchProvided');
+            result = 'ID VALID / MEDIA NOT VERIFIED';
+          } else if ((contentType == 'photo' || contentType == 'video') &&
+              officialReferenceVisualVerdict ==
+                  HCVReferenceVisualVerdict.conforming) {
+            status = _r('officialReferenceConforming');
+            result = 'OFFICIAL COPY VERIFIED';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; reference YouTube attiva e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
+              integrity: 'Copia conforme',
+              integrityDetail: _r('officialReferenceConformingDetail'),
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'Le differenze rilevate sono compatibili con una trasformazione social tollerata.',
+              derivation: 'Conforme alla copia ufficiale',
+              derivationDetail: _r('officialReferenceConformingDetail'),
+            );
+          } else if (contentType == 'video' &&
               videoFingerprintMatches == true &&
               audioFingerprintMatches == false) {
             status = hcvIdWasDetectedInMedia
@@ -1583,7 +1773,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     final value = result ?? '';
     return value.startsWith('HUMAN VERIFIED') ||
         value.startsWith('FORENSIC VERIFIED') ||
-        value.startsWith('SOCIAL VERIFIED');
+        value.startsWith('SOCIAL VERIFIED') ||
+        value == 'OFFICIAL COPY VERIFIED';
   }
 
   bool get isScreenReplayWarning => (result ?? '').contains('SCREEN RISK');
@@ -1741,10 +1932,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   // Never transfer signed original-scene claims to an unbound PHOTO/VIDEO copy,
   // including V1-only, fingerprint mismatch and copied-HCV-ID cases.
   bool get _isNonExactPhotoOrVideo =>
-      (contentType == 'photo' || contentType == 'video') &&
-      !_isForensicResult;
+      (contentType == 'photo' || contentType == 'video') && !_isForensicResult;
+
+  bool get _canShowCertifiedOriginalScene =>
+      _isNonExactPhotoOrVideo && _isOfficialReferenceVerified;
 
   bool get _isSocialLimited => result == 'SOCIAL LIMITED';
+
+  bool get _isOfficialReferenceVerified => result == 'OFFICIAL COPY VERIFIED';
+
+  bool get _isOfficialReferenceModified => result == 'OFFICIAL COPY MODIFIED';
+
+  bool get _isOfficialReferenceInconclusive =>
+      result == 'OFFICIAL COPY INCONCLUSIVE';
+
+  bool get _isOfficialReferenceUnavailable =>
+      result == 'OFFICIAL REFERENCE UNAVAILABLE';
 
   String get _effectiveProvenanceState {
     if (provenanceState != null) return provenanceState!;
@@ -1818,6 +2021,40 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return 'La scena non viene usata per dichiarare il contenuto originale.';
     }
     return '-';
+  }
+
+  String get _certifiedOriginalSceneState {
+    if (_isStrongDisplayRisk) return 'Forte rischio display';
+    if (_isDisplayNonConclusive) return 'Non conclusiva';
+    if (displayRiskDecision == 'NO_DISPLAY_EVIDENCE' ||
+        screenReplayRisk != null) {
+      return 'Nessun indizio display';
+    }
+    return 'Non analizzata';
+  }
+
+  String get _certifiedOriginalSceneDetail {
+    String detail;
+    if (_isStrongDisplayRisk) {
+      detail = _v('screenDetail');
+    } else if (_isDisplayNonConclusive) {
+      detail = _v('uncertainDetail');
+    } else if (displayRiskDecision == 'NO_DISPLAY_EVIDENCE' ||
+        screenReplayRisk != null) {
+      detail = _v('noScreenDetail');
+    } else {
+      detail = _v('notAnalyzed');
+    }
+    return '$detail ${_v('originalSceneCopyQualifier')}';
+  }
+
+  String get _localizedCertifiedOriginalSceneState {
+    final value = _certifiedOriginalSceneState.toLowerCase();
+    if (value.contains('nessun')) return _v('noScreenEvidence');
+    if (value.contains('conclusiva')) return _v('sceneUncertain');
+    if (value.contains('forte rischio')) return _v('screenRisk');
+    if (value.contains('non analizzata')) return _v('notAnalyzed');
+    return _certifiedOriginalSceneState;
   }
 
   String? get _effectiveDerivationState {
@@ -1975,8 +2212,57 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return '-';
   }
 
+  bool get _canManualCompare {
+    final path = mediaPath;
+    final id = idController.text.trim().toUpperCase();
+    if (path == null ||
+        certificate == null ||
+        result == null ||
+        _isOfficialReferenceUnavailable ||
+        !_isCanonicalHcvId(id)) {
+      return false;
+    }
+
+    final lower = path.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png');
+  }
+
+  Future<void> _openManualCompare() async {
+    final path = mediaPath;
+    final id = idController.text.trim().toUpperCase();
+    if (!_canManualCompare || path == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ManualReferenceComparePage(
+          hcvId: id,
+          mediaPath: path,
+          languageCode: widget.languageCode,
+          automaticVerdictTitle: _publicResultTitle,
+        ),
+      ),
+    );
+  }
+
   String get _publicResultTitle {
     if (_isForensicResult) return _v('forensicOk');
+    if (_isOfficialReferenceVerified) {
+      return _r('officialReferenceConformingTitle');
+    }
+    if (_isOfficialReferenceModified) {
+      return _r('officialReferenceModifiedTitle');
+    }
+    if (_isOfficialReferenceInconclusive) {
+      return _r('officialReferenceInconclusiveTitle');
+    }
+    if (_isOfficialReferenceUnavailable) {
+      return _r('officialReferenceUnavailableTitle');
+    }
     if (_isUnprovenDerivative) return _r('unprovenDerivativeTitle');
     if (_isSocialLimited) return _r('socialLimitedTitle');
     if (_isSocialResult) return _v('socialOk');
@@ -1989,6 +2275,18 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   String get _publicResultDetail {
     if (_isForensicResult) return _v('forensicOkDetail');
+    if (_isOfficialReferenceVerified) {
+      return _r('officialReferenceConformingDetail');
+    }
+    if (_isOfficialReferenceModified) {
+      return _r('officialReferenceModifiedDetail');
+    }
+    if (_isOfficialReferenceInconclusive) {
+      return _r('officialReferenceInconclusiveDetail');
+    }
+    if (_isOfficialReferenceUnavailable) {
+      return _r('officialReferenceUnavailableDetail');
+    }
     if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
     if (_isSocialLimited) return _r('socialLimitedDetail');
     if (_isSocialResult) return _v('socialOkDetail');
@@ -2006,6 +2304,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _isInvalidResult ||
       _isMediaNotVerified ||
       _isUnprovenDerivative ||
+      _isOfficialReferenceModified ||
       _isStrongDisplayRisk;
 
   bool get _hasIntermediateVerificationIssue =>
@@ -2013,6 +2312,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       (_isRegistryWarningResult ||
           _isDisplayNonConclusive ||
           _isSocialLimited ||
+          _isOfficialReferenceInconclusive ||
+          _isOfficialReferenceUnavailable ||
           isScreenReplayWarning);
 
   Color get _verificationResultColor {
@@ -2091,7 +2392,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         '${_r('techScore')}: ${_diagnosticValue(ml?['screenReplayRiskScore'])}\n'
         '${_r('techMlDecision')}: ${_diagnosticValue(ml?['displayRiskDecision'])}\n'
         '${_r('techReason')}: ${_diagnosticValue(ml?['reason'])}\n'
-        '${_r('techError')}: ${_diagnosticValue(ml?['error'])}';
+        '${_r('techError')}: ${_diagnosticValue(ml?['error'])}\n'
+        '\n${_r('techReferenceVerification')}\n'
+        '${_r('techReferenceMode')}: ${_diagnosticValue(_officialReferenceComparisonMode)}\n'
+        '${_r('techReferenceLive')}: ${_diagnosticValue(_officialReferenceLiveAvailable)}\n'
+        '${_r('techReferenceCommentsDisabled')}: ${_diagnosticValue(_officialReferenceCommentsDisabled)}\n'
+        '${_r('techReferenceServerMs')}: ${_diagnosticValue(_officialReferenceServerMs)}\n'
+        '${_r('techReferenceLocalMs')}: ${_diagnosticValue(_officialReferenceLocalMs)}\n'
+        '${_r('techVerificationTotalMs')}: ${_diagnosticValue(_verificationTotalMs)}';
   }
 
   @override
@@ -2137,6 +2445,28 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               ),
               const SizedBox(height: 20),
               Text(status, textAlign: TextAlign.center),
+              if (_verificationTotalMs != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _r('verificationTiming')
+                      .replaceAll(
+                        '{total}',
+                        (_verificationTotalMs! / 1000).toStringAsFixed(2),
+                      )
+                      .replaceAll(
+                        '{youtube}',
+                        ((_officialReferenceServerMs ?? 0) / 1000)
+                            .toStringAsFixed(2),
+                      )
+                      .replaceAll(
+                        '{local}',
+                        ((_officialReferenceLocalMs ?? 0) / 1000)
+                            .toStringAsFixed(2),
+                      ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 _v('registryHelper'),
@@ -2183,6 +2513,21 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                               ? Colors.orange
                               : _axisColor(_effectiveSceneState),
                 ),
+                if (_canShowCertifiedOriginalScene) ...[
+                  const SizedBox(height: 10),
+                  _VerificationAxisCard(
+                    icon: Icons.history_toggle_off_outlined,
+                    title: _v('originalScene'),
+                    subtitle: _v('originalSceneHint'),
+                    value: _localizedCertifiedOriginalSceneState,
+                    detail: _certifiedOriginalSceneDetail,
+                    color: _isStrongDisplayRisk
+                        ? Colors.red
+                        : _isDisplayNonConclusive
+                            ? Colors.orange
+                            : _axisColor(_certifiedOriginalSceneState),
+                  ),
+                ],
                 if (_effectiveDerivationState != null) ...[
                   const SizedBox(height: 10),
                   _VerificationAxisCard(
@@ -2209,6 +2554,14 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
                     color: _verificationResultColor,
                   ),
                 ),
+                if (_canManualCompare) ...[
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: _openManualCompare,
+                    icon: const Icon(Icons.compare_arrows_rounded),
+                    label: Text(_r('manualCompareAction')),
+                  ),
+                ],
               ],
               if (creatorName != null ||
                   trustLevel != null ||

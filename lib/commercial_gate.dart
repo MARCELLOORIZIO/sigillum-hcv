@@ -30,7 +30,8 @@ class CommercialGate extends StatefulWidget {
 
 const _commercialGateCopy = <String, Map<String, String>>{
   'it': {
-    'landingSubtitle': 'Verifica gratuitamente contenuti certificati oppure diventa un Creator verificato.',
+    'landingSubtitle':
+        'Verifica gratuitamente contenuti certificati oppure diventa un Creator verificato.',
     'verifyFree': 'VERIFICA CONTENUTO — GRATIS',
     'becomeCreator': 'DIVENTA CREATOR',
     'privacyTermsInfo': 'Privacy, Termini e informazioni',
@@ -65,7 +66,8 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'featureIdentity': 'Identità verificata',
     'featureRegistry': 'Registry HCV e verifica pubblica',
     'featurePack': 'HCVPACK e coordinate opzionali',
-    'productsMissing': 'I prodotti App Store non sono ancora configurati per questo account di test.',
+    'productsMissing':
+        'I prodotti App Store non sono ancora configurati per questo account di test.',
     'storeUnavailable': 'App Store non disponibile su questo dispositivo.',
     'annual': 'ANNUALE',
     'monthly': 'MENSILE',
@@ -73,13 +75,15 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'restore': 'RIPRISTINA ACQUISTI',
     'logout': 'ESCI DALL’ACCOUNT',
     'identityLastStep': 'Ultimo passaggio: verifica la tua identità',
-    'identityBody': 'Per associare i certificati a un Creator reale, SIGILLUM utilizza Stripe Identity. La procedura richiede un documento valido e un controllo selfie. I documenti vengono gestiti tramite Stripe; SIGILLUM conserva lo stato della verifica e i dati tecnici minimi necessari.',
+    'identityBody':
+        'Per associare i certificati a un Creator reale, SIGILLUM utilizza Stripe Identity. La procedura richiede un documento valido e un controllo selfie. I documenti vengono gestiti tramite Stripe; SIGILLUM conserva lo stato della verifica e i dati tecnici minimi necessari.',
     'verifyIdentity': 'VERIFICA IDENTITÀ',
     'checkIdentity': 'HO COMPLETATO — CONTROLLA STATO',
     'privacyIdentity': 'PRIVACY E INFORMAZIONI SULLA VERIFICA',
     'validationAccount':
         'Inserisci nome, email valida e una password di almeno 12 caratteri.',
-    'validationConfirmations': 'Per creare un account Creator devi completare le tre conferme richieste.',
+    'validationConfirmations':
+        'Per creare un account Creator devi completare le tre conferme richieste.',
     'codeSent': 'Ti abbiamo inviato un codice di 6 cifre.',
     'enterSix': 'Inserisci il codice di 6 cifre.',
     'emailNotVerified':
@@ -91,16 +95,31 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycOpenFailed': 'Impossibile aprire la verifica identità.',
     'kycCompleteReturn': 'Completa la verifica e poi torna in SIGILLUM.',
     'kycStillRunning': 'Verifica ancora in corso',
-    'kycServerConfirm': 'La verifica identità deve essere confermata dal server prima di certificare.',
+    'kycServerConfirm':
+        'La verifica identità deve essere confermata dal server prima di certificare.',
     'kycSyncFailed': 'Impossibile sincronizzare la verifica identità',
+    'kycProcessingMessage':
+        'Verifica inviata a Stripe. Il controllo è in elaborazione.',
+    'kycAdditionalStep':
+        'Stripe richiede un ulteriore passaggio. Completa la verifica e poi torna in SIGILLUM.',
+    'kycCanceled':
+        'La verifica è stata annullata. Puoi avviare una nuova verifica.',
+    'kycStatus': 'Stato verifica identità: {status}',
+    'identityVerifiedAction': 'IDENTITÀ VERIFICATA',
+    'identityProcessingAction': 'VERIFICA IN ELABORAZIONE',
+    'identityContinueAction': 'CONTINUA VERIFICA IDENTITÀ',
+    'identityRetryAction': 'RIPROVA VERIFICA IDENTITÀ',
     'storeError': 'App Store non disponibile',
     'checkingSubscription': 'Verifica abbonamento con App Store...',
     'subscriptionInactive': 'L’abbonamento non risulta attivo sul server.',
     'subscriptionVerified': 'Abbonamento verificato.',
     'subscriptionFailed': 'Verifica abbonamento non riuscita',
-    'accountExists': 'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.',
-    'accountNotFoundCreate': 'Non esiste un account con questa email. Puoi crearne uno nuovo.',
-    'kycProcessingNotice': 'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',
+    'accountExists':
+        'Questa email è già associata a un account. Accedi oppure usa Password dimenticata.',
+    'accountNotFoundCreate':
+        'Non esiste un account con questa email. Puoi crearne uno nuovo.',
+    'kycProcessingNotice':
+        'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',
     'refreshVerification': 'AGGIORNA STATO VERIFICA',
     'purchaseFailed': 'Acquisto non completato.',
     'openResourceFailed': 'Impossibile aprire questa risorsa.',
@@ -151,11 +170,13 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'restore': 'RESTORE PURCHASES',
     'logout': 'LOG OUT',
     'identityLastStep': 'Final step: verify your identity',
-    'identityBody': 'To link certificates to a real Creator, SIGILLUM uses Stripe Identity. The process requires a valid identity document and a selfie check. Documents are handled through Stripe; SIGILLUM stores the verification status and the minimum technical data required.',
+    'identityBody':
+        'To link certificates to a real Creator, SIGILLUM uses Stripe Identity. The process requires a valid identity document and a selfie check. Documents are handled through Stripe; SIGILLUM stores the verification status and the minimum technical data required.',
     'verifyIdentity': 'VERIFY IDENTITY',
     'checkIdentity': 'COMPLETED — CHECK STATUS',
     'privacyIdentity': 'PRIVACY AND IDENTITY VERIFICATION INFORMATION',
-    'validationAccount': 'Enter your name, a valid email address and a password of at least 12 characters.',
+    'validationAccount':
+        'Enter your name, a valid email address and a password of at least 12 characters.',
     'validationConfirmations':
         'Complete all three confirmations to create a Creator account.',
     'codeSent': 'We sent you a 6-digit code.',
@@ -168,22 +189,38 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycOpenFailed': 'Unable to open identity verification.',
     'kycCompleteReturn': 'Complete verification and then return to SIGILLUM.',
     'kycStillRunning': 'Verification still in progress',
-    'kycServerConfirm': 'Identity verification must be confirmed by the server before certification.',
+    'kycServerConfirm':
+        'Identity verification must be confirmed by the server before certification.',
     'kycSyncFailed': 'Unable to synchronize identity verification',
+    'kycProcessingMessage':
+        'Verification was submitted to Stripe and is being processed.',
+    'kycAdditionalStep':
+        'Stripe requires an additional step. Complete verification and then return to SIGILLUM.',
+    'kycCanceled':
+        'Verification was canceled. You can start a new verification.',
+    'kycStatus': 'Identity verification status: {status}',
+    'identityVerifiedAction': 'IDENTITY VERIFIED',
+    'identityProcessingAction': 'VERIFICATION IN PROGRESS',
+    'identityContinueAction': 'CONTINUE IDENTITY VERIFICATION',
+    'identityRetryAction': 'RETRY IDENTITY VERIFICATION',
     'storeError': 'App Store unavailable',
     'checkingSubscription': 'Checking subscription with App Store...',
     'subscriptionInactive': 'The subscription is not active on the server.',
     'subscriptionVerified': 'Subscription verified.',
     'subscriptionFailed': 'Subscription verification failed',
-    'accountExists': 'This email is already linked to an account. Sign in or use Forgot password.',
-    'accountNotFoundCreate': 'No account exists with this email. You can create a new one.',
-    'kycProcessingNotice': 'The verification was submitted to Stripe. Wait for the result before starting another procedure.',
+    'accountExists':
+        'This email is already linked to an account. Sign in or use Forgot password.',
+    'accountNotFoundCreate':
+        'No account exists with this email. You can create a new one.',
+    'kycProcessingNotice':
+        'The verification was submitted to Stripe. Wait for the result before starting another procedure.',
     'refreshVerification': 'REFRESH VERIFICATION STATUS',
     'purchaseFailed': 'Purchase not completed.',
     'openResourceFailed': 'Unable to open this resource.',
   },
   'es': {
-    'landingSubtitle': 'Verifica gratuitamente contenido certificado o conviértete en un Creator verificado.',
+    'landingSubtitle':
+        'Verifica gratuitamente contenido certificado o conviértete en un Creator verificado.',
     'verifyFree': 'VERIFICAR CONTENIDO — GRATIS',
     'becomeCreator': 'CONVERTIRSE EN CREATOR',
     'privacyTermsInfo': 'Privacidad, Términos e información',
@@ -218,7 +255,8 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'featureIdentity': 'Identidad verificada',
     'featureRegistry': 'Registry HCV y verificación pública',
     'featurePack': 'HCVPACK y coordenadas opcionales',
-    'productsMissing': 'Los productos de App Store aún no están configurados para esta cuenta de prueba.',
+    'productsMissing':
+        'Los productos de App Store aún no están configurados para esta cuenta de prueba.',
     'storeUnavailable': 'App Store no está disponible en este dispositivo.',
     'annual': 'ANUAL',
     'monthly': 'MENSUAL',
@@ -226,11 +264,13 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'restore': 'RESTAURAR COMPRAS',
     'logout': 'CERRAR SESIÓN',
     'identityLastStep': 'Último paso: verifica tu identidad',
-    'identityBody': 'Para vincular los certificados a un Creator real, SIGILLUM utiliza Stripe Identity. El proceso requiere un documento de identidad válido y una comprobación mediante selfie. Los documentos se gestionan a través de Stripe; SIGILLUM conserva el estado de verificación y los datos técnicos mínimos necesarios.',
+    'identityBody':
+        'Para vincular los certificados a un Creator real, SIGILLUM utiliza Stripe Identity. El proceso requiere un documento de identidad válido y una comprobación mediante selfie. Los documentos se gestionan a través de Stripe; SIGILLUM conserva el estado de verificación y los datos técnicos mínimos necesarios.',
     'verifyIdentity': 'VERIFICAR IDENTIDAD',
     'checkIdentity': 'HE TERMINADO — COMPROBAR ESTADO',
     'privacyIdentity': 'PRIVACIDAD E INFORMACIÓN SOBRE LA VERIFICACIÓN',
-    'validationAccount': 'Introduce tu nombre, un email válido y una contraseña de al menos 12 caracteres.',
+    'validationAccount':
+        'Introduce tu nombre, un email válido y una contraseña de al menos 12 caracteres.',
     'validationConfirmations':
         'Completa las tres confirmaciones para crear una cuenta Creator.',
     'codeSent': 'Te hemos enviado un código de 6 dígitos.',
@@ -246,22 +286,38 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycOpenFailed': 'No se puede abrir la verificación de identidad.',
     'kycCompleteReturn': 'Completa la verificación y vuelve a SIGILLUM.',
     'kycStillRunning': 'La verificación sigue en curso',
-    'kycServerConfirm': 'La verificación de identidad debe ser confirmada por el servidor antes de certificar.',
+    'kycServerConfirm':
+        'La verificación de identidad debe ser confirmada por el servidor antes de certificar.',
     'kycSyncFailed': 'No se puede sincronizar la verificación de identidad',
+    'kycProcessingMessage':
+        'La verificación se envió a Stripe y está en proceso.',
+    'kycAdditionalStep':
+        'Stripe requiere un paso adicional. Completa la verificación y vuelve a SIGILLUM.',
+    'kycCanceled':
+        'La verificación se canceló. Puedes iniciar una nueva verificación.',
+    'kycStatus': 'Estado de verificación de identidad: {status}',
+    'identityVerifiedAction': 'IDENTIDAD VERIFICADA',
+    'identityProcessingAction': 'VERIFICACIÓN EN CURSO',
+    'identityContinueAction': 'CONTINUAR VERIFICACIÓN DE IDENTIDAD',
+    'identityRetryAction': 'REINTENTAR VERIFICACIÓN DE IDENTIDAD',
     'storeError': 'App Store no disponible',
     'checkingSubscription': 'Verificando la suscripción con App Store...',
     'subscriptionInactive': 'La suscripción no está activa en el servidor.',
     'subscriptionVerified': 'Suscripción verificada.',
     'subscriptionFailed': 'Error al verificar la suscripción',
-    'accountExists': 'Este correo ya está asociado a una cuenta. Inicia sesión o usa ¿Olvidaste la contraseña?.',
-    'accountNotFoundCreate': 'No existe una cuenta con este correo. Puedes crear una nueva.',
-    'kycProcessingNotice': 'La verificación se envió a Stripe. Espera el resultado antes de iniciar otro procedimiento.',
+    'accountExists':
+        'Este correo ya está asociado a una cuenta. Inicia sesión o usa ¿Olvidaste la contraseña?.',
+    'accountNotFoundCreate':
+        'No existe una cuenta con este correo. Puedes crear una nueva.',
+    'kycProcessingNotice':
+        'La verificación se envió a Stripe. Espera el resultado antes de iniciar otro procedimiento.',
     'refreshVerification': 'ACTUALIZAR ESTADO DE VERIFICACIÓN',
     'purchaseFailed': 'Compra no completada.',
     'openResourceFailed': 'No se puede abrir este recurso.',
   },
   'ru': {
-    'landingSubtitle': 'Бесплатно проверяйте сертифицированный контент или станьте верифицированным Creator.',
+    'landingSubtitle':
+        'Бесплатно проверяйте сертифицированный контент или станьте верифицированным Creator.',
     'verifyFree': 'ПРОВЕРИТЬ КОНТЕНТ — БЕСПЛАТНО',
     'becomeCreator': 'СТАТЬ CREATOR',
     'privacyTermsInfo': 'Конфиденциальность, Условия и информация',
@@ -305,7 +361,8 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'restore': 'ВОССТАНОВИТЬ ПОКУПКИ',
     'logout': 'ВЫЙТИ ИЗ АККАУНТА',
     'identityLastStep': 'Последний шаг: подтвердите личность',
-    'identityBody': 'Чтобы связать сертификаты с реальным Creator, SIGILLUM использует Stripe Identity. Процедура требует действительного документа и проверки селфи. Документы обрабатываются через Stripe; SIGILLUM хранит статус проверки и минимально необходимые технические данные.',
+    'identityBody':
+        'Чтобы связать сертификаты с реальным Creator, SIGILLUM использует Stripe Identity. Процедура требует действительного документа и проверки селфи. Документы обрабатываются через Stripe; SIGILLUM хранит статус проверки и минимально необходимые технические данные.',
     'verifyIdentity': 'ПОДТВЕРДИТЬ ЛИЧНОСТЬ',
     'checkIdentity': 'ЗАВЕРШЕНО — ПРОВЕРИТЬ СТАТУС',
     'privacyIdentity': 'КОНФИДЕНЦИАЛЬНОСТЬ И ИНФОРМАЦИЯ О ПРОВЕРКЕ',
@@ -326,14 +383,26 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'kycServerConfirm':
         'Перед сертификацией сервер должен подтвердить проверку личности.',
     'kycSyncFailed': 'Не удалось синхронизировать проверку личности',
+    'kycProcessingMessage':
+        'Проверка отправлена в Stripe и сейчас обрабатывается.',
+    'kycAdditionalStep':
+        'Stripe требует дополнительный шаг. Завершите проверку и вернитесь в SIGILLUM.',
+    'kycCanceled': 'Проверка отменена. Можно начать новую проверку.',
+    'kycStatus': 'Статус проверки личности: {status}',
+    'identityVerifiedAction': 'ЛИЧНОСТЬ ПОДТВЕРЖДЕНА',
+    'identityProcessingAction': 'ПРОВЕРКА ВЫПОЛНЯЕТСЯ',
+    'identityContinueAction': 'ПРОДОЛЖИТЬ ПРОВЕРКУ ЛИЧНОСТИ',
+    'identityRetryAction': 'ПОВТОРИТЬ ПРОВЕРКУ ЛИЧНОСТИ',
     'storeError': 'App Store недоступен',
     'checkingSubscription': 'Проверка подписки через App Store...',
     'subscriptionInactive': 'Подписка не активна на сервере.',
     'subscriptionVerified': 'Подписка подтверждена.',
     'subscriptionFailed': 'Ошибка проверки подписки',
-    'accountExists': 'Этот email уже связан с аккаунтом. Войдите или используйте восстановление пароля.',
+    'accountExists':
+        'Этот email уже связан с аккаунтом. Войдите или используйте восстановление пароля.',
     'accountNotFoundCreate': 'Аккаунта с этим email нет. Можно создать новый.',
-    'kycProcessingNotice': 'Проверка отправлена в Stripe. Дождитесь результата перед запуском новой процедуры.',
+    'kycProcessingNotice':
+        'Проверка отправлена в Stripe. Дождитесь результата перед запуском новой процедуры.',
     'refreshVerification': 'ОБНОВИТЬ СТАТУС ПРОВЕРКИ',
     'purchaseFailed': 'Покупка не завершена.',
     'openResourceFailed': 'Не удалось открыть ресурс.',
@@ -345,10 +414,12 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'tagline': 'Verifica. Condividi. Proteggi.',
     'info': 'Informazioni',
     'welcomePrefix': 'Benvenuto in ',
-    'heroSubtitle': 'Verifica l’autenticità dei contenuti digitali e condividi con fiducia.',
+    'heroSubtitle':
+        'Verifica l’autenticità dei contenuti digitali e condividi con fiducia.',
     'verifySeconds': 'Verifica in pochi secondi',
-    'scanDescription': 'Scansiona un codice SIGILLUM o inserisci l’HCV-ID per controllare foto, video, documenti e messaggi.',
-    'verifyFree': 'VERIFICA CONTENUTO GRATIS',
+    'scanDescription':
+        'Controlla foto, video o file ricevuti confrontandoli con SIGILLUM.',
+    'verifyFree': 'VERIFICA CONTENUTO',
     'secureFast': 'Sicuro, veloce, senza registrazione',
     'loginTitle': 'Accedi al tuo account',
     'loginSubtitle': 'Entra e gestisci le tue verifiche',
@@ -369,8 +440,9 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'heroSubtitle':
         'Verify the authenticity of digital content and share with confidence.',
     'verifySeconds': 'Verify in seconds',
-    'scanDescription': 'Scan a SIGILLUM code or enter the HCV-ID to check photos, videos, documents and messages.',
-    'verifyFree': 'VERIFY CONTENT FOR FREE',
+    'scanDescription':
+        'Scan a SIGILLUM code or enter the HCV-ID to check photos, videos, documents and messages.',
+    'verifyFree': 'VERIFY CONTENT',
     'secureFast': 'Secure, fast, no registration required',
     'loginTitle': 'Sign in to your account',
     'loginSubtitle': 'Access and manage your verifications',
@@ -388,10 +460,12 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'tagline': 'Verifica. Comparte. Protege.',
     'info': 'Información',
     'welcomePrefix': 'Bienvenido a ',
-    'heroSubtitle': 'Verifica la autenticidad de los contenidos digitales y compártelos con confianza.',
+    'heroSubtitle':
+        'Verifica la autenticidad de los contenidos digitales y compártelos con confianza.',
     'verifySeconds': 'Verifica en pocos segundos',
-    'scanDescription': 'Escanea un código SIGILLUM o introduce el HCV-ID para comprobar fotos, vídeos, documentos y mensajes.',
-    'verifyFree': 'VERIFICAR CONTENIDO GRATIS',
+    'scanDescription':
+        'Escanea un código SIGILLUM o introduce el HCV-ID para comprobar fotos, vídeos, documentos y mensajes.',
+    'verifyFree': 'VERIFICAR CONTENIDO',
     'secureFast': 'Seguro, rápido y sin registro',
     'loginTitle': 'Accede a tu cuenta',
     'loginSubtitle': 'Entra y gestiona tus verificaciones',
@@ -410,10 +484,12 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'tagline': 'Проверяйте. Делитесь. Защищайте.',
     'info': 'Информация',
     'welcomePrefix': 'Добро пожаловать в ',
-    'heroSubtitle': 'Проверяйте подлинность цифрового контента и делитесь им с уверенностью.',
+    'heroSubtitle':
+        'Проверяйте подлинность цифрового контента и делитесь им с уверенностью.',
     'verifySeconds': 'Проверка за несколько секунд',
-    'scanDescription': 'Отсканируйте код SIGILLUM или введите HCV-ID, чтобы проверить фото, видео, документы и сообщения.',
-    'verifyFree': 'ПРОВЕРИТЬ КОНТЕНТ БЕСПЛАТНО',
+    'scanDescription':
+        'Отсканируйте код SIGILLUM или введите HCV-ID, чтобы проверить фото, видео, документы и сообщения.',
+    'verifyFree': 'ПРОВЕРИТЬ КОНТЕНТ',
     'secureFast': 'Безопасно, быстро, без регистрации',
     'loginTitle': 'Войти в аккаунт',
     'loginSubtitle': 'Войдите и управляйте своими проверками',
@@ -439,7 +515,8 @@ enum _GateStage {
   creator,
 }
 
-class _CommercialGateState extends State<CommercialGate> {
+class _CommercialGateState extends State<CommercialGate>
+    with WidgetsBindingObserver {
   static const MethodChannel _intentChannel = MethodChannel('hcv.intent');
 
   final CommercialAccountService _account = const CommercialAccountService();
@@ -474,6 +551,7 @@ class _CommercialGateState extends State<CommercialGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     CommercialBillingService.instance.startListening();
     _purchaseSub = CommercialBillingService.instance.purchases.listen(
       _onPurchases,
@@ -486,6 +564,7 @@ class _CommercialGateState extends State<CommercialGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _intentChannel.setMethodCallHandler(null);
     _purchaseSub?.cancel();
     _name.dispose();
@@ -494,6 +573,15 @@ class _CommercialGateState extends State<CommercialGate> {
     _code.dispose();
     _newPassword.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_checkInitialIntent());
+    });
   }
 
   Future<void> _loadRecentAccounts() async {
@@ -537,11 +625,6 @@ class _CommercialGateState extends State<CommercialGate> {
     if (path == null || path.isEmpty) return null;
 
     _queueImportedPath(path);
-    try {
-      await _intentChannel.invokeMethod<bool>('ackSharedPath', <String, dynamic>{
-        'path': path,
-      });
-    } catch (_) {}
     return null;
   }
 
@@ -553,6 +636,17 @@ class _CommercialGateState extends State<CommercialGate> {
       }
     } catch (error) {
       debugPrint('Intent error: $error');
+    }
+  }
+
+  Future<void> _ackSharedPath(String path) async {
+    try {
+      await _intentChannel.invokeMethod<bool>(
+        'ackSharedPath',
+        <String, dynamic>{'path': path},
+      );
+    } catch (_) {
+      // Keep the native pending path available for the next resume/cold start.
     }
   }
 
@@ -583,15 +677,14 @@ class _CommercialGateState extends State<CommercialGate> {
     if (!mounted || path.isEmpty || _lastOpenedSharedPath == path) return;
     if (!await File(path).exists()) return;
     if (!mounted) return;
-    _lastOpenedSharedPath = path;
 
+    final navigator = Navigator.of(context, rootNavigator: true);
     final lower = path.toLowerCase();
     if (lower.endsWith('.txt')) {
       try {
         final sharedText = await File(path).readAsString();
         if (!mounted) return;
-        await Navigator.push(
-          context,
+        final navigation = navigator.push(
           MaterialPageRoute(
             builder: (_) => TextSocialVerifyPage(
               languageCode: _languageCode,
@@ -599,17 +692,22 @@ class _CommercialGateState extends State<CommercialGate> {
             ),
           ),
         );
+        _lastOpenedSharedPath = path;
+        await _ackSharedPath(path);
+        await navigation;
       } catch (_) {}
       return;
     }
 
-    await Navigator.push(
-      context,
+    final navigation = navigator.push(
       MaterialPageRoute(
         builder: (_) =>
             HCVImportRouterPage(path: path, languageCode: _languageCode),
       ),
     );
+    _lastOpenedSharedPath = path;
+    await _ackSharedPath(path);
+    await navigation;
   }
 
   void _openQuickGuide() {
@@ -789,9 +887,8 @@ class _CommercialGateState extends State<CommercialGate> {
     final rawOutputs = verificationLivemode ? result['verifiedOutputs'] : null;
     await HCVIdentity().saveKycStatus(
       status,
-      verifiedOutputs: rawOutputs is Map
-          ? Map<String, dynamic>.from(rawOutputs)
-          : null,
+      verifiedOutputs:
+          rawOutputs is Map ? Map<String, dynamic>.from(rawOutputs) : null,
     );
     if (mounted) {
       setState(() {
@@ -801,8 +898,8 @@ class _CommercialGateState extends State<CommercialGate> {
   }
 
   Future<bool> _recoverUnfinishedAppleTransactions() async {
-    final unfinished = await CommercialBillingService.instance
-        .unfinishedAppleTransactions();
+    final unfinished =
+        await CommercialBillingService.instance.unfinishedAppleTransactions();
     var entitlementActive = false;
 
     for (final transaction in unfinished) {
@@ -1135,17 +1232,12 @@ class _CommercialGateState extends State<CommercialGate> {
       }
       if (status == 'processing') {
         if (mounted) {
-          setState(
-            () => _message =
-                'Verifica inviata a Stripe. Il controllo è in elaborazione.',
-          );
+          setState(() => _message = _t('kycProcessingMessage'));
         }
         return;
       }
       if (url.isEmpty) {
-        throw StateError(
-          'Link di verifica identità non disponibile per lo stato $status.',
-        );
+        throw StateError('${_t('kycLinkMissing')} ($status)');
       }
       final opened = await launchUrl(
         Uri.parse(url),
@@ -1155,8 +1247,8 @@ class _CommercialGateState extends State<CommercialGate> {
       if (mounted) {
         setState(
           () => _message = status == 'requires_input'
-              ? 'Stripe richiede un ulteriore passaggio. Completa la verifica e poi torna in SIGILLUM.'
-              : 'Completa la verifica e poi torna in SIGILLUM.',
+              ? _t('kycAdditionalStep')
+              : _t('kycCompleteReturn'),
         );
       }
     });
@@ -1170,12 +1262,10 @@ class _CommercialGateState extends State<CommercialGate> {
       if (status != 'verified') {
         if (mounted) {
           final text = switch (status) {
-            'processing' =>
-              'Verifica inviata a Stripe. Il controllo è in elaborazione.',
-            'requires_input' => 'Stripe richiede un ulteriore passaggio per completare la verifica.',
-            'canceled' =>
-              'La verifica è stata annullata. Puoi avviare una nuova verifica.',
-            _ => 'Stato verifica identità: $status',
+            'processing' => _t('kycProcessingMessage'),
+            'requires_input' => _t('kycAdditionalStep'),
+            'canceled' => _t('kycCanceled'),
+            _ => _t('kycStatus').replaceAll('{status}', status),
           };
           setState(() => _message = text);
         }
@@ -1690,9 +1780,12 @@ class _CommercialGateState extends State<CommercialGate> {
                         OutlinedButton.icon(
                           onPressed: _openVerifiedOriginals,
                           icon: const Icon(Icons.video_library_outlined),
-                          label: Text(_languageCode == 'it'
-                              ? 'VERIFICA CODICE / GUARDA ORIGINALE'
-                              : 'CHECK CODE / WATCH REFERENCE'),
+                          label: Text(
+                            SigillumCopy.t(
+                              _languageCode,
+                              'verifiedOriginalsAction',
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Row(
@@ -1922,18 +2015,16 @@ class _CommercialGateState extends State<CommercialGate> {
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _acceptTerms,
-            onChanged: _busy
-                ? null
-                : (v) => setState(() => _acceptTerms = v == true),
+            onChanged:
+                _busy ? null : (v) => setState(() => _acceptTerms = v == true),
             title: Text(_t('acceptTerms')),
             controlAffinity: ListTileControlAffinity.leading,
           ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _ackPrivacy,
-            onChanged: _busy
-                ? null
-                : (v) => setState(() => _ackPrivacy = v == true),
+            onChanged:
+                _busy ? null : (v) => setState(() => _ackPrivacy = v == true),
             title: Text(_t('ackPrivacy')),
             controlAffinity: ListTileControlAffinity.leading,
           ),
@@ -1967,24 +2058,22 @@ class _CommercialGateState extends State<CommercialGate> {
           child: Text(
             _forgotMode
                 ? (_code.text.trim().isEmpty
-                      ? _t('sendCode')
-                      : _t('resetPassword'))
+                    ? _t('sendCode')
+                    : _t('resetPassword'))
                 : (_loginMode ? _t('login') : _t('createAccount')),
           ),
         ),
         if (!_forgotMode) ...[
           const SizedBox(height: 8),
           TextButton(
-            onPressed: _busy
-                ? null
-                : () => setState(() => _loginMode = !_loginMode),
+            onPressed:
+                _busy ? null : () => setState(() => _loginMode = !_loginMode),
             child: Text(_loginMode ? _t('noAccount') : _t('haveAccount')),
           ),
           if (_loginMode)
             TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => setState(() => _forgotMode = true),
+              onPressed:
+                  _busy ? null : () => setState(() => _forgotMode = true),
               child: Text(_t('forgotPassword')),
             ),
         ] else
@@ -2040,11 +2129,11 @@ class _CommercialGateState extends State<CommercialGate> {
           onPressed: _busy
               ? null
               : () => _run(
-                  () => _account.resendEmailCode(
-                    _email.text,
-                    languageCode: _languageCode,
+                    () => _account.resendEmailCode(
+                      _email.text,
+                      languageCode: _languageCode,
+                    ),
                   ),
-                ),
           child: Text(_t('newCode')),
         ),
       ],
@@ -2102,8 +2191,9 @@ class _CommercialGateState extends State<CommercialGate> {
               onPressed: _busy || !_productDisplayPrices.containsKey(product.id)
                   ? null
                   : () => _run(() async {
-                      await CommercialBillingService.instance.purchase(product);
-                    }),
+                        await CommercialBillingService.instance
+                            .purchase(product);
+                      }),
               child: Text(
                 '${_creatorPlanLabel(product)} — ${_productDisplayPrices[product.id] ?? '…'}',
               ),
@@ -2111,9 +2201,8 @@ class _CommercialGateState extends State<CommercialGate> {
             const SizedBox(height: 10),
           ],
         OutlinedButton(
-          onPressed: _busy
-              ? null
-              : () => CommercialBillingService.instance.restore(),
+          onPressed:
+              _busy ? null : () => CommercialBillingService.instance.restore(),
           child: Text(_t('restore')),
         ),
         if (_message.isNotEmpty)
@@ -2138,14 +2227,14 @@ class _CommercialGateState extends State<CommercialGate> {
     final canceled = status == 'canceled';
     final verified = status == 'verified';
     final actionLabel = verified
-        ? 'IDENTITÀ VERIFICATA'
+        ? _t('identityVerifiedAction')
         : processing
-        ? 'VERIFICA IN ELABORAZIONE'
-        : requiresInput
-        ? 'CONTINUA VERIFICA IDENTITÀ'
-        : canceled
-        ? 'RIPROVA VERIFICA IDENTITÀ'
-        : 'VERIFICA IDENTITÀ';
+            ? _t('identityProcessingAction')
+            : requiresInput
+                ? _t('identityContinueAction')
+                : canceled
+                    ? _t('identityRetryAction')
+                    : _t('verifyIdentity');
 
     return Column(
       key: const ValueKey('identity'),

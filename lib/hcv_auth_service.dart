@@ -26,6 +26,7 @@ class HCVAuthService {
   });
 
   static const String _sessionTokenKey = 'sigillum.auth.session.v1';
+  static const String accountIdStoreKey = 'sigillum.auth.account.id.v1';
   static const String _authProofPurpose = 'SIGILLUM_AUTH_DEVICE_BINDING_V1';
   static const Duration _timeout = Duration(seconds: 20);
 
@@ -38,7 +39,10 @@ class HCVAuthService {
 
   Future<Map<String, dynamic>?> restoreSession() async {
     final token = await HCVSecureStore.read(_sessionTokenKey);
-    if (token == null || token.isEmpty) return null;
+    if (token == null || token.isEmpty) {
+      await HCVSecureStore.delete(accountIdStoreKey);
+      return null;
+    }
 
     try {
       final response = await _request('GET', '/api/auth/session', token: token);
@@ -47,6 +51,7 @@ class HCVAuthService {
     } on HCVAuthException catch (error) {
       if (error.statusCode == 401) {
         await HCVSecureStore.delete(_sessionTokenKey);
+        await HCVSecureStore.delete(accountIdStoreKey);
         return null;
       }
       rethrow;
@@ -161,6 +166,7 @@ class HCVAuthService {
       }
     } finally {
       await HCVSecureStore.delete(_sessionTokenKey);
+      await HCVSecureStore.delete(accountIdStoreKey);
     }
   }
 
@@ -175,6 +181,7 @@ class HCVAuthService {
       body: {'password': password, 'confirmation': 'DELETE'},
     );
     await HCVSecureStore.delete(_sessionTokenKey);
+    await HCVSecureStore.delete(accountIdStoreKey);
     await HCVIdentity().clearPersonalData();
   }
 
@@ -229,16 +236,23 @@ class HCVAuthService {
   Future<void> _syncServerCreatorId(Map<String, dynamic> response) async {
     final raw = response['account'];
     if (raw is! Map) return;
+    final accountId = raw['id']?.toString().trim() ?? '';
+    if (accountId.isEmpty) {
+      throw StateError('AUTH_ACCOUNT_ID_MISSING');
+    }
+    await HCVSecureStore.write(accountIdStoreKey, accountId);
+
     final creatorId = raw['creatorId']?.toString().trim() ?? '';
-    if (creatorId.isEmpty) return;
+    if (creatorId.isEmpty) {
+      throw StateError('AUTH_CREATOR_ID_MISSING');
+    }
     await HCVIdentity().saveCreatorId(creatorId);
   }
 
   Map<String, dynamic> _accountEnvelope(Map<String, dynamic> response) {
     final raw = response['account'];
-    final account = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : <String, dynamic>{};
+    final account =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     return {
       'ok': response['ok'] == true,
       'expiresAt': response['expiresAt'],
@@ -283,8 +297,8 @@ class HCVAuthService {
           decoded['message']?.toString().isNotEmpty == true
               ? decoded['message'].toString()
               : decoded['error']?.toString().isNotEmpty == true
-              ? decoded['error'].toString()
-              : 'Operazione account non riuscita',
+                  ? decoded['error'].toString()
+                  : 'Operazione account non riuscita',
           statusCode: response.statusCode,
           code: decoded['error']?.toString(),
         );

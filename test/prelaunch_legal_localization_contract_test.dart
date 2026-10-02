@@ -30,8 +30,8 @@ void main() {
     final account =
         File('lib/commercial_account_service.dart').readAsStringSync();
 
-    expect(account, contains("termsVersion = '2026-08-18'"));
-    expect(account, contains("privacyVersion = '2026-08-18'"));
+    expect(account, contains("termsVersion = '2026-09-25'"));
+    expect(account, contains("privacyVersion = '2026-09-25'"));
     expect(account, contains("'languageCode': languageCode"));
   });
 

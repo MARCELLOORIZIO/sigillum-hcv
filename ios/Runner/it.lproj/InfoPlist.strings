@@ -1,0 +1,7 @@
+"NSCameraUsageDescription" = "SIGILLUM usa la fotocamera per creare foto e video HCV certificati.";
+"NSMicrophoneUsageDescription" = "SIGILLUM usa il microfono per includere audio nei video HCV certificati.";
+"NSSpeechRecognitionUsageDescription" = "SIGILLUM usa il riconoscimento vocale, solo su richiesta, per creare una trascrizione e sottotitoli sincronizzati da un video. L’originale certificato non viene modificato.";
+"NSPhotoLibraryUsageDescription" = "SIGILLUM accede alla libreria Foto quando scegli contenuti da verificare.";
+"NSPhotoLibraryAddUsageDescription" = "SIGILLUM aggiunge a Foto solo copie derivate che scegli esplicitamente di salvare, ad esempio un video sottotitolato. L’originale certificato resta nell’area protetta dell’app.";
+"NSLocationWhenInUseUsageDescription" = "SIGILLUM usa la posizione mentre l’app è in uso per associare coordinate GPS ai contenuti certificati quando la funzione di localizzazione è attiva.";
+"NSLocalNetworkUsageDescription" = "SIGILLUM usa la rete locale solo per collegarsi al server AI Trainer durante i test.";

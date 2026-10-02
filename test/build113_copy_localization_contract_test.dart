@@ -22,6 +22,55 @@ void main() {
     expect(VerificationUiCopy.t('en', 'compatible'), 'Cannot be determined');
   });
 
+  test('production copy maps keep exact key parity across all four languages', () {
+    const files = <String>[
+      'lib/sigillum_localization.dart',
+      'lib/camera_ui_copy.dart',
+      'lib/camera_ui_extended_copy.dart',
+      'lib/verification_ui_copy.dart',
+      'lib/registry_verify_copy.dart',
+    ];
+
+    for (final path in files) {
+      final source = File(path).readAsStringSync();
+      final positions = <String, int>{
+        for (final language in languages)
+          language: source.indexOf("'$language':"),
+      };
+      for (final entry in positions.entries) {
+        expect(
+          entry.value,
+          greaterThanOrEqualTo(0),
+          reason: path + ' missing language map ' + entry.key,
+        );
+      }
+
+      Set<String> keysFor(String language) {
+        final start = positions[language]!;
+        final later = positions.values.where((value) => value > start).toList();
+        final end = later.isEmpty
+            ? source.length
+            : later.reduce((left, right) => left < right ? left : right);
+        final chunk = source.substring(start, end);
+        return RegExp(r"^\s*'([^']+)'\s*:", multiLine: true)
+            .allMatches(chunk)
+            .map((match) => match.group(1)!)
+            .where((key) => !languages.contains(key))
+            .toSet();
+      }
+
+      final italian = keysFor('it');
+      expect(italian, isNotEmpty, reason: path + ' has no Italian copy keys');
+      for (final language in const ['en', 'es', 'ru']) {
+        expect(
+          keysFor(language),
+          italian,
+          reason: path + ' key mismatch for ' + language,
+        );
+      }
+    }
+  });
+
   test('visible production verdicts no longer claim HUMAN VERIFIED', () {
     const files = [
       'lib/camera_ui_copy.dart',

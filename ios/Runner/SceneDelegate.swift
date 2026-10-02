@@ -113,7 +113,8 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
 
     channel.setMethodCallHandler { call, result in
       if call.method == "getSharedPath" {
-        if let path = self.consumeSharedPath() {
+        self.stageSharedPathFromAppGroupIfNeeded()
+        if let path = self.pendingSharedPath() {
           self.lastDeliveredSharedPath = path
           result(path)
         } else {
@@ -122,9 +123,22 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
       } else if call.method == "ackSharedPath" {
         let args = call.arguments as? [String: Any]
         let acknowledgedPath = args?["path"] as? String
+
         let pendingPath = UserDefaults.standard.string(forKey: "hcv.sharedPath")
         if acknowledgedPath == nil || acknowledgedPath == pendingPath {
           UserDefaults.standard.removeObject(forKey: "hcv.sharedPath")
+        }
+
+        let legacyPath = UserDefaults.standard.string(forKey: self.sharedPathKey)
+        if acknowledgedPath == nil || acknowledgedPath == legacyPath {
+          UserDefaults.standard.removeObject(forKey: self.sharedPathKey)
+        }
+
+        if let defaults = UserDefaults(suiteName: self.appGroupId) {
+          let groupedPath = defaults.string(forKey: self.sharedPathKey)
+          if acknowledgedPath == nil || acknowledgedPath == groupedPath {
+            defaults.removeObject(forKey: self.sharedPathKey)
+          }
         }
         result(true)
       } else {
@@ -166,6 +180,27 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     UserDefaults.standard.set(path, forKey: "hcv.sharedPath")
     UserDefaults.standard.synchronize()
     defaults.removeObject(forKey: sharedPathKey)
+  }
+
+  private func pendingSharedPath() -> String? {
+    if let path = UserDefaults.standard.string(forKey: "hcv.sharedPath"),
+       !path.isEmpty {
+      return path
+    }
+
+    if let path = UserDefaults.standard.string(forKey: sharedPathKey),
+       !path.isEmpty {
+      return path
+    }
+
+    guard
+      let defaults = UserDefaults(suiteName: appGroupId),
+      let path = defaults.string(forKey: sharedPathKey),
+      !path.isEmpty
+    else {
+      return nil
+    }
+    return path
   }
 
   private func consumeSharedPath() -> String? {
@@ -449,9 +484,14 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     let originalLeaf = URL(fileURLWithPath: resource.originalFilename).lastPathComponent
     let rawExtension = URL(fileURLWithPath: originalLeaf).pathExtension
     let fileExtension = rawExtension.isEmpty ? "jpg" : rawExtension
-    let preservedName = originalLeaf.isEmpty
-      ? "hcv_original_\(UUID().uuidString).\(fileExtension)"
-      : "hcv_original_\(UUID().uuidString)_\(originalLeaf)"
+    let preservedName: String
+    if originalLeaf.isEmpty {
+      preservedName = "hcv_original_\(UUID().uuidString).\(fileExtension)"
+    } else if rawExtension.isEmpty {
+      preservedName = "hcv_original_\(UUID().uuidString)_\(originalLeaf).\(fileExtension)"
+    } else {
+      preservedName = "hcv_original_\(UUID().uuidString)_\(originalLeaf)"
+    }
     let output = FileManager.default.temporaryDirectory.appendingPathComponent(
       preservedName
     )

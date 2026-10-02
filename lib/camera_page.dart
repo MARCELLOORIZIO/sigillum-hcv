@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -35,6 +36,9 @@ import 'sigillum_localization.dart';
 import 'camera_ui_extended_copy.dart';
 import 'video_transcription_service.dart';
 import 'sigillum_quick_guide_page.dart';
+import 'hcv_secure_media_vault.dart';
+import 'secure_originals_page.dart';
+import 'verified_originals_publish_service.dart';
 
 int _displayDecisionRank(String decision) {
   switch (decision) {
@@ -311,6 +315,7 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
+  static const int _maxSecureVideoBytes = 200 * 1024 * 1024;
   CameraController? controller;
   List<CameraDescription>? cameras;
 
@@ -318,6 +323,9 @@ class _CameraPageState extends State<CameraPage> {
 
   final verifier = HCVVerifier();
   final registry = const HCVRegistryService();
+  final HCVSecureMediaVault _secureVault = const HCVSecureMediaVault();
+  final VerifiedOriginalsPublishService _publisher =
+      const VerifiedOriginalsPublishService();
   static const MethodChannel _mediaChannel = MethodChannel('hcv.media');
 
   final liveSignals = HCVLiveSignals();
@@ -336,6 +344,10 @@ class _CameraPageState extends State<CameraPage> {
   bool ready = false;
   bool recording = false;
   bool _videoFinalizeInProgress = false;
+  bool _secureFinalizeInProgress = false;
+
+  bool get _criticalFinalizationInProgress =>
+      _videoFinalizeInProgress || _secureFinalizeInProgress;
 
   bool photoMode = false;
 
@@ -356,9 +368,9 @@ class _CameraPageState extends State<CameraPage> {
   String? registryStatus;
   String? createdContentKind;
   bool _transcribingAudio = false;
+  bool _subtitlePublishing = false;
   String? _videoTranscript;
-  String? _subtitlePath;
-  String? _captionedVideoPath;
+  HCVSecureOriginalRecord? _secureOriginalRecord;
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _c(String key) => CameraUiExtendedCopy.t(widget.languageCode, key);
@@ -424,12 +436,28 @@ class _CameraPageState extends State<CameraPage> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _showFinalizationBlocked() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_c('secureFinalizationInProgress'))),
+    );
+  }
+
+  void _popCameraIfSafe() {
+    if (_criticalFinalizationInProgress) {
+      _showFinalizationBlocked();
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+
   @override
   void initState() {
     super.initState();
     photoMode = widget.initialPhotoMode;
     status = _c('initializing');
     initCamera();
+    Future.microtask(_recoverPendingSecureOriginals);
     Future.microtask(_retryPendingRegistryUploads);
   }
 
@@ -880,6 +908,7 @@ class _CameraPageState extends State<CameraPage> {
       hcvId = null;
       verificationUrl = null;
       registryStatus = null;
+      _secureOriginalRecord = null;
     });
 
     try {
@@ -1088,7 +1117,9 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> takePhoto() async {
     if (controller == null || !controller!.value.isInitialized) return;
-    if (controller!.value.isRecordingVideo) return;
+    if (controller!.value.isRecordingVideo || _criticalFinalizationInProgress) {
+      return;
+    }
 
     final captureLocation = await _locationForCapture();
     if (_printCoordinates && captureLocation == null) return;
@@ -1099,12 +1130,22 @@ class _CameraPageState extends State<CameraPage> {
     Map<String, dynamic>? temporalFrequencyProbe;
     Map<String, dynamic>? sceneContextProbe;
 
+    _secureFinalizeInProgress = true;
+    if (mounted) setState(() {});
+
     try {
       // One user tap starts the technical clip and automatically finishes with
       // the actual still. No PROSEGUI step and no 15-second scene gap remain.
       setState(() {
         status = _c('takingPhoto');
         result = null;
+        videoPath = null;
+        hcvPath = null;
+        packagePath = null;
+        hcvId = null;
+        verificationUrl = null;
+        registryStatus = null;
+        _secureOriginalRecord = null;
       });
 
       temporalFrequencyProbe = await _captureTemporalFrequencyNativeIsolated();
@@ -1370,6 +1411,13 @@ class _CameraPageState extends State<CameraPage> {
       String hcv = await engine.exportToFile();
 
       final ok = await verifier.verifyFile(hcv);
+      if (ok) {
+        hcv = await moveHcvToUnifiedName(
+          currentPath: hcv,
+          hcvId: preparedHcvId,
+          contentKind: 'photo',
+        );
+      }
 
       String? pack;
 
@@ -1399,17 +1447,50 @@ class _CameraPageState extends State<CameraPage> {
 
         recording = false;
       });
-      if (ok) {
-        await saveContentToGallery(publishedPhoto);
-        await uploadCertificateToRegistry();
+      if (ok && pack != null) {
+        await _secureVault.stagePendingSeal(
+          hcvId: preparedHcvId,
+          mediaType: 'photo',
+          mediaPath: publishedPhoto,
+          hcvpackPath: pack,
+          certificatePath: hcv,
+          expectedMediaSha256: hash,
+        );
+        await registry.enqueueCertificateFile(File(hcv).absolute.path);
+        final secured = await _secureVault.seal(
+          hcvId: preparedHcvId,
+          mediaType: 'photo',
+          mediaPath: publishedPhoto,
+          hcvpackPath: pack,
+          certificatePath: hcv,
+          expectedMediaSha256: hash,
+        );
+        _secureFinalizeInProgress = false;
+        if (mounted) {
+          setState(() {
+            _secureOriginalRecord = secured;
+            videoPath = null;
+            packagePath = null;
+            status = _t('secureOriginalStored');
+            registryStatus = _c('registryPending');
+          });
+        }
+        unawaited(_retryPendingRegistryUploads());
       }
     } catch (e) {
       if (temporalClip != null) {
         await temporalProbeEngine.discard(temporalClip.path);
       }
-      setState(() {
-        status = '${_c('photoError')}: $e';
-      });
+      if (mounted) {
+        setState(() {
+          status = '${_c('photoError')}: $e';
+        });
+      }
+    } finally {
+      if (_secureFinalizeInProgress) {
+        _secureFinalizeInProgress = false;
+        if (mounted) setState(() {});
+      }
     }
   }
 
@@ -1424,7 +1505,9 @@ class _CameraPageState extends State<CameraPage> {
       return dir;
     }
 
-    final dir = await getApplicationDocumentsDirectory();
+    // BUILD133: camera media is processed in private Application Support on iOS.
+    // Documents is exposed through Files because UIFileSharingEnabled is true.
+    final dir = await getApplicationSupportDirectory();
 
     if (!await dir.exists()) {
       await dir.create(recursive: true);
@@ -1444,6 +1527,12 @@ class _CameraPageState extends State<CameraPage> {
     if (sourceSize <= 1024) {
       throw StateError('VIDEO_CONTAINER_TOO_SMALL');
     }
+    if (sourceSize > _maxSecureVideoBytes) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {}
+      throw StateError('VIDEO_EXCEEDS_SECURE_PIPELINE_LIMIT_200_MIB');
+    }
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final savedPath = p.join(dir.path, 'hcv_video_$timestamp.mp4');
@@ -1456,6 +1545,26 @@ class _CameraPageState extends State<CameraPage> {
       throw StateError('VIDEO_CONTAINER_CHANGED_DURING_COPY');
     }
 
+    if (p.normalize(sourceFile.absolute.path) !=
+        p.normalize(savedFile.absolute.path)) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {
+        if (Platform.isIOS) {
+          try {
+            await savedFile.delete();
+          } catch (_) {}
+          throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+        }
+      }
+      if (Platform.isIOS && await sourceFile.exists()) {
+        try {
+          await savedFile.delete();
+        } catch (_) {}
+        throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+      }
+    }
+
     return savedFile.path;
   }
 
@@ -1463,11 +1572,41 @@ class _CameraPageState extends State<CameraPage> {
     final dir = await _downloadsDirectory();
 
     final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      throw FileSystemException('Captured photo source not found', sourcePath);
+    }
+    final sourceSize = await sourceFile.length();
+    if (sourceSize <= 0) throw StateError('PHOTO_SOURCE_EMPTY');
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     final savedPath = p.join(dir.path, 'hcv_photo_$timestamp.jpg');
 
     final savedFile = await sourceFile.copy(savedPath);
+    if (await savedFile.length() != sourceSize) {
+      try {
+        await savedFile.delete();
+      } catch (_) {}
+      throw StateError('PHOTO_CHANGED_DURING_COPY');
+    }
+    if (p.normalize(sourceFile.absolute.path) !=
+        p.normalize(savedFile.absolute.path)) {
+      try {
+        await sourceFile.delete();
+      } catch (_) {
+        if (Platform.isIOS) {
+          try {
+            await savedFile.delete();
+          } catch (_) {}
+          throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+        }
+      }
+      if (Platform.isIOS && await sourceFile.exists()) {
+        try {
+          await savedFile.delete();
+        } catch (_) {}
+        throw StateError('CAMERA_SOURCE_PLAINTEXT_DELETE_FAILED');
+      }
+    }
     return savedFile.path;
   }
 
@@ -1494,12 +1633,14 @@ class _CameraPageState extends State<CameraPage> {
   Future<String> moveHcvToUnifiedName({
     required String currentPath,
     required String hcvId,
+    String contentKind = 'video',
   }) async {
     final currentFile = File(currentPath);
     final safeId = hcvId.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
     final dir = await _downloadsDirectory();
 
-    final newPath = p.join(dir.path, 'hcv_video_$safeId.hcv');
+    final contentPrefix = contentKind == 'photo' ? 'hcv_photo' : 'hcv_video';
+    final newPath = p.join(dir.path, '${contentPrefix}_$safeId.hcv');
 
     final newFile = File(newPath);
 
@@ -1838,9 +1979,34 @@ class _CameraPageState extends State<CameraPage> {
       status = _c('done');
     });
 
-    if (ok) {
-      await saveContentToGallery(savedVideoPath);
-      await uploadCertificateToRegistry();
+    if (ok && pack != null) {
+      await _secureVault.stagePendingSeal(
+        hcvId: detectedId,
+        mediaType: 'video',
+        mediaPath: savedVideoPath,
+        hcvpackPath: pack,
+        certificatePath: hcv,
+        expectedMediaSha256: videoHash,
+      );
+      await registry.enqueueCertificateFile(File(hcv).absolute.path);
+      final secured = await _secureVault.seal(
+        hcvId: detectedId,
+        mediaType: 'video',
+        mediaPath: savedVideoPath,
+        hcvpackPath: pack,
+        certificatePath: hcv,
+        expectedMediaSha256: videoHash,
+      );
+      if (mounted) {
+        setState(() {
+          _secureOriginalRecord = secured;
+          videoPath = null;
+          packagePath = null;
+          status = _t('secureOriginalStored');
+          registryStatus = _c('registryPending');
+        });
+      }
+      unawaited(_retryPendingRegistryUploads());
     }
   }
 
@@ -1848,34 +2014,95 @@ class _CameraPageState extends State<CameraPage> {
     if (hcvPath == null) return;
     final currentPath = File(hcvPath!).absolute.path;
 
-    setState(() {
-      registryStatus = _c('registryPublishing');
-    });
+    if (mounted) {
+      setState(() {
+        registryStatus = _c('registryPublishing');
+      });
+    }
 
     try {
       await registry.enqueueCertificateFile(currentPath);
       final report = await registry.retryPendingUploads();
       final currentUploaded = report.uploadedPaths.contains(currentPath);
-      setState(() {
-        registryStatus = currentUploaded
-            ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
-            : _c('registryPending');
-      });
+      if (mounted) {
+        setState(() {
+          registryStatus = currentUploaded
+              ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
+              : _c('registryPending');
+        });
+      }
+    } on HCVRegistryException catch (e) {
+      if (mounted) {
+        setState(() {
+          if (e.statusCode == 402) {
+            registryStatus = _c('registrySubscriptionRequired');
+          } else if (e.statusCode == 401) {
+            registryStatus = _c('registryCreatorSessionRequired');
+          } else {
+            registryStatus = '${_c('registryUnavailableLocal')}: ${e.message}';
+          }
+        });
+      }
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          registryStatus = '${_c('registryUnavailableLocal')}: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _recoverPendingSecureOriginals() async {
+    try {
+      final beforeIds =
+          (await _secureVault.list()).map((record) => record.hcvId).toSet();
+      final recovered = await _secureVault.recoverPendingSeals();
+      if (recovered == 0) return;
+
+      // A hard kill can occur after the seal journal is persisted but before
+      // the Registry outbox entry is written. Only records newly materialized
+      // by this recovery need re-enqueueing; already-indexed records had
+      // reached the Registry queue before seal() started.
+      final recoveredRecords = (await _secureVault.list())
+          .where((record) => !beforeIds.contains(record.hcvId));
+      for (final record in recoveredRecords) {
+        final certificate = File(record.certificatePath);
+        if (await certificate.exists()) {
+          await registry.enqueueCertificateFile(certificate.absolute.path);
+        }
+      }
+
+      if (!mounted) return;
       setState(() {
-        registryStatus = '${_c('registryUnavailableLocal')}: $e';
+        status = _t('secureOriginalStored');
+        registryStatus = _c('registryPending');
       });
+      unawaited(_retryPendingRegistryUploads());
+    } catch (_) {
+      // Recovery remains journaled/outboxed and will be retried later.
     }
   }
 
   Future<void> _retryPendingRegistryUploads() async {
     try {
       final report = await registry.retryPendingUploads();
-      if (!mounted || report.uploaded == 0) return;
+      if (!mounted) return;
+      if (report.uploaded == 0) return;
       setState(() {
         registryStatus = report.pending == 0
-            ? _c('registrySynced')
+            ? '${_c('registryOk')}: ${hcvId ?? _c('certificatePublished')}'
             : 'Registry: ${report.uploaded} ${_c('registryPublished')}, ${report.pending} ${_c('registryWaiting')}';
+      });
+    } on HCVRegistryException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        if (e.statusCode == 402) {
+          registryStatus = _c('registrySubscriptionRequired');
+        } else if (e.statusCode == 401) {
+          registryStatus = _c('registryCreatorSessionRequired');
+        } else {
+          registryStatus = '${_c('registryUnavailableLocal')}: ${e.message}';
+        }
       });
     } catch (_) {
       // La certificazione locale resta valida; il retry avverra al prossimo avvio.
@@ -1904,22 +2131,32 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> shareVideoAndCertificate() async {
-    if (videoPath == null || hcvPath == null) {
-      setState(() => status = _c('noFileToShare'));
+    if (_criticalFinalizationInProgress) {
+      _showFinalizationBlocked();
       return;
     }
 
-    try {
-      await Share.shareXFiles(
-        [XFile(videoPath!, mimeType: _contentMimeType(videoPath!))],
-        text: hcvId == null
-            ? _c('verifiedContent')
-            : '${_c('verifiedContent')}\nID: $hcvId\nVerify with SIGILLUM',
-        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-      );
-    } catch (e) {
-      setState(() => status = '${_c('shareError')}: $e');
+    var record = _secureOriginalRecord;
+    final currentId = hcvId;
+    if (record == null && currentId != null) {
+      record = await _secureVault.find(currentId);
     }
+    if (record == null) {
+      if (mounted) setState(() => status = _c('secureShareRequiresVault'));
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _secureOriginalRecord = record);
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SecureOriginalsPage(
+          languageCode: widget.languageCode,
+        ),
+      ),
+    );
   }
 
   Future<bool> saveContentToGallery(String path) async {
@@ -1962,20 +2199,139 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<void> _saveCaptionedVideoToPhotos() async {
-    final path = _captionedVideoPath;
-    if (path == null) return;
-    final saved = await saveContentToGallery(path);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          saved
-              ? _c('captionedSavedPhotosSentence')
-              : _c('captionedSaveFailed'),
+  Future<_SubtitleExportDecision?> _subtitleExportDecision() async {
+    var rights = false;
+    var monetization = false;
+    return showDialog<_SubtitleExportDecision>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: Text(_t('secureOriginalsShareTitle')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_c('subtitleExportDisclosure')),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: rights,
+                  onChanged: (value) =>
+                      setLocalState(() => rights = value == true),
+                  title: Text(_t('secureOriginalsRightsConfirm')),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: monetization,
+                  onChanged: (value) =>
+                      setLocalState(() => monetization = value),
+                  title: Text(_t('secureOriginalsMonetization')),
+                  subtitle: Text(_t('secureOriginalsMonetizationHint')),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(_t('cancel')),
+            ),
+            FilledButton(
+              onPressed: rights
+                  ? () => Navigator.pop(
+                        dialogContext,
+                        _SubtitleExportDecision(
+                          monetizationConsent: monetization,
+                        ),
+                      )
+                  : null,
+              child: Text(_t('secureOriginalsContinueShare')),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<HCVSecureOriginalRecord?> _ensureSubtitleReferenceForExport() async {
+    if (_subtitlePublishing) return null;
+    final local = _secureOriginalRecord;
+    if (local == null) {
+      if (mounted) setState(() => status = _c('subtitleExportBlocked'));
+      return null;
+    }
+
+    final current = await _secureVault.find(local.hcvId) ?? local;
+    if (!current.hasSubtitleDerivative) {
+      if (mounted) setState(() => status = _c('subtitleExportBlocked'));
+      return null;
+    }
+    if (current.hasSubtitleReference) {
+      if (mounted) setState(() => _secureOriginalRecord = current);
+      return current;
+    }
+
+    final decision = await _subtitleExportDecision();
+    if (decision == null || !mounted) return null;
+
+    setState(() {
+      _subtitlePublishing = true;
+      status = _c('subtitleReferencePublishing');
+    });
+
+    try {
+      await _publisher.ensureSubtitleReference(
+        current,
+        monetizationConsent: decision.monetizationConsent,
+      );
+      final refreshed = await _secureVault.find(current.hcvId);
+      if (refreshed == null || !refreshed.hasSubtitleReference) {
+        throw StateError('SUBTITLE_REFERENCE_NOT_CONFIRMED');
+      }
+      if (mounted) {
+        setState(() {
+          _secureOriginalRecord = refreshed;
+          status = _c('subtitleReferenceReady');
+        });
+      }
+      return refreshed;
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          status = '${_c('subtitleExportBlocked')}: $error';
+        });
+      }
+      return null;
+    } finally {
+      if (mounted) setState(() => _subtitlePublishing = false);
+    }
+  }
+
+  Future<void> _saveCaptionedVideoToPhotos() async {
+    final record = await _ensureSubtitleReferenceForExport();
+    if (record == null) return;
+
+    File? clear;
+    try {
+      clear = await _secureVault.materializeCaptionedVideo(
+        record,
+        purpose: 'subtitle-save',
+      );
+      final saved = await saveContentToGallery(clear.path);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            saved
+                ? _c('captionedSavedPhotosSentence')
+                : _c('captionedSaveFailed'),
+          ),
+        ),
+      );
+    } finally {
+      if (clear != null) await _secureVault.deleteMaterialized(clear);
+    }
   }
 
   void _openCameraQuickGuide() {
@@ -1989,21 +2345,71 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> sharePackage() async {
-    if (packagePath == null) {
-      setState(() => status = _c('noPackToShare'));
+    if (_criticalFinalizationInProgress) {
+      _showFinalizationBlocked();
+      return;
+    }
+
+    var record = _secureOriginalRecord;
+    final currentId = hcvId;
+    if (record == null && currentId != null) {
+      record = await _secureVault.find(currentId);
+    }
+    if (record == null) {
+      if (mounted) setState(() => status = _c('secureShareRequiresVault'));
+      return;
+    }
+
+    final refreshed = await _secureVault.find(record.hcvId);
+    final securedRecord = refreshed ?? record;
+    if (!securedRecord.hasReference) {
+      if (mounted) {
+        setState(() => status = _t('secureOriginalsReferencePending'));
+      }
       return;
     }
 
     try {
+      final live = await _publisher.verificationReference(securedRecord.hcvId);
+      final referenceReady = live['availability'] == 'REFERENCE_AVAILABLE' &&
+          (live['referenceLive'] == true || live['youtubeLive'] == true);
+      if (!referenceReady) {
+        if (mounted) {
+          setState(() => status = _t('secureOriginalsReferencePending'));
+        }
+        return;
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => status = '${_c('sharePackError')}: $error');
+      }
+      return;
+    }
+
+    File? clearPack;
+    try {
+      clearPack = await _secureVault.materializeHcvpack(
+        securedRecord,
+        purpose: 'share-package',
+      );
       await Share.shareXFiles(
-        [XFile(packagePath!, mimeType: 'application/octet-stream')],
-        text: hcvId == null
-            ? 'HCVPACK offline SIGILLUM'
-            : 'HCVPACK offline SIGILLUM\nID: $hcvId',
+        [
+          XFile(
+            clearPack.path,
+            mimeType: 'application/vnd.sigillum.hcvpack',
+          ),
+        ],
+        text: '${_t('shareOfflinePack')}\nHCV-ID: ${securedRecord.hcvId}',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       );
     } catch (e) {
-      setState(() => status = '${_c('sharePackError')}: $e');
+      if (mounted) {
+        setState(() => status = '${_c('sharePackError')}: $e');
+      }
+    } finally {
+      if (clearPack != null) {
+        await _secureVault.deleteMaterialized(clearPack);
+      }
     }
   }
 
@@ -2029,34 +2435,55 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _transcribeCreatedVideo() async {
-    final path = videoPath;
-    if (path == null || createdContentKind != 'video' || _transcribingAudio)
+    if (createdContentKind != 'video' ||
+        _transcribingAudio ||
+        _criticalFinalizationInProgress) {
       return;
-    setState(() {
-      _transcribingAudio = true;
-      status = _c('transcriptionAudio');
-    });
+    }
+
+    final localRecord = _secureOriginalRecord;
+    if (localRecord == null || localRecord.mediaType != 'video') {
+      if (mounted) setState(() => status = _c('subtitleRequiresProtected'));
+      return;
+    }
+
+    File? materializedSource;
+    VideoTranscriptionResult? transcript;
+    _secureFinalizeInProgress = true;
+    if (mounted) {
+      setState(() {
+        _transcribingAudio = true;
+        status = _c('transcriptionAudio');
+      });
+    }
+
     try {
-      final transcript = await const VideoTranscriptionService().transcribe(
-        path,
+      final secureRecord =
+          await _secureVault.find(localRecord.hcvId) ?? localRecord;
+      materializedSource = await _secureVault.materializeOriginal(
+        secureRecord,
+        purpose: 'caption-source',
+      );
+
+      transcript = await const VideoTranscriptionService().transcribe(
+        materializedSource.path,
         languageCode: widget.languageCode,
       );
-      if (!mounted) return;
-      setState(() {
-        _videoTranscript = transcript.text;
-        _subtitlePath = transcript.subtitlePath;
-        _captionedVideoPath = transcript.captionedVideoPath;
-        status = _c('captionedReady');
-      });
-      final savedCaptionedToPhotos = await saveContentToGallery(
-        transcript.captionedVideoPath,
+
+      final secured = await _secureVault.sealSubtitleDerivative(
+        original: secureRecord,
+        captionedVideoPath: transcript.captionedVideoPath,
+        subtitlePath: transcript.subtitlePath,
       );
+
+      _secureFinalizeInProgress = false;
       if (!mounted) return;
       setState(() {
-        status = savedCaptionedToPhotos
-            ? _c('captionedReadyPhotos')
-            : _c('captionedReadyFiles');
+        _secureOriginalRecord = secured;
+        _videoTranscript = transcript!.text;
+        status = _c('captionedProtected');
       });
+
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
@@ -2067,12 +2494,12 @@ class _CameraPageState extends State<CameraPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _c('captionExplanation'),
+                  _c('captionProtectedExplanation'),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 14),
                 SelectableText(
-                  transcript.text.isEmpty
+                  transcript!.text.isEmpty
                       ? _c('subtitlesCreated')
                       : transcript.text,
                 ),
@@ -2088,33 +2515,73 @@ class _CameraPageState extends State<CameraPage> {
         ),
       );
     } catch (error) {
-      if (!mounted) return;
-      setState(() => status = '${_c('transcriptionFailed')}: $error');
+      if (transcript != null) {
+        for (final rawPath in [
+          transcript.captionedVideoPath,
+          transcript.subtitlePath,
+        ]) {
+          try {
+            final file = File(rawPath);
+            if (await file.exists()) await file.delete();
+          } catch (_) {}
+        }
+      }
+      if (mounted) {
+        setState(() => status = '${_c('transcriptionFailed')}: $error');
+      }
     } finally {
-      if (mounted) setState(() => _transcribingAudio = false);
+      if (materializedSource != null) {
+        await _secureVault.deleteMaterialized(materializedSource);
+      }
+      _secureFinalizeInProgress = false;
+      if (mounted) {
+        setState(() {
+          _transcribingAudio = false;
+        });
+      }
     }
   }
 
   Future<void> _shareSubtitleFile() async {
-    final path = _subtitlePath;
-    if (path == null) return;
-    await Share.shareXFiles(
-      [XFile(path, mimeType: 'application/x-subrip')],
-      text: _videoTranscript == null || _videoTranscript!.isEmpty
-          ? _c('subtitleShareText')
-          : _videoTranscript!,
-      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-    );
+    final record = await _ensureSubtitleReferenceForExport();
+    if (record == null) return;
+
+    File? clear;
+    try {
+      clear = await _secureVault.materializeSubtitle(
+        record,
+        purpose: 'subtitle-share',
+      );
+      await Share.shareXFiles(
+        [XFile(clear.path, mimeType: 'application/x-subrip')],
+        text: _videoTranscript == null || _videoTranscript!.isEmpty
+            ? _c('subtitleShareText')
+            : _videoTranscript!,
+        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+      );
+    } finally {
+      if (clear != null) await _secureVault.deleteMaterialized(clear);
+    }
   }
 
   Future<void> _shareCaptionedVideo() async {
-    final path = _captionedVideoPath;
-    if (path == null) return;
-    await Share.shareXFiles(
-      [XFile(path, mimeType: 'video/mp4')],
-      text: _c('shareCaptionedText'),
-      sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
-    );
+    final record = await _ensureSubtitleReferenceForExport();
+    if (record == null) return;
+
+    File? clear;
+    try {
+      clear = await _secureVault.materializeCaptionedVideo(
+        record,
+        purpose: 'subtitle-share',
+      );
+      await Share.shareXFiles(
+        [XFile(clear.path, mimeType: 'video/mp4')],
+        text: _c('shareCaptionedText'),
+        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
+      );
+    } finally {
+      if (clear != null) await _secureVault.deleteMaterialized(clear);
+    }
   }
 
   @override
@@ -2204,7 +2671,8 @@ class _CameraPageState extends State<CameraPage> {
       return const SizedBox.shrink();
     }
 
-    final ok = registryStatus!.startsWith('Registry OK');
+    final ok = registryStatus!.startsWith(_c('registryOk')) ||
+        registryStatus == _c('registrySynced');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -2220,11 +2688,10 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Widget _createdFilesCard() {
-    if (videoPath == null &&
+    if (_secureOriginalRecord == null &&
+        videoPath == null &&
         hcvPath == null &&
-        packagePath == null &&
-        _captionedVideoPath == null &&
-        _subtitlePath == null) {
+        packagePath == null) {
       return const SizedBox.shrink();
     }
 
@@ -2243,7 +2710,9 @@ class _CameraPageState extends State<CameraPage> {
           const Icon(Icons.folder_outlined, color: Color(0xFF0098A1), size: 34),
           const SizedBox(height: 8),
           Text(
-            _c('filesWhere'),
+            _secureOriginalRecord != null
+                ? _t('secureOriginalStored')
+                : _c('filesWhere'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF280D5F),
@@ -2252,18 +2721,21 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            _c('filesPath'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF280D5F),
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+          if (_secureOriginalRecord == null)
+            Text(
+              _c('filesPath'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF280D5F),
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+              ),
             ),
-          ),
           const SizedBox(height: 6),
           Text(
-            _c('filesExplanation'),
+            _secureOriginalRecord != null
+                ? _t('secureOriginalStorageDetail')
+                : _c('filesExplanation'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF7A6EAA),
@@ -2291,19 +2763,23 @@ class _CameraPageState extends State<CameraPage> {
               textAlign: TextAlign.center,
             ),
           ],
-          if (_captionedVideoPath != null) ...[
-            const SizedBox(height: 5),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true) ...[
+            const SizedBox(height: 8),
             Text(
-              '${_c('captionedVideo')}: ${fileName(_captionedVideoPath)}',
+              _c('captionedProtected'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-          ],
-          if (_subtitlePath != null) ...[
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
-              '${_c('srtSubtitles')}: ${fileName(_subtitlePath)}',
+              _secureOriginalRecord?.hasSubtitleReference == true
+                  ? _c('subtitleReferenceReady')
+                  : _c('subtitleReferencePending'),
               textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF7A6EAA),
+                fontSize: 12.5,
+              ),
             ),
           ],
           const SizedBox(height: 12),
@@ -2320,18 +2796,20 @@ class _CameraPageState extends State<CameraPage> {
   Widget _actionButtons() {
     return Column(
       children: [
-        if (videoPath != null && hcvPath != null) ...[
+        if (_secureOriginalRecord != null) ...[
           SizedBox(
             width: 300,
             child: ElevatedButton.icon(
               onPressed: shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label: Text(_t('shareContent')),
+              label: Text(_secureOriginalRecord != null
+                  ? _t('secureOriginalsOpen')
+                  : _t('shareContent')),
             ),
           ),
           const SizedBox(height: 10),
         ],
-        if (packagePath != null) ...[
+        if (_secureOriginalRecord != null) ...[
           SizedBox(
             width: 300,
             child: ElevatedButton.icon(
@@ -2343,7 +2821,8 @@ class _CameraPageState extends State<CameraPage> {
           const SizedBox(height: 10),
         ],
         if (createdContentKind == 'video' &&
-            videoPath != null &&
+            (videoPath != null ||
+                _secureOriginalRecord?.mediaType == 'video') &&
             Platform.isIOS) ...[
           SizedBox(
             width: 340,
@@ -2358,27 +2837,34 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
           const SizedBox(height: 10),
-          if (_captionedVideoPath != null)
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
-                onPressed: _saveCaptionedVideoToPhotos,
+                onPressed:
+                    _subtitlePublishing ? null : _saveCaptionedVideoToPhotos,
                 icon: const Icon(Icons.photo_library_outlined),
-                label: Text(_c('saveCaptionedPhotos')),
+                label: Text(
+                  _subtitlePublishing
+                      ? _c('subtitleReferencePublishing')
+                      : _c('saveCaptionedPhotos'),
+                ),
               ),
             ),
-          if (_captionedVideoPath != null) const SizedBox(height: 10),
-          if (_captionedVideoPath != null)
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
+            const SizedBox(height: 10),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
-                onPressed: _shareCaptionedVideo,
+                onPressed: _subtitlePublishing ? null : _shareCaptionedVideo,
                 icon: const Icon(Icons.closed_caption_rounded),
                 label: Text(_c('shareCaptionedVideo')),
               ),
             ),
-          if (_captionedVideoPath != null) const SizedBox(height: 10),
-          if (_subtitlePath != null)
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
+            const SizedBox(height: 10),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
             SizedBox(
               width: 340,
               child: ElevatedButton.icon(
@@ -2387,12 +2873,13 @@ class _CameraPageState extends State<CameraPage> {
                   foregroundColor: const Color(0xFF280D5F),
                   minimumSize: const Size.fromHeight(64),
                 ),
-                onPressed: _shareSubtitleFile,
+                onPressed: _subtitlePublishing ? null : _shareSubtitleFile,
                 icon: const Icon(Icons.ios_share_rounded),
                 label: Text(_c('shareSrt')),
               ),
             ),
-          if (_subtitlePath != null) const SizedBox(height: 10),
+          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
+            const SizedBox(height: 10),
         ],
       ],
     );
@@ -2416,296 +2903,340 @@ class _CameraPageState extends State<CameraPage> {
   Widget build(BuildContext context) {
     final ok = controller != null && controller!.value.isInitialized;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
+    return PopScope<void>(
+      canPop: !_criticalFinalizationInProgress,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _criticalFinalizationInProgress) {
+          _showFinalizationBlocked();
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        title: Text(_t('cameraTitle')),
-        actions: [
-          IconButton(
-            tooltip: _c('printGpsCoordinates'),
-            onPressed: _locationBusy ? null : _toggleCoordinateStamp,
-            icon: Icon(
-              _printCoordinates ? Icons.location_on : Icons.location_off,
-              color: _printCoordinates ? Colors.greenAccent : Colors.white,
-            ),
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          iconTheme: const IconThemeData(color: Colors.white),
+          titleTextStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-          IconButton(
-            icon: Icon(
-              currentFlashMode == FlashMode.off
-                  ? Icons.flash_off
-                  : Icons.flash_on,
-              color: Colors.white,
-            ),
-            onPressed: toggleFlash,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: _popCameraIfSafe,
           ),
-          IconButton(
-            icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
-            onPressed: switchCamera,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // FOTO and VIDEO must display the same uncropped camera texture.
-          // BoxFit.cover in VIDEO previously enlarged the apparent 1x zoom.
-          // The shared geometry also handles landscape rotation in both modes.
-          if (ok)
-            Positioned.fill(
-              child: OrientationBuilder(
-                builder: (context, orientation) {
-                  final previewSize = controller!.value.previewSize!;
-                  final isPortrait = orientation == Orientation.portrait;
-                  return FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width:
-                          isPortrait ? previewSize.height : previewSize.width,
-                      height:
-                          isPortrait ? previewSize.width : previewSize.height,
-                      child: CameraPreview(controller!),
-                    ),
-                  );
-                },
+          title: Text(_t('cameraTitle')),
+          actions: [
+            IconButton(
+              tooltip: _c('printGpsCoordinates'),
+              onPressed: _locationBusy ? null : _toggleCoordinateStamp,
+              icon: Icon(
+                _printCoordinates ? Icons.location_on : Icons.location_off,
+                color: _printCoordinates ? Colors.greenAccent : Colors.white,
               ),
             ),
-          if (result != null)
-            Positioned.fill(
-              child: Container(color: Colors.black.withValues(alpha: 0.65)),
+            IconButton(
+              icon: Icon(
+                currentFlashMode == FlashMode.off
+                    ? Icons.flash_off
+                    : Icons.flash_on,
+                color: Colors.white,
+              ),
+              onPressed: toggleFlash,
             ),
-          Positioned(
-            top: 18,
-            left: 20,
-            right: 20,
-            child: SafeArea(
-              child: Center(
+            IconButton(
+              icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+              onPressed: switchCamera,
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            // FOTO and VIDEO must display the same uncropped camera texture.
+            // BoxFit.cover in VIDEO previously enlarged the apparent 1x zoom.
+            // The shared geometry also handles landscape rotation in both modes.
+            if (ok)
+              Positioned.fill(
+                child: OrientationBuilder(
+                  builder: (context, orientation) {
+                    final previewSize = controller!.value.previewSize!;
+                    final isPortrait = orientation == Orientation.portrait;
+                    return FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width:
+                            isPortrait ? previewSize.height : previewSize.width,
+                        height:
+                            isPortrait ? previewSize.width : previewSize.height,
+                        child: CameraPreview(controller!),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            if (result != null)
+              Positioned.fill(
+                child: Container(color: Colors.black.withValues(alpha: 0.65)),
+              ),
+            Positioned(
+              top: 18,
+              left: 20,
+              right: 20,
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: _statusBadge(),
+                  ),
+                ),
+              ),
+            ),
+            if (ok && result == null && maxZoom > minZoom)
+              Positioned(
+                left: 30,
+                right: 30,
+                bottom: 305,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
+                    horizontal: 16,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(22),
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(30),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.28),
+                      color: Colors.white.withValues(alpha: 0.22),
                     ),
                   ),
-                  child: _statusBadge(),
-                ),
-              ),
-            ),
-          ),
-          if (ok && result == null && maxZoom > minZoom)
-            Positioned(
-              left: 30,
-              right: 30,
-              bottom: 305,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.22),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.zoom_out, color: Colors.white, size: 18),
-                    Expanded(
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: Colors.white,
-                          inactiveTrackColor: Colors.white.withValues(
-                            alpha: 0.25,
-                          ),
-                          thumbColor: Colors.white,
-                          overlayColor: Colors.white.withValues(alpha: 0.15),
-                          trackHeight: 2.5,
-                        ),
-                        child: Slider(
-                          value: currentZoom.clamp(minZoom, maxZoom),
-                          min: minZoom,
-                          max: maxZoom,
-                          onChanged: (value) async {
-                            await setZoom(value);
-                          },
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${currentZoom.toStringAsFixed(1)}x',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          if (result == null)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: SafeArea(
-                child: Container(
-                  padding: const EdgeInsets.only(bottom: 14, top: 58),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.98),
-                        Colors.black.withValues(alpha: 0.65),
-                        Colors.black.withValues(alpha: 0.0),
-                      ],
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ChoiceChip(
-                            label: Text(_t('video')),
-                            selected: !photoMode,
-                            showCheckmark: false,
-                            selectedColor: Colors.white,
-                            backgroundColor: Colors.black,
-                            side: const BorderSide(color: Colors.white70),
-                            labelStyle: TextStyle(
-                              color: !photoMode ? Colors.black : Colors.white,
-                              fontWeight: FontWeight.bold,
+                      const Icon(Icons.zoom_out, color: Colors.white, size: 18),
+                      Expanded(
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            activeTrackColor: Colors.white,
+                            inactiveTrackColor: Colors.white.withValues(
+                              alpha: 0.25,
                             ),
-                            onSelected: (_) async {
-                              await _setCaptureMode(false);
+                            thumbColor: Colors.white,
+                            overlayColor: Colors.white.withValues(alpha: 0.15),
+                            trackHeight: 2.5,
+                          ),
+                          child: Slider(
+                            value: currentZoom.clamp(minZoom, maxZoom),
+                            min: minZoom,
+                            max: maxZoom,
+                            onChanged: (value) async {
+                              await setZoom(value);
                             },
-                          ),
-                          const SizedBox(width: 14),
-                          ChoiceChip(
-                            label: Text(_t('photo')),
-                            selected: photoMode,
-                            showCheckmark: false,
-                            selectedColor: Colors.white,
-                            backgroundColor: Colors.black,
-                            side: const BorderSide(color: Colors.white70),
-                            labelStyle: TextStyle(
-                              color: photoMode ? Colors.black : Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            onSelected: (_) async {
-                              await _setCaptureMode(true);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      GestureDetector(
-                        onTap: !ready || _videoFinalizeInProgress
-                            ? null
-                            : () async {
-                                if (photoMode) {
-                                  await takePhoto();
-                                  return;
-                                }
-
-                                if (recording) {
-                                  await stop();
-                                  return;
-                                }
-
-                                await start();
-                              },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          width: recording ? 78 : 86,
-                          height: recording ? 78 : 86,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: recording ? Colors.red : Colors.white,
-                            border: Border.all(color: Colors.white70, width: 5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                blurRadius: 18,
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: recording
-                                ? Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(7),
-                                    ),
-                                  )
-                                : Icon(
-                                    photoMode
-                                        ? Icons.camera_alt
-                                        : Icons.videocam,
-                                    color: Colors.black,
-                                    size: 34,
-                                  ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 18),
                       Text(
-                        recording
-                            ? _t('recording')
-                            : photoMode
-                                ? _t('photoMode')
-                                : _t('videoMode'),
+                        '${currentZoom.toStringAsFixed(1)}x',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-          if (result != null)
-            Positioned.fill(
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.white,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.black,
+            if (result == null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.only(bottom: 14, top: 58),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.98),
+                          Colors.black.withValues(alpha: 0.65),
+                          Colors.black.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ChoiceChip(
+                              label: Text(_t('video')),
+                              selected: !photoMode,
+                              showCheckmark: false,
+                              selectedColor: Colors.white,
+                              backgroundColor: Colors.black,
+                              side: const BorderSide(color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: !photoMode ? Colors.black : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              onSelected: (_) async {
+                                await _setCaptureMode(false);
+                              },
+                            ),
+                            const SizedBox(width: 14),
+                            ChoiceChip(
+                              label: Text(_t('photo')),
+                              selected: photoMode,
+                              showCheckmark: false,
+                              selectedColor: Colors.white,
+                              backgroundColor: Colors.black,
+                              side: const BorderSide(color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: photoMode ? Colors.black : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              onSelected: (_) async {
+                                await _setCaptureMode(true);
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        GestureDetector(
+                          onTap: !ready || _videoFinalizeInProgress
+                              ? null
+                              : () async {
+                                  if (photoMode) {
+                                    await takePhoto();
+                                    return;
+                                  }
+
+                                  if (recording) {
+                                    await stop();
+                                    return;
+                                  }
+
+                                  await start();
+                                },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: recording ? 78 : 86,
+                            height: recording ? 78 : 86,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: recording ? Colors.red : Colors.white,
+                              border:
+                                  Border.all(color: Colors.white70, width: 5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                  blurRadius: 18,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: recording
+                                  ? Container(
+                                      width: 28,
+                                      height: 28,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(7),
+                                      ),
+                                    )
+                                  : Icon(
+                                      photoMode
+                                          ? Icons.camera_alt
+                                          : Icons.videocam,
+                                      color: Colors.black,
+                                      size: 34,
+                                    ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          recording
+                              ? _t('recording')
+                              : photoMode
+                                  ? _t('photoMode')
+                                  : _t('videoMode'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (result != null)
+              Positioned.fill(
+                child: SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.black,
+                              ),
+                              onPressed: () {
+                                if (_criticalFinalizationInProgress) {
+                                  _showFinalizationBlocked();
+                                  return;
+                                }
+                                setState(() {
+                                  status = _c('ready');
+                                  result = null;
+                                  videoPath = null;
+                                  hcvPath = null;
+                                  packagePath = null;
+                                  hcvId = null;
+                                  verificationUrl = null;
+                                  registryStatus = null;
+                                  _videoTranscript = null;
+                                  recording = false;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _verifiedCard(),
+                        _registryCard(),
+                        _actionButtons(),
+                        _createdFilesCard(),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: 260,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white),
                             ),
                             onPressed: () {
+                              if (_criticalFinalizationInProgress) {
+                                _showFinalizationBlocked();
+                                return;
+                              }
                               setState(() {
                                 status = _c('ready');
                                 result = null;
@@ -2715,52 +3246,29 @@ class _CameraPageState extends State<CameraPage> {
                                 hcvId = null;
                                 verificationUrl = null;
                                 registryStatus = null;
-                                _videoTranscript = null;
-                                _subtitlePath = null;
-                                _captionedVideoPath = null;
                                 recording = false;
                               });
                             },
+                            icon: const Icon(Icons.refresh),
+                            label: Text(_c('backToCamera')),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      _verifiedCard(),
-                      _registryCard(),
-                      _actionButtons(),
-                      _createdFilesCard(),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: 260,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              status = _c('ready');
-                              result = null;
-                              videoPath = null;
-                              hcvPath = null;
-                              packagePath = null;
-                              hcvId = null;
-                              verificationUrl = null;
-                              registryStatus = null;
-                              recording = false;
-                            });
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: Text(_c('backToCamera')),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class _SubtitleExportDecision {
+  const _SubtitleExportDecision({
+    required this.monetizationConsent,
+  });
+
+  final bool monetizationConsent;
 }

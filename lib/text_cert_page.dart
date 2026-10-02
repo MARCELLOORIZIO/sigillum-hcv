@@ -220,13 +220,14 @@ class _TextCertPageState extends State<TextCertPage> {
 
       if (ok) {
         setState(() {
-          registryStatus = 'Uploading certificate to registry...';
+          registryStatus = _t('registryUploadInProgress');
         });
 
         try {
           final res = await registry.uploadCertificateFile(pairedHcvFile.path);
           setState(() {
-            registryStatus = 'Registry OK: ${res['hcvId'] ?? detectedId}';
+            registryStatus = _t('registryUploadOk')
+                .replaceAll('{id}', '${res['hcvId'] ?? detectedId}');
           });
         } catch (e) {
           try {
@@ -234,7 +235,7 @@ class _TextCertPageState extends State<TextCertPage> {
           } catch (_) {}
           if (mounted) {
             setState(() {
-              registryStatus = 'Registry non disponibile: certificato conservato e accodato per il nuovo invio.';
+              registryStatus = _t('registryQueuedOffline');
             });
           }
         }
@@ -242,7 +243,7 @@ class _TextCertPageState extends State<TextCertPage> {
     } catch (e) {
       setState(() {
         loading = false;
-        status = 'ERRORE: $e';
+        status = '${_t('genericError')}: $e';
         result = 'INVALID';
       });
     }
@@ -484,6 +485,40 @@ class _TextCertPageState extends State<TextCertPage> {
     );
   }
 
+  Widget _verificationAndResetActions() {
+    if (!isValid && result == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          width: 300,
+          child: OutlinedButton.icon(
+            onPressed: openPublishedTextVerification,
+            icon: const Icon(Icons.fact_check_outlined),
+            label: Text(
+              widget.languageCode.toLowerCase().startsWith('it')
+                  ? 'VERIFICA TESTO PUBBLICATO'
+                  : 'VERIFY PUBLISHED TEXT',
+            ),
+          ),
+        ),
+        if (result != null) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 300,
+            child: OutlinedButton.icon(
+              onPressed: resetPage,
+              icon: const Icon(Icons.refresh),
+              label: Text(_t('newText')),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _createdFilesCard() {
     if (hcvPath == null && textPath == null) {
       return const SizedBox.shrink();
@@ -583,31 +618,9 @@ class _TextCertPageState extends State<TextCertPage> {
               _verifiedCard(),
               _registryCard(),
               _actionButtons(),
+              const SizedBox(height: 10),
+              _verificationAndResetActions(),
               _createdFilesCard(),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: 300,
-                child: OutlinedButton.icon(
-                  onPressed: openPublishedTextVerification,
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: Text(
-                    widget.languageCode.toLowerCase().startsWith('it')
-                        ? 'VERIFICA TESTO PUBBLICATO'
-                        : 'VERIFY PUBLISHED TEXT',
-                  ),
-                ),
-              ),
-              if (result != null) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: 260,
-                  child: OutlinedButton.icon(
-                    onPressed: resetPage,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(_t('newText')),
-                  ),
-                ),
-              ],
             ],
           ),
         ),

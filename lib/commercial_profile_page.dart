@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'commercial_account_service.dart';
 import 'hcv_auth_service.dart';
+import 'hcv_identity.dart';
+import 'hcv_secure_media_vault.dart';
 import 'legal_info_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
@@ -63,7 +65,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'ANNULLA',
       'confirm': 'CONFERMA',
       'deleteTitle': 'Elimina account',
-      'deleteBody': 'Inserisci la password per eliminare definitivamente l’account. I record tecnici dei certificati già emessi possono restare disponibili in forma minimizzata per preservarne la verificabilità.',
+      'deleteBody':
+          'Inserisci la password per eliminare definitivamente l’account. I record tecnici dei certificati già emessi possono restare disponibili in forma minimizzata per preservarne la verificabilità.',
       'saved': 'Profilo aggiornato.',
       'passwordChanged': 'Password aggiornata.',
       'noDevices': 'Nessun dispositivo disponibile.',
@@ -73,7 +76,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'fingerprint': 'Impronta',
       'revoke': 'REVOCA',
       'revokeTitle': 'Revoca dispositivo',
-      'revokeBody': 'Questo dispositivo verrà disconnesso immediatamente e dovrà essere nuovamente autorizzato via email per accedere a SIGILLUM. Inserisci la password del tuo account per continuare.',
+      'revokeBody':
+          'Questo dispositivo verrà disconnesso immediatamente e dovrà essere nuovamente autorizzato via email per accedere a SIGILLUM. Inserisci la password del tuo account per continuare.',
       'revoked': 'Dispositivo revocato.',
     },
     'en': {
@@ -102,7 +106,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'CANCEL',
       'confirm': 'CONFIRM',
       'deleteTitle': 'Delete account',
-      'deleteBody': 'Enter your password to permanently delete the account. Technical records for already-issued certificates may remain in minimized form to preserve verification.',
+      'deleteBody':
+          'Enter your password to permanently delete the account. Technical records for already-issued certificates may remain in minimized form to preserve verification.',
       'saved': 'Profile updated.',
       'passwordChanged': 'Password updated.',
       'noDevices': 'No devices available.',
@@ -112,7 +117,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'fingerprint': 'Fingerprint',
       'revoke': 'REVOKE',
       'revokeTitle': 'Revoke device',
-      'revokeBody': 'This device will be signed out immediately and will require email approval before it can access SIGILLUM again. Enter your account password to continue.',
+      'revokeBody':
+          'This device will be signed out immediately and will require email approval before it can access SIGILLUM again. Enter your account password to continue.',
       'revoked': 'Device revoked.',
     },
   };
@@ -144,7 +150,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'CANCELAR',
       'confirm': 'CONFIRMAR',
       'deleteTitle': 'Eliminar cuenta',
-      'deleteBody': 'Introduce tu contraseña para eliminar definitivamente la cuenta. Los registros técnicos de certificados ya emitidos pueden permanecer minimizados para preservar su verificabilidad.',
+      'deleteBody':
+          'Introduce tu contraseña para eliminar definitivamente la cuenta. Los registros técnicos de certificados ya emitidos pueden permanecer minimizados para preservar su verificabilidad.',
       'saved': 'Perfil actualizado.',
       'passwordChanged': 'Contraseña actualizada.',
       'noDevices': 'No hay dispositivos disponibles.',
@@ -154,7 +161,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'fingerprint': 'Huella',
       'revoke': 'REVOCAR',
       'revokeTitle': 'Revocar dispositivo',
-      'revokeBody': 'Este dispositivo cerrará la sesión inmediatamente y deberá volver a autorizarse por email antes de acceder de nuevo a SIGILLUM. Introduce la contraseña de tu cuenta para continuar.',
+      'revokeBody':
+          'Este dispositivo cerrará la sesión inmediatamente y deberá volver a autorizarse por email antes de acceder de nuevo a SIGILLUM. Introduce la contraseña de tu cuenta para continuar.',
       'revoked': 'Dispositivo revocado.',
     },
     'ru': {
@@ -183,7 +191,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'cancel': 'ОТМЕНА',
       'confirm': 'ПОДТВЕРДИТЬ',
       'deleteTitle': 'Удалить аккаунт',
-      'deleteBody': 'Введите пароль, чтобы окончательно удалить аккаунт. Технические записи уже выпущенных сертификатов могут сохраняться в минимизированном виде для поддержания возможности проверки.',
+      'deleteBody':
+          'Введите пароль, чтобы окончательно удалить аккаунт. Технические записи уже выпущенных сертификатов могут сохраняться в минимизированном виде для поддержания возможности проверки.',
       'saved': 'Профиль обновлён.',
       'passwordChanged': 'Пароль обновлён.',
       'noDevices': 'Нет доступных устройств.',
@@ -193,7 +202,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       'fingerprint': 'Отпечаток',
       'revoke': 'ОТОЗВАТЬ',
       'revokeTitle': 'Отозвать устройство',
-      'revokeBody': 'Сеанс на этом устройстве будет немедленно завершён. Для нового доступа к SIGILLUM потребуется повторное подтверждение по email. Введите пароль аккаунта для продолжения.',
+      'revokeBody':
+          'Сеанс на этом устройстве будет немедленно завершён. Для нового доступа к SIGILLUM потребуется повторное подтверждение по email. Введите пароль аккаунта для продолжения.',
       'revoked': 'Устройство отозвано.',
     },
   };
@@ -321,7 +331,8 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
                                 style: TextButton.styleFrom(
                                   foregroundColor: SigillumTheme.danger,
                                 ),
-                                onPressed: () => Navigator.pop(dialogContext, item),
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, item),
                                 child: Text(_t('revoke')),
                               ),
                       );
@@ -496,8 +507,16 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
     );
     password.dispose();
     if (value == null || value.isEmpty) return;
+    final accountId = _account['id']?.toString().trim() ?? '';
+    final identity = await HCVIdentity().loadIdentity();
+    final creatorId = identity['creatorId']?.toString().trim() ?? '';
     await _run(() async {
       await _auth.deleteAccount(password: value);
+      if (accountId.isNotEmpty) {
+        await const HCVSecureMediaVault().wipeAccountVault(accountId);
+      } else if (creatorId.isNotEmpty) {
+        await const HCVSecureMediaVault().wipeCreatorVault(creatorId);
+      }
       if (!mounted) return;
       TextInput.finishAutofillContext(shouldSave: false);
       widget.onSessionInvalidated();
@@ -527,8 +546,7 @@ class _CommercialProfilePageState extends State<CommercialProfilePage> {
       );
     }
 
-    final identityVerified =
-        _account['kycStatus'] == 'verified' ||
+    final identityVerified = _account['kycStatus'] == 'verified' ||
         _account['legalIdentityVerified'] == true;
     final subscriptionActive =
         _billing['status'] == 'active' || _billing['status'] == 'grace';
