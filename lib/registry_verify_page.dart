@@ -825,6 +825,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (!_isCanonicalHcvId(hcvId)) return null;
 
     _officialReferenceChecked = true;
+    _officialReferenceMatchedDerivationType = null;
     try {
       final availability = await const VerifiedOriginalsPublishService()
           .verificationReference(hcvId);
@@ -846,23 +847,58 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         return null;
       }
 
-      final raw = availability['referenceVisualFingerprint'];
-      if (!HCVReferenceVisualFingerprintV3.isValid(raw)) {
-        return HCVReferenceVisualVerdict.inconclusive;
-      }
-
       final local = Stopwatch()..start();
       final current = mediaType == 'photo'
           ? await HCVReferenceVisualFingerprintV3.buildFromPhoto(mediaPath!)
           : await HCVReferenceVisualFingerprintV3.buildFromVideo(mediaPath!);
+
+      HCVReferenceVisualVerdict primaryVerdict =
+          HCVReferenceVisualVerdict.inconclusive;
+      final raw = availability['referenceVisualFingerprint'];
+      if (HCVReferenceVisualFingerprintV3.isValid(raw)) {
+        primaryVerdict = HCVReferenceVisualFingerprintV3.compare(
+          raw as Map,
+          current,
+        ).verdict;
+        if (primaryVerdict == HCVReferenceVisualVerdict.conforming) {
+          _officialReferenceLocalMs = local.elapsedMilliseconds;
+          return primaryVerdict;
+        }
+      }
+
+      if (mediaType == 'video') {
+        final authorized = availability['authorizedDerivations'];
+        if (authorized is List) {
+          for (final entry in authorized) {
+            if (entry is! Map) continue;
+            if (entry['referenceRole'] != 'DERIVED_REFERENCE' ||
+                entry['editorialImpact'] != 'caption_overlay') {
+              continue;
+            }
+            final fingerprint = entry['referenceVisualFingerprint'];
+            if (!HCVReferenceVisualFingerprintV3.isValid(fingerprint)) {
+              continue;
+            }
+            final comparison = HCVReferenceVisualFingerprintV3.compare(
+              fingerprint as Map,
+              current,
+            );
+            if (comparison.verdict == HCVReferenceVisualVerdict.conforming) {
+              _officialReferenceMatchedDerivationType =
+                  entry['derivationType']?.toString();
+              _officialReferenceLocalMs = local.elapsedMilliseconds;
+              return HCVReferenceVisualVerdict.conforming;
+            }
+          }
+        }
+      }
+
       _officialReferenceLocalMs = local.elapsedMilliseconds;
-      return HCVReferenceVisualFingerprintV3.compare(
-        raw as Map,
-        current,
-      ).verdict;
+      return primaryVerdict;
     } catch (_) {
       _officialReferenceLiveAvailable = false;
       _officialReferenceCommentsDisabled = null;
+      _officialReferenceMatchedDerivationType = null;
       return null;
     }
   }
@@ -982,6 +1018,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   int? _officialReferenceLocalMs;
   int? _verificationTotalMs;
   String? _officialReferenceComparisonMode;
+  String? _officialReferenceMatchedDerivationType;
 
   @override
   void initState() {
@@ -1194,6 +1231,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _officialReferenceLocalMs = null;
       _verificationTotalMs = null;
       _officialReferenceComparisonMode = null;
+      _officialReferenceMatchedDerivationType = null;
 
       status = _r('downloadingCertificate');
       _clearVerificationAxes();
