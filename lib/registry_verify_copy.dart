@@ -70,6 +70,24 @@ class RegistryVerifyCopy {
           'VERIFICA NON ESEGUIBILE\nIl riferimento ufficiale SIGILLUM non è disponibile in questo momento. Nessun controllo più debole viene usato per dichiarare conforme il file social.',
       'officialReferenceUnavailableDetail':
           'Il riferimento tecnico SIGILLUM deve risultare registrato e disponibile prima della verifica di una copia social. Se la registrazione è ancora in corso, riprova tra poco.',
+      'authorizedSubtitleConforming':
+          'DERIVAZIONE SIGILLUM VERIFICATA\nIl video con sottotitoli corrisponde a una derivazione autorizzata e registrata da SIGILLUM a partire dall’originale certificato.',
+      'authorizedSubtitleConformingTitle':
+          'DERIVAZIONE SIGILLUM VERIFICATA',
+      'authorizedSubtitleConformingDetail':
+          'I sottotitoli sono un’aggiunta editoriale dichiarata. Il file non viene classificato come manipolazione non autorizzata.',
+      'authorizedSubtitleProvenanceState': 'Verificata',
+      'authorizedSubtitleProvenanceDetail':
+          'HCV-ID, certificato e catena di derivazione collegano il video sottotitolato all’originale certificato.',
+      'authorizedSubtitleIntegrityState': 'Derivazione autorizzata',
+      'authorizedSubtitleIntegrityDetail':
+          'Il file differisce dall’originale per l’overlay dei sottotitoli, ma corrisponde al riferimento derivato firmato da SIGILLUM.',
+      'authorizedSubtitleSceneState': 'Scena originale certificata',
+      'authorizedSubtitleSceneDetail':
+          'La derivazione aggiunge i sottotitoli senza spezzare il collegamento tecnico con la scena dell’originale certificato.',
+      'authorizedSubtitleDerivationState': 'Sottotitoli autorizzati',
+      'authorizedSubtitleDerivationDetail':
+          'Trasformazione registrata da SIGILLUM: aggiunta di sottotitoli alla copia derivata protetta.',
       'manualCompareTitle': 'CONFRONTO MANUALE',
       'manualCompareAction': 'CONFRONTA MANUALMENTE',
       'manualCompareSubscriberOnly':
@@ -253,6 +271,24 @@ class RegistryVerifyCopy {
           'VERIFICATION CANNOT BE COMPLETED\nThe official SIGILLUM reference is not currently available. No weaker check is used to declare the social file conforming.',
       'officialReferenceUnavailableDetail':
           'The SIGILLUM technical reference must be registered and available before a social copy can be verified. If registration is still in progress, try again shortly.',
+      'authorizedSubtitleConforming':
+          'AUTHORIZED SIGILLUM DERIVATION VERIFIED\nThe captioned video matches an authorized derivation registered by SIGILLUM from the certified original.',
+      'authorizedSubtitleConformingTitle':
+          'AUTHORIZED SIGILLUM DERIVATION VERIFIED',
+      'authorizedSubtitleConformingDetail':
+          'The subtitles are a declared editorial addition. The file is not classified as an unauthorized manipulation.',
+      'authorizedSubtitleProvenanceState': 'Verified',
+      'authorizedSubtitleProvenanceDetail':
+          'The HCV-ID, certificate, and derivation chain bind the captioned video to the certified original.',
+      'authorizedSubtitleIntegrityState': 'Authorized derivation',
+      'authorizedSubtitleIntegrityDetail':
+          'The file differs from the original because of the subtitle overlay, but it matches the derived reference signed by SIGILLUM.',
+      'authorizedSubtitleSceneState': 'Certified original scene',
+      'authorizedSubtitleSceneDetail':
+          'The derivation adds subtitles while preserving the technical link to the scene in the certified original.',
+      'authorizedSubtitleDerivationState': 'Authorized subtitles',
+      'authorizedSubtitleDerivationDetail':
+          'SIGILLUM-registered transformation: subtitles added to the protected derived copy.',
       'manualCompareTitle': 'MANUAL COMPARISON',
       'manualCompareAction': 'COMPARE MANUALLY',
       'manualCompareSubscriberOnly':
@@ -438,6 +474,24 @@ class RegistryVerifyCopy {
           'VERIFICACIÓN NO EJECUTABLE\nLa referencia oficial de SIGILLUM no está disponible en este momento. No se usa un control más débil para declarar conforme el archivo social.',
       'officialReferenceUnavailableDetail':
           'La referencia técnica de SIGILLUM debe estar registrada y disponible antes de verificar una copia social. Si el registro sigue en curso, inténtalo de nuevo en breve.',
+      'authorizedSubtitleConforming':
+          'DERIVACIÓN SIGILLUM VERIFICADA\nEl vídeo subtitulado coincide con una derivación autorizada y registrada por SIGILLUM a partir del original certificado.',
+      'authorizedSubtitleConformingTitle':
+          'DERIVACIÓN SIGILLUM VERIFICADA',
+      'authorizedSubtitleConformingDetail':
+          'Los subtítulos son una adición editorial declarada. El archivo no se clasifica como una manipulación no autorizada.',
+      'authorizedSubtitleProvenanceState': 'Verificada',
+      'authorizedSubtitleProvenanceDetail':
+          'El HCV-ID, el certificado y la cadena de derivación vinculan el vídeo subtitulado con el original certificado.',
+      'authorizedSubtitleIntegrityState': 'Derivación autorizada',
+      'authorizedSubtitleIntegrityDetail':
+          'El archivo difiere del original por la superposición de subtítulos, pero coincide con la referencia derivada firmada por SIGILLUM.',
+      'authorizedSubtitleSceneState': 'Escena original certificada',
+      'authorizedSubtitleSceneDetail':
+          'La derivación añade subtítulos sin romper el vínculo técnico con la escena del original certificado.',
+      'authorizedSubtitleDerivationState': 'Subtítulos autorizados',
+      'authorizedSubtitleDerivationDetail':
+          'Transformación registrada por SIGILLUM: subtítulos añadidos a la copia derivada protegida.',
       'manualCompareTitle': 'COMPARACIÓN MANUAL',
       'manualCompareAction': 'COMPARAR MANUALMENTE',
       'manualCompareSubscriberOnly':
@@ -622,6 +676,24 @@ class RegistryVerifyCopy {
           'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\nОфициальный эталон SIGILLUM сейчас недоступен. Более слабая проверка не используется для признания файла из соцсети соответствующим.',
       'officialReferenceUnavailableDetail':
           'Перед проверкой копии из соцсети технический эталон SIGILLUM должен быть зарегистрирован и доступен. Если регистрация ещё выполняется, повторите попытку немного позже.',
+      'authorizedSubtitleConforming':
+          'АВТОРИЗОВАННАЯ ПРОИЗВОДНАЯ ВЕРСИЯ SIGILLUM ПРОВЕРЕНА\nВидео с субтитрами соответствует авторизованной производной версии, зарегистрированной SIGILLUM на основе сертифицированного оригинала.',
+      'authorizedSubtitleConformingTitle':
+          'АВТОРИЗОВАННАЯ ПРОИЗВОДНАЯ ВЕРСИЯ SIGILLUM',
+      'authorizedSubtitleConformingDetail':
+          'Субтитры являются заявленным редакционным дополнением. Файл не классифицируется как несанкционированная манипуляция.',
+      'authorizedSubtitleProvenanceState': 'Проверена',
+      'authorizedSubtitleProvenanceDetail':
+          'HCV-ID, сертификат и цепочка производной версии связывают видео с субтитрами с сертифицированным оригиналом.',
+      'authorizedSubtitleIntegrityState': 'Авторизованная производная версия',
+      'authorizedSubtitleIntegrityDetail':
+          'Файл отличается от оригинала из-за наложения субтитров, но соответствует производному эталону, подписанному SIGILLUM.',
+      'authorizedSubtitleSceneState': 'Сцена сертифицированного оригинала',
+      'authorizedSubtitleSceneDetail':
+          'Производная версия добавляет субтитры, сохраняя техническую связь со сценой сертифицированного оригинала.',
+      'authorizedSubtitleDerivationState': 'Авторизованные субтитры',
+      'authorizedSubtitleDerivationDetail':
+          'Зарегистрированное SIGILLUM преобразование: добавление субтитров к защищённой производной копии.',
       'manualCompareTitle': 'РУЧНОЕ СРАВНЕНИЕ',
       'manualCompareAction': 'СРАВНИТЬ ВРУЧНУЮ',
       'manualCompareSubscriberOnly': 'Функция доступна подписчикам SIGILLUM.',
