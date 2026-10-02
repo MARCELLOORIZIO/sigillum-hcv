@@ -251,10 +251,6 @@ class SigillumCopy {
           'Prima di aprire il menu di condivisione, SIGILLUM verifica l’originale e registra un riferimento tecnico ufficiale cifrato. Se la registrazione del riferimento non riesce, il file non viene rilasciato al social.',
       'secureOriginalsRightsConfirm':
           'Confermo di disporre dei diritti e delle autorizzazioni necessari per pubblicare questo contenuto.',
-      'secureOriginalsMonetization':
-          'Autorizzo l’eventuale monetizzazione della copia ufficiale.',
-      'secureOriginalsMonetizationHint':
-          'Facoltativo e disattivato per impostazione iniziale.',
       'secureOriginalsContinueShare': 'CONTINUA E CONDIVIDI',
       'secureOriginalsPublishingReference':
           'Verifica dell’originale e registrazione del riferimento ufficiale in corso...',
@@ -530,9 +526,6 @@ class SigillumCopy {
           'Before the share sheet opens, SIGILLUM verifies the original and registers an encrypted official technical reference. If reference registration fails, the file is not released to the social platform.',
       'secureOriginalsRightsConfirm':
           'I confirm that I have the rights and permissions required to publish this content.',
-      'secureOriginalsMonetization':
-          'I authorize possible monetization of the reference copy.',
-      'secureOriginalsMonetizationHint': 'Optional and disabled by default.',
       'secureOriginalsContinueShare': 'CONTINUE AND SHARE',
       'secureOriginalsPublishingReference':
           'Verifying the original and registering the official reference...',
@@ -808,9 +801,6 @@ class SigillumCopy {
           'Antes de abrir el menú de compartir, SIGILLUM verifica el original y registra una referencia técnica oficial cifrada. Si falla el registro de la referencia, el archivo no se entrega a la red social.',
       'secureOriginalsRightsConfirm':
           'Confirmo que dispongo de los derechos y autorizaciones necesarios para publicar este contenido.',
-      'secureOriginalsMonetization':
-          'Autorizo la posible monetización de la copia oficial.',
-      'secureOriginalsMonetizationHint': 'Opcional y desactivada por defecto.',
       'secureOriginalsContinueShare': 'CONTINUAR Y COMPARTIR',
       'secureOriginalsPublishingReference':
           'Verificando el original y registrando la referencia oficial...',
@@ -1084,10 +1074,6 @@ class SigillumCopy {
           'Перед открытием меню «Поделиться» SIGILLUM проверяет оригинал и регистрирует зашифрованный официальный технический эталон. Если регистрация эталона не удалась, файл не передаётся социальной платформе.',
       'secureOriginalsRightsConfirm':
           'Я подтверждаю наличие необходимых прав и разрешений на публикацию этого контента.',
-      'secureOriginalsMonetization':
-          'Я разрешаю возможную монетизацию эталонной копии.',
-      'secureOriginalsMonetizationHint':
-          'Необязательно и по умолчанию отключено.',
       'secureOriginalsContinueShare': 'ПРОДОЛЖИТЬ И ПОДЕЛИТЬСЯ',
       'secureOriginalsPublishingReference':
           'Проверка оригинала и регистрация официального эталона...',
