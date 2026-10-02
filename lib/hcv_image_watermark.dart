@@ -56,6 +56,16 @@ class HCVImageWatermark {
       color: img.ColorRgb8(220, 220, 220),
     );
 
+    final idBoxRight = image.width > 430 ? 430 : image.width - 1;
+    img.fillRect(
+      image,
+      x1: 12,
+      y1: topY + 44,
+      x2: idBoxRight,
+      y2: topY + 76,
+      color: img.ColorRgba8(0, 0, 0, 176),
+    );
+
     img.drawString(
       image,
       hcvId,
