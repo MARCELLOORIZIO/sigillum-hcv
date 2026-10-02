@@ -279,7 +279,8 @@ class RegistryVerifyCopy {
       'manualCompareMediaUnavailable':
           'The file to compare is no longer available on this device.',
       'manualCompareLoadError': 'Unable to prepare the manual comparison.',
-      'manualCompareOpenError': 'Unable to open the official SIGILLUM reference.',
+      'manualCompareOpenError':
+          'Unable to open the official SIGILLUM reference.',
       'verificationTiming':
           'Verification time: {total} s · reference {youtube} s · local comparison {local} s',
       'techReferenceVerification': 'OFFICIAL SIGILLUM REFERENCE',

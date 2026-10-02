@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('manual comparison reports subscription before reference availability', () {
+  test('manual comparison reports subscription before reference availability',
+      () {
     final publisher =
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
 
