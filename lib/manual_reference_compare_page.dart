@@ -10,6 +10,7 @@ import 'registry_verify_copy.dart';
 import 'sigillum_theme.dart';
 import 'verified_originals_publish_service.dart';
 import 'verified_originals_reference.dart';
+import 'verified_reference_viewer_page.dart';
 
 class ManualReferenceComparePage extends StatefulWidget {
   const ManualReferenceComparePage({
@@ -180,11 +181,51 @@ class _ManualReferenceComparePageState
       }
     }
 
+    if (reference.isPrivateR2) {
+      File? file;
+      try {
+        file = await _publisher.materializeEntitledReference(widget.hcvId);
+        if (!mounted) {
+          try {
+            await file.delete();
+          } catch (_) {}
+          return;
+        }
+        final ownedFile = file;
+        file = null;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => VerifiedReferenceViewerPage(
+              file: ownedFile,
+              title: _r('manualCompareOfficialTitle'),
+            ),
+          ),
+        );
+      } catch (_) {
+        if (file != null) {
+          try {
+            await file.delete();
+          } catch (_) {}
+        }
+        if (mounted) {
+          setState(() => _error = _r('manualCompareOpenError'));
+        }
+      }
+      return;
+    }
+
+    final publicUrl = reference.publicUrl;
+    if (publicUrl == null) {
+      if (mounted) {
+        setState(() => _error = _r('manualCompareOpenError'));
+      }
+      return;
+    }
     final target = Uri.https(
-      reference.publicUrl.host,
-      reference.publicUrl.path,
+      publicUrl.host,
+      publicUrl.path,
       <String, String>{
-        ...reference.publicUrl.queryParameters,
+        ...publicUrl.queryParameters,
         'start': '$seconds',
         't': '${seconds}s',
       },
