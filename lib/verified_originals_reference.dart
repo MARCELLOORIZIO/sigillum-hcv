@@ -93,7 +93,7 @@ class VerifiedOriginalsReference {
       }
       return VerifiedOriginalsReference(
         hcvId: requestedHcvId,
-        platform: platform,
+        platform: 'youtube',
         publicUrl: Uri.https('www.youtube.com', '/watch', {
           'v': url.queryParameters['v']!,
         }),
@@ -111,7 +111,7 @@ class VerifiedOriginalsReference {
       }
       return VerifiedOriginalsReference(
         hcvId: requestedHcvId,
-        platform: platform,
+        platform: 'r2',
         referenceAccess: 'SHORT_LIVED_AUTHORIZATION',
         originalContentSha256: original,
         referenceSha256: reference,
