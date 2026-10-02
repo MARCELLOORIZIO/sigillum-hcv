@@ -178,7 +178,6 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
 
   Future<_ShareDecision?> _shareDecision() async {
     var rights = false;
-    var monetization = false;
     return showDialog<_ShareDecision>(
       context: context,
       barrierDismissible: false,
@@ -198,14 +197,6 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                       setLocalState(() => rights = value == true),
                   title: Text(_t('secureOriginalsRightsConfirm')),
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: monetization,
-                  onChanged: (value) =>
-                      setLocalState(() => monetization = value),
-                  title: Text(_t('secureOriginalsMonetization')),
-                  subtitle: Text(_t('secureOriginalsMonetizationHint')),
-                ),
               ],
             ),
           ),
@@ -218,9 +209,7 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
               onPressed: rights
                   ? () => Navigator.pop(
                         dialogContext,
-                        _ShareDecision(
-                          monetizationConsent: monetization,
-                        ),
+                        const _ShareDecision(),
                       )
                   : null,
               child: Text(_t('secureOriginalsContinueShare')),
@@ -245,7 +234,7 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
     try {
       await _publisher.ensureReference(
         record,
-        monetizationConsent: decision.monetizationConsent,
+        monetizationConsent: false,
       );
 
       final refreshed = await _vault.find(record.hcvId) ?? record;
@@ -576,8 +565,7 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
 }
 
 class _ShareDecision {
-  const _ShareDecision({required this.monetizationConsent});
-  final bool monetizationConsent;
+  const _ShareDecision();
 }
 
 class _SecureOriginalViewerPage extends StatefulWidget {
