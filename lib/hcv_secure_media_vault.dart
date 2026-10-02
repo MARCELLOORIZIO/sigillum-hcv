@@ -84,8 +84,6 @@ class HCVSecureOriginalRecord {
   bool get hasSubtitleReference =>
       subtitlePublicationId != null &&
       subtitlePublicationId!.isNotEmpty &&
-      subtitleReferenceUrl != null &&
-      subtitleReferenceUrl!.isNotEmpty &&
       subtitleReferenceSha256 != null &&
       _shaLike(subtitleReferenceSha256!);
 
@@ -95,8 +93,8 @@ class HCVSecureOriginalRecord {
   bool get hasReference =>
       publicationId != null &&
       publicationId!.isNotEmpty &&
-      referenceUrl != null &&
-      referenceUrl!.isNotEmpty;
+      referenceSha256 != null &&
+      _shaLike(referenceSha256!);
 
   Map<String, dynamic> toJson() => {
         'hcvId': hcvId,
@@ -1104,7 +1102,7 @@ class HCVSecureMediaVault {
   Future<void> markSubtitleReference({
     required String hcvId,
     required String publicationId,
-    required String referenceUrl,
+    String? referenceUrl,
     required String referenceSha256,
     required String captionedMediaSha256,
     required String subtitleSha256,
@@ -1163,7 +1161,7 @@ class HCVSecureMediaVault {
   Future<void> markReference({
     required String hcvId,
     required String publicationId,
-    required String referenceUrl,
+    String? referenceUrl,
     required String referenceSha256,
   }) async {
     if (!_shaPattern.hasMatch(referenceSha256)) {
