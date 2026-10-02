@@ -179,46 +179,52 @@ class VerifiedOriginalsPublishService {
   }
 
   Future<VerifiedOriginalPublishResult> _existingReference(
-    HCVSecureOriginalRecord record,
-  ) async {
-    final reference = await _json(
+    HCVSecureOriginalRecord record, {
+    bool alreadyAvailable = true,
+  }) async {
+    final view = await _json(
       'GET',
       '/api/verified-originals/${record.hcvId}/view',
       authenticated: true,
     );
+    final reference = VerifiedOriginalsReference.fromRegistry(
+      view,
+      requestedHcvId: record.hcvId,
+    );
+    if (reference == null) {
+      throw StateError('REFERENCE_EXISTING_RECORD_INVALID');
+    }
 
-    final publicationId = reference['publicationId']?.toString() ?? '';
-    final publicUrl = reference['publicUrl']?.toString() ?? '';
-    final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
-    final originalContentSha256 =
-        reference['originalContentSha256']?.toString().toLowerCase() ?? '';
+    final publicationId = view['publicationId']?.toString() ?? '';
     final serverHcvpackSha256 =
-        reference['hcvpackSha256']?.toString().toLowerCase() ?? '';
+        view['hcvpackSha256']?.toString().toLowerCase() ?? '';
     final derivedFrom =
-        reference['derivedFrom']?.toString().toLowerCase() ?? '';
+        view['derivedFrom']?.toString().toLowerCase() ?? '';
 
     if (publicationId.isEmpty ||
-        publicUrl.isEmpty ||
-        originalContentSha256 != record.mediaSha256 ||
+        reference.originalContentSha256 != record.mediaSha256 ||
         serverHcvpackSha256 != record.hcvpackSha256 ||
-        derivedFrom != record.mediaSha256 ||
-        !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256)) {
+        derivedFrom != record.mediaSha256) {
       throw StateError('REFERENCE_EXISTING_RECORD_INVALID');
     }
 
     await vault.markReference(
       hcvId: record.hcvId,
       publicationId: publicationId,
-      referenceUrl: publicUrl,
-      referenceSha256: referenceSha256,
+      referencePlatform: reference.platform,
+      referenceUrl: reference.publicUrl?.toString(),
+      referenceReadAuthorizationPath: reference.readAuthorizationPath,
+      referenceSha256: reference.referenceSha256,
     );
 
     return VerifiedOriginalPublishResult(
       hcvId: record.hcvId,
-      alreadyAvailable: true,
+      alreadyAvailable: alreadyAvailable,
       publicationId: publicationId,
-      publicUrl: publicUrl,
-      referenceSha256: referenceSha256,
+      platform: reference.platform,
+      publicUrl: reference.publicUrl?.toString(),
+      readAuthorizationPath: reference.readAuthorizationPath,
+      referenceSha256: reference.referenceSha256,
     );
   }
 
