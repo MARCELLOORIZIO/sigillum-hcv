@@ -2,24 +2,32 @@ class VerifiedOriginalsReference {
   const VerifiedOriginalsReference({
     required this.hcvId,
     required this.platform,
-    required this.publicUrl,
     required this.originalContentSha256,
     required this.referenceSha256,
     required this.derivationType,
+    this.publicUrl,
+    this.readAuthorizationPath,
   });
 
   final String hcvId;
   final String platform;
-  final Uri publicUrl;
+  final Uri? publicUrl;
+  final String? readAuthorizationPath;
   final String originalContentSha256;
   final String referenceSha256;
   final String derivationType;
+
+  bool get isYoutube => platform == 'youtube';
+  bool get isR2 => platform == 'r2';
 
   static final RegExp _hcvId = RegExp(r'^HCV-[A-F0-9]{16}$');
   static final RegExp _sha256 = RegExp(r'^[a-f0-9]{64}$');
   static final RegExp _youtubeId = RegExp(r'^[A-Za-z0-9_-]{11}$');
 
-  /// Free discovery never carries a platform locator. A positive result only
+  static bool _supportedPlatform(Object? raw) =>
+      raw == 'youtube' || raw == 'r2';
+
+  /// Free discovery never carries a provider locator. A positive result only
   /// means that SIGILLUM has an active certified reference for this HCV-ID.
   static bool isAvailable(
     Map<String, dynamic> json, {
@@ -32,13 +40,15 @@ class VerifiedOriginalsReference {
         json['socialFileVerdict'] == 'NOT_VERIFIED' &&
         json['publicationStatus'] == 'PUBLISHED' &&
         json['viewAccess'] == 'SUBSCRIPTION_REQUIRED' &&
-        json['platform'] == 'youtube' &&
+        _supportedPlatform(json['platform']) &&
         !json.containsKey('publicUrl') &&
-        !json.containsKey('platformPostId');
+        !json.containsKey('platformPostId') &&
+        !json.containsKey('providerReceipt') &&
+        !json.containsKey('objectKey');
   }
 
-  /// Parses only the paid /view response. It never authenticates a third-party
-  /// social copy and never turns an HCV-ID/fingerprint into an integrity claim.
+  /// Parses only the paid /view response. It never authenticates a social copy
+  /// and never turns an HCV-ID/fingerprint into an integrity claim.
   static VerifiedOriginalsReference? fromRegistry(
     Map<String, dynamic> json, {
     required String requestedHcvId,
@@ -61,10 +71,39 @@ class VerifiedOriginalsReference {
         reference is! String ||
         derivationType is! String ||
         derivationType.isEmpty ||
-        platform != 'youtube' ||
+        platform is! String ||
+        !_supportedPlatform(platform) ||
         !_sha256.hasMatch(original) ||
         !_sha256.hasMatch(reference)) {
       return null;
+    }
+
+    if (json.containsKey('providerReceipt') ||
+        json.containsKey('objectKey') ||
+        json.containsKey('lifecycleJobId')) {
+      return null;
+    }
+
+    if (platform == 'r2') {
+      final access = json['referenceAccess'];
+      final path = json['readAuthorizationPath'];
+      final expectedPath =
+          '/api/verified-originals/$requestedHcvId/read-authorization';
+      if (access != 'SHORT_LIVED_AUTHORIZATION' ||
+          path is! String ||
+          path != expectedPath ||
+          json.containsKey('publicUrl') ||
+          json.containsKey('platformPostId')) {
+        return null;
+      }
+      return VerifiedOriginalsReference(
+        hcvId: requestedHcvId,
+        platform: platform,
+        readAuthorizationPath: path,
+        originalContentSha256: original,
+        referenceSha256: reference,
+        derivationType: derivationType,
+      );
     }
 
     final rawUrl = json['publicUrl'];
