@@ -61,12 +61,23 @@ class HCVLocationImageWatermark {
         color: img.ColorRgb8(220, 220, 220),
       );
     }
+    final idY = topY + (hasLocation ? 68 : 48);
+    final idBoxRight = image.width > 430 ? 430 : image.width - 1;
+    img.fillRect(
+      image,
+      x1: 12,
+      y1: idY - 4,
+      x2: idBoxRight,
+      y2: idY + 28,
+      color: img.ColorRgba8(0, 0, 0, 176),
+    );
+
     img.drawString(
       image,
       hcvId,
       font: img.arial24,
       x: 20,
-      y: topY + (hasLocation ? 68 : 48),
+      y: idY,
       color: img.ColorRgb8(255, 215, 0),
     );
 
