@@ -10,6 +10,7 @@ import 'registry_verify_page.dart';
 import 'sigillum_localization.dart';
 import 'verified_originals_publish_service.dart';
 import 'verified_originals_reference.dart';
+import 'verified_reference_viewer_page.dart';
 
 /// Public reference discovery. This screen never certifies third-party social
 /// bytes and never uploads HCVPACK/original media.
@@ -154,12 +155,36 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
         throw const FormatException('Invalid paid reference');
       }
 
-      final opened = await launchUrl(
-        reference.publicUrl,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!opened) {
-        throw const FormatException('Unable to open reference');
+      if (reference.isYoutube) {
+        final publicUrl = reference.publicUrl;
+        if (publicUrl == null) {
+          throw const FormatException('Missing YouTube reference');
+        }
+        final opened = await launchUrl(
+          publicUrl,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened) {
+          throw const FormatException('Unable to open reference');
+        }
+      } else if (reference.isPrivateR2) {
+        final file = await _publisher.materializeEntitledReference(id);
+        if (!mounted) {
+          try {
+            await file.delete();
+          } catch (_) {}
+          return;
+        }
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => VerifiedReferenceViewerPage(
+              file: file,
+              title: _t('voWatch'),
+            ),
+          ),
+        );
+      } else {
+        throw const FormatException('Unsupported reference provider');
       }
     } on CommercialAccountException catch (error) {
       if (!mounted) return;
