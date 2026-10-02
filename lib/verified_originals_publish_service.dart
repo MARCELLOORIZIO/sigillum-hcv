@@ -2,24 +2,31 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import 'hcv_registry_service.dart';
 import 'hcv_keystore_signer.dart';
 import 'hcv_secure_media_vault.dart';
 import 'hcv_secure_store.dart';
+import 'verified_originals_reference.dart';
 
 class VerifiedOriginalPublishResult {
   const VerifiedOriginalPublishResult({
     required this.hcvId,
     required this.alreadyAvailable,
     this.publicationId,
+    this.platform,
     this.publicUrl,
+    this.readAuthorizationPath,
     this.referenceSha256,
   });
 
   final String hcvId;
   final bool alreadyAvailable;
   final String? publicationId;
+  final String? platform;
   final String? publicUrl;
+  final String? readAuthorizationPath;
   final String? referenceSha256;
 }
 
@@ -28,7 +35,8 @@ class VerifiedSubtitlePublishResult {
     required this.hcvId,
     required this.alreadyAvailable,
     required this.publicationId,
-    required this.publicUrl,
+    required this.platform,
+    this.publicUrl,
     required this.referenceSha256,
     required this.captionedMediaSha256,
     required this.subtitleSha256,
@@ -37,7 +45,8 @@ class VerifiedSubtitlePublishResult {
   final String hcvId;
   final bool alreadyAvailable;
   final String publicationId;
-  final String publicUrl;
+  final String platform;
+  final String? publicUrl;
   final String referenceSha256;
   final String captionedMediaSha256;
   final String subtitleSha256;
@@ -63,6 +72,11 @@ class VerifiedOriginalsPublishService {
   String get _base {
     final value = registry.baseUrl;
     return value.endsWith('/') ? value.substring(0, value.length - 1) : value;
+  }
+
+  bool _liveReferenceAvailable(Map<String, dynamic> live) {
+    return live['availability'] == 'REFERENCE_AVAILABLE' &&
+        (live['referenceLive'] == true || live['youtubeLive'] == true);
   }
 
   Future<Map<String, dynamic>> _json(
@@ -119,8 +133,7 @@ class VerifiedOriginalsPublishService {
 
   Future<Map<String, dynamic>> entitledLiveReference(String hcvId) async {
     final live = await verificationReference(hcvId);
-    final available = live['availability'] == 'REFERENCE_AVAILABLE' &&
-        live['youtubeLive'] == true;
+    final available = _liveReferenceAvailable(live);
     if (!available) {
       throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
     }
@@ -216,8 +229,7 @@ class VerifiedOriginalsPublishService {
     final availability = await publicAvailability(record.hcvId);
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
       final live = await verificationReference(record.hcvId);
-      final liveAvailable = live['availability'] == 'REFERENCE_AVAILABLE' &&
-          live['youtubeLive'] == true;
+      final liveAvailable = _liveReferenceAvailable(live);
       if (!liveAvailable) {
         throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
       }
