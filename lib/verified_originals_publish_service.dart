@@ -141,16 +141,21 @@ class VerifiedOriginalsPublishService {
   }
 
   Future<Map<String, dynamic>> entitledLiveReference(String hcvId) async {
+    // Ask the authenticated endpoint first so subscription errors take
+    // precedence over reference availability. This prevents an expired
+    // subscription from being misreported as a provider/publication problem.
+    final entitled = await _json(
+      'GET',
+      '/api/verified-originals/$hcvId/view',
+      authenticated: true,
+    );
+
     final live = await verificationReference(hcvId);
     if (!_isLiveReference(live)) {
       throw StateError('REFERENCE_PLATFORM_UNAVAILABLE');
     }
 
-    return _json(
-      'GET',
-      '/api/verified-originals/$hcvId/view',
-      authenticated: true,
-    );
+    return entitled;
   }
 
   Future<String> _ensureConsent(
