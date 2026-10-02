@@ -5,6 +5,7 @@ on:
     branches:
       - feature/build133-closed-chain-vault-youtube-20260925
       - feature/build139-r2-primary-reference-20261002
+      - feature/build140-r2-legal-ux-20261002
   workflow_dispatch:
 
 permissions:
