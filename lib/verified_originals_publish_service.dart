@@ -127,6 +127,19 @@ class VerifiedOriginalsPublishService {
         (live['referenceLive'] == true || live['youtubeLive'] == true);
   }
 
+  bool _providerLocatorValid(
+    Map<String, dynamic> response, {
+    required String publicUrl,
+  }) {
+    final platform = response['platform']?.toString() ?? '';
+    if (platform == 'youtube') return publicUrl.isNotEmpty;
+    if (platform == 'r2') {
+      return response['referenceAccess'] == 'SHORT_LIVED_AUTHORIZATION' &&
+          publicUrl.isEmpty;
+    }
+    return false;
+  }
+
   Future<Map<String, dynamic>> entitledLiveReference(String hcvId) async {
     final live = await verificationReference(hcvId);
     if (!_isLiveReference(live)) {
@@ -183,9 +196,7 @@ class VerifiedOriginalsPublishService {
     );
 
     final publicationId = reference['publicationId']?.toString() ?? '';
-    final platform = reference['platform']?.toString() ?? '';
     final publicUrl = reference['publicUrl']?.toString() ?? '';
-    final referenceAccess = reference['referenceAccess']?.toString() ?? '';
     final referenceSha256 = reference['referenceSha256']?.toString() ?? '';
     final originalContentSha256 =
         reference['originalContentSha256']?.toString().toLowerCase() ?? '';
@@ -194,14 +205,8 @@ class VerifiedOriginalsPublishService {
     final derivedFrom =
         reference['derivedFrom']?.toString().toLowerCase() ?? '';
 
-    final locatorValid = platform == 'youtube'
-        ? publicUrl.isNotEmpty
-        : platform == 'r2' &&
-            referenceAccess == 'SHORT_LIVED_AUTHORIZATION' &&
-            publicUrl.isEmpty;
-
     if (publicationId.isEmpty ||
-        !locatorValid ||
+        !_providerLocatorValid(reference, publicUrl: publicUrl) ||
         originalContentSha256 != record.mediaSha256 ||
         serverHcvpackSha256 != record.hcvpackSha256 ||
         derivedFrom != record.mediaSha256 ||
@@ -302,9 +307,7 @@ class VerifiedOriginalsPublishService {
         }
 
         final publicationId = decoded['publicationId']?.toString() ?? '';
-        final platform = decoded['platform']?.toString() ?? '';
         final publicUrl = decoded['publicUrl']?.toString() ?? '';
-        final referenceAccess = decoded['referenceAccess']?.toString() ?? '';
         final referenceSha256 = decoded['referenceSha256']?.toString() ?? '';
         final originalContentSha256 =
             decoded['originalContentSha256']?.toString().toLowerCase() ?? '';
@@ -313,14 +316,8 @@ class VerifiedOriginalsPublishService {
         final derivedFrom =
             decoded['derivedFrom']?.toString().toLowerCase() ?? '';
 
-        final locatorValid = platform == 'youtube'
-            ? publicUrl.isNotEmpty
-            : platform == 'r2' &&
-                referenceAccess == 'SHORT_LIVED_AUTHORIZATION' &&
-                publicUrl.isEmpty;
-
         if (publicationId.isEmpty ||
-            !locatorValid ||
+            !_providerLocatorValid(decoded, publicUrl: publicUrl) ||
             originalContentSha256 != record.mediaSha256 ||
             serverHcvpackSha256 != record.hcvpackSha256 ||
             derivedFrom != record.mediaSha256 ||
@@ -448,9 +445,7 @@ class VerifiedOriginalsPublishService {
         }
 
         final publicationId = decoded['publicationId']?.toString() ?? '';
-        final platform = decoded['platform']?.toString() ?? '';
         final publicUrl = decoded['publicUrl']?.toString() ?? '';
-        final referenceAccess = decoded['referenceAccess']?.toString() ?? '';
         final referenceSha256 =
             decoded['referenceSha256']?.toString().toLowerCase() ?? '';
         final sourceSha256 =
@@ -464,15 +459,9 @@ class VerifiedOriginalsPublishService {
         final role = decoded['referenceRole']?.toString() ?? '';
         final derivationType = decoded['derivationType']?.toString() ?? '';
 
-        final locatorValid = platform == 'youtube'
-            ? publicUrl.isNotEmpty
-            : platform == 'r2' &&
-                referenceAccess == 'SHORT_LIVED_AUTHORIZATION' &&
-                publicUrl.isEmpty;
-
         if (publicationId.isEmpty ||
-            !locatorValid ||
-            !RegExp(r'^[a-f0-9]{64}
+            !_providerLocatorValid(decoded, publicUrl: publicUrl) ||
+            !RegExp(r'^[a-f0-9]{64}$').hasMatch(referenceSha256) ||
             sourceSha256 != captionedSha256 ||
             serverSubtitleSha256 != subtitleSha256 ||
             originalContentSha256 != refreshed.mediaSha256 ||
@@ -607,66 +596,6 @@ class VerifiedOriginalsPublishService {
       client.close(force: true);
     }
   }
-
-  Future<void> withdrawReference(HCVSecureOriginalRecord record) async {
-    final response = await _json(
-      'POST',
-      '/api/verified-originals/consents/${record.hcvId}/withdraw',
-      authenticated: true,
-    );
-    if (response['referenceAvailable'] == true) {
-      throw StateError('REFERENCE_WITHDRAWAL_INCOMPLETE');
-    }
-    final takedown = response['platformTakedown']?.toString() ?? '';
-    if (takedown != 'COMPLETED') {
-      throw StateError('REFERENCE_TAKEDOWN_$takedown');
-    }
-    await vault.clearReference(record.hcvId);
-  }
-
-  String _mime(HCVSecureOriginalRecord record) {
-    if (record.mediaType == 'video') return 'video/mp4';
-    final lower = record.originalName.toLowerCase();
-    if (lower.endsWith('.png')) return 'image/png';
-    return 'image/jpeg';
-  }
-}
-).hasMatch(referenceSha256) ||
-            sourceSha256 != captionedSha256 ||
-            serverSubtitleSha256 != subtitleSha256 ||
-            originalContentSha256 != refreshed.mediaSha256 ||
-            serverHcvpackSha256 != refreshed.hcvpackSha256 ||
-            role != 'DERIVED_REFERENCE' ||
-            derivationType != 'subtitle_burn_in_reference_v1') {
-          throw StateError('SUBTITLE_REFERENCE_RESPONSE_INVALID');
-        }
-
-        await vault.markSubtitleReference(
-          hcvId: refreshed.hcvId,
-          publicationId: publicationId,
-          referenceUrl: publicUrl,
-          referenceSha256: referenceSha256,
-          captionedMediaSha256: captionedSha256,
-          subtitleSha256: subtitleSha256,
-        );
-
-        return VerifiedSubtitlePublishResult(
-          hcvId: refreshed.hcvId,
-          alreadyAvailable: decoded['alreadyAvailable'] == true,
-          publicationId: publicationId,
-          publicUrl: publicUrl,
-          referenceSha256: referenceSha256,
-          captionedMediaSha256: captionedSha256,
-          subtitleSha256: subtitleSha256,
-        );
-      } finally {
-        client.close(force: true);
-      }
-    } finally {
-      await vault.deleteMaterialized(captioned);
-    }
-  }
-
   Future<void> withdrawReference(HCVSecureOriginalRecord record) async {
     final response = await _json(
       'POST',
