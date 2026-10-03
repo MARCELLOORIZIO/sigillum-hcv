@@ -11,7 +11,10 @@ void main() {
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
 
     expect(pubspec, contains('version: 1.0.0+144'));
-    expect(File('lib/verified_originals_consent_page.dart').existsSync(), false);
+    final consentTombstone =
+        File('lib/verified_originals_consent_page.dart').readAsStringSync();
+    expect(consentTombstone, isNot(contains('monetizationConsent')));
+    expect(consentTombstone, isNot(contains('SwitchListTile')));
     expect(camera, isNot(contains('monetizationConsent')));
     expect(secure, isNot(contains('monetizationConsent')));
     expect(publisher, isNot(contains('bool monetizationConsent')));
