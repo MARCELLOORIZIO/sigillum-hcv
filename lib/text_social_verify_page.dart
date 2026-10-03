@@ -40,35 +40,50 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
   String? _originalFromPackage;
 
   static const Map<String, String> _esCopy = {
-    'Dispositivo locale + Registry ripristinato': 'Dispositivo local + Registry restaurado',
-    'Copia firmata sul dispositivo; nuovo invio accodato': 'Copia firmada en el dispositivo; nuevo envío en cola',
-    'Il certificato recuperato non supera la verifica crittografica.': 'El certificado recuperado no supera la verificación criptográfica.',
-    'Incolla il testo pubblicato con la riga SIGILLUM.': 'Pega el texto publicado incluyendo la línea SIGILLUM.',
-    'HCV-ID mancante. Incolla anche la riga “🔏 SIGILLUM HCV-…”.': 'Falta el HCV-ID. Pega también la línea “🔏 SIGILLUM HCV-…”.',
+    'Dispositivo locale + Registry ripristinato':
+        'Dispositivo local + Registry restaurado',
+    'Copia firmata sul dispositivo; nuovo invio accodato':
+        'Copia firmada en el dispositivo; nuevo envío en cola',
+    'Il certificato recuperato non supera la verifica crittografica.':
+        'El certificado recuperado no supera la verificación criptográfica.',
+    'Incolla il testo pubblicato con la riga SIGILLUM.':
+        'Pega el texto publicado incluyendo la línea SIGILLUM.',
+    'HCV-ID mancante. Incolla anche la riga “🔏 SIGILLUM HCV-…”.':
+        'Falta el HCV-ID. Pega también la línea “🔏 SIGILLUM HCV-…”.',
     'Incolla il testo pubblicato.': 'Pega el texto publicado.',
-    'Recupero e verifica del certificato…': 'Recuperando y verificando el certificado…',
+    'Recupero e verifica del certificato…':
+        'Recuperando y verificando el certificado…',
     'Copia locale firmata': 'Copia local firmada',
-    'Certificato non presente nel Registry e nessuna copia locale firmata trovata.': 'El certificado no está en el Registry y no se encontró ninguna copia local firmada.',
+    'Certificato non presente nel Registry e nessuna copia locale firmata trovata.':
+        'El certificado no está en el Registry y no se encontró ninguna copia local firmada.',
     'Registry non disponibile': 'Registry no disponible',
     'Verifica non completata': 'Verificación no completada',
-    'Seleziona un file HCVPACK (.hcvpack).': 'Selecciona un archivo HCVPACK (.hcvpack).',
+    'Seleziona un file HCVPACK (.hcvpack).':
+        'Selecciona un archivo HCVPACK (.hcvpack).',
     'Apertura HCVPACK…': 'Abriendo HCVPACK…',
-    'La firma del certificato contenuto nel pacchetto non è valida.': 'La firma del certificado incluido en el paquete no es válida.',
+    'La firma del certificato contenuto nel pacchetto non è valida.':
+        'La firma del certificado incluido en el paquete no es válida.',
     'HCVPACK non verificabile': 'HCVPACK no verificable',
-    'Il testo coincide esattamente con quello certificato.': 'El texto coincide exactamente con el texto certificado.',
-    'Parole e punteggiatura coincidono. Sono cambiati soltanto gli spazi o i ritorni a capo.': 'Las palabras y la puntuación coinciden. Solo han cambiado los espacios o los saltos de línea.',
-    'Il contenuto pubblicato non coincide con quello certificato.': 'El contenido publicado no coincide con el contenido certificado.',
-    'Il certificato non contiene un’impronta testuale verificabile.': 'El certificado no contiene una huella textual verificable.',
+    'Il testo coincide esattamente con quello certificato.':
+        'El texto coincide exactamente con el texto certificado.',
+    'Parole e punteggiatura coincidono. Sono cambiati soltanto gli spazi o i ritorni a capo.':
+        'Las palabras y la puntuación coinciden. Solo han cambiado los espacios o los saltos de línea.',
+    'Il contenuto pubblicato non coincide con quello certificato.':
+        'El contenido publicado no coincide con el contenido certificado.',
+    'Il certificato non contiene un’impronta testuale verificabile.':
+        'El certificado no contiene una huella textual verificable.',
     'Testo originale copiato': 'Texto original copiado',
     'CERTIFICATO NON VALIDO': 'CERTIFICADO NO VÁLIDO',
     'TESTO ORIGINALE VERIFICATO': 'TEXTO ORIGINAL VERIFICADO',
-    'TESTO VERIFICATO — FORMATTAZIONE MODIFICATA': 'TEXTO VERIFICADO — FORMATO MODIFICADO',
+    'TESTO VERIFICATO — FORMATTAZIONE MODIFICATA':
+        'TEXTO VERIFICADO — FORMATO MODIFICADO',
     'TESTO MODIFICATO': 'TEXTO MODIFICADO',
     'VERIFICA NON SUPPORTATA': 'VERIFICACIÓN NO COMPATIBLE',
     'VERIFICA TESTO': 'VERIFICACIÓN DE TEXTO',
     'Verifica testo pubblicato': 'Verificar texto publicado',
     'Testo copiato dal social': 'Texto copiado de la red social',
-    'Viene letto automaticamente dalla riga SIGILLUM.': 'Se lee automáticamente desde la línea SIGILLUM.',
+    'Viene letto automaticamente dalla riga SIGILLUM.':
+        'Se lee automáticamente desde la línea SIGILLUM.',
     'VERIFICA IN CORSO…': 'VERIFICANDO…',
     'VERIFICA DAL REGISTRY': 'VERIFICAR DESDE REGISTRY',
     'APRI HCVPACK TESTO': 'ABRIR HCVPACK DE TEXTO',
@@ -77,35 +92,49 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
   };
 
   static const Map<String, String> _ruCopy = {
-    'Dispositivo locale + Registry ripristinato': 'Локальное устройство + Registry восстановлен',
-    'Copia firmata sul dispositivo; nuovo invio accodato': 'Подписанная копия на устройстве; повторная отправка поставлена в очередь',
-    'Il certificato recuperato non supera la verifica crittografica.': 'Полученный сертификат не прошёл криптографическую проверку.',
-    'Incolla il testo pubblicato con la riga SIGILLUM.': 'Вставьте опубликованный текст вместе со строкой SIGILLUM.',
-    'HCV-ID mancante. Incolla anche la riga “🔏 SIGILLUM HCV-…”.': 'Отсутствует HCV-ID. Вставьте также строку «🔏 SIGILLUM HCV-…».',
+    'Dispositivo locale + Registry ripristinato':
+        'Локальное устройство + Registry восстановлен',
+    'Copia firmata sul dispositivo; nuovo invio accodato':
+        'Подписанная копия на устройстве; повторная отправка поставлена в очередь',
+    'Il certificato recuperato non supera la verifica crittografica.':
+        'Полученный сертификат не прошёл криптографическую проверку.',
+    'Incolla il testo pubblicato con la riga SIGILLUM.':
+        'Вставьте опубликованный текст вместе со строкой SIGILLUM.',
+    'HCV-ID mancante. Incolla anche la riga “🔏 SIGILLUM HCV-…”.':
+        'Отсутствует HCV-ID. Вставьте также строку «🔏 SIGILLUM HCV-…».',
     'Incolla il testo pubblicato.': 'Вставьте опубликованный текст.',
     'Recupero e verifica del certificato…': 'Получение и проверка сертификата…',
     'Copia locale firmata': 'Локальная подписанная копия',
-    'Certificato non presente nel Registry e nessuna copia locale firmata trovata.': 'Сертификат отсутствует в Registry, и локальная подписанная копия не найдена.',
+    'Certificato non presente nel Registry e nessuna copia locale firmata trovata.':
+        'Сертификат отсутствует в Registry, и локальная подписанная копия не найдена.',
     'Registry non disponibile': 'Registry недоступен',
     'Verifica non completata': 'Проверка не завершена',
-    'Seleziona un file HCVPACK (.hcvpack).': 'Выберите файл HCVPACK (.hcvpack).',
+    'Seleziona un file HCVPACK (.hcvpack).':
+        'Выберите файл HCVPACK (.hcvpack).',
     'Apertura HCVPACK…': 'Открытие HCVPACK…',
-    'La firma del certificato contenuto nel pacchetto non è valida.': 'Подпись сертификата внутри пакета недействительна.',
+    'La firma del certificato contenuto nel pacchetto non è valida.':
+        'Подпись сертификата внутри пакета недействительна.',
     'HCVPACK non verificabile': 'HCVPACK не удаётся проверить',
-    'Il testo coincide esattamente con quello certificato.': 'Текст точно совпадает с сертифицированным.',
-    'Parole e punteggiatura coincidono. Sono cambiati soltanto gli spazi o i ritorni a capo.': 'Слова и пунктуация совпадают. Изменены только пробелы или переносы строк.',
-    'Il contenuto pubblicato non coincide con quello certificato.': 'Опубликованный текст не совпадает с сертифицированным.',
-    'Il certificato non contiene un’impronta testuale verificabile.': 'Сертификат не содержит проверяемого текстового отпечатка.',
+    'Il testo coincide esattamente con quello certificato.':
+        'Текст точно совпадает с сертифицированным.',
+    'Parole e punteggiatura coincidono. Sono cambiati soltanto gli spazi o i ritorni a capo.':
+        'Слова и пунктуация совпадают. Изменены только пробелы или переносы строк.',
+    'Il contenuto pubblicato non coincide con quello certificato.':
+        'Опубликованный текст не совпадает с сертифицированным.',
+    'Il certificato non contiene un’impronta testuale verificabile.':
+        'Сертификат не содержит проверяемого текстового отпечатка.',
     'Testo originale copiato': 'Оригинальный текст скопирован',
     'CERTIFICATO NON VALIDO': 'НЕДЕЙСТВИТЕЛЬНЫЙ СЕРТИФИКАТ',
     'TESTO ORIGINALE VERIFICATO': 'ОРИГИНАЛЬНЫЙ ТЕКСТ ПОДТВЕРЖДЁН',
-    'TESTO VERIFICATO — FORMATTAZIONE MODIFICATA': 'ТЕКСТ ПОДТВЕРЖДЁН — ФОРМАТИРОВАНИЕ ИЗМЕНЕНО',
+    'TESTO VERIFICATO — FORMATTAZIONE MODIFICATA':
+        'ТЕКСТ ПОДТВЕРЖДЁН — ФОРМАТИРОВАНИЕ ИЗМЕНЕНО',
     'TESTO MODIFICATO': 'ТЕКСТ ИЗМЕНЁН',
     'VERIFICA NON SUPPORTATA': 'ПРОВЕРКА НЕ ПОДДЕРЖИВАЕТСЯ',
     'VERIFICA TESTO': 'ПРОВЕРКА ТЕКСТА',
     'Verifica testo pubblicato': 'Проверка опубликованного текста',
     'Testo copiato dal social': 'Текст, скопированный из соцсети',
-    'Viene letto automaticamente dalla riga SIGILLUM.': 'Автоматически считывается из строки SIGILLUM.',
+    'Viene letto automaticamente dalla riga SIGILLUM.':
+        'Автоматически считывается из строки SIGILLUM.',
     'VERIFICA IN CORSO…': 'ПРОВЕРКА…',
     'VERIFICA DAL REGISTRY': 'ПРОВЕРИТЬ ЧЕРЕЗ REGISTRY',
     'APRI HCVPACK TESTO': 'ОТКРЫТЬ ТЕКСТОВЫЙ HCVPACK',
@@ -496,12 +525,22 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
     final hasResult = _match != null || _signatureValid == false;
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9FA),
-      appBar: AppBar(backgroundColor: Colors.transparent, title: Text(_label('Verifica testo pubblicato', 'Verify published text'))),
+      appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: Text(
+              _label('Verifica testo pubblicato', 'Verify published text'))),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFEAFBFF), Color(0xFFFAF9FA), Color(0xFFF2ECFF)]),
+          gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFEAFBFF),
+                Color(0xFFFAF9FA),
+                Color(0xFFF2ECFF)
+              ]),
         ),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 32),
@@ -512,12 +551,18 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
                 color: Colors.white.withValues(alpha: 0.96),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(color: SigillumTheme.border),
-                boxShadow: const [BoxShadow(color: Color(0x12280D5F), blurRadius: 22, offset: Offset(0, 8))],
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x12280D5F),
+                      blurRadius: 22,
+                      offset: Offset(0, 8))
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.text_snippet_outlined, color: SigillumTheme.accentAlt, size: 42),
+                  const Icon(Icons.text_snippet_outlined,
+                      color: SigillumTheme.accentAlt, size: 42),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _textController,
@@ -525,25 +570,43 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
                     maxLines: 18,
                     onChanged: (value) {
                       final detected = HCVTextIntegrity.extractHcvId(value);
-                      if (detected != null && _idController.text != detected) _idController.text = detected;
+                      if (detected != null && _idController.text != detected)
+                        _idController.text = detected;
                     },
-                    decoration: InputDecoration(labelText: _label('Testo copiato dal social', 'Text copied from social media'), alignLabelWithHint: true),
+                    decoration: InputDecoration(
+                        labelText: _label('Testo copiato dal social',
+                            'Text copied from social media'),
+                        alignLabelWithHint: true),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _idController,
                     textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(labelText: 'HCV-ID', helperText: _label('Viene letto automaticamente dalla riga SIGILLUM.', 'Automatically read from the SIGILLUM line.')),
+                    decoration: InputDecoration(
+                        labelText: 'HCV-ID',
+                        helperText: _label(
+                            'Viene letto automaticamente dalla riga SIGILLUM.',
+                            'Automatically read from the SIGILLUM line.')),
                   ),
                   const SizedBox(height: 14),
                   FilledButton.icon(
                     onPressed: _busy ? null : _verifyRegistryText,
                     icon: const Icon(Icons.verified_user_outlined),
-                    label: Text(_busy ? _label('VERIFICA IN CORSO…', 'VERIFYING…') : _label('VERIFICA DAL REGISTRY', 'VERIFY FROM REGISTRY')),
+                    label: Text(_busy
+                        ? _label('VERIFICA IN CORSO…', 'VERIFYING…')
+                        : _label(
+                            'VERIFICA DAL REGISTRY', 'VERIFY FROM REGISTRY')),
                   ),
                   const SizedBox(height: 10),
-                  OutlinedButton.icon(onPressed: _busy ? null : _verifyTextPackage, icon: const Icon(Icons.inventory_2_outlined), label: Text(_label('APRI HCVPACK TESTO', 'OPEN TEXT HCVPACK'))),
-                  if (_busy) ...[const SizedBox(height: 14), const LinearProgressIndicator()],
+                  OutlinedButton.icon(
+                      onPressed: _busy ? null : _verifyTextPackage,
+                      icon: const Icon(Icons.inventory_2_outlined),
+                      label: Text(
+                          _label('APRI HCVPACK TESTO', 'OPEN TEXT HCVPACK'))),
+                  if (_busy) ...[
+                    const SizedBox(height: 14),
+                    const LinearProgressIndicator()
+                  ],
                 ],
               ),
             ),
@@ -551,28 +614,54 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: hasResult ? _resultColor().withValues(alpha: 0.10) : Colors.white.withValues(alpha: 0.94),
-                border: Border.all(color: hasResult ? _resultColor() : SigillumTheme.border),
+                color: hasResult
+                    ? _resultColor().withValues(alpha: 0.10)
+                    : Colors.white.withValues(alpha: 0.94),
+                border: Border.all(
+                    color: hasResult ? _resultColor() : SigillumTheme.border),
                 borderRadius: BorderRadius.circular(28),
-                boxShadow: const [BoxShadow(color: Color(0x10280D5F), blurRadius: 18, offset: Offset(0, 7))],
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x10280D5F),
+                      blurRadius: 18,
+                      offset: Offset(0, 7))
+                ],
               ),
               child: Column(
                 children: [
-                  Icon(hasResult ? Icons.verified_outlined : Icons.text_snippet_outlined, color: hasResult ? _resultColor() : SigillumTheme.muted, size: 48),
+                  Icon(
+                      hasResult
+                          ? Icons.verified_outlined
+                          : Icons.text_snippet_outlined,
+                      color: hasResult ? _resultColor() : SigillumTheme.muted,
+                      size: 48),
                   const SizedBox(height: 8),
-                  Text(_resultTitle(), textAlign: TextAlign.center, style: TextStyle(color: hasResult ? _resultColor() : SigillumTheme.ink, fontSize: 18, fontWeight: FontWeight.w900)),
+                  Text(_resultTitle(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: hasResult ? _resultColor() : SigillumTheme.ink,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900)),
                   const SizedBox(height: 8),
-                  Text(_status, textAlign: TextAlign.center, style: const TextStyle(color: SigillumTheme.ink)),
+                  Text(_status,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: SigillumTheme.ink)),
                   if (_source != null) ...[
                     const SizedBox(height: 6),
-                    Text('${_label('Fonte', 'Source')}: $_source', style: const TextStyle(color: SigillumTheme.muted, fontSize: 12)),
+                    Text('${_label('Fonte', 'Source')}: $_source',
+                        style: const TextStyle(
+                            color: SigillumTheme.muted, fontSize: 12)),
                   ],
                 ],
               ),
             ),
             if (_originalFromPackage != null) ...[
               const SizedBox(height: 12),
-              OutlinedButton.icon(onPressed: _copyOriginal, icon: const Icon(Icons.copy_all_outlined), label: Text(_label('COPIA TESTO ORIGINALE', 'COPY ORIGINAL TEXT'))),
+              OutlinedButton.icon(
+                  onPressed: _copyOriginal,
+                  icon: const Icon(Icons.copy_all_outlined),
+                  label: Text(
+                      _label('COPIA TESTO ORIGINALE', 'COPY ORIGINAL TEXT'))),
             ],
           ],
         ),
