@@ -39,8 +39,87 @@ class _TextSocialVerifyPageState extends State<TextSocialVerifyPage> {
   String? _source;
   String? _originalFromPackage;
 
-  bool get _it => widget.languageCode.toLowerCase().startsWith('it');
-  String _label(String it, String en) => _it ? it : en;
+  static const Map<String, String> _esCopy = {
+    'Dispositivo locale + Registry ripristinato': 'Dispositivo local + Registry restaurado',
+    'Copia firmata sul dispositivo; nuovo invio accodato': 'Copia firmada en el dispositivo; nuevo envío en cola',
+    'Il certificato recuperato non supera la verifica crittografica.': 'El certificado recuperado no supera la verificación criptográfica.',
+    'Incolla il testo pubblicato con la riga SIGILLUM.': 'Pega el texto publicado incluyendo la línea SIGILLUM.',
+    'HCV-ID mancante. Incolla anche la riga “🔏 SIGILLUM HCV-…”.': 'Falta el HCV-ID. Pega también la línea “🔏 SIGILLUM HCV-…”.',
+    'Incolla il testo pubblicato.': 'Pega el texto publicado.',
+    'Recupero e verifica del certificato…': 'Recuperando y verificando el certificado…',
+    'Copia locale firmata': 'Copia local firmada',
+    'Certificato non presente nel Registry e nessuna copia locale firmata trovata.': 'El certificado no está en el Registry y no se encontró ninguna copia local firmada.',
+    'Registry non disponibile': 'Registry no disponible',
+    'Verifica non completata': 'Verificación no completada',
+    'Seleziona un file HCVPACK (.hcvpack).': 'Selecciona un archivo HCVPACK (.hcvpack).',
+    'Apertura HCVPACK…': 'Abriendo HCVPACK…',
+    'La firma del certificato contenuto nel pacchetto non è valida.': 'La firma del certificado incluido en el paquete no es válida.',
+    'HCVPACK non verificabile': 'HCVPACK no verificable',
+    'Il testo coincide esattamente con quello certificato.': 'El texto coincide exactamente con el texto certificado.',
+    'Parole e punteggiatura coincidono. Sono cambiati soltanto gli spazi o i ritorni a capo.': 'Las palabras y la puntuación coinciden. Solo han cambiado los espacios o los saltos de línea.',
+    'Il contenuto pubblicato non coincide con quello certificato.': 'El contenido publicado no coincide con el contenido certificado.',
+    'Il certificato non contiene un’impronta testuale verificabile.': 'El certificado no contiene una huella textual verificable.',
+    'Testo originale copiato': 'Texto original copiado',
+    'CERTIFICATO NON VALIDO': 'CERTIFICADO NO VÁLIDO',
+    'TESTO ORIGINALE VERIFICATO': 'TEXTO ORIGINAL VERIFICADO',
+    'TESTO VERIFICATO — FORMATTAZIONE MODIFICATA': 'TEXTO VERIFICADO — FORMATO MODIFICADO',
+    'TESTO MODIFICATO': 'TEXTO MODIFICADO',
+    'VERIFICA NON SUPPORTATA': 'VERIFICACIÓN NO COMPATIBLE',
+    'VERIFICA TESTO': 'VERIFICACIÓN DE TEXTO',
+    'Verifica testo pubblicato': 'Verificar texto publicado',
+    'Testo copiato dal social': 'Texto copiado de la red social',
+    'Viene letto automaticamente dalla riga SIGILLUM.': 'Se lee automáticamente desde la línea SIGILLUM.',
+    'VERIFICA IN CORSO…': 'VERIFICANDO…',
+    'VERIFICA DAL REGISTRY': 'VERIFICAR DESDE REGISTRY',
+    'APRI HCVPACK TESTO': 'ABRIR HCVPACK DE TEXTO',
+    'Fonte': 'Fuente',
+    'COPIA TESTO ORIGINALE': 'COPIAR TEXTO ORIGINAL',
+  };
+
+  static const Map<String, String> _ruCopy = {
+    'Dispositivo locale + Registry ripristinato': 'Локальное устройство + Registry восстановлен',
+    'Copia firmata sul dispositivo; nuovo invio accodato': 'Подписанная копия на устройстве; повторная отправка поставлена в очередь',
+    'Il certificato recuperato non supera la verifica crittografica.': 'Полученный сертификат не прошёл криптографическую проверку.',
+    'Incolla il testo pubblicato con la riga SIGILLUM.': 'Вставьте опубликованный текст вместе со строкой SIGILLUM.',
+    'HCV-ID mancante. Incolla anche la riga “🔏 SIGILLUM HCV-…”.': 'Отсутствует HCV-ID. Вставьте также строку «🔏 SIGILLUM HCV-…».',
+    'Incolla il testo pubblicato.': 'Вставьте опубликованный текст.',
+    'Recupero e verifica del certificato…': 'Получение и проверка сертификата…',
+    'Copia locale firmata': 'Локальная подписанная копия',
+    'Certificato non presente nel Registry e nessuna copia locale firmata trovata.': 'Сертификат отсутствует в Registry, и локальная подписанная копия не найдена.',
+    'Registry non disponibile': 'Registry недоступен',
+    'Verifica non completata': 'Проверка не завершена',
+    'Seleziona un file HCVPACK (.hcvpack).': 'Выберите файл HCVPACK (.hcvpack).',
+    'Apertura HCVPACK…': 'Открытие HCVPACK…',
+    'La firma del certificato contenuto nel pacchetto non è valida.': 'Подпись сертификата внутри пакета недействительна.',
+    'HCVPACK non verificabile': 'HCVPACK не удаётся проверить',
+    'Il testo coincide esattamente con quello certificato.': 'Текст точно совпадает с сертифицированным.',
+    'Parole e punteggiatura coincidono. Sono cambiati soltanto gli spazi o i ritorni a capo.': 'Слова и пунктуация совпадают. Изменены только пробелы или переносы строк.',
+    'Il contenuto pubblicato non coincide con quello certificato.': 'Опубликованный текст не совпадает с сертифицированным.',
+    'Il certificato non contiene un’impronta testuale verificabile.': 'Сертификат не содержит проверяемого текстового отпечатка.',
+    'Testo originale copiato': 'Оригинальный текст скопирован',
+    'CERTIFICATO NON VALIDO': 'НЕДЕЙСТВИТЕЛЬНЫЙ СЕРТИФИКАТ',
+    'TESTO ORIGINALE VERIFICATO': 'ОРИГИНАЛЬНЫЙ ТЕКСТ ПОДТВЕРЖДЁН',
+    'TESTO VERIFICATO — FORMATTAZIONE MODIFICATA': 'ТЕКСТ ПОДТВЕРЖДЁН — ФОРМАТИРОВАНИЕ ИЗМЕНЕНО',
+    'TESTO MODIFICATO': 'ТЕКСТ ИЗМЕНЁН',
+    'VERIFICA NON SUPPORTATA': 'ПРОВЕРКА НЕ ПОДДЕРЖИВАЕТСЯ',
+    'VERIFICA TESTO': 'ПРОВЕРКА ТЕКСТА',
+    'Verifica testo pubblicato': 'Проверка опубликованного текста',
+    'Testo copiato dal social': 'Текст, скопированный из соцсети',
+    'Viene letto automaticamente dalla riga SIGILLUM.': 'Автоматически считывается из строки SIGILLUM.',
+    'VERIFICA IN CORSO…': 'ПРОВЕРКА…',
+    'VERIFICA DAL REGISTRY': 'ПРОВЕРИТЬ ЧЕРЕЗ REGISTRY',
+    'APRI HCVPACK TESTO': 'ОТКРЫТЬ ТЕКСТОВЫЙ HCVPACK',
+    'Fonte': 'Источник',
+    'COPIA TESTO ORIGINALE': 'СКОПИРОВАТЬ ОРИГИНАЛЬНЫЙ ТЕКСТ',
+  };
+
+  String _label(String it, String en) {
+    final code = widget.languageCode.toLowerCase().split(RegExp(r'[-_]')).first;
+    if (code == 'it') return it;
+    if (code == 'es') return _esCopy[it] ?? en;
+    if (code == 'ru') return _ruCopy[it] ?? en;
+    return en;
+  }
 
   void _dismissKeyboard() {
     FocusManager.instance.primaryFocus?.unfocus();
