@@ -18,7 +18,13 @@ void main() {
     expect(dialog, contains("_c('subtitleExportTitle')"));
     expect(dialog, isNot(contains('secureOriginalsMonetization')));
     expect(dialog, isNot(contains('SwitchListTile')));
-    expect(camera, contains('monetizationConsent: false'));
+    expect(camera, isNot(contains('monetizationConsent')));
+
+    final publisher =
+        File('lib/verified_originals_publish_service.dart').readAsStringSync();
+    expect(publisher, contains("'monetizationConsent': false"));
+    expect(publisher, contains("'monetizationEnabled': 'false'"));
+    expect(publisher, isNot(contains('bool monetizationConsent')));
   });
 
   test('subtitle verification accepts only a registered authorized derivation',
