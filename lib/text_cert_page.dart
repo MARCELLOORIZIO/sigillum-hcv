@@ -555,7 +555,8 @@ class _TextCertPageState extends State<TextCertPage> {
         child: Column(
           children: [
             Text(
-              _p('File creati', 'Created files', 'Archivos creados', 'Созданные файлы'),
+              _p('File creati', 'Created files', 'Archivos creados',
+                  'Созданные файлы'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             if (textPath != null) ...[
