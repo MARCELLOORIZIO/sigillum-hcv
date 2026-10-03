@@ -41,7 +41,8 @@ void main() {
   test('HCVPACK viewer user-facing copy is four-language', () {
     final player = File('lib/hcvpack_player_page.dart').readAsStringSync();
 
-    expect(player, contains("String _p(String it, String en, String es, String ru)"));
+    expect(player,
+        contains("String _p(String it, String en, String es, String ru)"));
     expect(player, contains("'Visor HCVPACK'"));
     expect(player, contains("'Просмотр HCVPACK'"));
     expect(player, contains("'ABRIR HCVPACK'"));
@@ -50,7 +51,8 @@ void main() {
     expect(player, isNot(contains('"APRI HCVPACK"')));
   });
 
-  test('Registry copy uses registration rather than publication terminology', () {
+  test('Registry copy uses registration rather than publication terminology',
+      () {
     final cameraCopy = File('lib/camera_ui_copy.dart').readAsStringSync();
     final verifyCopy = File('lib/registry_verify_copy.dart').readAsStringSync();
 
@@ -67,7 +69,11 @@ void main() {
       cameraCopy,
       isNot(contains('Publishing certificate to the Registry')),
     );
-    expect(verifyCopy, isNot(contains('online publication may still be pending')));
-    expect(verifyCopy, isNot(contains('pubblicazione online potrebbe essere ancora in attesa')));
+    expect(
+        verifyCopy, isNot(contains('online publication may still be pending')));
+    expect(
+        verifyCopy,
+        isNot(
+            contains('pubblicazione online potrebbe essere ancora in attesa')));
   });
 }
