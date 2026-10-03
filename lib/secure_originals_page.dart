@@ -232,10 +232,7 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
 
     File? clear;
     try {
-      await _publisher.ensureReference(
-        record,
-        monetizationConsent: false,
-      );
+      await _publisher.ensureReference(record);
 
       final refreshed = await _vault.find(record.hcvId) ?? record;
       clear = await _vault.materializeOriginal(refreshed, purpose: 'social');
