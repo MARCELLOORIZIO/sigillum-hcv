@@ -29,8 +29,8 @@ void main() {
 
     expect(textSocial, contains("static const Map<String, String> _esCopy"));
     expect(textSocial, contains("static const Map<String, String> _ruCopy"));
-    expect(textSocial, contains('VERIFICAR TEXTO PUBLICADO'));
-    expect(textSocial, contains('ПРОВЕРКА ТЕКСТА'));
+    expect(textSocial, contains('Verificar texto publicado'));
+    expect(textSocial, contains('Проверка опубликованного текста'));
 
     expect(textCert, contains("'COMPARTIR HCVPACK DE TEXTO'"));
     expect(textCert, contains("'ОТПРАВИТЬ ТЕКСТОВЫЙ HCVPACK'"));
