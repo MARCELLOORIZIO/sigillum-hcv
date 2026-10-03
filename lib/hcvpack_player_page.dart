@@ -53,6 +53,20 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
   String _v(String key) => VerificationUiCopy.t(widget.languageCode, key);
 
+  String _p(String it, String en, String es, String ru) {
+    final code = widget.languageCode.toLowerCase().split(RegExp(r'[-_]')).first;
+    switch (code) {
+      case 'it':
+        return it;
+      case 'es':
+        return es;
+      case 'ru':
+        return ru;
+      default:
+        return en;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -88,7 +102,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       await loadPackage(path);
     } catch (e) {
       setState(() {
-        status = "ERROR";
+        status = _p('Errore', 'Error', 'Error', 'Ошибка');
         result = "ERROR";
       });
     }
@@ -146,7 +160,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     } catch (e) {
       setState(() {
         loading = false;
-        status = "ERROR";
+        status = _p('Errore', 'Error', 'Error', 'Ошибка');
         result = "ERROR";
       });
     }
@@ -164,7 +178,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   Future<void> _loadZipPackage(List<int> packBytes) async {
     try {
       setState(() {
-        status = "Apertura HCVPACK ZIP...";
+        status = _p('Apertura HCVPACK ZIP…', 'Opening HCVPACK ZIP…', 'Abriendo HCVPACK ZIP…', 'Открытие HCVPACK ZIP…');
       });
 
       final archive = ZipDecoder().decodeBytes(packBytes);
@@ -181,8 +195,12 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (certEntry == null || metaEntry == null) {
         setState(() {
           loading = false;
-          status =
-              "HCVPACK ZIP incompleto: contenuto/certificato/meta mancanti";
+          status = _p(
+              'HCVPACK ZIP incompleto: contenuto/certificato/meta mancanti',
+              'Incomplete HCVPACK ZIP: content/certificate/meta missing',
+              'HCVPACK ZIP incompleto: faltan contenido/certificado/meta',
+              'Неполный HCVPACK ZIP: отсутствуют содержимое/сертификат/meta',
+            );
           result = "ERROR";
         });
         return;
@@ -197,7 +215,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (metaJson is! Map<String, dynamic>) {
         setState(() {
           loading = false;
-          status = "meta.json non valido";
+          status = _p('meta.json non valido', 'Invalid meta.json', 'meta.json no válido', 'Недействительный meta.json');
           result = "ERROR";
         });
         return;
@@ -219,7 +237,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (contentEntry == null) {
         setState(() {
           loading = false;
-          status = "HCVPACK ZIP incompleto: contenuto mancante";
+          status = _p('HCVPACK ZIP incompleto: contenuto mancante', 'Incomplete HCVPACK ZIP: content missing', 'HCVPACK ZIP incompleto: falta el contenido', 'Неполный HCVPACK ZIP: отсутствует содержимое');
           result = "ERROR";
         });
         return;
@@ -241,7 +259,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
         setState(() {
           loading = false;
-          status = "Meta HCVPACK non corrisponde";
+          status = _p('Meta HCVPACK non corrisponde', 'HCVPACK metadata does not match', 'Los metadatos HCVPACK no coinciden', 'Метаданные HCVPACK не совпадают');
           result = "TAMPERED";
         });
         return;
@@ -271,7 +289,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
     } catch (e) {
       setState(() {
         loading = false;
-        status = "ERROR";
+        status = _p('Errore', 'Error', 'Error', 'Ошибка');
         result = "ERROR";
       });
     }
@@ -315,7 +333,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
   Future<void> _loadJsonBase64Package(List<int> packBytes) async {
     try {
       setState(() {
-        status = "Apertura HCVPACK JSON legacy...";
+        status = _p('Apertura HCVPACK JSON legacy…', 'Opening legacy HCVPACK JSON…', 'Abriendo HCVPACK JSON heredado…', 'Открытие устаревшего HCVPACK JSON…');
       });
 
       final jsonStr = utf8.decode(packBytes);
@@ -345,7 +363,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       if (videoBase64 is! String) {
         setState(() {
           loading = false;
-          status = "Video HCVPACK non valido";
+          status = _p('Video HCVPACK non valido', 'Invalid HCVPACK video', 'Vídeo HCVPACK no válido', 'Недействительное видео HCVPACK');
           result = "ERROR";
         });
         return;
@@ -367,12 +385,12 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       await _verifyAndPlay(
         videoBytes: videoBytes,
         certificate: certificate,
-        sourceLabel: "JSON legacy",
+        sourceLabel: _p('JSON legacy', 'Legacy JSON', 'JSON heredado', 'Устаревший JSON'),
       );
     } catch (e) {
       setState(() {
         loading = false;
-        status = "ERROR";
+        status = _p('Errore', 'Error', 'Error', 'Ошибка');
         result = "ERROR";
       });
     }
@@ -415,7 +433,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       setState(() {
         loading = false;
-        status = "Hash mancante nel certificato";
+        status = _p('Hash mancante nel certificato', 'Certificate hash missing', 'Falta el hash en el certificado', 'В сертификате отсутствует хеш');
         result = "INVALID";
       });
       return;
@@ -453,7 +471,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       setState(() {
         loading = false;
         result = "TAMPERED";
-        status = "Contenuto modificato";
+        status = _p('Contenuto modificato', 'Content modified', 'Contenido modificado', 'Содержимое изменено');
       });
       return;
     }
@@ -494,7 +512,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
 
       if (identity is Map) {
         verifiedCreatorName =
-            (identity["creatorName"] ?? "Unknown Creator").toString();
+            (identity["creatorName"] ?? _t('identityUnavailable')).toString();
 
         verifiedTrustLevel = (identity["trustLevel"] ?? "UNKNOWN").toString();
 
@@ -656,7 +674,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
       return const SizedBox.shrink();
     }
 
-    final fileType = (verifiedFileType ?? 'contenuto').toLowerCase();
+    final fileType = (verifiedFileType ?? _p('contenuto', 'content', 'contenido', 'содержимое')).toLowerCase();
     final isVideo = fileType == 'video';
 
     return Card(
@@ -672,8 +690,8 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
             const SizedBox(height: 8),
             Text(
               isVideo
-                  ? "Video estratto dal pacchetto"
-                  : "Contenuto estratto dal pacchetto",
+                  ? _p('Video estratto dal pacchetto', 'Video extracted from package', 'Vídeo extraído del paquete', 'Видео извлечено из пакета')
+                  : _p('Contenuto estratto dal pacchetto', 'Content extracted from package', 'Contenido extraído del paquete', 'Содержимое извлечено из пакета'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -684,10 +702,15 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
             ),
             if (isVideo) ...[
               const SizedBox(height: 8),
-              const Text(
-                "Playback video disattivato su iOS in questa build.",
+              Text(
+                _p(
+                  'Riproduzione video non disponibile in questa schermata.',
+                  'Video playback is not available on this screen.',
+                  'La reproducción de vídeo no está disponible en esta pantalla.',
+                  'Воспроизведение видео на этом экране недоступно.',
+                ),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 12),
               ),
             ],
           ],
@@ -718,10 +741,10 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
               children: [
                 const Icon(Icons.inventory_2, size: 72, color: Colors.blueGrey),
                 const SizedBox(height: 18),
-                const Text(
-                  "Lettore HCVPACK",
+                Text(
+                  _p('Lettore HCVPACK', 'HCVPACK Viewer', 'Visor HCVPACK', 'Просмотр HCVPACK'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -736,7 +759,7 @@ class _HCVPackPlayerPageState extends State<HCVPackPlayerPage> {
                 ElevatedButton.icon(
                   onPressed: loading ? null : pickPack,
                   icon: const Icon(Icons.folder_open),
-                  label: const Text("APRI HCVPACK"),
+                  label: Text(_p('APRI HCVPACK', 'OPEN HCVPACK', 'ABRIR HCVPACK', 'ОТКРЫТЬ HCVPACK')),
                 ),
                 if (loading) ...[
                   const SizedBox(height: 20),
