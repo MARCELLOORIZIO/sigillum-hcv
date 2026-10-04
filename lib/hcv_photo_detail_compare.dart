@@ -192,9 +192,9 @@ class HCVPhotoDetailComparator {
         var sum = 0.0;
         var samples = 0;
         for (var dy = -1; dy <= 1; dy++) {
-          final yy = (y + dy).clamp(0, height - 1);
+          final yy = (y + dy).clamp(0, height - 1).toInt();
           for (var dx = -1; dx <= 1; dx++) {
-            final xx = (x + dx).clamp(0, width - 1);
+            final xx = (x + dx).clamp(0, width - 1).toInt();
             sum += raw[yy * width + xx];
             samples++;
           }
