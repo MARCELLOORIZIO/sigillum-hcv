@@ -231,36 +231,64 @@ class HCVReferenceVisualFingerprintV3 {
       final low = max(previousMatchedIndex + 1, max(0, center - 4));
       final high = min(currentFrames.length - 1, center + 4);
       var bestIndex = -1;
-      var bestHamming = 9999;
-      var bestLocalDistance = double.infinity;
-      var bestTemporalDistance = 9999;
 
-      for (var i = low; i <= high; i++) {
-        if (used.contains(i)) continue;
-        final candidate = currentFrames[i] as Map;
-        final hamming = _hexHamming(
+      // Preserve the expected temporal position whenever it is still a
+      // plausible and comparable frame. This prevents a local edit from being
+      // "explained away" by jumping to a cleaner neighbouring frame.
+      if (center >= low &&
+          center <= high &&
+          !used.contains(center)) {
+        final centerCandidate = currentFrames[center] as Map;
+        final centerHamming = _hexHamming(
           expectedFrame['globalHash'].toString(),
-          candidate['globalHash'].toString(),
+          centerCandidate['globalHash'].toString(),
         );
-        if (hamming > 18) continue;
+        if (centerHamming <= 18) {
+          final centerResidual = _compareFrame(
+            expectedFrame,
+            centerCandidate,
+          );
+          if (centerResidual.comparable) {
+            bestIndex = center;
+          }
+        }
+      }
 
-        final localDistance = _alignmentLocalFeatureDistance(
-          expectedFrame,
-          candidate,
-        );
-        if (!localDistance.isFinite) continue;
+      // Only if the expected temporal position is not comparable do we permit
+      // bounded drift recovery. Among plausible neighbours, structural local
+      // features choose the best match while chronology remains monotonic.
+      if (bestIndex < 0) {
+        var bestHamming = 9999;
+        var bestLocalDistance = double.infinity;
+        var bestTemporalDistance = 9999;
 
-        final temporalDistance = (i - center).abs();
-        final better = localDistance < bestLocalDistance - 0.0001 ||
-            ((localDistance - bestLocalDistance).abs() <= 0.0001 &&
-                (hamming < bestHamming ||
-                    (hamming == bestHamming &&
-                        temporalDistance < bestTemporalDistance)));
-        if (better) {
-          bestLocalDistance = localDistance;
-          bestHamming = hamming;
-          bestTemporalDistance = temporalDistance;
-          bestIndex = i;
+        for (var i = low; i <= high; i++) {
+          if (used.contains(i)) continue;
+          final candidate = currentFrames[i] as Map;
+          final hamming = _hexHamming(
+            expectedFrame['globalHash'].toString(),
+            candidate['globalHash'].toString(),
+          );
+          if (hamming > 18) continue;
+
+          final localDistance = _alignmentLocalFeatureDistance(
+            expectedFrame,
+            candidate,
+          );
+          if (!localDistance.isFinite) continue;
+
+          final temporalDistance = (i - center).abs();
+          final better = localDistance < bestLocalDistance - 0.0001 ||
+              ((localDistance - bestLocalDistance).abs() <= 0.0001 &&
+                  (hamming < bestHamming ||
+                      (hamming == bestHamming &&
+                          temporalDistance < bestTemporalDistance)));
+          if (better) {
+            bestLocalDistance = localDistance;
+            bestHamming = hamming;
+            bestTemporalDistance = temporalDistance;
+            bestIndex = i;
+          }
         }
       }
 
