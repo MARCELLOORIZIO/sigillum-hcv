@@ -14,19 +14,18 @@ class HCVCaptureLocation {
   final DateTime measuredAt;
 
   String get watermarkText {
-    final accuracy = accuracyMeters.isFinite
-        ? ' ±${accuracyMeters.round()}m'
-        : '';
+    final accuracy =
+        accuracyMeters.isFinite ? ' ±${accuracyMeters.round()}m' : '';
     return 'GPS ${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}$accuracy';
   }
 
   Map<String, dynamic> toJson() => {
-    'latitude': latitude,
-    'longitude': longitude,
-    'accuracyMeters': accuracyMeters,
-    'measuredAt': measuredAt.toUtc().toIso8601String(),
-    'source': 'DEVICE_LOCATION_WHEN_IN_USE',
-  };
+        'latitude': latitude,
+        'longitude': longitude,
+        'accuracyMeters': accuracyMeters,
+        'measuredAt': measuredAt.toUtc().toIso8601String(),
+        'source': 'DEVICE_LOCATION_WHEN_IN_USE',
+      };
 }
 
 enum HCVCaptureLocationFailure {
