@@ -33,6 +33,11 @@ void main() {
     expect(camera, contains('captureLocation?.toJson()'));
     expect(camera, contains('locationPrinted'));
     expect(location, contains('Geolocator.requestPermission()'));
+    expect(location, contains('Geolocator.openAppSettings()'));
+    expect(location, contains('Geolocator.openLocationSettings()'));
+    expect(location, contains('permissionDeniedForever'));
+    expect(camera, contains('_showLocationError(error)'));
+    expect(camera, contains("label: _c('openSettings')"));
     expect(photo, contains('captureLocation.watermarkText'));
     expect(video, contains('captureLocation.watermarkText'));
     expect(info, contains('NSLocationWhenInUseUsageDescription'));
