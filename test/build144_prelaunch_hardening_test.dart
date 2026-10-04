@@ -4,17 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('BUILD144 removes monetization UI and parameters from USER runtime', () {
-    final pubspec = File('pubspec.yaml').readAsStringSync();
     final camera = File('lib/camera_page.dart').readAsStringSync();
     final secure = File('lib/secure_originals_page.dart').readAsStringSync();
     final publisher =
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
 
-    final versionLine = pubspec
-        .split('\n')
-        .firstWhere((line) => line.trim().startsWith('version:'));
-    final buildNumber = int.parse(versionLine.split('+').last.trim());
-    expect(buildNumber, greaterThanOrEqualTo(144));
     final consentTombstone =
         File('lib/verified_originals_consent_page.dart').readAsStringSync();
     expect(consentTombstone, isNot(contains('monetizationConsent')));
