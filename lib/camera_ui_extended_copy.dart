@@ -27,8 +27,7 @@ class CameraUiExtendedCopy {
       'printGpsCoordinates': 'Stampa coordinate GPS',
       'armedVideoReady': 'PRONTO — PREMI REGISTRA PER INIZIARE',
       'armedPhotoReady': 'INQUADRA E PREMI IL PULSANTE DI SCATTO',
-      'parallaxRequired':
-          'CONTROLLO SCENA NON CONCLUSIVO — RIPROVA',
+      'parallaxRequired': 'CONTROLLO SCENA NON CONCLUSIVO — RIPROVA',
       'transcriptionAudio': 'TRASCRIZIONE AUDIO...',
       'transcriptionReady': 'TRASCRIZIONE PRONTA',
       'transcriptionFailed': 'TRASCRIZIONE NON RIUSCITA',
@@ -52,8 +51,7 @@ class CameraUiExtendedCopy {
           'VIDEO SOTTOTITOLATO E SRT CIFRATI NELL’AREA PROTETTA SIGILLUM',
       'captionProtectedExplanation':
           'Video sottotitolato e file SRT sono stati cifrati nell’area protetta SIGILLUM. Non sono stati salvati in Foto o File. Prima di qualsiasi esportazione verrà creata e confermata la reference ufficiale.',
-      'subtitleRequiresProtected':
-          'CREA PRIMA UN ORIGINALE PROTETTO SIGILLUM',
+      'subtitleRequiresProtected': 'CREA PRIMA UN ORIGINALE PROTETTO SIGILLUM',
       'subtitleExportTitle': 'Condividi derivazione SIGILLUM',
       'subtitleReferencePublishing':
           'REGISTRAZIONE RIFERIMENTO SOTTOTITOLATO...',
@@ -108,8 +106,7 @@ class CameraUiExtendedCopy {
       'printGpsCoordinates': 'Print GPS coordinates',
       'armedVideoReady': 'READY — PRESS RECORD TO START',
       'armedPhotoReady': 'COMPOSE AND PRESS THE SHUTTER BUTTON',
-      'parallaxRequired':
-          'SCENE CHECK INCONCLUSIVE — TRY AGAIN',
+      'parallaxRequired': 'SCENE CHECK INCONCLUSIVE — TRY AGAIN',
       'transcriptionAudio': 'TRANSCRIBING AUDIO...',
       'transcriptionReady': 'TRANSCRIPTION READY',
       'transcriptionFailed': 'TRANSCRIPTION FAILED',
@@ -133,15 +130,11 @@ class CameraUiExtendedCopy {
           'CAPTIONED VIDEO AND SRT ENCRYPTED IN SIGILLUM PROTECTED STORAGE',
       'captionProtectedExplanation':
           'The captioned video and SRT file were encrypted in SIGILLUM protected storage. They were not saved to Photos or Files. The official derived reference must be created and confirmed before any export.',
-      'subtitleRequiresProtected':
-          'CREATE A PROTECTED SIGILLUM ORIGINAL FIRST',
+      'subtitleRequiresProtected': 'CREATE A PROTECTED SIGILLUM ORIGINAL FIRST',
       'subtitleExportTitle': 'Share SIGILLUM derivation',
-      'subtitleReferencePublishing':
-          'REGISTERING CAPTIONED REFERENCE...',
-      'subtitleReferenceReady':
-          'CAPTIONED REFERENCE REGISTERED AND VERIFIED',
-      'subtitleReferencePending':
-          'Captioned reference not registered yet',
+      'subtitleReferencePublishing': 'REGISTERING CAPTIONED REFERENCE...',
+      'subtitleReferenceReady': 'CAPTIONED REFERENCE REGISTERED AND VERIFIED',
+      'subtitleReferencePending': 'Captioned reference not registered yet',
       'subtitleExportBlocked':
           'EXPORT BLOCKED — CAPTIONED REFERENCE NOT AVAILABLE',
       'subtitleExportDisclosure':
@@ -179,7 +172,8 @@ class CameraUiExtendedCopy {
       'proceedNow': 'PUEDES CONTINUAR',
       'coordinatesOff': 'Las coordenadas no se imprimirán.',
       'acquiringCoordinates': 'OBTENIENDO COORDENADAS...',
-      'locationServiceDisabled': 'La localización del teléfono está desactivada.',
+      'locationServiceDisabled':
+          'La localización del teléfono está desactivada.',
       'locationPermissionDenied': 'No se concedió el permiso de ubicación.',
       'locationPermissionBlocked':
           'El permiso de ubicación está bloqueado. Actívalo en Ajustes.',
@@ -217,12 +211,10 @@ class CameraUiExtendedCopy {
       'subtitleRequiresProtected':
           'PRIMERO CREA UN ORIGINAL PROTEGIDO SIGILLUM',
       'subtitleExportTitle': 'Compartir derivación SIGILLUM',
-      'subtitleReferencePublishing':
-          'REGISTRANDO REFERENCIA SUBTITULADA...',
+      'subtitleReferencePublishing': 'REGISTRANDO REFERENCIA SUBTITULADA...',
       'subtitleReferenceReady':
           'REFERENCIA SUBTITULADA REGISTRADA Y VERIFICADA',
-      'subtitleReferencePending':
-          'Referencia subtitulada aún no registrada',
+      'subtitleReferencePending': 'Referencia subtitulada aún no registrada',
       'subtitleExportBlocked':
           'EXPORTACIÓN BLOQUEADA — REFERENCIA SUBTITULADA NO DISPONIBLE',
       'subtitleExportDisclosure':
@@ -298,12 +290,10 @@ class CameraUiExtendedCopy {
       'subtitleRequiresProtected':
           'СНАЧАЛА СОЗДАЙТЕ ЗАЩИЩЁННЫЙ ОРИГИНАЛ SIGILLUM',
       'subtitleExportTitle': 'Поделиться производной версией SIGILLUM',
-      'subtitleReferencePublishing':
-          'РЕГИСТРАЦИЯ ЭТАЛОНА С СУБТИТРАМИ...',
+      'subtitleReferencePublishing': 'РЕГИСТРАЦИЯ ЭТАЛОНА С СУБТИТРАМИ...',
       'subtitleReferenceReady':
           'ЭТАЛОН С СУБТИТРАМИ ЗАРЕГИСТРИРОВАН И ПРОВЕРЕН',
-      'subtitleReferencePending':
-          'Эталон с субтитрами ещё не зарегистрирован',
+      'subtitleReferencePending': 'Эталон с субтитрами ещё не зарегистрирован',
       'subtitleExportBlocked':
           'ЭКСПОРТ ЗАБЛОКИРОВАН — ЭТАЛОН С СУБТИТРАМИ НЕДОСТУПЕН',
       'subtitleExportDisclosure':
