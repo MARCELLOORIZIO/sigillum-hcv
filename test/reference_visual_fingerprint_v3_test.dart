@@ -251,7 +251,8 @@ void main() {
           HCVReferenceVisualVerdict.conforming,
         );
         expect(comparison.modifiedFrames, 0);
-        expect(comparison.alignedFrames, greaterThanOrEqualTo(6));
+        expect(comparison.alignedFrames, 7);
+        expect(comparison.inconclusiveFrames, 1);
       },
     );
 
