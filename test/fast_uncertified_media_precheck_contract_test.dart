@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'media precheck stays bounded while photos can recover from one OCR miss',
+    'media precheck stays bounded while photo and video recover from OCR misses',
     () {
       final registry = File('lib/registry_verify_page.dart').readAsStringSync();
       final gate = File('lib/quick_hcv_media_gate_page.dart')
@@ -21,11 +21,14 @@ void main() {
       );
       expect(gate, contains('allowFocusedFallback: true'));
 
-      // Video remains intentionally short: one frame at 0.2 s and the default
-      // fast-only OCR path. The full video is never scanned by the public gate.
+      // Video remains bounded, but must not declare non-SIGILLUM after one
+      // OCR miss. Two early frames are checked; each gets fast OCR and then
+      // the focused/yellow-mask fallback before the gate may stop.
       expect(gate, contains("'extractVideoFrame'"));
-      expect(gate, contains("'seconds': 0.2"));
-      expect(gate, contains('return await _ocrImage(framePath);'));
+      expect(gate, contains('const sampleSeconds = <double>[0.2, 0.8]'));
+      expect(gate, contains('HCVMediaIdOcr.extractFocusedFromImage'));
+      expect(gate, contains('A single unreadable frame must not classify'));
+      expect(gate, isNot(contains('One frame only.')));
 
       // Full robust still-image OCR remains available for deeper Registry
       // recovery and keeps the existing bounded multi-crop consensus set.
