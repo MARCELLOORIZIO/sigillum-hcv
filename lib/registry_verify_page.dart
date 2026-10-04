@@ -21,6 +21,7 @@ import 'hcv_social_fingerprint.dart';
 import 'hcv_spatial_fingerprint_v2.dart';
 import 'hcv_audio_fingerprint.dart';
 import 'hcv_reference_visual_fingerprint_v3.dart';
+import 'hcv_photo_detail_compare.dart';
 import 'verified_originals_publish_service.dart';
 import 'hcv_media_id_ocr.dart';
 import 'manual_reference_compare_page.dart';
@@ -809,6 +810,36 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         );
   }
 
+  Future<HCVPhotoDetailVerdict> _matchesEntitledPhotoDetail(
+    String hcvId,
+  ) async {
+    final candidatePath = mediaPath;
+    if (candidatePath == null || candidatePath.isEmpty) {
+      return HCVPhotoDetailVerdict.inconclusive;
+    }
+
+    File? reference;
+    try {
+      reference = await const VerifiedOriginalsPublishService()
+          .materializeEntitledReference(hcvId);
+      final comparison = await HCVPhotoDetailComparator.compareFiles(
+        reference.path,
+        candidatePath,
+      );
+      return comparison.verdict;
+    } catch (_) {
+      // Never upgrade a SHA-different photo to a strong conforming verdict
+      // when the exact R2 reference cannot be checked at high detail.
+      return HCVPhotoDetailVerdict.inconclusive;
+    } finally {
+      if (reference != null) {
+        try {
+          if (await reference.exists()) await reference.delete();
+        } catch (_) {}
+      }
+    }
+  }
+
   Future<HCVReferenceVisualVerdict?> _matchesOfficialReferenceVisualFingerprint(
     Map<String, dynamic> cert,
     String? mediaType,
@@ -860,10 +891,28 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           raw as Map,
           current,
         ).verdict;
-        if (primaryVerdict == HCVReferenceVisualVerdict.conforming) {
-          _officialReferenceLocalMs = local.elapsedMilliseconds;
-          return primaryVerdict;
+      }
+
+      if (mediaType == 'photo') {
+        final detail = await _matchesEntitledPhotoDetail(hcvId);
+        _officialReferenceLocalMs = local.elapsedMilliseconds;
+        switch (detail) {
+          case HCVPhotoDetailVerdict.modified:
+            return HCVReferenceVisualVerdict.modified;
+          case HCVPhotoDetailVerdict.conforming:
+            return HCVReferenceVisualVerdict.conforming;
+          case HCVPhotoDetailVerdict.inconclusive:
+            // Preserve a strong V3 modification, but never allow coarse V3
+            // similarity alone to certify a SHA-different photo as conforming.
+            return primaryVerdict == HCVReferenceVisualVerdict.modified
+                ? HCVReferenceVisualVerdict.modified
+                : HCVReferenceVisualVerdict.inconclusive;
         }
+      }
+
+      if (primaryVerdict == HCVReferenceVisualVerdict.conforming) {
+        _officialReferenceLocalMs = local.elapsedMilliseconds;
+        return primaryVerdict;
       }
 
       if (mediaType == 'video') {
