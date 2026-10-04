@@ -72,9 +72,8 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
         final fast = await _ocrImage(framePath);
         if (fast != null && fast.isNotEmpty) return fast;
 
-        final focused = await _ocrImage(
+        final focused = await HCVMediaIdOcr.extractFocusedFromImage(
           framePath,
-          allowFocusedFallback: true,
         );
         if (focused != null && focused.isNotEmpty) return focused;
       } catch (_) {
