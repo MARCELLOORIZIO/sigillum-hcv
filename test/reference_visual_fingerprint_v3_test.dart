@@ -46,8 +46,7 @@ Uint8List _baseRgbFrame() {
   );
   for (var y = 0; y < HCVReferenceVisualFingerprintV3.height; y++) {
     for (var x = 0; x < HCVReferenceVisualFingerprintV3.width; x++) {
-      final offset =
-          (y * HCVReferenceVisualFingerprintV3.width + x) * 3;
+      final offset = (y * HCVReferenceVisualFingerprintV3.width + x) * 3;
       var red = 68;
       var green = 136;
       var blue = 204;
@@ -204,6 +203,55 @@ void main() {
       );
       expect(comparison.modifiedFrames, greaterThanOrEqualTo(1));
     });
+
+    test(
+      'video alignment prefers the expected-time comparable frame over a misleading hash neighbour',
+      () {
+        Map<String, dynamic> frame(int featureValue, String hash) => {
+              'globalHash': hash,
+              'localFeatures': base64Encode(
+                Uint8List(16 * 9 * 6)..fillRange(0, 16 * 9 * 6, featureValue),
+              ),
+            };
+
+        Map<String, dynamic> fingerprint(List<Map<String, dynamic>> frames) => {
+              'type': HCVReferenceVisualFingerprintV3.type,
+              'version': HCVReferenceVisualFingerprintV3.version,
+              'algorithm': HCVReferenceVisualFingerprintV3.algorithm,
+              'mediaType': 'video',
+              'width': HCVReferenceVisualFingerprintV3.width,
+              'height': HCVReferenceVisualFingerprintV3.height,
+              'gridColumns': HCVReferenceVisualFingerprintV3.gridColumns,
+              'gridRows': HCVReferenceVisualFingerprintV3.gridRows,
+              'featureBytesPerTile': 6,
+              'samplingFps': HCVReferenceVisualFingerprintV3.videoFps,
+              'maxFrames': HCVReferenceVisualFingerprintV3.maxVideoFrames,
+              'frameCount': frames.length,
+              'frames': frames,
+            };
+
+        final expected = fingerprint([
+          frame(20, 'ffffffffffffffff'),
+          frame(80, '0000000000000000'),
+          frame(140, '0000000000000000'),
+        ]);
+        final current = fingerprint([
+          frame(20, 'ffffffffffffffff'),
+          // Same local frame as expected[1], but one global-hash bit differs.
+          frame(80, '0000000000000001'),
+          // A different temporal frame has the deceptively better global hash.
+          frame(140, '0000000000000000'),
+        ]);
+
+        final comparison =
+            HCVReferenceVisualFingerprintV3.compare(expected, current);
+
+        expect(comparison.verdict, HCVReferenceVisualVerdict.conforming);
+        expect(comparison.alignedFrames, 3);
+        expect(comparison.modifiedFrames, 0);
+        expect(comparison.inconclusiveFrames, 0);
+      },
+    );
 
     test('RGB social-like recompression remains conforming', () {
       final expected = HCVReferenceVisualFingerprintV3.buildFromRgbFrames(

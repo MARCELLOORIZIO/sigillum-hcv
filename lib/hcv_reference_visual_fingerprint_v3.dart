@@ -220,6 +220,7 @@ class HCVReferenceVisualFingerprintV3 {
     var modified = 0;
     var inconclusive = 0;
     final used = <int>{};
+    var previousMatchedIndex = -1;
 
     for (var e = 0; e < expectedFrames.length; e++) {
       final expectedFrame = expectedFrames[e] as Map;
@@ -227,29 +228,77 @@ class HCVReferenceVisualFingerprintV3 {
           ? 0
           : (e * (currentFrames.length - 1) / (expectedFrames.length - 1))
               .round();
-      final low = max(0, center - 4);
+      final low = max(previousMatchedIndex + 1, max(0, center - 4));
       final high = min(currentFrames.length - 1, center + 4);
       var bestIndex = -1;
-      var bestHamming = 9999;
 
-      for (var i = low; i <= high; i++) {
-        if (used.contains(i)) continue;
-        final hamming = _hexHamming(
+      // Preserve the expected temporal position whenever it is still a
+      // plausible and comparable frame. This prevents a local edit from being
+      // "explained away" by jumping to a cleaner neighbouring frame.
+      if (center >= low &&
+          center <= high &&
+          !used.contains(center)) {
+        final centerCandidate = currentFrames[center] as Map;
+        final centerHamming = _hexHamming(
           expectedFrame['globalHash'].toString(),
-          (currentFrames[i] as Map)['globalHash'].toString(),
+          centerCandidate['globalHash'].toString(),
         );
-        if (hamming < bestHamming) {
-          bestHamming = hamming;
-          bestIndex = i;
+        if (centerHamming <= 18) {
+          final centerResidual = _compareFrame(
+            expectedFrame,
+            centerCandidate,
+          );
+          if (centerResidual.comparable) {
+            bestIndex = center;
+          }
         }
       }
 
-      if (bestIndex < 0 || bestHamming > 18) {
+      // Only if the expected temporal position is not comparable do we permit
+      // bounded drift recovery. Among plausible neighbours, structural local
+      // features choose the best match while chronology remains monotonic.
+      if (bestIndex < 0) {
+        var bestHamming = 9999;
+        var bestLocalDistance = double.infinity;
+        var bestTemporalDistance = 9999;
+
+        for (var i = low; i <= high; i++) {
+          if (used.contains(i)) continue;
+          final candidate = currentFrames[i] as Map;
+          final hamming = _hexHamming(
+            expectedFrame['globalHash'].toString(),
+            candidate['globalHash'].toString(),
+          );
+          if (hamming > 18) continue;
+
+          final localDistance = _alignmentLocalFeatureDistance(
+            expectedFrame,
+            candidate,
+          );
+          if (!localDistance.isFinite) continue;
+
+          final temporalDistance = (i - center).abs();
+          final better = localDistance < bestLocalDistance - 0.0001 ||
+              ((localDistance - bestLocalDistance).abs() <= 0.0001 &&
+                  (hamming < bestHamming ||
+                      (hamming == bestHamming &&
+                          temporalDistance < bestTemporalDistance)));
+          if (better) {
+            bestLocalDistance = localDistance;
+            bestHamming = hamming;
+            bestTemporalDistance = temporalDistance;
+            bestIndex = i;
+          }
+        }
+      }
+
+      if (bestIndex < 0) {
         inconclusive++;
         continue;
       }
 
       used.add(bestIndex);
+      previousMatchedIndex = bestIndex;
       final residual = _compareFrame(
         expectedFrame,
         currentFrames[bestIndex] as Map,
@@ -371,6 +420,40 @@ class HCVReferenceVisualFingerprintV3 {
       'globalHash': bits.toRadixString(16).padLeft(16, '0'),
       'localFeatures': base64Encode(local),
     };
+  }
+
+  static double _alignmentLocalFeatureDistance(
+    Map<dynamic, dynamic> expected,
+    Map<dynamic, dynamic> current,
+  ) {
+    Uint8List left;
+    Uint8List right;
+    try {
+      left = base64Decode(expected['localFeatures'].toString());
+      right = base64Decode(current['localFeatures'].toString());
+    } catch (_) {
+      return double.infinity;
+    }
+
+    final expectedLength =
+        gridColumns * gridRows * _featureBytesPerTile;
+    if (left.length != right.length || left.length != expectedLength) {
+      return double.infinity;
+    }
+
+    // Alignment uses the structural channels only: local luma mean, range
+    // and edge energy. RGB channels remain fully active in _compareFrame for
+    // colour/brightness tamper detection, but do not steer temporal matching.
+    var total = 0.0;
+    var samples = 0;
+    for (var tile = 0; tile < gridColumns * gridRows; tile++) {
+      final offset = tile * _featureBytesPerTile;
+      for (var feature = 0; feature < 3; feature++) {
+        total += (left[offset + feature] - right[offset + feature]).abs();
+        samples++;
+      }
+    }
+    return samples == 0 ? double.infinity : total / samples;
   }
 
   static _FrameResidual _compareFrame(

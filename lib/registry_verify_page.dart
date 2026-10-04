@@ -868,6 +868,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       if (mediaType == 'video') {
         final authorized = availability['authorizedDerivations'];
+        var authorizedReferenceSeen = false;
+        var authorizedInconclusive = false;
+
         if (authorized is List) {
           for (final entry in authorized) {
             if (entry is! Map) continue;
@@ -879,6 +882,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             if (!HCVReferenceVisualFingerprintV3.isValid(fingerprint)) {
               continue;
             }
+
+            authorizedReferenceSeen = true;
             final comparison = HCVReferenceVisualFingerprintV3.compare(
               fingerprint as Map,
               current,
@@ -889,7 +894,20 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               _officialReferenceLocalMs = local.elapsedMilliseconds;
               return HCVReferenceVisualVerdict.conforming;
             }
+            if (comparison.verdict == HCVReferenceVisualVerdict.inconclusive) {
+              authorizedInconclusive = true;
+            }
           }
+        }
+
+        // A registered editorial derivative can legitimately differ from the
+        // original reference. If that authorized reference is inconclusive,
+        // do not promote the original-reference mismatch to a strong
+        // MODIFIED verdict. Only all-conclusive mismatches may remain modified.
+        if (authorizedReferenceSeen &&
+            authorizedInconclusive &&
+            primaryVerdict == HCVReferenceVisualVerdict.modified) {
+          primaryVerdict = HCVReferenceVisualVerdict.inconclusive;
         }
       }
 

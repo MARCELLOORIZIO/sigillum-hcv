@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'photo can use focused fallback while video stays one-frame fast precheck',
+    'photo and video use bounded robust OCR before declaring non-SIGILLUM',
     () {
-      final gate = File('lib/quick_hcv_media_gate_page.dart')
-          .readAsStringSync();
+      final gate =
+          File('lib/quick_hcv_media_gate_page.dart').readAsStringSync();
       final ocr = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
 
       expect(gate, contains("import 'hcv_media_id_ocr.dart';"));
@@ -18,9 +18,10 @@ void main() {
       );
       expect(gate, contains('allowFocusedFallback: true'));
       expect(gate, contains("'extractVideoFrame'"));
-      expect(gate, contains("'seconds': 0.2"));
-      expect(gate, contains('One frame only.'));
-      expect(gate, contains('return await _ocrImage(framePath);'));
+      expect(gate, contains('const sampleSeconds = <double>[0.2, 0.8]'));
+      expect(gate, contains('allowFocusedFallback: true'));
+      expect(gate, contains('A single unreadable frame must not classify'));
+      expect(gate, isNot(contains('One frame only.')));
       expect(gate, contains('RegistryVerifyPage('));
       expect(gate, contains('initialHcvId: detectedId'));
 
