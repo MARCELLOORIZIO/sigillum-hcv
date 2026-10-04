@@ -2270,10 +2270,7 @@ class _CameraPageState extends State<CameraPage> {
     });
 
     try {
-      await _publisher.ensureSubtitleReference(
-        current,
-        monetizationConsent: false,
-      );
+      await _publisher.ensureSubtitleReference(current);
       final refreshed = await _secureVault.find(current.hcvId);
       if (refreshed == null || !refreshed.hasSubtitleReference) {
         throw StateError('SUBTITLE_REFERENCE_NOT_CONFIRMED');

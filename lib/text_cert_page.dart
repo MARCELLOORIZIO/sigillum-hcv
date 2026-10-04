@@ -42,6 +42,20 @@ class _TextCertPageState extends State<TextCertPage> {
 
   String _t(String key) => SigillumCopy.t(widget.languageCode, key);
 
+  String _p(String it, String en, String es, String ru) {
+    final code = widget.languageCode.toLowerCase().split(RegExp(r'[-_]')).first;
+    switch (code) {
+      case 'it':
+        return it;
+      case 'es':
+        return es;
+      case 'ru':
+        return ru;
+      default:
+        return en;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -307,7 +321,7 @@ class _TextCertPageState extends State<TextCertPage> {
     if (packagePath == null) return;
     await Share.shareXFiles(
       [XFile(packagePath!)],
-      text: hcvId == null ? 'SIGILLUM HCVPACK testo' : 'SIGILLUM $hcvId',
+      text: hcvId == null ? 'SIGILLUM HCVPACK' : 'SIGILLUM $hcvId',
       sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
     );
   }
@@ -394,11 +408,15 @@ class _TextCertPageState extends State<TextCertPage> {
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Per i social puoi copiare il testo con HCV-ID. '
-              'Per file, puoi condividere TXT + certificato HCV.',
+            Text(
+              _p(
+                'Per i social puoi copiare il testo con HCV-ID. Per file, puoi condividere TXT + certificato HCV.',
+                'For social platforms you can copy the text with its HCV-ID. For files, you can share TXT + HCV certificate.',
+                'Para redes sociales puedes copiar el texto con su HCV-ID. Para archivos, puedes compartir TXT + certificado HCV.',
+                'Для социальных сетей можно скопировать текст с HCV-ID. Для файлов можно отправить TXT + сертификат HCV.',
+              ),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
@@ -474,9 +492,12 @@ class _TextCertPageState extends State<TextCertPage> {
               onPressed: shareTextPackage,
               icon: const Icon(Icons.inventory_2_outlined),
               label: Text(
-                widget.languageCode.toLowerCase().startsWith('it')
-                    ? 'CONDIVIDI HCVPACK TESTO'
-                    : 'SHARE TEXT HCVPACK',
+                _p(
+                  'CONDIVIDI HCVPACK TESTO',
+                  'SHARE TEXT HCVPACK',
+                  'COMPARTIR HCVPACK DE TEXTO',
+                  'ОТПРАВИТЬ ТЕКСТОВЫЙ HCVPACK',
+                ),
               ),
             ),
           ),
@@ -498,9 +519,12 @@ class _TextCertPageState extends State<TextCertPage> {
             onPressed: openPublishedTextVerification,
             icon: const Icon(Icons.fact_check_outlined),
             label: Text(
-              widget.languageCode.toLowerCase().startsWith('it')
-                  ? 'VERIFICA TESTO PUBBLICATO'
-                  : 'VERIFY PUBLISHED TEXT',
+              _p(
+                'VERIFICA TESTO PUBBLICATO',
+                'VERIFY PUBLISHED TEXT',
+                'VERIFICAR TEXTO PUBLICADO',
+                'ПРОВЕРИТЬ ОПУБЛИКОВАННЫЙ ТЕКСТ',
+              ),
             ),
           ),
         ),
@@ -530,9 +554,10 @@ class _TextCertPageState extends State<TextCertPage> {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            const Text(
-              'File creati',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              _p('File creati', 'Created files', 'Archivos creados',
+                  'Созданные файлы'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             if (textPath != null) ...[
               const SizedBox(height: 8),

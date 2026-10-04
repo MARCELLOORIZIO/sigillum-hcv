@@ -159,9 +159,8 @@ class VerifiedOriginalsPublishService {
   }
 
   Future<String> _ensureConsent(
-    HCVSecureOriginalRecord record, {
-    required bool monetizationConsent,
-  }) async {
+    HCVSecureOriginalRecord record,
+  ) async {
     final status = await _json(
       'GET',
       '/api/verified-originals/consents/${record.hcvId}',
@@ -182,7 +181,7 @@ class VerifiedOriginalsPublishService {
         'intent': 'PUBLISH_VERIFIED_ORIGINAL',
         'publishReference': true,
         'rightsConfirmed': true,
-        'monetizationConsent': monetizationConsent,
+        'monetizationConsent': false,
       },
     );
 
@@ -236,9 +235,8 @@ class VerifiedOriginalsPublishService {
   }
 
   Future<VerifiedOriginalPublishResult> ensureReference(
-    HCVSecureOriginalRecord record, {
-    bool monetizationConsent = false,
-  }) async {
+    HCVSecureOriginalRecord record,
+  ) async {
     final availability = await publicAvailability(record.hcvId);
     if (availability['availability'] == 'REFERENCE_AVAILABLE') {
       final live = await verificationReference(record.hcvId);
@@ -249,10 +247,7 @@ class VerifiedOriginalsPublishService {
       return _existingReference(record);
     }
 
-    final consentId = await _ensureConsent(
-      record,
-      monetizationConsent: monetizationConsent,
-    );
+    final consentId = await _ensureConsent(record);
 
     final materialized = await vault.materializeOriginal(
       record,
@@ -270,7 +265,7 @@ class VerifiedOriginalsPublishService {
       ).replace(
         queryParameters: {
           'consentRecordId': consentId,
-          'monetizationEnabled': monetizationConsent.toString(),
+          'monetizationEnabled': 'false',
           'hcvpackSha256': record.hcvpackSha256,
         },
       );
@@ -353,9 +348,8 @@ class VerifiedOriginalsPublishService {
   }
 
   Future<VerifiedSubtitlePublishResult> ensureSubtitleReference(
-    HCVSecureOriginalRecord record, {
-    bool monetizationConsent = false,
-  }) async {
+    HCVSecureOriginalRecord record,
+  ) async {
     if (record.mediaType != 'video' ||
         !record.hasSubtitleDerivative ||
         record.captionedMediaSha256 == null ||
@@ -364,16 +358,10 @@ class VerifiedOriginalsPublishService {
       throw StateError('SUBTITLE_DERIVATION_NOT_READY');
     }
 
-    await ensureReference(
-      record,
-      monetizationConsent: monetizationConsent,
-    );
+    await ensureReference(record);
 
     final refreshed = await vault.find(record.hcvId) ?? record;
-    final consentId = await _ensureConsent(
-      refreshed,
-      monetizationConsent: monetizationConsent,
-    );
+    final consentId = await _ensureConsent(refreshed);
     final captioned = await vault.materializeCaptionedVideo(
       refreshed,
       purpose: 'subtitle-publish',
@@ -401,7 +389,7 @@ class VerifiedOriginalsPublishService {
       ).replace(
         queryParameters: {
           'consentRecordId': consentId,
-          'monetizationEnabled': monetizationConsent.toString(),
+          'monetizationEnabled': 'false',
           'hcvpackSha256': refreshed.hcvpackSha256,
           'subtitleSha256': subtitleSha256,
         },

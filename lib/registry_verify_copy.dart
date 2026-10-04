@@ -161,7 +161,7 @@ class RegistryVerifyCopy {
       'sceneWarning':
           'ATTENZIONE: segnali tecnici coerenti con una possibile ripresa da schermo ({risk}). Il media resta collegato al certificato, ma la scena non va interpretata come ripresa diretta della realtà.',
       'registryNotFoundDetail':
-          'Certificato non presente nel Registry. Questo non dimostra una modifica del file: la pubblicazione online potrebbe essere ancora in attesa.',
+          'Certificato non presente nel Registry. Questo non dimostra una modifica del file: la registrazione online potrebbe essere ancora in attesa.',
       'registryUnavailableDetail':
           'Registry temporaneamente non raggiungibile. Il file locale non viene considerato invalido; riprova quando la connessione è disponibile.',
       'registryInvalidResponse': 'Risposta Registry non utilizzabile: {error}',
@@ -362,7 +362,7 @@ class RegistryVerifyCopy {
       'sceneWarning':
           'WARNING: technical signals are consistent with a possible screen replay ({risk}). The media remains linked to the certificate, but the scene should not be interpreted as a direct capture of reality.',
       'registryNotFoundDetail':
-          'Certificate not found in the Registry. This does not prove the file was modified; online publication may still be pending.',
+          'Certificate not found in the Registry. This does not prove the file was modified; online registration may still be pending.',
       'registryUnavailableDetail':
           'The Registry is temporarily unavailable. The local file is not treated as invalid; try again when the connection is available.',
       'registryInvalidResponse': 'Unusable Registry response: {error}',
@@ -564,7 +564,7 @@ class RegistryVerifyCopy {
       'sceneWarning':
           'ATENCIÓN: las señales técnicas son compatibles con una posible captura de pantalla ({risk}). El media sigue vinculado al certificado, pero la escena no debe interpretarse como una captura directa de la realidad.',
       'registryNotFoundDetail':
-          'Certificado no encontrado en Registry. Esto no demuestra que el archivo haya sido modificado; la publicación en línea puede seguir pendiente.',
+          'Certificado no encontrado en Registry. Esto no demuestra que el archivo haya sido modificado; el registro en línea puede seguir pendiente.',
       'registryUnavailableDetail':
           'Registry no está disponible temporalmente. El archivo local no se considera inválido; inténtalo de nuevo cuando haya conexión.',
       'registryInvalidResponse': 'Respuesta de Registry no utilizable: {error}',
@@ -765,7 +765,7 @@ class RegistryVerifyCopy {
       'sceneWarning':
           'ВНИМАНИЕ: технические сигналы соответствуют возможной съёмке с экрана ({risk}). Медиа остаётся связано с сертификатом, но сцену не следует считать прямой съёмкой реальности.',
       'registryNotFoundDetail':
-          'Сертификат не найден в Registry. Это не доказывает изменение файла: онлайн-публикация может ещё ожидать завершения.',
+          'Сертификат не найден в Registry. Это не доказывает изменение файла: онлайн-регистрация может ещё ожидать завершения.',
       'registryUnavailableDetail':
           'Registry временно недоступен. Локальный файл не считается недействительным; повторите при наличии соединения.',
       'registryInvalidResponse': 'Непригодный ответ Registry: {error}',
