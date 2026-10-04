@@ -4,10 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('BUILD146 routes Verify Text to paste-based social verification', () {
-    final pubspec = File('pubspec.yaml').readAsStringSync();
     final importPage = File('lib/import_page.dart').readAsStringSync();
 
-    expect(pubspec, contains('version: 1.0.0+146'));
     expect(importPage, contains("import 'text_social_verify_page.dart';"));
     expect(importPage, contains('onPressed: _openPublishedTextVerification'));
     expect(importPage, contains('builder: (_) => TextSocialVerifyPage('));

@@ -396,7 +396,7 @@ class _CameraPageState extends State<CameraPage> {
       });
       _showLocationMessage(location.watermarkText);
     } catch (error) {
-      if (mounted) _showLocationMessage(error.toString());
+      if (mounted) _showLocationError(error);
     } finally {
       if (mounted) setState(() => _locationBusy = false);
     }
@@ -422,7 +422,7 @@ class _CameraPageState extends State<CameraPage> {
     } catch (error) {
       if (mounted) {
         setState(() => status = _c('ready'));
-        _showLocationMessage(error.toString());
+        _showLocationError(error);
       }
       return null;
     } finally {
@@ -434,6 +434,58 @@ class _CameraPageState extends State<CameraPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showLocationError(Object error) {
+    if (!mounted) return;
+    if (error is! HCVCaptureLocationException) {
+      _showLocationMessage(error.toString());
+      return;
+    }
+
+    String message;
+    SnackBarAction? action;
+    switch (error.reason) {
+      case HCVCaptureLocationFailure.serviceDisabled:
+        message = _c('locationServiceDisabled');
+        action = SnackBarAction(
+          label: _c('openLocationSettings'),
+          onPressed: () {
+            _locationService.openLocationSettings();
+          },
+        );
+        break;
+      case HCVCaptureLocationFailure.permissionDenied:
+        message = _c('locationPermissionDenied');
+        action = SnackBarAction(
+          label: _c('openSettings'),
+          onPressed: () {
+            _locationService.openAppSettings();
+          },
+        );
+        break;
+      case HCVCaptureLocationFailure.permissionDeniedForever:
+        message = _c('locationPermissionBlocked');
+        action = SnackBarAction(
+          label: _c('openSettings'),
+          onPressed: () {
+            _locationService.openAppSettings();
+          },
+        );
+        break;
+      case HCVCaptureLocationFailure.unavailable:
+        message = _c('locationUnavailable');
+        break;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: action,
+      ),
+    );
   }
 
   void _showFinalizationBlocked() {
