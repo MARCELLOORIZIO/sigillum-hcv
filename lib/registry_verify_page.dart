@@ -894,8 +894,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               _officialReferenceLocalMs = local.elapsedMilliseconds;
               return HCVReferenceVisualVerdict.conforming;
             }
-            if (comparison.verdict ==
-                HCVReferenceVisualVerdict.inconclusive) {
+            if (comparison.verdict == HCVReferenceVisualVerdict.inconclusive) {
               authorizedInconclusive = true;
             }
           }
