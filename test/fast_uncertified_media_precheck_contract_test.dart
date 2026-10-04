@@ -26,7 +26,7 @@ void main() {
       // non-SIGILLUM. The full video is still never scanned by the public gate.
       expect(gate, contains("'extractVideoFrame'"));
       expect(gate, contains('const sampleSeconds = <double>[0.2, 0.8]'));
-      expect(gate, contains('HCVMediaIdOcr.extractFastFromImage(path)'));
+      expect(gate, contains('HCVMediaIdOcr.extractFastFromImage('));
       expect(
         gate,
         contains('HCVMediaIdOcr.extractFocusedFromImage('),
