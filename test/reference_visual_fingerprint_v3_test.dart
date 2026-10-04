@@ -95,21 +95,6 @@ Uint8List _rgbBrighten(Uint8List source) {
   return result;
 }
 
-Uint8List _movingRgbFrame(int step) {
-  final frame = _baseRgbFrame();
-  final width = HCVReferenceVisualFingerprintV3.width;
-  final x0 = 40 + step * 2;
-  for (var y = 34; y < 38; y++) {
-    for (var x = x0; x < x0 + 5; x++) {
-      final offset = (y * width + x) * 3;
-      frame[offset] = 20;
-      frame[offset + 1] = 20;
-      frame[offset + 2] = 20;
-    }
-  }
-  return frame;
-}
-
 Uint8List _rgbTranslate(Uint8List source) {
   final width = HCVReferenceVisualFingerprintV3.width;
   final height = HCVReferenceVisualFingerprintV3.height;
@@ -221,38 +206,51 @@ void main() {
     });
 
     test(
-      'video alignment survives a duplicated social frame without false modification',
+      'video alignment prefers the expected-time comparable frame over a misleading hash neighbour',
       () {
-        final expectedFrames = List<Uint8List>.generate(
-          8,
-          (index) => _movingRgbFrame(index),
-        );
-        final currentFrames = <Uint8List>[
-          _rgbRecompressedLike(expectedFrames[0]),
-          _rgbRecompressedLike(expectedFrames[0]),
-          for (var i = 1; i < 7; i++)
-            _rgbRecompressedLike(expectedFrames[i]),
-        ];
+        Map<String, dynamic> frame(int featureValue, String hash) => {
+              'globalHash': hash,
+              'localFeatures': base64Encode(
+                Uint8List(16 * 9 * 6)..fillRange(0, 16 * 9 * 6, featureValue),
+              ),
+            };
 
-        final expected = HCVReferenceVisualFingerprintV3.buildFromRgbFrames(
-          expectedFrames,
-          mediaType: 'video',
-        );
-        final social = HCVReferenceVisualFingerprintV3.buildFromRgbFrames(
-          currentFrames,
-          mediaType: 'video',
-        );
+        Map<String, dynamic> fingerprint(List<Map<String, dynamic>> frames) => {
+              'type': HCVReferenceVisualFingerprintV3.type,
+              'version': HCVReferenceVisualFingerprintV3.version,
+              'algorithm': HCVReferenceVisualFingerprintV3.algorithm,
+              'mediaType': 'video',
+              'width': HCVReferenceVisualFingerprintV3.width,
+              'height': HCVReferenceVisualFingerprintV3.height,
+              'gridColumns': HCVReferenceVisualFingerprintV3.gridColumns,
+              'gridRows': HCVReferenceVisualFingerprintV3.gridRows,
+              'featureBytesPerTile': 6,
+              'samplingFps': HCVReferenceVisualFingerprintV3.videoFps,
+              'maxFrames': HCVReferenceVisualFingerprintV3.maxVideoFrames,
+              'frameCount': frames.length,
+              'frames': frames,
+            };
+
+        final expected = fingerprint([
+          frame(20, 'ffffffffffffffff'),
+          frame(80, '0000000000000000'),
+          frame(140, '0000000000000000'),
+        ]);
+        final current = fingerprint([
+          frame(20, 'ffffffffffffffff'),
+          // Same local frame as expected[1], but one global-hash bit differs.
+          frame(80, '0000000000000001'),
+          // A different temporal frame has the deceptively better global hash.
+          frame(140, '0000000000000000'),
+        ]);
 
         final comparison =
-            HCVReferenceVisualFingerprintV3.compare(expected, social);
+            HCVReferenceVisualFingerprintV3.compare(expected, current);
 
-        expect(
-          comparison.verdict,
-          HCVReferenceVisualVerdict.conforming,
-        );
+        expect(comparison.verdict, HCVReferenceVisualVerdict.conforming);
+        expect(comparison.alignedFrames, 3);
         expect(comparison.modifiedFrames, 0);
-        expect(comparison.alignedFrames, 7);
-        expect(comparison.inconclusiveFrames, 1);
+        expect(comparison.inconclusiveFrames, 0);
       },
     );
 
