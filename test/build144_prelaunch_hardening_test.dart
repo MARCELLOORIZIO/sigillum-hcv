@@ -10,7 +10,10 @@ void main() {
     final publisher =
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
 
-    expect(pubspec, contains('version: 1.0.0+144'));
+    final versionMatch = RegExp(r'version:\\s+1\\.0\\.0\\+(\\d+)')
+        .firstMatch(pubspec);
+    expect(versionMatch, isNotNull);
+    expect(int.parse(versionMatch!.group(1)!), greaterThanOrEqualTo(144));
     final consentTombstone =
         File('lib/verified_originals_consent_page.dart').readAsStringSync();
     expect(consentTombstone, isNot(contains('monetizationConsent')));
