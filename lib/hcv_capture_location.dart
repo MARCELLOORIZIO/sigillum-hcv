@@ -29,14 +29,26 @@ class HCVCaptureLocation {
   };
 }
 
+enum HCVCaptureLocationFailure {
+  serviceDisabled,
+  permissionDenied,
+  permissionDeniedForever,
+  unavailable,
+}
+
 class HCVCaptureLocationService {
   const HCVCaptureLocationService();
+
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
+
+  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
 
   Future<HCVCaptureLocation> getCurrentLocation() async {
     final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
       throw const HCVCaptureLocationException(
-        'Attiva la localizzazione del telefono per stampare le coordinate.',
+        HCVCaptureLocationFailure.serviceDisabled,
+        'LOCATION_SERVICE_DISABLED',
       );
     }
 
@@ -44,14 +56,24 @@ class HCVCaptureLocationService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    if (permission == LocationPermission.denied) {
-      throw const HCVCaptureLocationException(
-        'Permesso posizione non concesso.',
-      );
-    }
+
     if (permission == LocationPermission.deniedForever) {
       throw const HCVCaptureLocationException(
-        'Permesso posizione bloccato. Abilitalo nelle impostazioni del telefono.',
+        HCVCaptureLocationFailure.permissionDeniedForever,
+        'LOCATION_PERMISSION_DENIED_FOREVER',
+      );
+    }
+    if (permission == LocationPermission.denied) {
+      throw const HCVCaptureLocationException(
+        HCVCaptureLocationFailure.permissionDenied,
+        'LOCATION_PERMISSION_DENIED',
+      );
+    }
+    if (permission != LocationPermission.whileInUse &&
+        permission != LocationPermission.always) {
+      throw const HCVCaptureLocationException(
+        HCVCaptureLocationFailure.unavailable,
+        'LOCATION_PERMISSION_UNAVAILABLE',
       );
     }
 
@@ -72,8 +94,9 @@ class HCVCaptureLocationService {
 }
 
 class HCVCaptureLocationException implements Exception {
-  const HCVCaptureLocationException(this.message);
+  const HCVCaptureLocationException(this.reason, this.message);
 
+  final HCVCaptureLocationFailure reason;
   final String message;
 
   @override
