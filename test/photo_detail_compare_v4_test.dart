@@ -29,8 +29,7 @@ void main() {
         for (var dy = -2; dy <= 2; dy++) {
           final y = centerY + dy;
           if (y < 0 || y >= HCVPhotoDetailComparator.height) continue;
-          final offset =
-              (y * HCVPhotoDetailComparator.width + x) * 3;
+          final offset = (y * HCVPhotoDetailComparator.width + x) * 3;
           current[offset] = 0;
           current[offset + 1] = 0;
           current[offset + 2] = 0;
@@ -69,14 +68,11 @@ void main() {
 
 Uint8List _baseFrame() {
   final bytes = Uint8List(
-    HCVPhotoDetailComparator.width *
-        HCVPhotoDetailComparator.height *
-        3,
+    HCVPhotoDetailComparator.width * HCVPhotoDetailComparator.height * 3,
   );
   for (var y = 0; y < HCVPhotoDetailComparator.height; y++) {
     for (var x = 0; x < HCVPhotoDetailComparator.width; x++) {
-      final offset =
-          (y * HCVPhotoDetailComparator.width + x) * 3;
+      final offset = (y * HCVPhotoDetailComparator.width + x) * 3;
       bytes[offset] = (40 + x ~/ 2).clamp(0, 255).toInt();
       bytes[offset + 1] = (70 + y ~/ 3).clamp(0, 255).toInt();
       bytes[offset + 2] = (90 + (x + y) ~/ 5).clamp(0, 255).toInt();
