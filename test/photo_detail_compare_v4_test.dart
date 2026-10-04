@@ -10,7 +10,7 @@ void main() {
       final current = Uint8List.fromList(expected);
       for (var i = 0; i < current.length; i++) {
         final noise = ((i * 31 + 11) % 5) - 2;
-        current[i] = (current[i] + noise).clamp(0, 255);
+        current[i] = (current[i] + noise).clamp(0, 255).toInt();
       }
 
       final comparison =
@@ -48,7 +48,7 @@ void main() {
       final expected = _baseFrame();
       final current = Uint8List.fromList(expected);
       for (var i = 0; i < current.length; i++) {
-        current[i] = (current[i] + 30).clamp(0, 255);
+        current[i] = (current[i] + 30).clamp(0, 255).toInt();
       }
 
       final comparison =
@@ -77,9 +77,9 @@ Uint8List _baseFrame() {
     for (var x = 0; x < HCVPhotoDetailComparator.width; x++) {
       final offset =
           (y * HCVPhotoDetailComparator.width + x) * 3;
-      bytes[offset] = (40 + x ~/ 2).clamp(0, 255);
-      bytes[offset + 1] = (70 + y ~/ 3).clamp(0, 255);
-      bytes[offset + 2] = (90 + (x + y) ~/ 5).clamp(0, 255);
+      bytes[offset] = (40 + x ~/ 2).clamp(0, 255).toInt();
+      bytes[offset + 1] = (70 + y ~/ 3).clamp(0, 255).toInt();
+      bytes[offset + 2] = (90 + (x + y) ~/ 5).clamp(0, 255).toInt();
     }
   }
   return bytes;
