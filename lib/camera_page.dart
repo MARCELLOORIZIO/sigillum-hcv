@@ -454,6 +454,7 @@ class _CameraPageState extends State<CameraPage> {
             _locationService.openLocationSettings();
           },
         );
+        break;
       case HCVCaptureLocationFailure.permissionDenied:
         message = _c('locationPermissionDenied');
         action = SnackBarAction(
@@ -462,6 +463,7 @@ class _CameraPageState extends State<CameraPage> {
             _locationService.openAppSettings();
           },
         );
+        break;
       case HCVCaptureLocationFailure.permissionDeniedForever:
         message = _c('locationPermissionBlocked');
         action = SnackBarAction(
@@ -470,8 +472,10 @@ class _CameraPageState extends State<CameraPage> {
             _locationService.openAppSettings();
           },
         );
+        break;
       case HCVCaptureLocationFailure.unavailable:
         message = _c('locationUnavailable');
+        break;
     }
 
     final messenger = ScaffoldMessenger.of(context);
