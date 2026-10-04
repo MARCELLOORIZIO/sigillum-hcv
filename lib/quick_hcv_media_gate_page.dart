@@ -58,25 +58,39 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
   }
 
   Future<String?> _checkVideo() async {
-    String? framePath;
-    try {
-      // One frame only. The full video is never scanned by the public precheck.
-      framePath = await _mediaChannel.invokeMethod<String>(
-        'extractVideoFrame',
-        {'path': widget.path, 'seconds': 0.2},
-      );
-      if (!mounted || framePath == null || framePath.isEmpty) return null;
-      return await _ocrImage(framePath);
-    } catch (_) {
-      return null;
-    } finally {
-      if (framePath != null) {
-        try {
-          final frame = File(framePath);
-          if (await frame.exists()) await frame.delete();
-        } catch (_) {}
+    const sampleSeconds = <double>[0.2, 0.8];
+
+    for (final seconds in sampleSeconds) {
+      String? framePath;
+      try {
+        framePath = await _mediaChannel.invokeMethod<String>(
+          'extractVideoFrame',
+          {'path': widget.path, 'seconds': seconds},
+        );
+        if (!mounted || framePath == null || framePath.isEmpty) continue;
+
+        final fast = await _ocrImage(framePath);
+        if (fast != null && fast.isNotEmpty) return fast;
+
+        final focused = await _ocrImage(
+          framePath,
+          allowFocusedFallback: true,
+        );
+        if (focused != null && focused.isNotEmpty) return focused;
+      } catch (_) {
+        // A single unreadable frame must not classify the whole video as
+        // non-SIGILLUM. Try the next bounded sample.
+      } finally {
+        if (framePath != null) {
+          try {
+            final frame = File(framePath);
+            if (await frame.exists()) await frame.delete();
+          } catch (_) {}
+        }
       }
     }
+
+    return null;
   }
 
   Future<void> _openRegistry({String? detectedId}) async {
@@ -105,10 +119,9 @@ class _QuickHcvMediaGatePageState extends State<QuickHcvMediaGatePage> {
 
     if (detectedId == null) {
       if (isPhoto) {
-        // Quick verification is deliberately bounded: one full-image OCR pass
-        // plus one focused top-crop fallback. If neither finds an HCV-ID, stop
-        // here. The dedicated Registry verifier still owns the deeper
-        // multi-crop recovery path when the user explicitly requests it.
+        // Quick verification is bounded but robust: a fast full-image pass
+        // plus a focused/yellow-mask fallback. Video uses the same two-stage
+        // OCR on two early frames before it may classify media as non-SIGILLUM.
         detectedId = await _ocrImage(widget.path, allowFocusedFallback: true);
       } else if (lower.endsWith('.mp4') ||
           lower.endsWith('.mov') ||
