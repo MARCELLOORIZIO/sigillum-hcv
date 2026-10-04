@@ -6,8 +6,8 @@ void main() {
   test(
     'photo and video use bounded robust OCR before declaring non-SIGILLUM',
     () {
-      final gate = File('lib/quick_hcv_media_gate_page.dart')
-          .readAsStringSync();
+      final gate =
+          File('lib/quick_hcv_media_gate_page.dart').readAsStringSync();
       final ocr = File('lib/hcv_media_id_ocr.dart').readAsStringSync();
 
       expect(gate, contains("import 'hcv_media_id_ocr.dart';"));
