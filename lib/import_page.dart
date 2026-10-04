@@ -9,6 +9,7 @@ import 'hcv_id_lookup_page.dart';
 import 'hcv_import_router_page.dart';
 import 'sigillum_localization.dart';
 import 'sigillum_theme.dart';
+import 'text_social_verify_page.dart';
 import 'verification_ui_copy.dart';
 
 class ImportPage extends StatefulWidget {
@@ -43,6 +44,30 @@ class _ImportPageState extends State<ImportPage> {
       default:
         return 'LOOK UP HCV-ID';
     }
+  }
+
+  String get _verifyFileLabel {
+    switch (widget.languageCode) {
+      case 'it':
+        return 'VERIFICA FILE / HCVPACK';
+      case 'es':
+        return 'VERIFICAR ARCHIVO / HCVPACK';
+      case 'ru':
+        return 'ПРОВЕРИТЬ ФАЙЛ / HCVPACK';
+      default:
+        return 'VERIFY FILE / HCVPACK';
+    }
+  }
+
+  Future<void> _openPublishedTextVerification() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TextSocialVerifyPage(
+          languageCode: widget.languageCode,
+        ),
+      ),
+    );
   }
 
   @override
@@ -228,9 +253,15 @@ class _ImportPageState extends State<ImportPage> {
                   ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
+                    onPressed: _openPublishedTextVerification,
+                    icon: const Icon(Icons.text_snippet_outlined),
+                    label: Text(_v('verifyText')),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
                     onPressed: pickDocument,
                     icon: const Icon(Icons.description_outlined),
-                    label: Text(_v('verifyText')),
+                    label: Text(_verifyFileLabel),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
