@@ -11,7 +11,7 @@ void main() {
         File('lib/verified_originals_publish_service.dart').readAsStringSync();
 
     final versionLine = pubspec
-        .split('\\n')
+        .split('\n')
         .firstWhere((line) => line.trim().startsWith('version:'));
     final buildNumber = int.parse(versionLine.split('+').last.trim());
     expect(buildNumber, greaterThanOrEqualTo(144));
