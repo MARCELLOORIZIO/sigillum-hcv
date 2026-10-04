@@ -30,14 +30,28 @@ void main() {
     );
 
     final forensicDecision = verifier.indexOf('if (forensicVerified)');
-    final v3Decision = verifier.indexOf('HCVReferenceVisualVerdict.modified');
+    final v3Decision = verifier.indexOf(
+      'officialReferenceVisualVerdict ==',
+      forensicDecision,
+    );
+    final modifiedDecision = verifier.indexOf(
+      'HCVReferenceVisualVerdict.modified',
+      v3Decision,
+    );
     final legacyDecision = verifier.indexOf(
       'videoFingerprintMatches == true',
-      v3Decision,
+      modifiedDecision,
     );
     expect(forensicDecision, greaterThanOrEqualTo(0));
     expect(v3Decision, greaterThan(forensicDecision));
-    expect(legacyDecision, greaterThan(v3Decision));
+    expect(modifiedDecision, greaterThanOrEqualTo(v3Decision));
+    expect(legacyDecision, greaterThan(modifiedDecision));
+
+    // Authorized subtitle references are part of the official V3 path and are
+    // evaluated before a strong original-reference mismatch is surfaced.
+    expect(verifier, contains("availability['authorizedDerivations']"));
+    expect(verifier, contains('authorizedReferenceSeen'));
+    expect(verifier, contains('authorizedInconclusive'));
 
     expect(verifier, contains("'OFFICIAL COPY VERIFIED'"));
     expect(verifier, contains("'OFFICIAL COPY MODIFIED'"));
