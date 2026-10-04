@@ -46,8 +46,7 @@ Uint8List _baseRgbFrame() {
   );
   for (var y = 0; y < HCVReferenceVisualFingerprintV3.height; y++) {
     for (var x = 0; x < HCVReferenceVisualFingerprintV3.width; x++) {
-      final offset =
-          (y * HCVReferenceVisualFingerprintV3.width + x) * 3;
+      final offset = (y * HCVReferenceVisualFingerprintV3.width + x) * 3;
       var red = 68;
       var green = 136;
       var blue = 204;
