@@ -95,6 +95,21 @@ Uint8List _rgbBrighten(Uint8List source) {
   return result;
 }
 
+Uint8List _movingRgbFrame(int step) {
+  final frame = _baseRgbFrame();
+  final width = HCVReferenceVisualFingerprintV3.width;
+  final x0 = 40 + step * 2;
+  for (var y = 34; y < 38; y++) {
+    for (var x = x0; x < x0 + 5; x++) {
+      final offset = (y * width + x) * 3;
+      frame[offset] = 20;
+      frame[offset + 1] = 20;
+      frame[offset + 2] = 20;
+    }
+  }
+  return frame;
+}
+
 Uint8List _rgbTranslate(Uint8List source) {
   final width = HCVReferenceVisualFingerprintV3.width;
   final height = HCVReferenceVisualFingerprintV3.height;
@@ -204,6 +219,41 @@ void main() {
       );
       expect(comparison.modifiedFrames, greaterThanOrEqualTo(1));
     });
+
+    test(
+      'video alignment survives a duplicated social frame without false modification',
+      () {
+        final expectedFrames = List<Uint8List>.generate(
+          8,
+          (index) => _movingRgbFrame(index),
+        );
+        final currentFrames = <Uint8List>[
+          _rgbRecompressedLike(expectedFrames[0]),
+          _rgbRecompressedLike(expectedFrames[0]),
+          for (var i = 1; i < 7; i++)
+            _rgbRecompressedLike(expectedFrames[i]),
+        ];
+
+        final expected = HCVReferenceVisualFingerprintV3.buildFromRgbFrames(
+          expectedFrames,
+          mediaType: 'video',
+        );
+        final social = HCVReferenceVisualFingerprintV3.buildFromRgbFrames(
+          currentFrames,
+          mediaType: 'video',
+        );
+
+        final comparison =
+            HCVReferenceVisualFingerprintV3.compare(expected, social);
+
+        expect(
+          comparison.verdict,
+          HCVReferenceVisualVerdict.conforming,
+        );
+        expect(comparison.modifiedFrames, 0);
+        expect(comparison.alignedFrames, greaterThanOrEqualTo(6));
+      },
+    );
 
     test('RGB social-like recompression remains conforming', () {
       final expected = HCVReferenceVisualFingerprintV3.buildFromRgbFrames(
