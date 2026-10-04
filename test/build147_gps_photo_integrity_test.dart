@@ -23,11 +23,10 @@ void main() {
 
     expect(verify, contains('HCVPhotoDetailComparator.compareFiles'));
     expect(verify, contains('materializeEntitledReference(hcvId)'));
+    expect(verify, contains('HCVPhotoDetailVerdict.inconclusive'));
     expect(
       verify,
-      contains(
-        'coarse V3 similarity alone to certify a SHA-different photo as conforming',
-      ),
+      contains('primaryVerdict == HCVReferenceVisualVerdict.modified'),
     );
     expect(detail, contains('static const int width = 256'));
     expect(detail, contains('localizedTamperTiles'));
