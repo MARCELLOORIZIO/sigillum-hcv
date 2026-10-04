@@ -91,10 +91,8 @@ class HCVPhotoDetailComparator {
       totalRgbDifference += (expected[i] - current[i]).abs();
     }
 
-    final meanLumaDifference =
-        totalLumaDifference / expectedLuma.length;
-    final meanRgbDifference =
-        totalRgbDifference / _frameBytes;
+    final meanLumaDifference = totalLumaDifference / expectedLuma.length;
+    final meanRgbDifference = totalRgbDifference / _frameBytes;
 
     var maxTileMeanDifference = 0.0;
     var maxTileHighDifferenceRatio = 0.0;
@@ -104,15 +102,10 @@ class HCVPhotoDetailComparator {
       for (var tx = 0; tx < gridColumns; tx++) {
         var tileDifference = 0.0;
         var highDifferencePixels = 0;
-        for (var y = ty * _tileHeight;
-            y < (ty + 1) * _tileHeight;
-            y++) {
-          for (var x = tx * _tileWidth;
-              x < (tx + 1) * _tileWidth;
-              x++) {
+        for (var y = ty * _tileHeight; y < (ty + 1) * _tileHeight; y++) {
+          for (var x = tx * _tileWidth; x < (tx + 1) * _tileWidth; x++) {
             final index = y * width + x;
-            final difference =
-                (expectedLuma[index] - currentLuma[index]).abs();
+            final difference = (expectedLuma[index] - currentLuma[index]).abs();
             tileDifference += difference;
             if (difference >= _highDifferencePixel) {
               highDifferencePixels++;
@@ -123,18 +116,15 @@ class HCVPhotoDetailComparator {
         const tilePixels = _tileWidth * _tileHeight;
         final tileMeanDifference = tileDifference / tilePixels;
         final highDifferenceRatio = highDifferencePixels / tilePixels;
-        maxTileMeanDifference =
-            max(maxTileMeanDifference, tileMeanDifference);
+        maxTileMeanDifference = max(maxTileMeanDifference, tileMeanDifference);
         maxTileHighDifferenceRatio =
             max(maxTileHighDifferenceRatio, highDifferenceRatio);
 
         final localizedTamper =
             (tileMeanDifference >= _localizedMeanThreshold &&
-                    highDifferenceRatio >=
-                        _localizedHighRatioThreshold) ||
+                    highDifferenceRatio >= _localizedHighRatioThreshold) ||
                 (tileMeanDifference >= _strongLocalizedMeanThreshold &&
-                    highDifferenceRatio >=
-                        _strongLocalizedHighRatioThreshold);
+                    highDifferenceRatio >= _strongLocalizedHighRatioThreshold);
         if (localizedTamper) localizedTamperTiles++;
       }
     }
@@ -157,10 +147,8 @@ class HCVPhotoDetailComparator {
     final clearlyConforming =
         meanLumaDifference <= _conformingMeanLumaThreshold &&
             meanRgbDifference <= _conformingMeanRgbThreshold &&
-            maxTileMeanDifference <=
-                _conformingMaxTileMeanThreshold &&
-            maxTileHighDifferenceRatio <
-                _conformingMaxHighRatioThreshold;
+            maxTileMeanDifference <= _conformingMaxTileMeanThreshold &&
+            maxTileHighDifferenceRatio < _conformingMaxHighRatioThreshold;
 
     return HCVPhotoDetailComparison(
       verdict: clearlyConforming
@@ -179,8 +167,7 @@ class HCVPhotoDetailComparator {
     for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
         final offset = (y * width + x) * _rgbChannels;
-        raw[y * width + x] =
-            0.2126 * rgb[offset] +
+        raw[y * width + x] = 0.2126 * rgb[offset] +
             0.7152 * rgb[offset + 1] +
             0.0722 * rgb[offset + 2];
       }
@@ -221,8 +208,7 @@ class HCVPhotoDetailComparator {
 
     final safeInput = _escapePath(inputPath);
     final safeOutput = _escapePath(output.path);
-    final command =
-        "-y -i '$safeInput' -vf "
+    final command = "-y -i '$safeInput' -vf "
         "\"scale=$width:$height,format=rgb24\" "
         "-frames:v 1 -f rawvideo '$safeOutput'";
 
