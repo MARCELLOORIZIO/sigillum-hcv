@@ -8,8 +8,7 @@ void main() {
     final location = File('lib/hcv_capture_location.dart').readAsStringSync();
     final camera = File('lib/camera_page.dart').readAsStringSync();
     final verify = File('lib/registry_verify_page.dart').readAsStringSync();
-    final detail =
-        File('lib/hcv_photo_detail_compare.dart').readAsStringSync();
+    final detail = File('lib/hcv_photo_detail_compare.dart').readAsStringSync();
 
     expect(pubspec, contains('version: 1.0.0+147'));
 
