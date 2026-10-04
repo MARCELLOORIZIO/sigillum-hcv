@@ -7,7 +7,8 @@ void main() {
     'camera uses Photo Temporal V2 and keeps video display fusion',
     () {
       final camera = File('lib/camera_page.dart').readAsStringSync();
-      expect(camera, contains('const temporalProbeEngine = HCVTemporalCaptureProbe();'));
+      expect(camera,
+          contains('const temporalProbeEngine = HCVTemporalCaptureProbe();'));
       expect(camera, contains('await temporalProbeEngine.capture('));
       expect(camera, contains('PHOTO_TEMPORAL_V2_PRE_CAPTURE_AUTO_SHOT'));
       expect(camera, contains('combineVideoDisplayRiskFromCaptureEvidence'));
@@ -22,10 +23,10 @@ void main() {
   test('coordinates are optional visible and signed capture metadata', () {
     final camera = File('lib/camera_page.dart').readAsStringSync();
     final location = File('lib/hcv_capture_location.dart').readAsStringSync();
-    final photo = File('lib/hcv_location_image_watermark.dart')
-        .readAsStringSync();
-    final video = File('lib/hcv_location_video_watermark.dart')
-        .readAsStringSync();
+    final photo =
+        File('lib/hcv_location_image_watermark.dart').readAsStringSync();
+    final video =
+        File('lib/hcv_location_video_watermark.dart').readAsStringSync();
     final info = File('ios/Runner/Info.plist').readAsStringSync();
 
     expect(camera, contains('_printCoordinates = false'));
