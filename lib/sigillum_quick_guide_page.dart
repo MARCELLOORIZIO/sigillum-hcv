@@ -169,182 +169,62 @@ class _GuideStep {
 const _guideCopies = <String, _GuideCopy>{
   'it': _GuideCopy(
     pageTitle: 'Come si usa SIGILLUM',
-    heading: 'Guida rapida',
-    intro: 'Creazione, protezione, condivisione e verifica in pochi passaggi.',
-    footer:
-        'Foto e video certificati restano cifrati nell’area privata SIGILLUM. La copia in chiaro esiste solo temporaneamente quando l’app deve visualizzare o condividere il contenuto.',
+    heading: 'Tu fai poco. SIGILLUM fa il resto.',
+    intro: 'Crea, salva o condividi. La certificazione e la protezione dell’origine avvengono dietro le quinte.',
+    footer: 'Compatibilità attuale: solo iPhone, iOS 16 o successivo; tecnicamente da iPhone 8, iPhone 8 Plus e iPhone X in avanti.',
     steps: [
-      _GuideStep(
-        icon: Icons.verified_user_outlined,
-        title: '1. Verifica o crea e certifica',
-        text:
-            'Per controllare un contenuto usa “Verifica contenuto” o “SIGILLUM Verified Originals”. Per creare nuovi contenuti certificati accedi come Creator e scegli foto, video o testo.',
-      ),
-      _GuideStep(
-        icon: Icons.videocam_outlined,
-        title: '2. Crea foto o video con la Camera SIGILLUM',
-        text:
-            'SIGILLUM acquisisce il contenuto, esegue i controlli tecnici, crea HCV-ID, hash, certificato e HCVPACK. Il risultato del controllo rischio schermo resta un’evidenza tecnica e non impedisce la certificazione o la pubblicazione.',
-      ),
-      _GuideStep(
-        icon: Icons.lock_outlined,
-        title: '3. Originali protetti',
-        text:
-            'Dopo la certificazione, foto o video e HCVPACK vengono cifrati nell’area privata dell’app e non vengono salvati automaticamente in Foto. Apri “Originali protetti” per visualizzarli o condividerli.',
-      ),
-      _GuideStep(
-        icon: Icons.ios_share_outlined,
-        title: '4. Condivisione sui social',
-        text:
-            'Quando scegli di condividere, SIGILLUM verifica l’originale e registra prima la copia di riferimento ufficiale. Solo dopo il buon esito viene aperto il menu Condividi di iPhone. Se il riferimento non viene registrato, il file non viene rilasciato al social.',
-      ),
-      _GuideStep(
-        icon: Icons.closed_caption_outlined,
-        title: '5. Sottotitoli derivati',
-        text:
-            'Su iPhone puoi creare una copia derivata con sottotitoli sincronizzati partendo temporaneamente dall’originale cifrato. L’originale certificato non viene modificato. La copia sottotitolata è un derivato e può essere salvata in Foto.',
-      ),
-      _GuideStep(
-        icon: Icons.fact_check_outlined,
-        title: '6. Verifica successiva',
-        text:
-            'Puoi verificare un HCV-ID oppure selezionare un file dalla libreria. SIGILLUM controlla certificato e Registry e, quando disponibile, consente di consultare la copia di riferimento ufficiale secondo le condizioni di accesso previste.',
-      ),
+      _GuideStep(icon: Icons.camera_alt_outlined, title: '1. TU — Scatta, registra o scrivi', text: 'Per foto e video usa la Camera SIGILLUM. Per il testo scrivi direttamente nell’app e premi Certifica. Non devi gestire hash, firme o file tecnici.'),
+      _GuideStep(icon: Icons.verified_user_outlined, title: '2. SIGILLUM — Crea l’origine verificabile', text: 'SIGILLUM assegna HCV-ID, calcola le impronte, collega Creator e dispositivo, firma il certificato e registra i dati necessari nel Registry. Per foto e video esegue anche i controlli della cattura e del rischio display.'),
+      _GuideStep(icon: Icons.lock_outlined, title: '3. SIGILLUM — Protegge l’originale', text: 'Foto, video e HCVPACK vengono protetti nell’area privata dell’app. Il testo mantiene la propria impronta certificata e può essere conservato anche in HCVPACK.'),
+      _GuideStep(icon: Icons.ios_share_outlined, title: '4. TU — Salva o condividi', text: 'Quando una foto o un video deve uscire da SIGILLUM, il riferimento originale protetto viene registrato prima del rilascio. Dopo puoi usare normalmente Foto, social, messaggistica o altre app.'),
+      _GuideStep(icon: Icons.text_snippet_outlined, title: '5. TESTO — Pubblica le tue parole certificate', text: 'Il testo scritto in SIGILLUM riceve HCV-ID, hash, impronta testuale e certificato firmato. Puoi copiarlo o pubblicarlo con il suo HCV-ID e verificarlo in seguito incollandolo nuovamente nell’app.'),
+      _GuideStep(icon: Icons.fact_check_outlined, title: '6. TU — Verifica ciò che ricevi', text: 'Condividi una foto o un video con SIGILLUM, seleziona un file oppure incolla un testo pubblicato. SIGILLUM recupera il certificato e avvia i controlli previsti.'),
+      _GuideStep(icon: Icons.compare_arrows_rounded, title: '7. SIGILLUM — Confronta con l’origine', text: 'Per foto e video SIGILLUM confronta la copia con l’originale o con il riferimento protetto; quando previsto puoi anche fare un confronto umano. Per il testo confronta il contenuto pubblicato con l’impronta certificata.'),
     ],
   ),
   'en': _GuideCopy(
     pageTitle: 'How to use SIGILLUM',
-    heading: 'Quick guide',
-    intro: 'Create, protect, share and verify in a few steps.',
-    footer:
-        'Certified photos and videos remain encrypted in SIGILLUM’s private area. A clear copy exists only temporarily when the app needs to display or share the content.',
+    heading: 'You do a little. SIGILLUM does the rest.',
+    intro: 'Create, save or share. Certification and origin protection happen behind the scenes.',
+    footer: 'Current compatibility: iPhone only, iOS 16 or later; technically iPhone 8, iPhone 8 Plus and iPhone X or later.',
     steps: [
-      _GuideStep(
-        icon: Icons.verified_user_outlined,
-        title: '1. Verify or create and certify',
-        text:
-            'Use “Verify content” or “SIGILLUM Verified Originals” to check existing content. Sign in as a Creator to create and certify a new photo, video or text.',
-      ),
-      _GuideStep(
-        icon: Icons.videocam_outlined,
-        title: '2. Create a photo or video with the SIGILLUM Camera',
-        text:
-            'SIGILLUM captures the content, runs its technical checks, and creates the HCV-ID, hash, certificate and HCVPACK. The screen-risk result remains technical evidence and does not block certification or publication.',
-      ),
-      _GuideStep(
-        icon: Icons.lock_outlined,
-        title: '3. Protected originals',
-        text:
-            'After certification, the photo or video and HCVPACK are encrypted in the app’s private area and are not automatically saved to Photos. Open “Protected originals” to view or share them.',
-      ),
-      _GuideStep(
-        icon: Icons.ios_share_outlined,
-        title: '4. Share to social platforms',
-        text:
-            'When you choose to share, SIGILLUM verifies the original and first registers the official reference copy. The iPhone share sheet opens only after that succeeds. If the reference cannot be registered, the file is not released to the social platform.',
-      ),
-      _GuideStep(
-        icon: Icons.closed_caption_outlined,
-        title: '5. Derived captions',
-        text:
-            'On iPhone you can create a separate derived copy with synchronized captions from a temporary materialization of the encrypted original. The certified original is not modified. The captioned derivative may be saved to Photos.',
-      ),
-      _GuideStep(
-        icon: Icons.fact_check_outlined,
-        title: '6. Verify later',
-        text:
-            'You can verify an HCV-ID or select a file from your library. SIGILLUM checks the certificate and Registry and, when available, lets you view the official reference copy under the applicable access conditions.',
-      ),
+      _GuideStep(icon: Icons.camera_alt_outlined, title: '1. YOU — Capture, record or write', text: 'Use the SIGILLUM Camera for photos and videos. For text, write directly in the app and tap Certify. You do not need to manage hashes, signatures or technical files.'),
+      _GuideStep(icon: Icons.verified_user_outlined, title: '2. SIGILLUM — Creates the verifiable origin', text: 'SIGILLUM assigns the HCV-ID, computes fingerprints, links Creator and device, signs the certificate and registers the required data in the Registry. Photos and videos also receive capture and display-risk checks.'),
+      _GuideStep(icon: Icons.lock_outlined, title: '3. SIGILLUM — Protects the original', text: 'Photos, videos and HCVPACK stay protected in the app private area. Text keeps its certified fingerprint and may also be preserved in an HCVPACK.'),
+      _GuideStep(icon: Icons.ios_share_outlined, title: '4. YOU — Save or share', text: 'Before a photo or video leaves SIGILLUM, the protected original reference is registered. You can then use Photos, social platforms, messaging or other apps normally.'),
+      _GuideStep(icon: Icons.text_snippet_outlined, title: '5. TEXT — Publish certified words', text: 'Text written in SIGILLUM receives an HCV-ID, hash, text fingerprint and signed certificate. You can copy or publish it with its HCV-ID and later verify it by pasting it back into the app.'),
+      _GuideStep(icon: Icons.fact_check_outlined, title: '6. YOU — Verify what you receive', text: 'Share a photo or video to SIGILLUM, select a file, or paste published text. SIGILLUM retrieves the certificate and runs the appropriate checks.'),
+      _GuideStep(icon: Icons.compare_arrows_rounded, title: '7. SIGILLUM — Compares it with the origin', text: 'For photos and videos SIGILLUM compares the copy with the original or protected reference; where available you can also perform a human comparison. For text, it compares the published content with the certified fingerprint.'),
     ],
   ),
   'es': _GuideCopy(
     pageTitle: 'Cómo usar SIGILLUM',
-    heading: 'Guía rápida',
-    intro: 'Crea, protege, comparte y verifica en pocos pasos.',
-    footer:
-        'Las fotos y los vídeos certificados permanecen cifrados en el área privada de SIGILLUM. Solo existe una copia en claro de forma temporal cuando la app necesita mostrar o compartir el contenido.',
+    heading: 'Tú haces poco. SIGILLUM hace el resto.',
+    intro: 'Crea, guarda o comparte. La certificación y la protección del origen ocurren en segundo plano.',
+    footer: 'Compatibilidad actual: solo iPhone, iOS 16 o posterior; técnicamente iPhone 8, iPhone 8 Plus y iPhone X o posteriores.',
     steps: [
-      _GuideStep(
-        icon: Icons.verified_user_outlined,
-        title: '1. Verificar o crear y certificar',
-        text:
-            'Usa “Verificar contenido” o “SIGILLUM Verified Originals” para comprobar contenido existente. Accede como Creator para crear y certificar una nueva foto, vídeo o texto.',
-      ),
-      _GuideStep(
-        icon: Icons.videocam_outlined,
-        title: '2. Crear una foto o un vídeo con la Cámara SIGILLUM',
-        text:
-            'SIGILLUM captura el contenido, ejecuta los controles técnicos y crea HCV-ID, hash, certificado y HCVPACK. El resultado del riesgo de pantalla sigue siendo evidencia técnica y no bloquea la certificación ni la publicación.',
-      ),
-      _GuideStep(
-        icon: Icons.lock_outlined,
-        title: '3. Originales protegidos',
-        text:
-            'Después de la certificación, la foto o el vídeo y el HCVPACK se cifran en el área privada de la app y no se guardan automáticamente en Fotos. Abre “Originales protegidos” para verlos o compartirlos.',
-      ),
-      _GuideStep(
-        icon: Icons.ios_share_outlined,
-        title: '4. Compartir en redes sociales',
-        text:
-            'Cuando eliges compartir, SIGILLUM verifica el original y registra primero la copia de referencia oficial. El menú Compartir del iPhone solo se abre después de que el registro termine correctamente. Si la referencia no se registra, el archivo no se entrega a la red social.',
-      ),
-      _GuideStep(
-        icon: Icons.closed_caption_outlined,
-        title: '5. Subtítulos derivados',
-        text:
-            'En iPhone puedes crear una copia derivada con subtítulos sincronizados a partir de una materialización temporal del original cifrado. El original certificado no se modifica. La copia subtitulada derivada puede guardarse en Fotos.',
-      ),
-      _GuideStep(
-        icon: Icons.fact_check_outlined,
-        title: '6. Verificar después',
-        text:
-            'Puedes verificar un HCV-ID o seleccionar un archivo de tu biblioteca. SIGILLUM comprueba el certificado y el Registry y, cuando está disponible, permite consultar la copia de referencia oficial según las condiciones de acceso aplicables.',
-      ),
+      _GuideStep(icon: Icons.camera_alt_outlined, title: '1. TÚ — Captura, graba o escribe', text: 'Usa la Cámara SIGILLUM para fotos y vídeos. Para texto, escribe directamente en la app y pulsa Certificar. No necesitas gestionar hashes, firmas ni archivos técnicos.'),
+      _GuideStep(icon: Icons.verified_user_outlined, title: '2. SIGILLUM — Crea el origen verificable', text: 'SIGILLUM asigna el HCV-ID, calcula las huellas, vincula Creator y dispositivo, firma el certificado y registra los datos necesarios en el Registry. Las fotos y los vídeos reciben además controles de captura y riesgo de pantalla.'),
+      _GuideStep(icon: Icons.lock_outlined, title: '3. SIGILLUM — Protege el original', text: 'Las fotos, los vídeos y HCVPACK permanecen protegidos en el área privada de la app. El texto conserva su huella certificada y también puede guardarse en un HCVPACK.'),
+      _GuideStep(icon: Icons.ios_share_outlined, title: '4. TÚ — Guarda o comparte', text: 'Antes de que una foto o un vídeo salga de SIGILLUM se registra la referencia original protegida. Después puedes usar Fotos, redes sociales, mensajería u otras apps normalmente.'),
+      _GuideStep(icon: Icons.text_snippet_outlined, title: '5. TEXTO — Publica palabras certificadas', text: 'El texto escrito en SIGILLUM recibe HCV-ID, hash, huella textual y certificado firmado. Puedes copiarlo o publicarlo con su HCV-ID y verificarlo más tarde pegándolo de nuevo en la app.'),
+      _GuideStep(icon: Icons.fact_check_outlined, title: '6. TÚ — Verifica lo que recibes', text: 'Comparte una foto o un vídeo con SIGILLUM, selecciona un archivo o pega un texto publicado. SIGILLUM recupera el certificado e inicia los controles previstos.'),
+      _GuideStep(icon: Icons.compare_arrows_rounded, title: '7. SIGILLUM — Lo compara con el origen', text: 'Para fotos y vídeos SIGILLUM compara la copia con el original o la referencia protegida; cuando está disponible también puedes realizar una comparación humana. Para texto compara el contenido publicado con la huella certificada.'),
     ],
   ),
   'ru': _GuideCopy(
     pageTitle: 'Как пользоваться SIGILLUM',
-    heading: 'Краткое руководство',
-    intro: 'Создание, защита, отправка и проверка в нескольких шагах.',
-    footer:
-        'Сертифицированные фото и видео остаются зашифрованными в закрытой области SIGILLUM. Открытая копия создаётся только временно, когда приложение должно показать или отправить контент.',
+    heading: 'Вы делаете немного. Остальное делает SIGILLUM.',
+    intro: 'Создайте, сохраните или отправьте. Сертификация и защита происхождения выполняются в фоне.',
+    footer: 'Текущая совместимость: только iPhone, iOS 16 или новее; технически iPhone 8, iPhone 8 Plus и iPhone X или новее.',
     steps: [
-      _GuideStep(
-        icon: Icons.verified_user_outlined,
-        title: '1. Проверить или создать и сертифицировать',
-        text:
-            'Используйте «Проверить контент» или «SIGILLUM Verified Originals» для проверки существующего материала. Войдите как Creator, чтобы создать и сертифицировать новое фото, видео или текст.',
-      ),
-      _GuideStep(
-        icon: Icons.videocam_outlined,
-        title: '2. Создать фото или видео камерой SIGILLUM',
-        text:
-            'SIGILLUM захватывает контент, выполняет технические проверки и создаёт HCV-ID, хеш, сертификат и HCVPACK. Результат оценки риска экрана остаётся техническим свидетельством и не блокирует сертификацию или публикацию.',
-      ),
-      _GuideStep(
-        icon: Icons.lock_outlined,
-        title: '3. Защищённые оригиналы',
-        text:
-            'После сертификации фото или видео и HCVPACK шифруются в закрытой области приложения и не сохраняются автоматически в Photos. Откройте «Защищённые оригиналы», чтобы просмотреть или отправить их.',
-      ),
-      _GuideStep(
-        icon: Icons.ios_share_outlined,
-        title: '4. Отправка в социальные сети',
-        text:
-            'Когда вы выбираете отправку, SIGILLUM проверяет оригинал и сначала регистрирует официальную эталонную копию. Меню «Поделиться» iPhone открывается только после успешной регистрации. Если эталон не зарегистрирован, файл не передаётся социальной платформе.',
-      ),
-      _GuideStep(
-        icon: Icons.closed_caption_outlined,
-        title: '5. Производные субтитры',
-        text:
-            'На iPhone можно создать отдельную производную копию с синхронизированными субтитрами из временно расшифрованного оригинала. Сертифицированный оригинал не изменяется. Производную копию с субтитрами можно сохранить в Photos.',
-      ),
-      _GuideStep(
-        icon: Icons.fact_check_outlined,
-        title: '6. Последующая проверка',
-        text:
-            'Можно проверить HCV-ID или выбрать файл из библиотеки. SIGILLUM проверяет сертификат и Registry и, если эталон доступен, позволяет открыть официальную эталонную копию в соответствии с условиями доступа.',
-      ),
+      _GuideStep(icon: Icons.camera_alt_outlined, title: '1. ВЫ — Снимаете, записываете или пишете', text: 'Для фото и видео используйте Камеру SIGILLUM. Текст пишите прямо в приложении и нажмите Сертифицировать. Управлять хешами, подписями и техническими файлами не нужно.'),
+      _GuideStep(icon: Icons.verified_user_outlined, title: '2. SIGILLUM — Создаёт проверяемое происхождение', text: 'SIGILLUM назначает HCV-ID, вычисляет отпечатки, связывает Creator и устройство, подписывает сертификат и регистрирует необходимые данные в Registry. Для фото и видео также выполняются проверки захвата и риска экрана.'),
+      _GuideStep(icon: Icons.lock_outlined, title: '3. SIGILLUM — Защищает оригинал', text: 'Фото, видео и HCVPACK защищены в закрытой области приложения. Текст сохраняет сертифицированный отпечаток и также может храниться в HCVPACK.'),
+      _GuideStep(icon: Icons.ios_share_outlined, title: '4. ВЫ — Сохраняете или отправляете', text: 'До выхода фото или видео из SIGILLUM регистрируется защищённый оригинальный эталон. После этого можно обычным образом использовать Фото, соцсети, мессенджеры и другие приложения.'),
+      _GuideStep(icon: Icons.text_snippet_outlined, title: '5. ТЕКСТ — Публикуйте сертифицированные слова', text: 'Текст, написанный в SIGILLUM, получает HCV-ID, хеш, текстовый отпечаток и подписанный сертификат. Его можно скопировать или опубликовать с HCV-ID, а затем проверить, вставив обратно в приложение.'),
+      _GuideStep(icon: Icons.fact_check_outlined, title: '6. ВЫ — Проверяете полученный контент', text: 'Отправьте фото или видео в SIGILLUM, выберите файл или вставьте опубликованный текст. SIGILLUM получает сертификат и запускает нужные проверки.'),
+      _GuideStep(icon: Icons.compare_arrows_rounded, title: '7. SIGILLUM — Сравнивает с происхождением', text: 'Для фото и видео SIGILLUM сравнивает копию с оригиналом или защищённым эталоном; при наличии функции можно выполнить и визуальное сравнение. Для текста опубликованный контент сравнивается с сертифицированным отпечатком.'),
     ],
   ),
 };
