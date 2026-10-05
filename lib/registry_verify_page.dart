@@ -1647,7 +1647,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; il riferimento ufficiale SIGILLUM non è disponibile in questo momento.',
+                  'HCV-ID e certificato Registry validi; il riferimento originale protetto SIGILLUM non è disponibile in questo momento.',
               integrity: 'Non conclusiva',
               integrityDetail: _r('officialReferenceUnavailableDetail'),
               scene: 'Non applicabile',
@@ -1664,12 +1664,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; riferimento ufficiale SIGILLUM disponibile e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
+                  'HCV-ID e certificato Registry validi; riferimento originale protetto SIGILLUM disponibile e confronto V3 eseguito con la sua rappresentazione firmata.',
               integrity: 'Copia modificata',
               integrityDetail: _r('officialReferenceModifiedDetail'),
               scene: 'Non applicabile',
               sceneDetail:
-                  'Il controllo riguarda la corrispondenza con la copia ufficiale, non la scena di cattura.',
+                  'Il controllo riguarda la corrispondenza con il riferimento originale protetto, non la scena di cattura.',
               derivation: 'Non conforme',
               derivationDetail: _r('officialReferenceModifiedDetail'),
             );
@@ -1681,7 +1681,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; il riferimento ufficiale SIGILLUM è disponibile, ma il confronto V3 non è conclusivo.',
+                  'HCV-ID e certificato Registry validi; il riferimento originale protetto SIGILLUM è disponibile, ma il confronto V3 non è conclusivo.',
               integrity: 'Non conclusiva',
               integrityDetail: _r('officialReferenceInconclusiveDetail'),
               scene: 'Non applicabile',
@@ -1704,7 +1704,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               integrity: 'Derivazione autorizzata',
               integrityDetail: _r('authorizedSubtitleIntegrityDetail'),
               scene: _signedRealityScene
-                  ? 'Realtà rilevata'
+                  ? 'Indizi di scena fisica'
                   : _certifiedOriginalSceneState,
               sceneDetail: _authorizedSubtitleOriginalSceneDetail,
               derivation: 'Sottotitoli autorizzati',
@@ -1726,13 +1726,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             _setVerificationAxes(
               provenance: 'Verificata',
               provenanceDetail:
-                  'HCV-ID e certificato Registry validi; riferimento ufficiale SIGILLUM disponibile e confronto V3 eseguito con la rappresentazione firmata della reference ufficiale.',
+                  'HCV-ID e certificato Registry validi; riferimento originale protetto SIGILLUM disponibile e confronto V3 eseguito con la sua rappresentazione firmata.',
               integrity: 'Copia conforme',
               integrityDetail: _r('officialReferenceConformingDetail'),
               scene: 'Non applicabile',
               sceneDetail:
                   'Le differenze rilevate sono compatibili con una trasformazione social tollerata.',
-              derivation: 'Conforme alla copia ufficiale',
+              derivation: 'Compatibile con il riferimento SIGILLUM',
               derivationDetail: _r('officialReferenceConformingDetail'),
             );
           } else if (contentType == 'video' &&
