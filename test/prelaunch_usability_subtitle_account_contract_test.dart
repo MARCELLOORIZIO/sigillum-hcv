@@ -13,12 +13,16 @@ void main() {
     expect(gate, contains('AutofillHints.password'));
   });
 
-  test('quick guide explains encrypted protected originals and fail-closed sharing', () {
+  test('quick guide explains simple user actions and protected-origin release gate', () {
     final guide = File('lib/sigillum_quick_guide_page.dart').readAsStringSync();
-    expect(guide, contains('foto o video e HCVPACK vengono cifrati'));
-    expect(guide, contains('non vengono salvati automaticamente in Foto'));
-    expect(guide, contains('registra prima la copia di riferimento ufficiale'));
-    expect(guide, contains('il file non viene rilasciato al social'));
+    expect(guide, contains('TU — Scatta, registra o scrivi'));
+    expect(guide, contains('SIGILLUM — Crea l’origine verificabile'));
+    expect(guide, contains('SIGILLUM — Protegge l’originale'));
+    expect(
+      guide,
+      contains('il riferimento originale protetto viene registrato prima del rilascio'),
+    );
+    expect(guide, contains('TESTO — Pubblica le tue parole certificate'));
   });
 
   test('subtitle exports remain readable but are closed-chain gated', () {
