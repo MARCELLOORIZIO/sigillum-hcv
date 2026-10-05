@@ -43,7 +43,7 @@ void main() {
     expect(
       copy,
       contains(
-        'Il riferimento ufficiale SIGILLUM non è ancora disponibile. '
+        'Il riferimento originale protetto SIGILLUM non è ancora disponibile. '
         'Se la registrazione è in corso, riprova tra poco.',
       ),
     );
@@ -57,7 +57,7 @@ void main() {
     expect(
       verifier,
       contains(
-        'il riferimento ufficiale SIGILLUM non è disponibile '
+        'il riferimento originale protetto SIGILLUM non è disponibile '
         'in questo momento.',
       ),
     );
