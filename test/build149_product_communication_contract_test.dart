@@ -61,6 +61,10 @@ void main() {
       'Verify the authenticity of digital content and share with confidence.',
       'Verifica la autenticidad de los contenidos digitales y compártelos con confianza.',
       'Проверяйте подлинность цифрового контента и делитесь им с уверенностью.',
+      'COPIA UFFICIALE',
+      'OFFICIAL COPY',
+      'COPIA OFICIAL',
+      'ОФИЦИАЛЬНАЯ КОПИЯ',
     ]) {
       expect(
         localization.contains(obsolete) ||
