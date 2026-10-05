@@ -410,10 +410,10 @@ class _TextCertPageState extends State<TextCertPage> {
             const SizedBox(height: 8),
             Text(
               _p(
-                'Per i social puoi copiare il testo con HCV-ID. Per file, puoi condividere TXT + certificato HCV.',
-                'For social platforms you can copy the text with its HCV-ID. For files, you can share TXT + HCV certificate.',
-                'Para redes sociales puedes copiar el texto con su HCV-ID. Para archivos, puedes compartir TXT + certificado HCV.',
-                'Для социальных сетей можно скопировать текст с HCV-ID. Для файлов можно отправить TXT + сертификат HCV.',
+                'Scrivi e certifica il testo prima di pubblicarlo. Puoi poi copiarlo o condividerlo con il suo HCV-ID: chi lo riceve può incollarlo in SIGILLUM e confrontarlo con l’impronta del testo originale certificato.',
+                'Write and certify the text before publishing it. You can then copy or share it with its HCV-ID: anyone receiving it can paste it into SIGILLUM and compare it with the fingerprint of the certified original text.',
+                'Escribe y certifica el texto antes de publicarlo. Después puedes copiarlo o compartirlo con su HCV-ID: quien lo reciba puede pegarlo en SIGILLUM y compararlo con la huella del texto original certificado.',
+                'Напишите и сертифицируйте текст до публикации. Затем его можно скопировать или отправить вместе с HCV-ID: получатель сможет вставить его в SIGILLUM и сравнить с отпечатком сертифицированного оригинального текста.',
               ),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12),
