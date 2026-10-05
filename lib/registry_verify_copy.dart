@@ -52,7 +52,7 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM\nIl confronto con l’originale di riferimento non rileva differenze oltre quelle tollerate dai controlli previsti per ricompressioni e trasformazioni tecniche.',
       'officialReferenceConformingDetail':
-          'Confronto locale V3 compatibile con la fingerprint firmata della copia ufficiale SIGILLUM.',
+          'Confronto locale V3 compatibile con la fingerprint firmata del riferimento originale SIGILLUM.',
       'officialReferenceModified':
           'COPIA MODIFICATA\nIl confronto con il riferimento SIGILLUM ha rilevato differenze locali significative non compatibili con la sola ricompressione prevista.',
       'officialReferenceModifiedDetail':
@@ -65,11 +65,11 @@ class RegistryVerifyCopy {
       'officialReferenceModifiedTitle': 'COPIA MODIFICATA RISPETTO AL RIFERIMENTO',
       'officialReferenceInconclusiveTitle': 'VERIFICA NON CONCLUSIVA',
       'officialReferenceUnavailableTitle':
-          'RIFERIMENTO UFFICIALE NON DISPONIBILE',
+          'RIFERIMENTO ORIGINALE PROTETTO NON DISPONIBILE',
       'officialReferenceUnavailable':
-          'VERIFICA NON ESEGUIBILE\nIl riferimento ufficiale SIGILLUM non è disponibile in questo momento. Nessun controllo più debole viene usato per dichiarare conforme il file social.',
+          'VERIFICA NON ESEGUIBILE\\nIl riferimento originale protetto SIGILLUM non è disponibile in questo momento. Nessun controllo più debole viene usato per dichiarare compatibile il file social.',
       'officialReferenceUnavailableDetail':
-          'Il riferimento tecnico SIGILLUM deve risultare registrato e disponibile prima della verifica di una copia social. Se la registrazione è ancora in corso, riprova tra poco.',
+          'Il riferimento originale protetto SIGILLUM deve risultare registrato e disponibile prima della verifica di una copia social. Se la registrazione è ancora in corso, riprova tra poco.',
       'authorizedSubtitleConforming':
           'DERIVAZIONE SIGILLUM VERIFICATA\nIl video con sottotitoli corrisponde a una derivazione autorizzata e registrata da SIGILLUM a partire dall’originale certificato.',
       'authorizedSubtitleConformingTitle': 'DERIVAZIONE SIGILLUM VERIFICATA',
@@ -97,29 +97,29 @@ class RegistryVerifyCopy {
       'manualCompareLocalTitle': 'FILE DA CONTROLLARE',
       'manualCompareOfficialTitle': 'RIFERIMENTO ORIGINALE SIGILLUM',
       'manualCompareVideoHelp':
-          'Porta il file al punto che vuoi controllare, poi apri la copia ufficiale allo stesso timestamp. Puoi confrontare immagini, voce, suoni, tagli e sequenza.',
+          'Porta il file al punto che vuoi controllare, poi apri il riferimento originale SIGILLUM allo stesso timestamp. Puoi confrontare immagini, voce, suoni, tagli e sequenza.',
       'manualComparePhotoHelp':
-          'Osserva la foto ricevuta, poi apri il riferimento ufficiale SIGILLUM nell’app per il confronto visivo.',
+          'Osserva la foto ricevuta, poi apri il riferimento originale SIGILLUM nell’app per il confronto visivo.',
       'manualCompareOpenOfficial': 'APRI RIFERIMENTO ORIGINALE',
-      'manualCompareOpenAtTime': 'APRI COPIA UFFICIALE A {time}',
+      'manualCompareOpenAtTime': 'APRI RIFERIMENTO ORIGINALE A {time}',
       'manualCompareReturnHelp':
-          'Il riferimento ufficiale viene aperto all’interno di SIGILLUM. Torna a questa schermata per continuare il confronto.',
+          'Il riferimento originale protetto viene aperto all’interno di SIGILLUM. Torna a questa schermata per continuare il confronto.',
       'manualComparePlayPause': 'Riproduci / pausa',
       'manualCompareAudio': 'Audio',
       'manualCompareSubscriptionRequired':
           'Questa funzione richiede un abbonamento SIGILLUM attivo.',
       'manualCompareReferenceUnavailable':
-          'Il riferimento ufficiale SIGILLUM non è ancora disponibile. Se la registrazione è in corso, riprova tra poco.',
+          'Il riferimento originale protetto SIGILLUM non è ancora disponibile. Se la registrazione è in corso, riprova tra poco.',
       'manualCompareMediaUnavailable':
           'Il file da confrontare non è più disponibile sul dispositivo.',
       'manualCompareLoadError': 'Impossibile preparare il confronto manuale.',
       'manualCompareOpenError':
-          'Impossibile aprire il riferimento ufficiale SIGILLUM.',
+          'Impossibile aprire il riferimento originale protetto SIGILLUM.',
       'verificationTiming':
           'Tempo verifica: {total} s · riferimento {reference} s · confronto locale {local} s',
-      'techReferenceVerification': 'RIFERIMENTO UFFICIALE SIGILLUM',
+      'techReferenceVerification': 'RIFERIMENTO ORIGINALE SIGILLUM',
       'techReferenceMode': 'Modalità confronto',
-      'techReferenceLive': 'Riferimento ufficiale disponibile',
+      'techReferenceLive': 'Riferimento originale disponibile',
       'techReferenceCommentsDisabled': 'Dato provider accessorio',
       'techReferenceServerMs': 'Controllo riferimento ms',
       'techReferenceLocalMs': 'Confronto locale ms',
@@ -253,7 +253,7 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE\nComparison with the original reference found no differences beyond those tolerated by the checks for expected recompression and technical transformations.',
       'officialReferenceConformingDetail':
-          'Local V3 comparison is compatible with the signed fingerprint of the official SIGILLUM copy.',
+          'Local V3 comparison is compatible with the signed fingerprint of the SIGILLUM original reference.',
       'officialReferenceModified':
           'MODIFIED COPY\nComparison with the SIGILLUM reference found significant local differences not compatible with expected recompression alone.',
       'officialReferenceModifiedDetail':
@@ -265,11 +265,11 @@ class RegistryVerifyCopy {
       'officialReferenceConformingTitle': 'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE',
       'officialReferenceModifiedTitle': 'COPY MODIFIED FROM THE REFERENCE',
       'officialReferenceInconclusiveTitle': 'VERIFICATION INCONCLUSIVE',
-      'officialReferenceUnavailableTitle': 'OFFICIAL REFERENCE UNAVAILABLE',
+      'officialReferenceUnavailableTitle': 'PROTECTED ORIGINAL REFERENCE UNAVAILABLE',
       'officialReferenceUnavailable':
-          'VERIFICATION CANNOT BE COMPLETED\nThe official SIGILLUM reference is not currently available. No weaker check is used to declare the social file conforming.',
+          'VERIFICATION CANNOT RUN\\nThe protected SIGILLUM original reference is not available right now. No weaker check is used to declare the social file compatible.',
       'officialReferenceUnavailableDetail':
-          'The SIGILLUM technical reference must be registered and available before a social copy can be verified. If registration is still in progress, try again shortly.',
+          'The protected SIGILLUM original reference must be registered and available before a social copy can be verified. If registration is still in progress, try again shortly.',
       'authorizedSubtitleConforming':
           'AUTHORIZED SIGILLUM DERIVATION VERIFIED\nThe captioned video matches an authorized derivation registered by SIGILLUM from the certified original.',
       'authorizedSubtitleConformingTitle':
@@ -298,29 +298,29 @@ class RegistryVerifyCopy {
       'manualCompareLocalTitle': 'FILE TO CHECK',
       'manualCompareOfficialTitle': 'SIGILLUM ORIGINAL REFERENCE',
       'manualCompareVideoHelp':
-          'Move the file to the moment you want to inspect, then open the official copy at the same timestamp. Compare images, voice, sounds, cuts and sequence.',
+          'Move the file to the moment you want to inspect, then open the SIGILLUM original reference at the same timestamp. Compare images, voice, sounds, cuts and sequence.',
       'manualComparePhotoHelp':
-          'Inspect the received photo, then open the official SIGILLUM reference inside the app for a visual comparison.',
+          'Inspect the received photo, then open the SIGILLUM original reference inside the app for a visual comparison.',
       'manualCompareOpenOfficial': 'OPEN ORIGINAL REFERENCE',
-      'manualCompareOpenAtTime': 'OPEN OFFICIAL COPY AT {time}',
+      'manualCompareOpenAtTime': 'OPEN ORIGINAL REFERENCE AT {time}',
       'manualCompareReturnHelp':
-          'The official reference opens inside SIGILLUM. Return to this screen to continue the comparison.',
+          'The protected original reference opens inside SIGILLUM. Return to this screen to continue the comparison.',
       'manualComparePlayPause': 'Play / pause',
       'manualCompareAudio': 'Audio',
       'manualCompareSubscriptionRequired':
           'This feature requires an active SIGILLUM subscription.',
       'manualCompareReferenceUnavailable':
-          'The official SIGILLUM reference is not available yet. If registration is still in progress, try again shortly.',
+          'The protected SIGILLUM original reference is not available yet. If registration is still in progress, try again shortly.',
       'manualCompareMediaUnavailable':
           'The file to compare is no longer available on this device.',
       'manualCompareLoadError': 'Unable to prepare the manual comparison.',
       'manualCompareOpenError':
-          'Unable to open the official SIGILLUM reference.',
+          'Unable to open the protected SIGILLUM original reference.',
       'verificationTiming':
           'Verification time: {total} s · reference {reference} s · local comparison {local} s',
-      'techReferenceVerification': 'OFFICIAL SIGILLUM REFERENCE',
+      'techReferenceVerification': 'SIGILLUM ORIGINAL REFERENCE',
       'techReferenceMode': 'Comparison mode',
-      'techReferenceLive': 'Official reference available',
+      'techReferenceLive': 'Original reference available',
       'techReferenceCommentsDisabled': 'Provider auxiliary state',
       'techReferenceServerMs': 'Reference check ms',
       'techReferenceLocalMs': 'Local comparison ms',
@@ -456,7 +456,7 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM\nLa comparación con la referencia original no detecta diferencias fuera de las toleradas por los controles para recompresión y transformaciones técnicas previstas.',
       'officialReferenceConformingDetail':
-          'La comparación local V3 es compatible con la huella firmada de la copia oficial SIGILLUM.',
+          'La comparación local V3 es compatible con la huella firmada de la referencia original SIGILLUM.',
       'officialReferenceModified':
           'COPIA MODIFICADA\nLa comparación con la referencia SIGILLUM detectó diferencias locales significativas no compatibles únicamente con la recompresión prevista.',
       'officialReferenceModifiedDetail':
@@ -468,11 +468,11 @@ class RegistryVerifyCopy {
       'officialReferenceConformingTitle': 'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM',
       'officialReferenceModifiedTitle': 'COPIA MODIFICADA RESPECTO A LA REFERENCIA',
       'officialReferenceInconclusiveTitle': 'VERIFICACIÓN NO CONCLUYENTE',
-      'officialReferenceUnavailableTitle': 'REFERENCIA OFICIAL NO DISPONIBLE',
+      'officialReferenceUnavailableTitle': 'REFERENCIA ORIGINAL PROTEGIDA NO DISPONIBLE',
       'officialReferenceUnavailable':
-          'VERIFICACIÓN NO EJECUTABLE\nLa referencia oficial de SIGILLUM no está disponible en este momento. No se usa un control más débil para declarar conforme el archivo social.',
+          'VERIFICACIÓN NO EJECUTABLE\\nLa referencia original protegida de SIGILLUM no está disponible en este momento. No se usa un control más débil para declarar compatible el archivo social.',
       'officialReferenceUnavailableDetail':
-          'La referencia técnica de SIGILLUM debe estar registrada y disponible antes de verificar una copia social. Si el registro sigue en curso, inténtalo de nuevo en breve.',
+          'La referencia original protegida de SIGILLUM debe estar registrada y disponible antes de verificar una copia social. Si el registro sigue en curso, inténtalo de nuevo en breve.',
       'authorizedSubtitleConforming':
           'DERIVACIÓN SIGILLUM VERIFICADA\nEl vídeo subtitulado coincide con una derivación autorizada y registrada por SIGILLUM a partir del original certificado.',
       'authorizedSubtitleConformingTitle': 'DERIVACIÓN SIGILLUM VERIFICADA',
@@ -500,29 +500,29 @@ class RegistryVerifyCopy {
       'manualCompareLocalTitle': 'ARCHIVO A COMPROBAR',
       'manualCompareOfficialTitle': 'REFERENCIA ORIGINAL SIGILLUM',
       'manualCompareVideoHelp':
-          'Lleva el archivo al punto que quieres revisar y abre después la copia oficial en el mismo instante. Compara imágenes, voz, sonidos, cortes y secuencia.',
+          'Lleva el archivo al punto que quieres revisar y abre después la referencia original SIGILLUM en el mismo instante. Compara imágenes, voz, sonidos, cortes y secuencia.',
       'manualComparePhotoHelp':
-          'Observa la foto recibida y abre después la referencia oficial SIGILLUM dentro de la app para realizar la comparación visual.',
+          'Observa la foto recibida y abre después la referencia original SIGILLUM dentro de la app para realizar la comparación visual.',
       'manualCompareOpenOfficial': 'ABRIR REFERENCIA ORIGINAL',
-      'manualCompareOpenAtTime': 'ABRIR COPIA OFICIAL EN {time}',
+      'manualCompareOpenAtTime': 'ABRIR REFERENCIA ORIGINAL EN {time}',
       'manualCompareReturnHelp':
-          'La referencia oficial se abre dentro de SIGILLUM. Vuelve a esta pantalla para continuar la comparación.',
+          'La referencia original protegida se abre dentro de SIGILLUM. Vuelve a esta pantalla para continuar la comparación.',
       'manualComparePlayPause': 'Reproducir / pausa',
       'manualCompareAudio': 'Audio',
       'manualCompareSubscriptionRequired':
           'Esta función requiere una suscripción SIGILLUM activa.',
       'manualCompareReferenceUnavailable':
-          'La referencia oficial de SIGILLUM aún no está disponible. Si el registro sigue en curso, inténtalo de nuevo en breve.',
+          'La referencia original protegida de SIGILLUM aún no está disponible. Si el registro sigue en curso, inténtalo de nuevo en breve.',
       'manualCompareMediaUnavailable':
           'El archivo que se va a comparar ya no está disponible en el dispositivo.',
       'manualCompareLoadError': 'No se puede preparar la comparación manual.',
       'manualCompareOpenError':
-          'No se puede abrir la referencia oficial de SIGILLUM.',
+          'No se puede abrir la referencia original protegida de SIGILLUM.',
       'verificationTiming':
           'Tiempo de verificación: {total} s · referencia {reference} s · comparación local {local} s',
-      'techReferenceVerification': 'REFERENCIA OFICIAL DE SIGILLUM',
+      'techReferenceVerification': 'REFERENCIA ORIGINAL SIGILLUM',
       'techReferenceMode': 'Modo de comparación',
-      'techReferenceLive': 'Referencia oficial disponible',
+      'techReferenceLive': 'Referencia original disponible',
       'techReferenceCommentsDisabled': 'Estado auxiliar del proveedor',
       'techReferenceServerMs': 'Control de referencia ms',
       'techReferenceLocalMs': 'Comparación local ms',
@@ -656,7 +656,7 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM\nСравнение с оригинальным эталоном не выявило различий сверх допустимых для ожидаемого перекодирования и технических преобразований.',
       'officialReferenceConformingDetail':
-          'Локальное сравнение V3 совместимо с подписанным отпечатком официальной копии SIGILLUM.',
+          'Локальное сравнение V3 совместимо с подписанным отпечатком оригинального эталона SIGILLUM.',
       'officialReferenceModified':
           'КОПИЯ ИЗМЕНЕНА\nСравнение с эталоном SIGILLUM выявило значимые локальные различия, несовместимые только с ожидаемым перекодированием.',
       'officialReferenceModifiedDetail':
@@ -669,11 +669,11 @@ class RegistryVerifyCopy {
       'officialReferenceModifiedTitle': 'КОПИЯ ИЗМЕНЕНА ОТНОСИТЕЛЬНО ЭТАЛОНА',
       'officialReferenceInconclusiveTitle':
           'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА',
-      'officialReferenceUnavailableTitle': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН НЕДОСТУПЕН',
+      'officialReferenceUnavailableTitle': 'ЗАЩИЩЁННЫЙ ОРИГИНАЛЬНЫЙ ЭТАЛОН НЕДОСТУПЕН',
       'officialReferenceUnavailable':
-          'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\nОфициальный эталон SIGILLUM сейчас недоступен. Более слабая проверка не используется для признания файла из соцсети соответствующим.',
+          'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\\nЗащищённый оригинальный эталон SIGILLUM сейчас недоступен. Более слабая проверка не используется для признания файла из соцсети совместимым.',
       'officialReferenceUnavailableDetail':
-          'Перед проверкой копии из соцсети технический эталон SIGILLUM должен быть зарегистрирован и доступен. Если регистрация ещё выполняется, повторите попытку немного позже.',
+          'Защищённый оригинальный эталон SIGILLUM должен быть зарегистрирован и доступен до проверки копии из соцсети. Если регистрация ещё выполняется, повторите попытку немного позже.',
       'authorizedSubtitleConforming':
           'АВТОРИЗОВАННАЯ ПРОИЗВОДНАЯ ВЕРСИЯ SIGILLUM ПРОВЕРЕНА\nВидео с субтитрами соответствует авторизованной производной версии, зарегистрированной SIGILLUM на основе сертифицированного оригинала.',
       'authorizedSubtitleConformingTitle':
@@ -701,29 +701,29 @@ class RegistryVerifyCopy {
       'manualCompareLocalTitle': 'ПРОВЕРЯЕМЫЙ ФАЙЛ',
       'manualCompareOfficialTitle': 'ОРИГИНАЛЬНЫЙ ЭТАЛОН SIGILLUM',
       'manualCompareVideoHelp':
-          'Перейдите в файле к нужному моменту, затем откройте официальную копию на том же времени. Сравните изображение, голос, звуки, монтаж и последовательность.',
+          'Перейдите в файле к нужному моменту, затем откройте оригинальный эталон SIGILLUM на том же времени. Сравните изображение, голос, звуки, монтаж и последовательность.',
       'manualComparePhotoHelp':
-          'Рассмотрите полученную фотографию, затем откройте официальный эталон SIGILLUM внутри приложения для визуального сравнения.',
+          'Рассмотрите полученную фотографию, затем откройте оригинальный эталон SIGILLUM внутри приложения для визуального сравнения.',
       'manualCompareOpenOfficial': 'ОТКРЫТЬ ОРИГИНАЛЬНЫЙ ЭТАЛОН',
-      'manualCompareOpenAtTime': 'ОТКРЫТЬ ОФИЦИАЛЬНУЮ КОПИЮ НА {time}',
+      'manualCompareOpenAtTime': 'ОТКРЫТЬ ОРИГИНАЛЬНЫЙ ЭТАЛОН НА {time}',
       'manualCompareReturnHelp':
-          'Официальный эталон открывается внутри SIGILLUM. Вернитесь на этот экран, чтобы продолжить сравнение.',
+          'Защищённый оригинальный эталон открывается внутри SIGILLUM. Вернитесь на этот экран, чтобы продолжить сравнение.',
       'manualComparePlayPause': 'Воспроизведение / пауза',
       'manualCompareAudio': 'Звук',
       'manualCompareSubscriptionRequired':
           'Для этой функции требуется активная подписка SIGILLUM.',
       'manualCompareReferenceUnavailable':
-          'Официальный эталон SIGILLUM пока недоступен. Если регистрация ещё выполняется, повторите попытку немного позже.',
+          'Защищённый оригинальный эталон SIGILLUM пока недоступен. Если регистрация ещё выполняется, повторите попытку немного позже.',
       'manualCompareMediaUnavailable':
           'Проверяемый файл больше недоступен на устройстве.',
       'manualCompareLoadError': 'Не удалось подготовить ручное сравнение.',
       'manualCompareOpenError':
-          'Не удалось открыть официальный эталон SIGILLUM.',
+          'Не удалось открыть защищённый оригинальный эталон SIGILLUM.',
       'verificationTiming':
           'Время проверки: {total} с · эталон {reference} с · локальное сравнение {local} с',
-      'techReferenceVerification': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН SIGILLUM',
+      'techReferenceVerification': 'ОРИГИНАЛЬНЫЙ ЭТАЛОН SIGILLUM',
       'techReferenceMode': 'Режим сравнения',
-      'techReferenceLive': 'Официальный эталон доступен',
+      'techReferenceLive': 'Оригинальный эталон доступен',
       'techReferenceCommentsDisabled': 'Дополнительное состояние провайдера',
       'techReferenceServerMs': 'Проверка эталона, мс',
       'techReferenceLocalMs': 'Локальное сравнение, мс',
