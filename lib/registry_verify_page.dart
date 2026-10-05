@@ -1703,8 +1703,10 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
               provenanceDetail: _r('authorizedSubtitleProvenanceDetail'),
               integrity: 'Derivazione autorizzata',
               integrityDetail: _r('authorizedSubtitleIntegrityDetail'),
-              scene: 'Scena originale certificata',
-              sceneDetail: _r('authorizedSubtitleSceneDetail'),
+              scene: _signedRealityScene
+                  ? 'Realtà rilevata'
+                  : _certifiedOriginalSceneState,
+              sceneDetail: _authorizedSubtitleOriginalSceneDetail,
               derivation: 'Sottotitoli autorizzati',
               derivationDetail: _r('authorizedSubtitleDerivationDetail'),
             );
@@ -2186,6 +2188,24 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     return _certifiedOriginalSceneState;
   }
 
+  String get _authorizedSubtitleOriginalSceneDetail {
+    String detail;
+    if (_signedRealityScene) {
+      detail = _v('realityDetail');
+    } else if (_isStrongDisplayRisk) {
+      detail = _v('screenDetail');
+    } else if (_isDisplayNonConclusive) {
+      detail = _v('uncertainDetail');
+    } else if (displayRiskDecision == 'NO_DISPLAY_EVIDENCE' ||
+        screenReplayRisk != null) {
+      detail = _v('noScreenDetail');
+    } else {
+      detail = _v('notAnalyzed');
+    }
+
+    return '$detail ${_r('authorizedSubtitleSceneDetail')}';
+  }
+
   String? get _effectiveDerivationState {
     if (derivationState != null) return derivationState;
     if (_isForensicResult) return 'Non necessaria';
@@ -2284,7 +2304,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         case 'integrity':
           return _r('authorizedSubtitleIntegrityState');
         case 'scene':
-          return _r('authorizedSubtitleSceneState');
+          return _signedRealityScene
+              ? _v('realityDetected')
+              : _localizedCertifiedOriginalSceneState;
         case 'derivation':
           return _r('authorizedSubtitleDerivationState');
       }
@@ -2334,7 +2356,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         case 'integrity':
           return _r('authorizedSubtitleIntegrityDetail');
         case 'scene':
-          return _r('authorizedSubtitleSceneDetail');
+          return _authorizedSubtitleOriginalSceneDetail;
         case 'derivation':
           return _r('authorizedSubtitleDerivationDetail');
       }
