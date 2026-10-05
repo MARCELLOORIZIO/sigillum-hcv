@@ -50,15 +50,15 @@ class RegistryVerifyCopy {
       'genericDerived':
           'CONTENUTO CERTIFICATO COMPATIBILE\nIl file è diverso dall’originale certificato ma supera i controlli di compatibilità disponibili per questo tipo di media.',
       'officialReferenceConforming':
-          'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM\\nIl confronto con l’originale di riferimento non rileva differenze oltre quelle tollerate dai controlli previsti per ricompressioni e trasformazioni tecniche.',
+          'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM\nIl confronto con l’originale di riferimento non rileva differenze oltre quelle tollerate dai controlli previsti per ricompressioni e trasformazioni tecniche.',
       'officialReferenceConformingDetail':
           'Confronto locale V3 compatibile con la fingerprint firmata della copia ufficiale SIGILLUM.',
       'officialReferenceModified':
-          'COPIA MODIFICATA\\nIl confronto con il riferimento SIGILLUM ha rilevato differenze locali significative non compatibili con la sola ricompressione prevista.',
+          'COPIA MODIFICATA\nIl confronto con il riferimento SIGILLUM ha rilevato differenze locali significative non compatibili con la sola ricompressione prevista.',
       'officialReferenceModifiedDetail':
           'Il confronto locale V3 ha rilevato variazioni non compatibili con la sola ricompressione social, incluse possibili aggiunte, rimozioni o alterazioni di elementi.',
       'officialReferenceInconclusive':
-          'VERIFICA NON CONCLUSIVA\\nIl riferimento SIGILLUM è disponibile, ma i controlli non producono evidenza sufficiente per classificare la copia come compatibile o modificata.',
+          'VERIFICA NON CONCLUSIVA\nIl riferimento SIGILLUM è disponibile, ma i controlli non producono evidenza sufficiente per classificare la copia come compatibile o modificata.',
       'officialReferenceInconclusiveDetail':
           'Qualità, ritaglio, trasformazioni o allineamento non consentono un confronto locale V3 affidabile.',
       'officialReferenceConformingTitle': 'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM',
@@ -251,15 +251,15 @@ class RegistryVerifyCopy {
       'genericDerived':
           'CERTIFIED COMPATIBLE CONTENT\nThe file differs from the certified original but passes the compatibility checks available for this media type.',
       'officialReferenceConforming':
-          'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE\\nComparison with the original reference found no differences beyond those tolerated by the checks for expected recompression and technical transformations.',
+          'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE\nComparison with the original reference found no differences beyond those tolerated by the checks for expected recompression and technical transformations.',
       'officialReferenceConformingDetail':
           'Local V3 comparison is compatible with the signed fingerprint of the official SIGILLUM copy.',
       'officialReferenceModified':
-          'MODIFIED COPY\\nComparison with the SIGILLUM reference found significant local differences not compatible with expected recompression alone.',
+          'MODIFIED COPY\nComparison with the SIGILLUM reference found significant local differences not compatible with expected recompression alone.',
       'officialReferenceModifiedDetail':
           'Local V3 comparison detected changes not compatible with social recompression alone, including possible inserted, removed, or altered elements.',
       'officialReferenceInconclusive':
-          'VERIFICATION INCONCLUSIVE\\nThe SIGILLUM reference is available, but the checks do not provide enough evidence to classify the copy as compatible or modified.',
+          'VERIFICATION INCONCLUSIVE\nThe SIGILLUM reference is available, but the checks do not provide enough evidence to classify the copy as compatible or modified.',
       'officialReferenceInconclusiveDetail':
           'Quality, cropping, transformations, or alignment prevent a reliable local V3 comparison.',
       'officialReferenceConformingTitle': 'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE',
@@ -454,15 +454,15 @@ class RegistryVerifyCopy {
       'genericDerived':
           'CONTENIDO CERTIFICADO COMPATIBLE\nEl archivo difiere del original certificado, pero supera los controles de compatibilidad disponibles para este tipo de media.',
       'officialReferenceConforming':
-          'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM\\nLa comparación con la referencia original no detecta diferencias fuera de las toleradas por los controles para recompresión y transformaciones técnicas previstas.',
+          'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM\nLa comparación con la referencia original no detecta diferencias fuera de las toleradas por los controles para recompresión y transformaciones técnicas previstas.',
       'officialReferenceConformingDetail':
           'La comparación local V3 es compatible con la huella firmada de la copia oficial SIGILLUM.',
       'officialReferenceModified':
-          'COPIA MODIFICADA\\nLa comparación con la referencia SIGILLUM detectó diferencias locales significativas no compatibles únicamente con la recompresión prevista.',
+          'COPIA MODIFICADA\nLa comparación con la referencia SIGILLUM detectó diferencias locales significativas no compatibles únicamente con la recompresión prevista.',
       'officialReferenceModifiedDetail':
           'La comparación local V3 detectó cambios no compatibles únicamente con recompresión social, incluidas posibles inserciones, eliminaciones o alteraciones de elementos.',
       'officialReferenceInconclusive':
-          'VERIFICACIÓN NO CONCLUYENTE\\nLa referencia SIGILLUM está disponible, pero los controles no aportan evidencia suficiente para clasificar la copia como compatible o modificada.',
+          'VERIFICACIÓN NO CONCLUYENTE\nLa referencia SIGILLUM está disponible, pero los controles no aportan evidencia suficiente para clasificar la copia como compatible o modificada.',
       'officialReferenceInconclusiveDetail':
           'La calidad, el recorte, las transformaciones o la alineación impiden una comparación local V3 fiable.',
       'officialReferenceConformingTitle': 'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM',
@@ -654,15 +654,15 @@ class RegistryVerifyCopy {
       'genericDerived':
           'СОВМЕСТИМЫЙ СЕРТИФИЦИРОВАННЫЙ КОНТЕНТ\nФайл отличается от сертифицированного оригинала, но проходит доступные для этого типа медиа проверки совместимости.',
       'officialReferenceConforming':
-          'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM\\nСравнение с оригинальным эталоном не выявило различий сверх допустимых для ожидаемого перекодирования и технических преобразований.',
+          'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM\nСравнение с оригинальным эталоном не выявило различий сверх допустимых для ожидаемого перекодирования и технических преобразований.',
       'officialReferenceConformingDetail':
           'Локальное сравнение V3 совместимо с подписанным отпечатком официальной копии SIGILLUM.',
       'officialReferenceModified':
-          'КОПИЯ ИЗМЕНЕНА\\nСравнение с эталоном SIGILLUM выявило значимые локальные различия, несовместимые только с ожидаемым перекодированием.',
+          'КОПИЯ ИЗМЕНЕНА\nСравнение с эталоном SIGILLUM выявило значимые локальные различия, несовместимые только с ожидаемым перекодированием.',
       'officialReferenceModifiedDetail':
           'Локальное сравнение V3 выявило изменения, не объясняемые только социальным перекодированием, включая возможное добавление, удаление или изменение элементов.',
       'officialReferenceInconclusive':
-          'ПРОВЕРКА НЕОДНОЗНАЧНА\\nЭталон SIGILLUM доступен, но проверок недостаточно, чтобы классифицировать копию как совместимую или изменённую.',
+          'ПРОВЕРКА НЕОДНОЗНАЧНА\nЭталон SIGILLUM доступен, но проверок недостаточно, чтобы классифицировать копию как совместимую или изменённую.',
       'officialReferenceInconclusiveDetail':
           'Качество, кадрирование, преобразования или выравнивание не позволяют выполнить надёжное локальное сравнение V3.',
       'officialReferenceConformingTitle': 'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM',
