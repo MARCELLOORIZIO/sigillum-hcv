@@ -43,6 +43,52 @@ void main() {
       expect(comparison.localizedTamperTiles, greaterThan(0));
     });
 
+    test('BUILD148 high-detail pass detects a tiny clustered local edit', () {
+      final expected = _highDetailBaseFrame();
+      final current = Uint8List.fromList(expected);
+
+      // A narrow two-pixel stroke crossing neighbouring 8x8 cells models a
+      // small hand-drawn/social edit that BUILD147 could leave inconclusive
+      // after the 256x256 blur/downscale.
+      for (var x = 170; x < 330; x++) {
+        final centerY = 300 + ((x - 170) ~/ 12);
+        for (var dy = -1; dy <= 1; dy++) {
+          final y = centerY + dy;
+          final offset =
+              (y * HCVPhotoDetailComparator.highDetailWidth + x) * 3;
+          current[offset] = 0;
+          current[offset + 1] = 0;
+          current[offset + 2] = 0;
+        }
+      }
+
+      expect(
+        HCVPhotoDetailComparator.detectsHighResolutionLocalizedTamper(
+          expected,
+          current,
+        ),
+        isTrue,
+      );
+    });
+
+    test('BUILD148 high-detail pass ignores low-amplitude recompression noise',
+        () {
+      final expected = _highDetailBaseFrame();
+      final current = Uint8List.fromList(expected);
+      for (var i = 0; i < current.length; i++) {
+        final noise = ((i * 17 + 5) % 7) - 3;
+        current[i] = (current[i] + noise).clamp(0, 255).toInt();
+      }
+
+      expect(
+        HCVPhotoDetailComparator.detectsHighResolutionLocalizedTamper(
+          expected,
+          current,
+        ),
+        isFalse,
+      );
+    });
+
     test('large global tonal edit is detected', () {
       final expected = _baseFrame();
       final current = Uint8List.fromList(expected);
@@ -76,6 +122,25 @@ Uint8List _baseFrame() {
       bytes[offset] = (40 + x ~/ 2).clamp(0, 255).toInt();
       bytes[offset + 1] = (70 + y ~/ 3).clamp(0, 255).toInt();
       bytes[offset + 2] = (90 + (x + y) ~/ 5).clamp(0, 255).toInt();
+    }
+  }
+  return bytes;
+}
+
+
+Uint8List _highDetailBaseFrame() {
+  final bytes = Uint8List(
+    HCVPhotoDetailComparator.highDetailWidth *
+        HCVPhotoDetailComparator.highDetailHeight *
+        3,
+  );
+  for (var y = 0; y < HCVPhotoDetailComparator.highDetailHeight; y++) {
+    for (var x = 0; x < HCVPhotoDetailComparator.highDetailWidth; x++) {
+      final offset =
+          (y * HCVPhotoDetailComparator.highDetailWidth + x) * 3;
+      bytes[offset] = (35 + x ~/ 3).clamp(0, 255).toInt();
+      bytes[offset + 1] = (60 + y ~/ 4).clamp(0, 255).toInt();
+      bytes[offset + 2] = (85 + (x + y) ~/ 7).clamp(0, 255).toInt();
     }
   }
   return bytes;
