@@ -10,7 +10,33 @@ void main() {
     final verify = File('lib/registry_verify_page.dart').readAsStringSync();
     final detail = File('lib/hcv_photo_detail_compare.dart').readAsStringSync();
 
-    expect(pubspec, contains('version: 1.0.0+147'));
+    final versionMatch =
+        RegExp(r'^version:\\s*1\\.0\\.0\\+(\\d+)\\s*
+
+    expect(location, contains('Geolocator.requestPermission()'));
+    expect(location, contains('Geolocator.openAppSettings()'));
+    expect(location, contains('Geolocator.openLocationSettings()'));
+    expect(location, contains('permissionDeniedForever'));
+
+    expect(camera, contains('_showLocationError(error)'));
+    expect(camera, contains("label: _c('openSettings')"));
+    expect(camera, contains("label: _c('openLocationSettings')"));
+
+    expect(verify, contains('HCVPhotoDetailComparator.compareFiles'));
+    expect(verify, contains('materializeEntitledReference(hcvId)'));
+    expect(verify, contains('HCVPhotoDetailVerdict.inconclusive'));
+    expect(
+      verify,
+      contains('primaryVerdict == HCVReferenceVisualVerdict.modified'),
+    );
+    expect(detail, contains('static const int width = 256'));
+    expect(detail, contains('localizedTamperTiles'));
+  });
+}
+, multiLine: true)
+            .firstMatch(pubspec);
+    expect(versionMatch, isNotNull);
+    expect(int.parse(versionMatch!.group(1)!), greaterThanOrEqualTo(147));
 
     expect(location, contains('Geolocator.requestPermission()'));
     expect(location, contains('Geolocator.openAppSettings()'));
