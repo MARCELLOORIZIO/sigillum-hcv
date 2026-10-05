@@ -1,6 +1,6 @@
 # Termini di Servizio SIGILLUM
 
-Versione: 16 agosto 2026
+Versione: 5 ottobre 2026
 
 ## 1. Fornitore del servizio
 
@@ -8,7 +8,7 @@ SIGILLUM è fornito da **MAORI DI MARCELLO ORIZIO**, Via della Battaglia 28, 250
 
 ## 2. Funzione del servizio
 
-SIGILLUM fornisce strumenti tecnici per creare, firmare, registrare e verificare evidenze relative alla provenienza e all'integrità di foto, video e testi mediante HCV-ID, impronte crittografiche, certificati firmati e Registry online.
+SIGILLUM crea una catena tecnica verificabile prima della diffusione. Foto e video destinati alla certificazione come originali vengono acquisiti mediante la Camera SIGILLUM; i testi vengono scritti e certificati nell’app. Il servizio associa HCV-ID, impronte crittografiche, certificati firmati, identità tecnica del Creator e Registry online. Prima del rilascio esterno di foto o video attraverso i flussi previsti, SIGILLUM registra un riferimento originale cifrato nella propria infrastruttura privata, che può essere usato per verifiche automatiche e confronto umano successivi.
 
 SIGILLUM non garantisce la verità sostanziale di ciò che un contenuto rappresenta o afferma e non sostituisce una perizia legale, notarile, giudiziaria o forense. Un esito tecnico, inclusi avvisi relativi a rischio di ripresa da schermo, ricompressione o altri segnali, deve essere interpretato nel contesto e non costituisce da solo prova automatica di autenticità o falsità.
 
@@ -46,13 +46,13 @@ La cancellazione dell'account SIGILLUM **non annulla automaticamente** un abbona
 
 Quando l'abbonamento non risulta più attivo o utilizzabile, SIGILLUM può disabilitare le funzioni Creator a pagamento pur mantenendo disponibili le funzioni che non richiedono l'abbonamento.
 
-## 7. Certificati e Registry
+## 7. Certificati, Registry e riferimenti originali
 
 Ogni certificato HCV valido è associato a un HCV-ID e contiene dati tecnici necessari alla verifica. Il Registry è progettato per consentire la verifica futura dei certificati pubblicati.
 
 Per preservare l'affidabilità del sistema, un certificato validamente emesso e registrato non è concepito come un contenuto modificabile dall'utente dopo l'emissione. La cancellazione dell'account può comportare la rimozione o pseudonimizzazione dei dati personali separabili, mentre i record tecnici strettamente necessari a preservare integrità, non ripudio tecnico e verificabilità possono essere mantenuti nei limiti consentiti dalla normativa applicabile.
 
-La disponibilità della verifica online dipende dalla raggiungibilità del Registry e dei servizi di rete. Ove previsto dall'app, un certificato o pacchetto HCV può conservare utilità di verifica anche localmente/offline secondo le caratteristiche tecniche del formato.
+Per foto e video, il riferimento originale protetto consente di confrontare copie successive con il contenuto registrato prima della diffusione. Per il testo, la verifica utilizza il certificato firmato e l’impronta testuale; un testo pubblicato può essere incollato nuovamente nell’app per verificarne corrispondenza, sola variazione di formattazione o modifica del contenuto. La disponibilità della verifica online dipende dalla raggiungibilità del Registry e dei servizi di rete. Ove previsto dall’app, un certificato o pacchetto HCV può conservare utilità di verifica anche localmente/offline secondo le caratteristiche tecniche del formato.
 
 ## 8. Uso consentito e responsabilità dell'utente
 
@@ -127,3 +127,8 @@ Users are responsible for their content and must not use SIGILLUM for impersonat
 A valid HCV certificate is intended to provide durable technical evidence. Personal links may be removed or minimized after account deletion where possible, while strictly necessary technical records may remain where permitted in order to preserve certificate integrity and future verification.
 
 Technical checks, including screen-replay and recompression indicators, may produce limitations or errors and must be interpreted in context. Mandatory consumer rights and other rights that cannot lawfully be excluded remain unaffected. Subject to those mandatory protections, Italian law applies and disputes are handled by the competent courts under applicable rules.
+
+
+## 17. Compatibilità
+
+La versione iOS corrente è destinata a iPhone e richiede iOS 16.0 o successivo. L’installabilità tecnica comprende iPhone 8, iPhone 8 Plus e iPhone X o modelli successivi compatibili con iOS 16; la disponibilità o qualità di specifiche funzioni di cattura può dipendere dalle capacità hardware del dispositivo.
