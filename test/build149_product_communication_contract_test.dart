@@ -10,6 +10,7 @@ void main() {
     final verify = File('lib/verification_ui_copy.dart').readAsStringSync();
     final registry = File('lib/registry_verify_copy.dart').readAsStringSync();
     final textPage = File('lib/text_cert_page.dart').readAsStringSync();
+    final commercialGate = File('lib/commercial_gate.dart').readAsStringSync();
 
     final versionMatch =
         RegExp(r'^version:\s*1\.0\.0\+(\d+)\s*$', multiLine: true)
@@ -39,6 +40,14 @@ void main() {
     expect(registry, contains('COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM'));
     expect(registry, contains('Analisi tecnica della scena'));
     expect(textPage, contains('impronta del testo originale certificato'));
+    expect(
+      commercialGate,
+      contains('Crea un’origine verificabile. Controlla le copie. Condividi con più fiducia.'),
+    );
+    expect(
+      commercialGate,
+      contains('Create a verifiable origin. Check the copies. Share with greater confidence.'),
+    );
 
     for (final obsolete in <String>[
       'Prova tecnica per contenuti creati da persone reali.',
@@ -48,11 +57,16 @@ void main() {
       'Reality detected',
       'Livello prova AI',
       'AI proof level',
+      'Verifica l’autenticità dei contenuti digitali e condividi con fiducia.',
+      'Verify the authenticity of digital content and share with confidence.',
+      'Verifica la autenticidad de los contenidos digitales y compártelos con confianza.',
+      'Проверяйте подлинность цифрового контента и делитесь им с уверенностью.',
     ]) {
       expect(
         localization.contains(obsolete) ||
             verify.contains(obsolete) ||
-            registry.contains(obsolete),
+            registry.contains(obsolete) ||
+            commercialGate.contains(obsolete),
         isFalse,
         reason: 'Obsolete or overbroad claim remains: $obsolete',
       );
