@@ -1,6 +1,6 @@
 # Informativa Privacy SIGILLUM
 
-Versione: 16 agosto 2026
+Versione: 5 ottobre 2026
 
 ## 1. Titolare del trattamento
 
@@ -8,7 +8,7 @@ Il titolare del trattamento è **MAORI DI MARCELLO ORIZIO**, Via della Battaglia
 
 ## 2. Ambito del servizio
 
-SIGILLUM consente di creare, firmare, registrare e verificare evidenze tecniche relative a foto, video e testi mediante HCV-ID, impronte crittografiche, certificati firmati e Registry online. La verifica gratuita di contenuti può essere utilizzata senza account; le funzioni Creator richiedono account, verifica dell'indirizzo email, abbonamento idoneo e verifica dell'identità.
+SIGILLUM consente di creare un’origine verificabile prima della diffusione: foto e video vengono acquisiti dalla Camera SIGILLUM, mentre i testi vengono scritti e certificati nell’app. Il servizio utilizza HCV-ID, impronte crittografiche, certificati firmati, HCVPACK e Registry online. Prima che una foto o un video venga rilasciato all’esterno tramite i flussi previsti, SIGILLUM registra un riferimento originale cifrato nella propria infrastruttura privata per consentire verifiche successive. La verifica di contenuti già certificati può essere disponibile senza account; le funzioni Creator richiedono i requisiti previsti dal servizio.
 
 ## 3. Dati trattati
 
@@ -46,7 +46,7 @@ MAORI utilizza nel servizio lo stato della verifica, il riferimento tecnico dell
 
 ## 6. Apple e abbonamenti
 
-Gli abbonamenti digitali SIGILLUM acquistati su iPhone/iPad sono gestiti tramite l'App Store. SIGILLUM riceve e verifica solo le informazioni tecniche necessarie a stabilire se l'abbonamento associato all'account è valido. I dati di pagamento dell'App Store non vengono acquisiti direttamente da SIGILLUM.
+Gli abbonamenti digitali SIGILLUM acquistati su iPhone sono gestiti tramite l’App Store. SIGILLUM riceve e verifica solo le informazioni tecniche necessarie a stabilire se l'abbonamento associato all'account è valido. I dati di pagamento dell'App Store non vengono acquisiti direttamente da SIGILLUM.
 
 La cancellazione dell'account SIGILLUM non annulla automaticamente un abbonamento Apple. L'utente deve gestire o annullare l'abbonamento attraverso gli strumenti messi a disposizione da Apple.
 
@@ -56,7 +56,8 @@ Per erogare il servizio possono essere utilizzati fornitori tecnici che trattano
 
 - Apple, per distribuzione dell'app e acquisti in-app;
 - Stripe, per la verifica dell'identità;
-- Render e il relativo ambiente database, per l'infrastruttura applicativa e il Registry;
+- Render e il relativo ambiente database, per l’infrastruttura applicativa e il Registry;
+- Cloudflare R2, per la custodia cifrata dei riferimenti tecnici originali e derivati quando la funzione è utilizzata;
 - Resend e i fornitori di infrastruttura email collegati, per l'invio di codici e comunicazioni transazionali.
 
 Dati possono inoltre essere comunicati quando necessario per adempiere a obblighi di legge, richieste dell'autorità o per tutelare diritti e sicurezza del servizio.
@@ -114,3 +115,8 @@ Account data is retained as necessary to provide the service and meet applicable
 Where applicable, users may exercise rights of access, rectification, erasure, restriction, portability and objection and may withdraw consent where processing relies on consent. Requests may be sent to **marcelloorizio@legalmail.it**. Users may also complain to the competent supervisory authority.
 
 Account deletion is available in the app. Deleting a SIGILLUM account does not automatically cancel an Apple subscription; Apple subscription management is separate.
+
+
+## 14. Compatibilità dell’app
+
+La configurazione iOS corrente di SIGILLUM richiede **iOS 16.0 o successivo** ed è destinata a **iPhone**. In termini di installabilità del sistema operativo, questo include tecnicamente iPhone 8, iPhone 8 Plus e iPhone X o modelli successivi. La piena validazione delle funzioni avanzate di cattura e analisi sui dispositivi più datati resta parte dei test di rilascio.
