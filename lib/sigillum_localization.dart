@@ -253,7 +253,7 @@ class SigillumCopy {
           'Confermo di disporre dei diritti e delle autorizzazioni necessari per pubblicare questo contenuto.',
       'secureOriginalsContinueShare': 'CONTINUA E CONDIVIDI',
       'secureOriginalsPublishingReference':
-          'Verifica dell’originale e registrazione del riferimento ufficiale in corso...',
+          'Verifica dell’originale e registrazione del riferimento originale protetto in corso...',
       'secureOriginalsReferenceReady':
           'Riferimento originale registrato. Ora il contenuto può essere condiviso.',
       'secureOriginalsShareText': 'Contenuto certificato SIGILLUM',
@@ -262,19 +262,19 @@ class SigillumCopy {
       'secureOriginalsReferencePublished': 'Riferimento originale protetto',
       'secureOriginalsReferencePending':
           'Riferimento originale non ancora registrato',
-      'secureOriginalsWithdraw': 'RITIRA COPIA UFFICIALE',
-      'secureOriginalsWithdrawTitle': 'Ritira copia ufficiale',
+      'secureOriginalsWithdraw': 'RITIRA RIFERIMENTO PROTETTO',
+      'secureOriginalsWithdrawTitle': 'Ritira riferimento originale protetto',
       'secureOriginalsWithdrawBody':
-          'Il riferimento ufficiale verrà rimosso dall’archivio tecnico SIGILLUM e non sarà più disponibile nell’app. Il certificato HCV e il record tecnico restano verificabili.',
+          'Il riferimento originale protetto verrà rimosso dall’archivio tecnico SIGILLUM e non sarà più disponibile nell’app. Il certificato HCV e il record tecnico restano verificabili.',
       'secureOriginalsWithdrawConfirm': 'RITIRA',
-      'secureOriginalsWithdrawing': 'Ritiro della copia ufficiale in corso...',
-      'secureOriginalsWithdrawn': 'Copia ufficiale ritirata.',
-      'secureOriginalsWithdrawError': 'Impossibile ritirare la copia ufficiale',
+      'secureOriginalsWithdrawing': 'Ritiro del riferimento originale protetto in corso...',
+      'secureOriginalsWithdrawn': 'Riferimento originale protetto ritirato.',
+      'secureOriginalsWithdrawError': 'Impossibile ritirare il riferimento originale protetto',
       'secureOriginalsWithdrawPending':
           'Ritiro registrato. L’eliminazione del riferimento tecnico è ancora in attesa; puoi ritentare da questa schermata.',
       'secureOriginalsView': 'VISUALIZZA ORIGINALE',
       'secureOriginalsShare': 'CONDIVIDI ORIGINALE',
-      'secureOriginalsOfficialCopy': 'VISUALIZZA COPIA UFFICIALE',
+      'secureOriginalsOfficialCopy': 'APRI RIFERIMENTO ORIGINALE',
       'secureOriginalsViewerTitle': 'Originale SIGILLUM',
       'secureOriginalStored':
           'Originale e HCVPACK cifrati nell’area protetta SIGILLUM.',
@@ -308,10 +308,10 @@ class SigillumCopy {
       'voNotAvailable':
           'Riferimento originale non disponibile. Il certificato HCV può comunque essere verificato.',
       'voSubscriptionRequired':
-          'La verifica del certificato resta gratuita. Per visualizzare la copia ufficiale tramite SIGILLUM serve un abbonamento attivo.',
+          'La verifica del certificato resta gratuita. Per aprire il riferimento originale protetto tramite SIGILLUM serve un abbonamento attivo.',
       'voAuthRequired':
-          'Accedi con un account SIGILLUM abbonato per visualizzare la copia ufficiale.',
-      'voOpenError': 'Impossibile aprire la copia ufficiale.',
+          'Accedi con un account SIGILLUM abbonato per aprire il riferimento originale protetto.',
+      'voOpenError': 'Impossibile aprire il riferimento originale protetto.',
       'voFilePickError': 'Impossibile aprire il file selezionato.',
     },
     'en': {
@@ -528,7 +528,7 @@ class SigillumCopy {
           'I confirm that I have the rights and permissions required to publish this content.',
       'secureOriginalsContinueShare': 'CONTINUE AND SHARE',
       'secureOriginalsPublishingReference':
-          'Verifying the original and registering the official reference...',
+          'Verifying the original and registering the protected original reference...',
       'secureOriginalsReferenceReady':
           'Original reference registered. The content can now be shared.',
       'secureOriginalsShareText': 'SIGILLUM certified content',
@@ -536,19 +536,19 @@ class SigillumCopy {
       'secureOriginalsShareBlocked': 'Sharing blocked',
       'secureOriginalsReferencePublished': 'Protected original reference',
       'secureOriginalsReferencePending': 'Original reference not yet registered',
-      'secureOriginalsWithdraw': 'WITHDRAW OFFICIAL COPY',
-      'secureOriginalsWithdrawTitle': 'Withdraw official copy',
+      'secureOriginalsWithdraw': 'WITHDRAW PROTECTED REFERENCE',
+      'secureOriginalsWithdrawTitle': 'Withdraw protected original reference',
       'secureOriginalsWithdrawBody':
-          'The official reference will be removed from SIGILLUM technical storage and will no longer be available through Verified Originals. The HCV certificate and technical record remain verifiable.',
+          'The protected original reference will be removed from SIGILLUM technical storage and will no longer be available in the app. The HCV certificate and technical record remain verifiable.',
       'secureOriginalsWithdrawConfirm': 'WITHDRAW',
-      'secureOriginalsWithdrawing': 'Withdrawing the official copy...',
-      'secureOriginalsWithdrawn': 'Official copy withdrawn.',
-      'secureOriginalsWithdrawError': 'Unable to withdraw the official copy',
+      'secureOriginalsWithdrawing': 'Withdrawing the protected original reference...',
+      'secureOriginalsWithdrawn': 'Protected original reference withdrawn.',
+      'secureOriginalsWithdrawError': 'Unable to withdraw the protected original reference',
       'secureOriginalsWithdrawPending':
           'Withdrawal recorded. Removal of the technical reference is still pending; you can retry from this screen.',
       'secureOriginalsView': 'VIEW ORIGINAL',
       'secureOriginalsShare': 'SHARE ORIGINAL',
-      'secureOriginalsOfficialCopy': 'VIEW OFFICIAL COPY',
+      'secureOriginalsOfficialCopy': 'OPEN ORIGINAL REFERENCE',
       'secureOriginalsViewerTitle': 'SIGILLUM original',
       'secureOriginalStored':
           'Original and HCVPACK encrypted in the protected SIGILLUM area.',
@@ -581,10 +581,10 @@ class SigillumCopy {
       'voNotAvailable':
           'Original reference unavailable. The HCV certificate can still be verified.',
       'voSubscriptionRequired':
-          'Certificate verification remains free. Viewing the official copy through SIGILLUM requires an active subscription.',
+          'Certificate verification remains free. Opening the protected original reference through SIGILLUM requires an active subscription.',
       'voAuthRequired':
-          'Sign in with a subscribed SIGILLUM account to view the official copy.',
-      'voOpenError': 'Unable to open the official copy.',
+          'Sign in with a subscribed SIGILLUM account to open the protected original reference.',
+      'voOpenError': 'Unable to open the protected original reference.',
       'voFilePickError': 'Unable to open the selected file.',
     },
     'es': {
@@ -803,7 +803,7 @@ class SigillumCopy {
           'Confirmo que dispongo de los derechos y autorizaciones necesarios para publicar este contenido.',
       'secureOriginalsContinueShare': 'CONTINUAR Y COMPARTIR',
       'secureOriginalsPublishingReference':
-          'Verificando el original y registrando la referencia oficial...',
+          'Verificando el original y registrando la referencia original protegida...',
       'secureOriginalsReferenceReady':
           'Referencia original registrada. El contenido ya puede compartirse.',
       'secureOriginalsShareText': 'Contenido certificado SIGILLUM',
@@ -811,19 +811,19 @@ class SigillumCopy {
       'secureOriginalsShareBlocked': 'Compartición bloqueada',
       'secureOriginalsReferencePublished': 'Referencia original protegida',
       'secureOriginalsReferencePending': 'Referencia original aún no registrada',
-      'secureOriginalsWithdraw': 'RETIRAR COPIA OFICIAL',
-      'secureOriginalsWithdrawTitle': 'Retirar copia oficial',
+      'secureOriginalsWithdraw': 'RETIRAR REFERENCIA PROTEGIDA',
+      'secureOriginalsWithdrawTitle': 'Retirar referencia original protegida',
       'secureOriginalsWithdrawBody':
-          'La referencia oficial se eliminará del almacenamiento técnico de SIGILLUM y dejará de estar disponible en la app. El certificado HCV y el registro técnico seguirán siendo verificables.',
+          'La referencia original protegida se eliminará del almacenamiento técnico de SIGILLUM y dejará de estar disponible en la app. El certificado HCV y el registro técnico seguirán siendo verificables.',
       'secureOriginalsWithdrawConfirm': 'RETIRAR',
-      'secureOriginalsWithdrawing': 'Retirando la copia oficial...',
-      'secureOriginalsWithdrawn': 'Copia oficial retirada.',
-      'secureOriginalsWithdrawError': 'No se puede retirar la copia oficial',
+      'secureOriginalsWithdrawing': 'Retirando la referencia original protegida...',
+      'secureOriginalsWithdrawn': 'Referencia original protegida retirada.',
+      'secureOriginalsWithdrawError': 'No se puede retirar la referencia original protegida',
       'secureOriginalsWithdrawPending':
           'Retirada registrada. La eliminación de la referencia técnica sigue pendiente; puedes volver a intentarlo desde esta pantalla.',
       'secureOriginalsView': 'VER ORIGINAL',
       'secureOriginalsShare': 'COMPARTIR ORIGINAL',
-      'secureOriginalsOfficialCopy': 'VER COPIA OFICIAL',
+      'secureOriginalsOfficialCopy': 'ABRIR REFERENCIA ORIGINAL',
       'secureOriginalsViewerTitle': 'Original SIGILLUM',
       'secureOriginalStored':
           'Original y HCVPACK cifrados en el área protegida de SIGILLUM.',
@@ -857,10 +857,10 @@ class SigillumCopy {
       'voNotAvailable':
           'Referencia original no disponible. El certificado HCV puede seguir verificándose.',
       'voSubscriptionRequired':
-          'La verificación del certificado sigue siendo gratuita. Para ver la copia oficial mediante SIGILLUM se necesita una suscripción activa.',
+          'La verificación del certificado sigue siendo gratuita. Para abrir la referencia original protegida mediante SIGILLUM se necesita una suscripción activa.',
       'voAuthRequired':
-          'Inicia sesión con una cuenta SIGILLUM suscrita para ver la copia oficial.',
-      'voOpenError': 'No se puede abrir la copia oficial.',
+          'Inicia sesión con una cuenta SIGILLUM suscrita para abrir la referencia original protegida.',
+      'voOpenError': 'No se puede abrir la referencia original protegida.',
       'voFilePickError': 'No se puede abrir el archivo seleccionado.',
     },
     'ru': {
@@ -1076,7 +1076,7 @@ class SigillumCopy {
           'Я подтверждаю наличие необходимых прав и разрешений на публикацию этого контента.',
       'secureOriginalsContinueShare': 'ПРОДОЛЖИТЬ И ПОДЕЛИТЬСЯ',
       'secureOriginalsPublishingReference':
-          'Проверка оригинала и регистрация официального эталона...',
+          'Проверка оригинала и регистрация защищённого оригинального эталона...',
       'secureOriginalsReferenceReady':
           'Оригинальный эталон зарегистрирован. Теперь контент можно отправить.',
       'secureOriginalsShareText': 'Сертифицированный контент SIGILLUM',
@@ -1084,19 +1084,19 @@ class SigillumCopy {
       'secureOriginalsShareBlocked': 'Отправка заблокирована',
       'secureOriginalsReferencePublished': 'Защищённый оригинальный эталон',
       'secureOriginalsReferencePending': 'Оригинальный эталон ещё не зарегистрирован',
-      'secureOriginalsWithdraw': 'ОТОЗВАТЬ ОФИЦИАЛЬНУЮ КОПИЮ',
-      'secureOriginalsWithdrawTitle': 'Отозвать официальную копию',
+      'secureOriginalsWithdraw': 'ОТОЗВАТЬ ЗАЩИЩЁННЫЙ ЭТАЛОН',
+      'secureOriginalsWithdrawTitle': 'Отозвать защищённый оригинальный эталон',
       'secureOriginalsWithdrawBody':
-          'Официальный эталон будет удалён из технического хранилища SIGILLUM и перестанет быть доступен в приложении. HCV-сертификат и техническая запись останутся проверяемыми.',
+          'Защищённый оригинальный эталон будет удалён из технического хранилища SIGILLUM и перестанет быть доступен в приложении. HCV-сертификат и техническая запись останутся проверяемыми.',
       'secureOriginalsWithdrawConfirm': 'ОТОЗВАТЬ',
-      'secureOriginalsWithdrawing': 'Отзыв официальной копии...',
-      'secureOriginalsWithdrawn': 'Официальная копия отозвана.',
-      'secureOriginalsWithdrawError': 'Не удалось отозвать официальную копию',
+      'secureOriginalsWithdrawing': 'Отзыв защищённого оригинального эталона...',
+      'secureOriginalsWithdrawn': 'Защищённый оригинальный эталон отозван.',
+      'secureOriginalsWithdrawError': 'Не удалось отозвать защищённый оригинальный эталон',
       'secureOriginalsWithdrawPending':
           'Отзыв зарегистрирован. Удаление технического эталона ещё ожидается; повторите попытку с этого экрана.',
       'secureOriginalsView': 'ПОСМОТРЕТЬ ОРИГИНАЛ',
       'secureOriginalsShare': 'ПОДЕЛИТЬСЯ ОРИГИНАЛОМ',
-      'secureOriginalsOfficialCopy': 'ПОСМОТРЕТЬ ОФИЦИАЛЬНУЮ КОПИЮ',
+      'secureOriginalsOfficialCopy': 'ОТКРЫТЬ ОРИГИНАЛЬНЫЙ ЭТАЛОН',
       'secureOriginalsViewerTitle': 'Оригинал SIGILLUM',
       'secureOriginalStored':
           'Оригинал и HCVPACK зашифрованы в защищённой области SIGILLUM.',
@@ -1130,10 +1130,10 @@ class SigillumCopy {
       'voNotAvailable':
           'Оригинальный эталон недоступен. HCV-сертификат всё равно можно проверить.',
       'voSubscriptionRequired':
-          'Проверка сертификата остаётся бесплатной. Для просмотра официальной копии через SIGILLUM требуется активная подписка.',
+          'Проверка сертификата остаётся бесплатной. Для открытия защищённого оригинального эталона через SIGILLUM требуется активная подписка.',
       'voAuthRequired':
-          'Войдите в аккаунт SIGILLUM с активной подпиской, чтобы посмотреть официальную копию.',
-      'voOpenError': 'Не удалось открыть официальную копию.',
+          'Войдите в аккаунт SIGILLUM с активной подпиской, чтобы открыть защищённый оригинальный эталон.',
+      'voOpenError': 'Не удалось открыть защищённый оригинальный эталон.',
       'voFilePickError': 'Не удалось открыть выбранный файл.',
     },
   };
