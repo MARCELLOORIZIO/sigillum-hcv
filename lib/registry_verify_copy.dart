@@ -8,7 +8,7 @@ class RegistryVerifyCopy {
 
   static const Map<String, Map<String, String>> _copy = {
     'it': {
-      'unprovenDerivativeTitle': 'CONTENUTO NON ORIGINALE VERIFICATO',
+      'unprovenDerivativeTitle': 'COPIA NON AUTENTICATA',
       'unprovenDerivativeStatus': 'Originale non verificato',
       'unprovenDerivativeDetail':
           'SHA-256 diverso dall originale certificato. Il fingerprint indica solo somiglianza e NON esclude oggetti aggiunti, scritte o fotogrammi alterati. L HCV-ID valido non autentica questa copia.',
@@ -50,19 +50,19 @@ class RegistryVerifyCopy {
       'genericDerived':
           'CONTENUTO CERTIFICATO COMPATIBILE\nIl file è diverso dall’originale certificato ma supera i controlli di compatibilità disponibili per questo tipo di media.',
       'officialReferenceConforming':
-          'COPIA CONFORME\nIl contenuto corrisponde alla copia ufficiale SIGILLUM. Le differenze rilevate sono compatibili con ricompressione o trasformazioni tecniche social tollerate.',
+          'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM\\nIl confronto con l’originale di riferimento non rileva differenze oltre quelle tollerate dai controlli previsti per ricompressioni e trasformazioni tecniche.',
       'officialReferenceConformingDetail':
           'Confronto locale V3 compatibile con la fingerprint firmata della copia ufficiale SIGILLUM.',
       'officialReferenceModified':
-          'COPIA MODIFICATA\nIl contenuto presenta differenze locali significative rispetto alla copia ufficiale SIGILLUM.',
+          'COPIA MODIFICATA\\nIl confronto con il riferimento SIGILLUM ha rilevato differenze locali significative non compatibili con la sola ricompressione prevista.',
       'officialReferenceModifiedDetail':
           'Il confronto locale V3 ha rilevato variazioni non compatibili con la sola ricompressione social, incluse possibili aggiunte, rimozioni o alterazioni di elementi.',
       'officialReferenceInconclusive':
-          'VERIFICA NON CONCLUSIVA\nLa copia ufficiale SIGILLUM è disponibile, ma il confronto non produce evidenza sufficiente per dichiarare il contenuto conforme o modificato.',
+          'VERIFICA NON CONCLUSIVA\\nIl riferimento SIGILLUM è disponibile, ma i controlli non producono evidenza sufficiente per classificare la copia come compatibile o modificata.',
       'officialReferenceInconclusiveDetail':
           'Qualità, ritaglio, trasformazioni o allineamento non consentono un confronto locale V3 affidabile.',
-      'officialReferenceConformingTitle': 'COPIA UFFICIALE CONFORME',
-      'officialReferenceModifiedTitle': 'COPIA UFFICIALE MODIFICATA',
+      'officialReferenceConformingTitle': 'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM',
+      'officialReferenceModifiedTitle': 'COPIA MODIFICATA RISPETTO AL RIFERIMENTO',
       'officialReferenceInconclusiveTitle': 'VERIFICA NON CONCLUSIVA',
       'officialReferenceUnavailableTitle':
           'RIFERIMENTO UFFICIALE NON DISPONIBILE',
@@ -92,15 +92,15 @@ class RegistryVerifyCopy {
       'manualCompareSubscriberOnly':
           'Funzione riservata agli abbonati SIGILLUM.',
       'manualCompareIntro':
-          'Controlla personalmente immagini e audio del file ricevuto e confrontali con il riferimento ufficiale SIGILLUM custodito nel sistema protetto.',
+          'Confronta personalmente immagini e audio del file ricevuto con il riferimento originale protetto registrato da SIGILLUM prima della diffusione.',
       'manualCompareAutomaticVerdict': 'Esito automatico',
       'manualCompareLocalTitle': 'FILE DA CONTROLLARE',
-      'manualCompareOfficialTitle': 'COPIA UFFICIALE SIGILLUM',
+      'manualCompareOfficialTitle': 'RIFERIMENTO ORIGINALE SIGILLUM',
       'manualCompareVideoHelp':
           'Porta il file al punto che vuoi controllare, poi apri la copia ufficiale allo stesso timestamp. Puoi confrontare immagini, voce, suoni, tagli e sequenza.',
       'manualComparePhotoHelp':
           'Osserva la foto ricevuta, poi apri il riferimento ufficiale SIGILLUM nell’app per il confronto visivo.',
-      'manualCompareOpenOfficial': 'APRI COPIA UFFICIALE',
+      'manualCompareOpenOfficial': 'APRI RIFERIMENTO ORIGINALE',
       'manualCompareOpenAtTime': 'APRI COPIA UFFICIALE A {time}',
       'manualCompareReturnHelp':
           'Il riferimento ufficiale viene aperto all’interno di SIGILLUM. Torna a questa schermata per continuare il confronto.',
@@ -159,7 +159,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. La corrispondenza del media non è verificata.',
       'sceneWarning':
-          'ATTENZIONE: segnali tecnici coerenti con una possibile ripresa da schermo ({risk}). Il media resta collegato al certificato, ma la scena non va interpretata come ripresa diretta della realtà.',
+          'ATTENZIONE: sono presenti segnali tecnici compatibili con una possibile ripresa da schermo ({risk}). Il contenuto resta collegato al certificato, ma questo dato va considerato nella valutazione della cattura.',
       'registryNotFoundDetail':
           'Certificato non presente nel Registry. Questo non dimostra una modifica del file: la registrazione online potrebbe essere ancora in attesa.',
       'registryUnavailableDetail':
@@ -171,9 +171,9 @@ class RegistryVerifyCopy {
       'contentType': 'Tipo',
       'techHcvTrust': 'Fiducia HCV',
       'techLiveTrust': 'Fiducia cattura live',
-      'techSceneAuthenticity': 'Autenticità scena',
+      'techSceneAuthenticity': 'Analisi tecnica della scena',
       'techSyntheticRisk': 'Rischio sintetico',
-      'techAiProof': 'Livello prova AI',
+      'techAiProof': 'Analisi segnali sintetici',
       'techDisplayFusion': 'FUSIONE RISCHIO DISPLAY',
       'techDecision': 'Decisione',
       'techRisk': 'Rischio',
@@ -209,7 +209,7 @@ class RegistryVerifyCopy {
       'techMlDecision': 'Decisione ML',
     },
     'en': {
-      'unprovenDerivativeTitle': 'ORIGINAL CONTENT NOT VERIFIED',
+      'unprovenDerivativeTitle': 'UNAUTHENTICATED COPY',
       'unprovenDerivativeStatus': 'Original not verified',
       'unprovenDerivativeDetail':
           'SHA-256 differs from the certified original. The fingerprint indicates resemblance only and CANNOT exclude inserted objects, text overlays, or altered frames. A valid HCV-ID does not authenticate this copy.',
@@ -251,19 +251,19 @@ class RegistryVerifyCopy {
       'genericDerived':
           'CERTIFIED COMPATIBLE CONTENT\nThe file differs from the certified original but passes the compatibility checks available for this media type.',
       'officialReferenceConforming':
-          'CONFORMING COPY\nThe content matches the official SIGILLUM copy. Detected differences are compatible with tolerated social recompression or technical transformations.',
+          'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE\\nComparison with the original reference found no differences beyond those tolerated by the checks for expected recompression and technical transformations.',
       'officialReferenceConformingDetail':
           'Local V3 comparison is compatible with the signed fingerprint of the official SIGILLUM copy.',
       'officialReferenceModified':
-          'MODIFIED COPY\nThe content contains significant local differences from the official SIGILLUM copy.',
+          'MODIFIED COPY\\nComparison with the SIGILLUM reference found significant local differences not compatible with expected recompression alone.',
       'officialReferenceModifiedDetail':
           'Local V3 comparison detected changes not compatible with social recompression alone, including possible inserted, removed, or altered elements.',
       'officialReferenceInconclusive':
-          'VERIFICATION INCONCLUSIVE\nThe official SIGILLUM copy is available, but the comparison does not provide enough evidence to classify the content as conforming or modified.',
+          'VERIFICATION INCONCLUSIVE\\nThe SIGILLUM reference is available, but the checks do not provide enough evidence to classify the copy as compatible or modified.',
       'officialReferenceInconclusiveDetail':
           'Quality, cropping, transformations, or alignment prevent a reliable local V3 comparison.',
-      'officialReferenceConformingTitle': 'OFFICIAL COPY CONFORMING',
-      'officialReferenceModifiedTitle': 'OFFICIAL COPY MODIFIED',
+      'officialReferenceConformingTitle': 'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE',
+      'officialReferenceModifiedTitle': 'COPY MODIFIED FROM THE REFERENCE',
       'officialReferenceInconclusiveTitle': 'VERIFICATION INCONCLUSIVE',
       'officialReferenceUnavailableTitle': 'OFFICIAL REFERENCE UNAVAILABLE',
       'officialReferenceUnavailable':
@@ -293,15 +293,15 @@ class RegistryVerifyCopy {
       'manualCompareSubscriberOnly':
           'This feature is available to SIGILLUM subscribers.',
       'manualCompareIntro':
-          'Personally inspect the images and audio of the received file and compare them with the official SIGILLUM reference held in the protected system.',
+          'Personally compare the images and audio of the received file with the protected original reference SIGILLUM registered before distribution.',
       'manualCompareAutomaticVerdict': 'Automatic result',
       'manualCompareLocalTitle': 'FILE TO CHECK',
-      'manualCompareOfficialTitle': 'OFFICIAL SIGILLUM COPY',
+      'manualCompareOfficialTitle': 'SIGILLUM ORIGINAL REFERENCE',
       'manualCompareVideoHelp':
           'Move the file to the moment you want to inspect, then open the official copy at the same timestamp. Compare images, voice, sounds, cuts and sequence.',
       'manualComparePhotoHelp':
           'Inspect the received photo, then open the official SIGILLUM reference inside the app for a visual comparison.',
-      'manualCompareOpenOfficial': 'OPEN OFFICIAL COPY',
+      'manualCompareOpenOfficial': 'OPEN ORIGINAL REFERENCE',
       'manualCompareOpenAtTime': 'OPEN OFFICIAL COPY AT {time}',
       'manualCompareReturnHelp':
           'The official reference opens inside SIGILLUM. Return to this screen to continue the comparison.',
@@ -360,7 +360,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'The HCV-ID is valid in the Registry but was not detected automatically in the selected file. Media correspondence is not verified.',
       'sceneWarning':
-          'WARNING: technical signals are consistent with a possible screen replay ({risk}). The media remains linked to the certificate, but the scene should not be interpreted as a direct capture of reality.',
+          'CAUTION: technical signals are consistent with a possible screen recapture ({risk}). The content remains linked to the certificate, but this signal should be considered when assessing the capture.',
       'registryNotFoundDetail':
           'Certificate not found in the Registry. This does not prove the file was modified; online registration may still be pending.',
       'registryUnavailableDetail':
@@ -372,9 +372,9 @@ class RegistryVerifyCopy {
       'contentType': 'Type',
       'techHcvTrust': 'HCV trust',
       'techLiveTrust': 'Live capture trust',
-      'techSceneAuthenticity': 'Scene authenticity',
+      'techSceneAuthenticity': 'Technical scene analysis',
       'techSyntheticRisk': 'Synthetic risk',
-      'techAiProof': 'AI proof level',
+      'techAiProof': 'Synthetic-signal analysis',
       'techDisplayFusion': 'DISPLAY FUSION',
       'techDecision': 'Decision',
       'techRisk': 'Risk',
@@ -410,7 +410,7 @@ class RegistryVerifyCopy {
       'techMlDecision': 'ML decision',
     },
     'es': {
-      'unprovenDerivativeTitle': 'CONTENIDO ORIGINAL NO VERIFICADO',
+      'unprovenDerivativeTitle': 'COPIA NO AUTENTICADA',
       'unprovenDerivativeStatus': 'Original no verificado',
       'unprovenDerivativeDetail':
           'El SHA-256 difiere del original certificado. La huella solo indica semejanza y NO excluye objetos añadidos, texto superpuesto ni fotogramas alterados. Un HCV-ID válido no autentica esta copia.',
@@ -454,19 +454,19 @@ class RegistryVerifyCopy {
       'genericDerived':
           'CONTENIDO CERTIFICADO COMPATIBLE\nEl archivo difiere del original certificado, pero supera los controles de compatibilidad disponibles para este tipo de media.',
       'officialReferenceConforming':
-          'COPIA CONFORME\nEl contenido coincide con la copia oficial SIGILLUM. Las diferencias detectadas son compatibles con recompresión social o transformaciones técnicas toleradas.',
+          'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM\\nLa comparación con la referencia original no detecta diferencias fuera de las toleradas por los controles para recompresión y transformaciones técnicas previstas.',
       'officialReferenceConformingDetail':
           'La comparación local V3 es compatible con la huella firmada de la copia oficial SIGILLUM.',
       'officialReferenceModified':
-          'COPIA MODIFICADA\nEl contenido presenta diferencias locales significativas respecto de la copia oficial SIGILLUM.',
+          'COPIA MODIFICADA\\nLa comparación con la referencia SIGILLUM detectó diferencias locales significativas no compatibles únicamente con la recompresión prevista.',
       'officialReferenceModifiedDetail':
           'La comparación local V3 detectó cambios no compatibles únicamente con recompresión social, incluidas posibles inserciones, eliminaciones o alteraciones de elementos.',
       'officialReferenceInconclusive':
-          'VERIFICACIÓN NO CONCLUYENTE\nLa copia oficial SIGILLUM está disponible, pero la comparación no aporta evidencia suficiente para clasificar el contenido como conforme o modificado.',
+          'VERIFICACIÓN NO CONCLUYENTE\\nLa referencia SIGILLUM está disponible, pero los controles no aportan evidencia suficiente para clasificar la copia como compatible o modificada.',
       'officialReferenceInconclusiveDetail':
           'La calidad, el recorte, las transformaciones o la alineación impiden una comparación local V3 fiable.',
-      'officialReferenceConformingTitle': 'COPIA OFICIAL CONFORME',
-      'officialReferenceModifiedTitle': 'COPIA OFICIAL MODIFICADA',
+      'officialReferenceConformingTitle': 'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM',
+      'officialReferenceModifiedTitle': 'COPIA MODIFICADA RESPECTO A LA REFERENCIA',
       'officialReferenceInconclusiveTitle': 'VERIFICACIÓN NO CONCLUYENTE',
       'officialReferenceUnavailableTitle': 'REFERENCIA OFICIAL NO DISPONIBLE',
       'officialReferenceUnavailable':
@@ -495,15 +495,15 @@ class RegistryVerifyCopy {
       'manualCompareSubscriberOnly':
           'Esta función está reservada a suscriptores de SIGILLUM.',
       'manualCompareIntro':
-          'Comprueba personalmente las imágenes y el audio del archivo recibido y compáralos con la referencia oficial de SIGILLUM custodiada en el sistema protegido.',
+          'Compara personalmente las imágenes y el audio del archivo recibido con la referencia original protegida que SIGILLUM registró antes de la difusión.',
       'manualCompareAutomaticVerdict': 'Resultado automático',
       'manualCompareLocalTitle': 'ARCHIVO A COMPROBAR',
-      'manualCompareOfficialTitle': 'COPIA OFICIAL SIGILLUM',
+      'manualCompareOfficialTitle': 'REFERENCIA ORIGINAL SIGILLUM',
       'manualCompareVideoHelp':
           'Lleva el archivo al punto que quieres revisar y abre después la copia oficial en el mismo instante. Compara imágenes, voz, sonidos, cortes y secuencia.',
       'manualComparePhotoHelp':
           'Observa la foto recibida y abre después la referencia oficial SIGILLUM dentro de la app para realizar la comparación visual.',
-      'manualCompareOpenOfficial': 'ABRIR COPIA OFICIAL',
+      'manualCompareOpenOfficial': 'ABRIR REFERENCIA ORIGINAL',
       'manualCompareOpenAtTime': 'ABRIR COPIA OFICIAL EN {time}',
       'manualCompareReturnHelp':
           'La referencia oficial se abre dentro de SIGILLUM. Vuelve a esta pantalla para continuar la comparación.',
@@ -562,7 +562,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'El HCV-ID es válido en Registry, pero no se detectó automáticamente en el archivo seleccionado. La correspondencia del media no está verificada.',
       'sceneWarning':
-          'ATENCIÓN: las señales técnicas son compatibles con una posible captura de pantalla ({risk}). El media sigue vinculado al certificado, pero la escena no debe interpretarse como una captura directa de la realidad.',
+          'ATENCIÓN: hay señales técnicas compatibles con una posible recaptura de pantalla ({risk}). El contenido sigue vinculado al certificado, pero esta señal debe tenerse en cuenta al valorar la captura.',
       'registryNotFoundDetail':
           'Certificado no encontrado en Registry. Esto no demuestra que el archivo haya sido modificado; el registro en línea puede seguir pendiente.',
       'registryUnavailableDetail':
@@ -574,9 +574,9 @@ class RegistryVerifyCopy {
       'contentType': 'Tipo',
       'techHcvTrust': 'Confianza HCV',
       'techLiveTrust': 'Confianza de captura live',
-      'techSceneAuthenticity': 'Autenticidad de escena',
+      'techSceneAuthenticity': 'Análisis técnico de la escena',
       'techSyntheticRisk': 'Riesgo sintético',
-      'techAiProof': 'Nivel de prueba AI',
+      'techAiProof': 'Análisis de señales sintéticas',
       'techDisplayFusion': 'FUSIÓN DE RIESGO DE PANTALLA',
       'techDecision': 'Decisión',
       'techRisk': 'Riesgo',
@@ -612,7 +612,7 @@ class RegistryVerifyCopy {
       'techMlDecision': 'Decisión ML',
     },
     'ru': {
-      'unprovenDerivativeTitle': 'ПОДЛИННОСТЬ ОРИГИНАЛА НЕ ПОДТВЕРЖДЕНА',
+      'unprovenDerivativeTitle': 'НЕАУТЕНТИФИЦИРОВАННАЯ КОПИЯ',
       'unprovenDerivativeStatus': 'Оригинал не подтверждён',
       'unprovenDerivativeDetail':
           'SHA-256 отличается от сертифицированного оригинала. Отпечаток указывает лишь на сходство и НЕ исключает добавленные объекты, надписи или изменённые кадры. Действительный HCV-ID не подтверждает подлинность этой копии.',
@@ -654,19 +654,19 @@ class RegistryVerifyCopy {
       'genericDerived':
           'СОВМЕСТИМЫЙ СЕРТИФИЦИРОВАННЫЙ КОНТЕНТ\nФайл отличается от сертифицированного оригинала, но проходит доступные для этого типа медиа проверки совместимости.',
       'officialReferenceConforming':
-          'СООТВЕТСТВУЮЩАЯ КОПИЯ\nСодержимое соответствует официальной копии SIGILLUM. Обнаруженные различия совместимы с допустимым социальным перекодированием или техническими преобразованиями.',
+          'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM\\nСравнение с оригинальным эталоном не выявило различий сверх допустимых для ожидаемого перекодирования и технических преобразований.',
       'officialReferenceConformingDetail':
           'Локальное сравнение V3 совместимо с подписанным отпечатком официальной копии SIGILLUM.',
       'officialReferenceModified':
-          'ИЗМЕНЁННАЯ КОПИЯ\nВ содержимом обнаружены значимые локальные отличия от официальной копии SIGILLUM.',
+          'КОПИЯ ИЗМЕНЕНА\\nСравнение с эталоном SIGILLUM выявило значимые локальные различия, несовместимые только с ожидаемым перекодированием.',
       'officialReferenceModifiedDetail':
           'Локальное сравнение V3 выявило изменения, не объясняемые только социальным перекодированием, включая возможное добавление, удаление или изменение элементов.',
       'officialReferenceInconclusive':
-          'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА\nОфициальная копия SIGILLUM доступна, но данных недостаточно, чтобы классифицировать содержимое как соответствующее или изменённое.',
+          'ПРОВЕРКА НЕОДНОЗНАЧНА\\nЭталон SIGILLUM доступен, но проверок недостаточно, чтобы классифицировать копию как совместимую или изменённую.',
       'officialReferenceInconclusiveDetail':
           'Качество, кадрирование, преобразования или выравнивание не позволяют выполнить надёжное локальное сравнение V3.',
-      'officialReferenceConformingTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ СООТВЕТСТВУЕТ',
-      'officialReferenceModifiedTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ ИЗМЕНЕНА',
+      'officialReferenceConformingTitle': 'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM',
+      'officialReferenceModifiedTitle': 'КОПИЯ ИЗМЕНЕНА ОТНОСИТЕЛЬНО ЭТАЛОНА',
       'officialReferenceInconclusiveTitle':
           'ПРОВЕРКА НЕ ДАЛА ОДНОЗНАЧНОГО РЕЗУЛЬТАТА',
       'officialReferenceUnavailableTitle': 'ОФИЦИАЛЬНЫЙ ЭТАЛОН НЕДОСТУПЕН',
@@ -696,15 +696,15 @@ class RegistryVerifyCopy {
       'manualCompareAction': 'СРАВНИТЬ ВРУЧНУЮ',
       'manualCompareSubscriberOnly': 'Функция доступна подписчикам SIGILLUM.',
       'manualCompareIntro':
-          'Самостоятельно проверьте изображение и звук полученного файла и сравните их с официальным эталоном SIGILLUM, хранящимся в защищённой системе.',
+          'Самостоятельно сравните изображение и аудио полученного файла с защищённым оригинальным эталоном, зарегистрированным SIGILLUM до распространения.',
       'manualCompareAutomaticVerdict': 'Автоматический результат',
       'manualCompareLocalTitle': 'ПРОВЕРЯЕМЫЙ ФАЙЛ',
-      'manualCompareOfficialTitle': 'ОФИЦИАЛЬНАЯ КОПИЯ SIGILLUM',
+      'manualCompareOfficialTitle': 'ОРИГИНАЛЬНЫЙ ЭТАЛОН SIGILLUM',
       'manualCompareVideoHelp':
           'Перейдите в файле к нужному моменту, затем откройте официальную копию на том же времени. Сравните изображение, голос, звуки, монтаж и последовательность.',
       'manualComparePhotoHelp':
           'Рассмотрите полученную фотографию, затем откройте официальный эталон SIGILLUM внутри приложения для визуального сравнения.',
-      'manualCompareOpenOfficial': 'ОТКРЫТЬ ОФИЦИАЛЬНУЮ КОПИЮ',
+      'manualCompareOpenOfficial': 'ОТКРЫТЬ ОРИГИНАЛЬНЫЙ ЭТАЛОН',
       'manualCompareOpenAtTime': 'ОТКРЫТЬ ОФИЦИАЛЬНУЮ КОПИЮ НА {time}',
       'manualCompareReturnHelp':
           'Официальный эталон открывается внутри SIGILLUM. Вернитесь на этот экран, чтобы продолжить сравнение.',
@@ -763,7 +763,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'HCV-ID действителен в Registry, но автоматически не обнаружен в выбранном файле. Соответствие медиа не подтверждено.',
       'sceneWarning':
-          'ВНИМАНИЕ: технические сигналы соответствуют возможной съёмке с экрана ({risk}). Медиа остаётся связано с сертификатом, но сцену не следует считать прямой съёмкой реальности.',
+          'ВНИМАНИЕ: технические сигналы совместимы с возможной пересъёмкой с экрана ({risk}). Контент остаётся связан с сертификатом, но этот сигнал следует учитывать при оценке захвата.',
       'registryNotFoundDetail':
           'Сертификат не найден в Registry. Это не доказывает изменение файла: онлайн-регистрация может ещё ожидать завершения.',
       'registryUnavailableDetail':
@@ -776,9 +776,9 @@ class RegistryVerifyCopy {
       'contentType': 'Тип',
       'techHcvTrust': 'Доверие HCV',
       'techLiveTrust': 'Доверие live-захвату',
-      'techSceneAuthenticity': 'Подлинность сцены',
+      'techSceneAuthenticity': 'Технический анализ сцены',
       'techSyntheticRisk': 'Синтетический риск',
-      'techAiProof': 'Уровень AI-доказательства',
+      'techAiProof': 'Анализ синтетических сигналов',
       'techDisplayFusion': 'ОБЪЕДИНЕНИЕ РИСКА ЭКРАНА',
       'techDecision': 'Решение',
       'techRisk': 'Риск',
