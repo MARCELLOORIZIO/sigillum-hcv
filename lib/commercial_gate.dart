@@ -411,11 +411,11 @@ const _commercialGateCopy = <String, Map<String, String>>{
 
 const _landingVisualCopy = <String, Map<String, String>>{
   'it': {
-    'tagline': 'Verifica. Condividi. Proteggi.',
+    'tagline': 'Crea. Certifica. Condividi. Verifica.',
     'info': 'Informazioni',
     'welcomePrefix': 'Benvenuto in ',
     'heroSubtitle':
-        'Verifica l’autenticità dei contenuti digitali e condividi con fiducia.',
+        'Crea un’origine verificabile. Controlla le copie. Condividi con più fiducia.',
     'verifySeconds': 'Verifica in pochi secondi',
     'scanDescription':
         'Controlla foto, video o file ricevuti confrontandoli con SIGILLUM.',
@@ -426,7 +426,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'createTitle': 'Crea account',
     'createSubtitle': 'Unisciti a SIGILLUM in un attimo',
     'creatorTitle': 'Diventa creator',
-    'creatorSubtitle': 'Proteggi e valorizza i tuoi contenuti',
+    'creatorSubtitle': 'Crea contenuti con un’origine verificabile',
     'trustTitle': 'Insieme costruiamo fiducia',
     'trustSubtitle': 'SIGILLUM rende il web più trasparente e verificabile.',
     'privacy': 'Privacy',
@@ -434,11 +434,11 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'support': 'Supporto',
   },
   'en': {
-    'tagline': 'Verify. Share. Protect.',
+    'tagline': 'Create. Certify. Share. Verify.',
     'info': 'Information',
     'welcomePrefix': 'Welcome to ',
     'heroSubtitle':
-        'Verify the authenticity of digital content and share with confidence.',
+        'Create a verifiable origin. Check the copies. Share with greater confidence.',
     'verifySeconds': 'Verify in seconds',
     'scanDescription':
         'Scan a SIGILLUM code or enter the HCV-ID to check photos, videos, documents and messages.',
@@ -449,7 +449,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'createTitle': 'Create account',
     'createSubtitle': 'Join SIGILLUM in a moment',
     'creatorTitle': 'Become a creator',
-    'creatorSubtitle': 'Protect and enhance the value of your content',
+    'creatorSubtitle': 'Create content with a verifiable origin',
     'trustTitle': 'Building trust together',
     'trustSubtitle': 'SIGILLUM makes the web more transparent and verifiable.',
     'privacy': 'Privacy',
@@ -457,11 +457,11 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'support': 'Support',
   },
   'es': {
-    'tagline': 'Verifica. Comparte. Protege.',
+    'tagline': 'Crea. Certifica. Comparte. Verifica.',
     'info': 'Información',
     'welcomePrefix': 'Bienvenido a ',
     'heroSubtitle':
-        'Verifica la autenticidad de los contenidos digitales y compártelos con confianza.',
+        'Crea un origen verificable. Comprueba las copias. Comparte con más confianza.',
     'verifySeconds': 'Verifica en pocos segundos',
     'scanDescription':
         'Escanea un código SIGILLUM o introduce el HCV-ID para comprobar fotos, vídeos, documentos y mensajes.',
@@ -472,7 +472,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'createTitle': 'Crear cuenta',
     'createSubtitle': 'Únete a SIGILLUM en un instante',
     'creatorTitle': 'Conviértete en creator',
-    'creatorSubtitle': 'Protege y da valor a tus contenidos',
+    'creatorSubtitle': 'Crea contenido con un origen verificable',
     'trustTitle': 'Construimos confianza juntos',
     'trustSubtitle':
         'SIGILLUM hace que la web sea más transparente y verificable.',
@@ -481,11 +481,11 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'support': 'Soporte',
   },
   'ru': {
-    'tagline': 'Проверяйте. Делитесь. Защищайте.',
+    'tagline': 'Создавайте. Сертифицируйте. Делитесь. Проверяйте.',
     'info': 'Информация',
     'welcomePrefix': 'Добро пожаловать в ',
     'heroSubtitle':
-        'Проверяйте подлинность цифрового контента и делитесь им с уверенностью.',
+        'Создавайте проверяемое происхождение. Проверяйте копии. Делитесь с большей уверенностью.',
     'verifySeconds': 'Проверка за несколько секунд',
     'scanDescription':
         'Отсканируйте код SIGILLUM или введите HCV-ID, чтобы проверить фото, видео, документы и сообщения.',
@@ -496,7 +496,7 @@ const _landingVisualCopy = <String, Map<String, String>>{
     'createTitle': 'Создать аккаунт',
     'createSubtitle': 'Присоединяйтесь к SIGILLUM за несколько мгновений',
     'creatorTitle': 'Стать creator',
-    'creatorSubtitle': 'Защищайте и повышайте ценность своего контента',
+    'creatorSubtitle': 'Создавайте контент с проверяемым происхождением',
     'trustTitle': 'Вместе создаём доверие',
     'trustSubtitle': 'SIGILLUM делает интернет более прозрачным и проверяемым.',
     'privacy': 'Конфиденциальность',
