@@ -42,12 +42,18 @@ void main() {
 
   test('scene card remains independently red for strong display risk', () {
     final source = File('lib/registry_verify_page.dart').readAsStringSync();
-    expect(
-      source,
-      contains(
-        "_isStrongDisplayRisk\n"
-        "                           ? Colors.red",
-      ),
+    final sceneCardStart = source.indexOf(
+      "_VerificationAxisCard(\n"
+      "                  icon: Icons.visibility_outlined",
     );
+    expect(sceneCardStart, greaterThanOrEqualTo(0));
+    final sceneCardEnd = source.indexOf(
+      "if (_canShowCertifiedOriginalScene)",
+      sceneCardStart,
+    );
+    expect(sceneCardEnd, greaterThan(sceneCardStart));
+    final sceneCard = source.substring(sceneCardStart, sceneCardEnd);
+    expect(sceneCard, contains('_isStrongDisplayRisk'));
+    expect(sceneCard, contains('? Colors.red'));
   });
 }
