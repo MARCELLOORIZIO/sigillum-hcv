@@ -15,6 +15,7 @@ class HCVMLV3PhotoResidual {
   static const imageSize = 96;
   static const v2HighThreshold = 0.80;
   static const realityVetoThreshold = 0.20;
+  static const hardNegativeRealityThreshold = 0.9837759923934937;
 
   static const classes = <String>[
     'SCREEN_MONITOR',
@@ -34,12 +35,19 @@ class HCVMLV3PhotoResidual {
     required double v2ScreenProbability,
     required double v3CleanScreenProbability,
     required double v3HardScreenProbability,
+    double? hardNegativeRealityProbability,
   }) {
     final maxV3 = v3CleanScreenProbability > v3HardScreenProbability
         ? v3CleanScreenProbability
         : v3HardScreenProbability;
-    return v2ScreenProbability >= v2HighThreshold &&
+    final legacyRealityVeto =
+        v2ScreenProbability >= v2HighThreshold &&
         maxV3 < realityVetoThreshold;
+    final hardNegativeRealityVeto =
+        v2ScreenProbability >= v2HighThreshold &&
+        hardNegativeRealityProbability != null &&
+        hardNegativeRealityProbability >= hardNegativeRealityThreshold;
+    return legacyRealityVeto || hardNegativeRealityVeto;
   }
 
   Future<Map<String, dynamic>> analyzePhoto(String imagePath) async {
@@ -64,28 +72,36 @@ class HCVMLV3PhotoResidual {
       final input = _imageToInput(inputImage);
       final output0 = [List<double>.filled(classes.length, 0.0)];
       final output1 = [List<double>.filled(classes.length, 0.0)];
+      final output2 = [List<double>.filled(1, 0.0)];
 
       interpreter.runForMultipleInputs(
         <Object>[input],
-        <int, Object>{0: output0, 1: output1},
+        <int, Object>{0: output0, 1: output1, 2: output2},
       );
 
-      // The parity-verified converter fixes TFLite output order as:
-      // output_0 = hard head, output_1 = clean head.
+      // Parity-verified TFLite output order:
+      // output_0 = hard, output_1 = clean,
+      // output_2 = hard-negative REALITY probability.
       final hard = output0.first;
       final clean = output1.first;
+      final hardNegativeReality = output2.first.first;
       final hardScreen = _screenProbability(hard);
       final cleanScreen = _screenProbability(clean);
       final maxScreen = hardScreen > cleanScreen ? hardScreen : cleanScreen;
 
       return <String, dynamic>{
-        'type': 'SIGILLUM_V3_PHOTO_RESIDUAL_V1',
+        'type': 'SIGILLUM_V3_PHOTO_RESIDUAL_V2',
         'analysisStatus': 'ANALYZED',
         'model': 'sigillum_screen_replay_v3_multihead',
-        'modelVersion': 'v3-multihead-photo-residual',
+        'modelVersion': 'v3-multihead-photo-residual-hn172a-v1',
         'modelSha256': _modelSha256,
         'inputSize': imageSize,
-        'outputOrder': const <String>['hard', 'clean'],
+        'outputOrder': const <String>[
+          'hard',
+          'clean',
+          'hardNegativeReality',
+        ],
+        'hardNegativeRealityProbability': _round(hardNegativeReality),
         'hardScreenProbability': _round(hardScreen),
         'cleanScreenProbability': _round(cleanScreen),
         'maxScreenProbability': _round(maxScreen),
@@ -101,6 +117,8 @@ class HCVMLV3PhotoResidual {
           'role': 'PHOTO_V2_FALSE_POSITIVE_VETO_ONLY',
           'v2HighThreshold': v2HighThreshold,
           'v3RealityVetoThreshold': realityVetoThreshold,
+          'hardNegativeRealityThreshold': hardNegativeRealityThreshold,
+          'hardNegativeRole': 'PHOTO_STRONG_V2_FALSE_POSITIVE_VETO_ONLY',
           'cannotOverrideHfrDisplay': true,
           'cannotAffectVideo': true,
         },
@@ -124,11 +142,14 @@ class HCVMLV3PhotoResidual {
       final v2p = (v2['screenProbability'] as num?)?.toDouble();
       final clean = (v3['cleanScreenProbability'] as num?)?.toDouble();
       final hard = (v3['hardScreenProbability'] as num?)?.toDouble();
+      final hardNegativeReality =
+          (v3['hardNegativeRealityProbability'] as num?)?.toDouble();
       if (v2p != null && clean != null && hard != null) {
         veto = shouldVetoStrongV2(
           v2ScreenProbability: v2p,
           v3CleanScreenProbability: clean,
           v3HardScreenProbability: hard,
+          hardNegativeRealityProbability: hardNegativeReality,
         );
       }
     }
@@ -136,6 +157,8 @@ class HCVMLV3PhotoResidual {
     signals['v3PhotoResidualAvailable'] =
         v3?['analysisStatus'] == 'ANALYZED';
     signals['v3RealityVeto'] = veto;
+    signals['v3HardNegativeRealityProbability'] =
+        v3?['hardNegativeRealityProbability'];
     signals['v3ResidualCannotOverrideHfrDisplay'] = true;
     result['signals'] = signals;
     result['v3PhotoResidualAnalysis'] = v3;
@@ -220,11 +243,11 @@ class HCVMLV3PhotoResidual {
 
   Map<String, dynamic> _notAnalyzed(String reason, [Object? error]) {
     return <String, dynamic>{
-      'type': 'SIGILLUM_V3_PHOTO_RESIDUAL_V1',
+      'type': 'SIGILLUM_V3_PHOTO_RESIDUAL_V2',
       'analysisStatus': 'NOT_ANALYZED',
       'reason': reason,
       'model': 'sigillum_screen_replay_v3_multihead',
-      'modelVersion': 'v3-multihead-photo-residual',
+      'modelVersion': 'v3-multihead-photo-residual-hn172a-v1',
       'modelSha256': _modelSha256,
       if (_loadError != null) 'modelLoadError': _loadError,
       if (error != null) 'error': error.toString(),
