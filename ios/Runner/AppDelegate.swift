@@ -2,6 +2,7 @@ import AVFoundation
 import CoreVideo
 import Flutter
 import Foundation
+import Photos
 import StoreKit
 import UIKit
 
@@ -200,6 +201,7 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var storeKit2PriceChannel: FlutterMethodChannel?
   private var cameraProbeChannel: FlutterMethodChannel?
+  private var photoLibraryChannel: FlutterMethodChannel?
   private let temporalFrequencyNativeQueue = DispatchQueue(
     label: "hcv.temporalFrequency.native",
     qos: .userInitiated
@@ -1521,6 +1523,78 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
     }
   }
 
+  private func handlePhotoLibraryCall(
+    _ call: FlutterMethodCall,
+    result: @escaping FlutterResult
+  ) {
+    guard call.method == "saveMedia" else {
+      result(FlutterMethodNotImplemented)
+      return
+    }
+
+    guard
+      let args = call.arguments as? [String: Any],
+      let rawPath = args["path"] as? String,
+      !rawPath.isEmpty,
+      let mediaType = args["mediaType"] as? String,
+      mediaType == "photo" || mediaType == "video"
+    else {
+      result(FlutterError(
+        code: "PHOTO_LIBRARY_INVALID_ARGUMENTS",
+        message: "A valid media path and type are required",
+        details: nil
+      ))
+      return
+    }
+
+    let fileURL = URL(fileURLWithPath: rawPath)
+    guard FileManager.default.fileExists(atPath: fileURL.path) else {
+      result(FlutterError(
+        code: "PHOTO_LIBRARY_FILE_NOT_FOUND",
+        message: "The materialized SIGILLUM original is unavailable",
+        details: nil
+      ))
+      return
+    }
+
+    PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+      guard status == .authorized || status == .limited else {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "PHOTO_LIBRARY_PERMISSION_DENIED",
+            message: "Permission to add media to Photos was not granted",
+            details: nil
+          ))
+        }
+        return
+      }
+
+      PHPhotoLibrary.shared().performChanges({
+        if mediaType == "video" {
+          _ = PHAssetChangeRequest.creationRequestForAssetFromVideo(
+            atFileURL: fileURL
+          )
+        } else {
+          _ = PHAssetChangeRequest.creationRequestForAssetFromImage(
+            atFileURL: fileURL
+          )
+        }
+      }) { success, error in
+        DispatchQueue.main.async {
+          if success {
+            result(true)
+          } else {
+            result(FlutterError(
+              code: "PHOTO_LIBRARY_SAVE_FAILED",
+              message: error?.localizedDescription ?? "Unable to save media to Photos",
+              details: nil
+            ))
+          }
+        }
+      }
+    }
+  }
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
@@ -1540,6 +1614,23 @@ private final class HCVTemporalFrequencyNativeCollector: NSObject, AVCaptureVide
       self.handleCameraProbeCall(call, result: result)
     }
     cameraProbeChannel = cameraChannel
+
+    let photoChannel = FlutterMethodChannel(
+      name: "hcv.photoLibrary",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    photoChannel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else {
+        result(FlutterError(
+          code: "PHOTO_LIBRARY_BRIDGE_UNAVAILABLE",
+          message: "Photo Library bridge is unavailable",
+          details: nil
+        ))
+        return
+      }
+      self.handlePhotoLibraryCall(call, result: result)
+    }
+    photoLibraryChannel = photoChannel
 
     let channel = FlutterMethodChannel(
       name: "hcv.storekit2",
