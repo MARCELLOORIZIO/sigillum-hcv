@@ -79,11 +79,12 @@ void main() {
     expect(plist, contains('non effettua tracciamento continuo'));
   });
 
-  test('Photos permission text no longer claims canonical originals are saved',
-      () {
+  test('Photos permission text describes explicit Save Original semantics', () {
     final plist = File('ios/Runner/Info.plist').readAsStringSync();
-    expect(plist, contains('copie derivate'));
-    expect(plist, contains('L’originale certificato resta'));
+    expect(plist, contains('solo i contenuti che scegli esplicitamente'));
+    expect(plist, contains('un originale certificato'));
+    expect(plist, contains('una copia derivata'));
+    expect(plist, contains('L’originale protetto resta comunque custodito'));
     expect(
       plist,
       isNot(contains('SIGILLUM salva video verificati nella libreria')),
