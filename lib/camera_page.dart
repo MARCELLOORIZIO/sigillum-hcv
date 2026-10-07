@@ -1360,6 +1360,11 @@ class _CameraPageState extends State<CameraPage> {
       final photoTemporalOptical = photoTemporalOpticalRaw is Map
           ? Map<String, dynamic>.from(photoTemporalOpticalRaw)
           : null;
+      final photoVideoEquivalentRaw =
+          liveScreenProbe['videoEquivalentDisplayRisk'];
+      final photoVideoEquivalent = photoVideoEquivalentRaw is Map
+          ? Map<String, dynamic>.from(photoVideoEquivalentRaw)
+          : null;
 
       // BUILD124: restore multi-evidence fusion. Scene context remains
       // diagnostic-only and cannot absolve or promote DISPLAY.
@@ -1369,6 +1374,7 @@ class _CameraPageState extends State<CameraPage> {
         temporalMl: photoTemporalMl,
         stillOptical: screenReplayAnalysis,
         temporalOptical: photoTemporalOptical,
+        videoEquivalentDisplayRisk: photoVideoEquivalent,
       );
       final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final detectedScreenReplayRisk = displayRisk.risk;
