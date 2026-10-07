@@ -21,7 +21,6 @@ import 'hcv_social_fingerprint.dart';
 import 'hcv_spatial_fingerprint_v2.dart';
 import 'hcv_audio_fingerprint.dart';
 import 'hcv_reference_visual_fingerprint_v3.dart';
-import 'hcv_photo_detail_compare.dart';
 import 'verified_originals_publish_service.dart';
 import 'hcv_media_id_ocr.dart';
 import 'manual_reference_compare_page.dart';
@@ -810,34 +809,21 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         );
   }
 
-  Future<HCVPhotoDetailVerdict> _matchesEntitledPhotoDetail(
+  Future<VerifiedPhotoCopyCheck> _matchesPhotoDetail(
     String hcvId,
   ) async {
     final candidatePath = mediaPath;
     if (candidatePath == null || candidatePath.isEmpty) {
-      return HCVPhotoDetailVerdict.inconclusive;
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.technicalError,
+        code: 'CANDIDATE_MEDIA_UNAVAILABLE',
+      );
     }
 
-    File? reference;
-    try {
-      reference = await const VerifiedOriginalsPublishService()
-          .materializeEntitledReference(hcvId);
-      final comparison = await HCVPhotoDetailComparator.compareFiles(
-        reference.path,
-        candidatePath,
-      );
-      return comparison.verdict;
-    } catch (_) {
-      // Never upgrade a SHA-different photo to a strong conforming verdict
-      // when the exact R2 reference cannot be checked at high detail.
-      return HCVPhotoDetailVerdict.inconclusive;
-    } finally {
-      if (reference != null) {
-        try {
-          if (await reference.exists()) await reference.delete();
-        } catch (_) {}
-      }
-    }
+    return const VerifiedOriginalsPublishService().verifyPhotoCopy(
+      hcvId: hcvId,
+      candidate: File(candidatePath),
+    );
   }
 
   Future<HCVReferenceVisualVerdict?> _matchesOfficialReferenceVisualFingerprint(
@@ -894,19 +880,33 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       }
 
       if (mediaType == 'photo') {
-        final detail = await _matchesEntitledPhotoDetail(hcvId);
+        final detail = await _matchesPhotoDetail(hcvId);
+        _officialPhotoCopyStatus = detail.status;
         _officialReferenceLocalMs = local.elapsedMilliseconds;
-        switch (detail) {
-          case HCVPhotoDetailVerdict.modified:
+        _officialReferenceComparisonMode =
+            'SERVER_SIDE_R2_PHOTO_DETAIL_BUILD148';
+        switch (detail.status) {
+          case VerifiedPhotoCopyStatus.modified:
             return HCVReferenceVisualVerdict.modified;
-          case HCVPhotoDetailVerdict.conforming:
+          case VerifiedPhotoCopyStatus.conforming:
             return HCVReferenceVisualVerdict.conforming;
-          case HCVPhotoDetailVerdict.inconclusive:
-            // Preserve a strong V3 modification, but never allow coarse V3
-            // similarity alone to certify a SHA-different photo as conforming.
+          case VerifiedPhotoCopyStatus.inconclusive:
+            // A true comparator result may remain forensic INCONCLUSIVE.
+            // Coarse V3 may still preserve a strong modification signal, but
+            // never promotes similarity to CONFORMING on its own.
             return primaryVerdict == HCVReferenceVisualVerdict.modified
                 ? HCVReferenceVisualVerdict.modified
                 : HCVReferenceVisualVerdict.inconclusive;
+          case VerifiedPhotoCopyStatus.referenceUnavailable:
+            _officialReferenceLiveAvailable = false;
+            return null;
+          case VerifiedPhotoCopyStatus.networkError:
+          case VerifiedPhotoCopyStatus.providerUnavailable:
+          case VerifiedPhotoCopyStatus.rateLimited:
+          case VerifiedPhotoCopyStatus.technicalError:
+            // Transport/provider/runtime failures are operational states, not
+            // forensic INCONCLUSIVE verdicts and not evidence of modification.
+            return null;
         }
       }
 
@@ -1086,6 +1086,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   int? _verificationTotalMs;
   String? _officialReferenceComparisonMode;
   String? _officialReferenceMatchedDerivationType;
+  VerifiedPhotoCopyStatus? _officialPhotoCopyStatus;
 
   @override
   void initState() {
@@ -1299,6 +1300,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _verificationTotalMs = null;
       _officialReferenceComparisonMode = null;
       _officialReferenceMatchedDerivationType = null;
+      _officialPhotoCopyStatus = null;
 
       status = _r('downloadingCertificate');
       _clearVerificationAxes();
@@ -1639,7 +1641,22 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           final hcvIdWasDetectedInMedia = hcvIdDetectedByOcr;
           final hcvIdProvided = idController.text.trim().isNotEmpty;
 
-          if ((contentType == 'photo' || contentType == 'video') &&
+          if (contentType == 'photo' && _hasOfficialPhotoCheckError) {
+            status = _r('officialReferenceCheckError');
+            result = 'OFFICIAL REFERENCE CHECK ERROR';
+            _setVerificationAxes(
+              provenance: 'Verificata',
+              provenanceDetail:
+                  'HCV-ID e certificato Registry validi; il controllo automatico del riferimento ha incontrato un errore operativo.',
+              integrity: 'Non determinata',
+              integrityDetail: _officialPhotoCheckErrorDetail,
+              scene: 'Non applicabile',
+              sceneDetail:
+                  'Un errore tecnico non viene convertito in un verdetto forense.',
+              derivation: 'Non verificabile',
+              derivationDetail: _officialPhotoCheckErrorDetail,
+            );
+          } else if ((contentType == 'photo' || contentType == 'video') &&
               _officialReferenceChecked &&
               !_officialReferenceLiveAvailable) {
             status = _r('officialReferenceUnavailable');
@@ -2080,6 +2097,40 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
   bool get _isOfficialReferenceUnavailable =>
       result == 'OFFICIAL REFERENCE UNAVAILABLE';
 
+  bool get _isOfficialReferenceCheckError =>
+      result == 'OFFICIAL REFERENCE CHECK ERROR';
+
+  bool get _hasOfficialPhotoCheckError {
+    switch (_officialPhotoCopyStatus) {
+      case VerifiedPhotoCopyStatus.networkError:
+      case VerifiedPhotoCopyStatus.providerUnavailable:
+      case VerifiedPhotoCopyStatus.rateLimited:
+      case VerifiedPhotoCopyStatus.technicalError:
+        return true;
+      case VerifiedPhotoCopyStatus.conforming:
+      case VerifiedPhotoCopyStatus.modified:
+      case VerifiedPhotoCopyStatus.inconclusive:
+      case VerifiedPhotoCopyStatus.referenceUnavailable:
+      case null:
+        return false;
+    }
+  }
+
+  String get _officialPhotoCheckErrorDetail {
+    switch (_officialPhotoCopyStatus) {
+      case VerifiedPhotoCopyStatus.networkError:
+        return _r('officialReferenceNetworkErrorDetail');
+      case VerifiedPhotoCopyStatus.providerUnavailable:
+        return _r('officialReferenceProviderErrorDetail');
+      case VerifiedPhotoCopyStatus.rateLimited:
+        return _r('officialReferenceRateLimitedDetail');
+      case VerifiedPhotoCopyStatus.technicalError:
+        return _r('officialReferenceTechnicalErrorDetail');
+      default:
+        return _r('officialReferenceTechnicalErrorDetail');
+    }
+  }
+
   String get _effectiveProvenanceState {
     if (provenanceState != null) return provenanceState!;
     if (_isMediaNotVerified) return 'HCV-ID valido';
@@ -2442,6 +2493,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isOfficialReferenceUnavailable) {
       return _r('officialReferenceUnavailableTitle');
     }
+    if (_isOfficialReferenceCheckError) {
+      return _r('officialReferenceCheckErrorTitle');
+    }
     if (_isUnprovenDerivative) return _r('unprovenDerivativeTitle');
     if (_isSocialLimited) return _r('socialLimitedTitle');
     if (_isSocialResult) return _v('socialOk');
@@ -2469,6 +2523,9 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isOfficialReferenceUnavailable) {
       return _r('officialReferenceUnavailableDetail');
     }
+    if (_isOfficialReferenceCheckError) {
+      return _officialPhotoCheckErrorDetail;
+    }
     if (_isUnprovenDerivative) return _r('unprovenDerivativeDetail');
     if (_isSocialLimited) return _r('socialLimitedDetail');
     if (_isSocialResult) return _v('socialOkDetail');
@@ -2495,6 +2552,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           _isSocialLimited ||
           _isOfficialReferenceInconclusive ||
           _isOfficialReferenceUnavailable ||
+          _isOfficialReferenceCheckError ||
           isScreenReplayWarning);
 
   Color get _verificationResultColor {
@@ -2576,6 +2634,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
         '${_r('techError')}: ${_diagnosticValue(ml?['error'])}\n'
         '\n${_r('techReferenceVerification')}\n'
         '${_r('techReferenceMode')}: ${_diagnosticValue(_officialReferenceComparisonMode)}\n'
+        '${_r('techReferenceCheckStatus')}: ${_diagnosticValue(_officialPhotoCopyStatus?.name)}\n'
         '${_r('techReferenceLive')}: ${_diagnosticValue(_officialReferenceLiveAvailable)}\n'
         '${_r('techReferenceCommentsDisabled')}: ${_diagnosticValue(_officialReferenceCommentsDisabled)}\n'
         '${_r('techReferenceServerMs')}: ${_diagnosticValue(_officialReferenceServerMs)}\n'
