@@ -2237,13 +2237,13 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
   Color _axisColor(String? value) {
     final normalized = value?.toLowerCase() ?? '';
-    if (normalized.contains('non verificata') ||
-        normalized.contains('non originale') ||
+    if (normalized.contains('non originale') ||
         normalized.contains('modificat') ||
         normalized.contains('mismatch')) {
       return Colors.red;
     }
-    if (normalized.contains('cautela') ||
+    if (normalized.contains('non verificata') ||
+        normalized.contains('cautela') ||
         normalized.contains('compatibile') ||
         normalized.contains('conclusiva') ||
         normalized.contains('non presente') ||
@@ -2486,8 +2486,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       _isInvalidResult ||
       _isMediaNotVerified ||
       _isUnprovenDerivative ||
-      _isOfficialReferenceModified ||
-      _isStrongDisplayRisk;
+      _isOfficialReferenceModified;
 
   bool get _hasIntermediateVerificationIssue =>
       !_hasSevereVerificationIssue &&
