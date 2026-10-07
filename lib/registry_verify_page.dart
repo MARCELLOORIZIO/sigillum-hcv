@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -962,8 +963,39 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
 
       _officialReferenceLocalMs = local.elapsedMilliseconds;
       return primaryVerdict;
+    } on SocketException {
+      if (mediaType == 'photo') {
+        _officialPhotoCopyStatus = VerifiedPhotoCopyStatus.networkError;
+      } else {
+        _officialReferenceLiveAvailable = false;
+      }
+      _officialReferenceCommentsDisabled = null;
+      _officialReferenceMatchedDerivationType = null;
+      return null;
+    } on HandshakeException {
+      if (mediaType == 'photo') {
+        _officialPhotoCopyStatus = VerifiedPhotoCopyStatus.networkError;
+      } else {
+        _officialReferenceLiveAvailable = false;
+      }
+      _officialReferenceCommentsDisabled = null;
+      _officialReferenceMatchedDerivationType = null;
+      return null;
+    } on TimeoutException {
+      if (mediaType == 'photo') {
+        _officialPhotoCopyStatus = VerifiedPhotoCopyStatus.networkError;
+      } else {
+        _officialReferenceLiveAvailable = false;
+      }
+      _officialReferenceCommentsDisabled = null;
+      _officialReferenceMatchedDerivationType = null;
+      return null;
     } catch (_) {
-      _officialReferenceLiveAvailable = false;
+      if (mediaType == 'photo') {
+        _officialPhotoCopyStatus = VerifiedPhotoCopyStatus.technicalError;
+      } else {
+        _officialReferenceLiveAvailable = false;
+      }
       _officialReferenceCommentsDisabled = null;
       _officialReferenceMatchedDerivationType = null;
       return null;
