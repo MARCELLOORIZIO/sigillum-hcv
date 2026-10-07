@@ -30,8 +30,11 @@ void main() {
       ),
     );
 
-    // The exact entitled R2 reference remains the comparison source.
-    expect(verify, contains('materializeEntitledReference(hcvId)'));
-    expect(verify, contains('HCVPhotoDetailComparator.compareFiles'));
+    // BUILD148 comparison now runs server-side against the exact protected R2
+    // original, so automatic verification does not require a subscriber grant.
+    expect(verify, contains('Future<VerifiedPhotoCopyCheck> _matchesPhotoDetail'));
+    expect(verify, contains('.verifyPhotoCopy('));
+    expect(verify, contains("'SERVER_SIDE_R2_PHOTO_DETAIL_BUILD148'"));
+    expect(verify, isNot(contains('materializeEntitledReference(hcvId)')));
   });
 }
