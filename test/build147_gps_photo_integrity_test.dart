@@ -25,9 +25,10 @@ void main() {
     expect(camera, contains("label: _c('openSettings')"));
     expect(camera, contains("label: _c('openLocationSettings')"));
 
-    expect(verify, contains('HCVPhotoDetailComparator.compareFiles'));
-    expect(verify, contains('materializeEntitledReference(hcvId)'));
-    expect(verify, contains('HCVPhotoDetailVerdict.inconclusive'));
+    expect(verify, contains('Future<VerifiedPhotoCopyCheck> _matchesPhotoDetail'));
+    expect(verify, contains('.verifyPhotoCopy('));
+    expect(verify, contains('VerifiedPhotoCopyStatus.inconclusive'));
+    expect(verify, isNot(contains('materializeEntitledReference(hcvId)')));
     expect(
       verify,
       contains('primaryVerdict == HCVReferenceVisualVerdict.modified'),
