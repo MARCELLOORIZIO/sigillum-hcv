@@ -15,7 +15,7 @@
 	<string>SIGILLUM accede alla libreria per importare media da verificare.</string>
 
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>SIGILLUM aggiunge alla libreria solo copie derivate che scegli esplicitamente di salvare, ad esempio un video sottotitolato. L’originale certificato resta nell’area protetta dell’app.</string>
+	<string>SIGILLUM aggiunge a Foto solo i contenuti che scegli esplicitamente di salvare, inclusi un originale certificato o una copia derivata. L’originale protetto resta comunque custodito nell’area privata dell’app.</string>
 
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SIGILLUM usa la posizione mentre l'app è in uso per associare coordinate GPS ai contenuti certificati quando la funzione di localizzazione è attiva.</string>
