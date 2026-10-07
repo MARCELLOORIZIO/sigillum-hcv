@@ -22,11 +22,13 @@ class HCVMultiEvidenceDisplayPolicy {
     required Map<String, dynamic>? temporalMl,
     Map<String, dynamic>? stillOptical,
     Map<String, dynamic>? temporalOptical,
+    Map<String, dynamic>? videoEquivalentDisplayRisk,
   }) {
     final hfr = _hfrEvidence(temporalFrequencyProbe);
     final hfrDecisionEligible = _hfrDecisionEligible(temporalFrequencyProbe);
     final hfrNonDecisionable = _hfrNonDecisionable(temporalFrequencyProbe);
     final still = _mlEvidence(stillMl);
+    final temporalAggregate = _mlEvidence(temporalMl);
     final temporal = _videoMlEvidence(temporalMl);
 
     if (hfr.fullFrameDisplay) {
@@ -38,6 +40,17 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     if (hfr.partialCorroboratedDisplay) {
+      if (_photoHfrPartialRealityConflict(
+        still: still,
+        temporal: temporalAggregate,
+        stillOptical: stillOptical,
+        temporalOptical: temporalOptical,
+        videoEquivalentDisplayRisk: videoEquivalentDisplayRisk,
+      )) {
+        return _nonConclusive(
+          'PHOTO_HFR_PARTIAL_CONFLICT_WITH_DUAL_REALITY_EVIDENCE',
+        );
+      }
       return _display(
         95,
         'BUILD124_HFR_PARTIAL_CORROBORATED_DISPLAY',
@@ -302,6 +315,7 @@ class HCVMultiEvidenceDisplayPolicy {
     return _MlEvidence(
       available: true,
       isScreen: predictedClass.startsWith('SCREEN_'),
+      isReality: predictedClass.startsWith('REALITY_'),
       probability: (ml['screenProbability'] as num?)?.toDouble() ?? 0.0,
       fullFrameRisk: (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0,
       contentAreaRisk: (signals['contentAreaRiskScore'] as num?)?.toInt() ?? 0,
@@ -436,6 +450,24 @@ class HCVMultiEvidenceDisplayPolicy {
         ],
       );
 
+  static bool _photoHfrPartialRealityConflict({
+    required _MlEvidence still,
+    required _MlEvidence temporal,
+    Map<String, dynamic>? stillOptical,
+    Map<String, dynamic>? temporalOptical,
+    Map<String, dynamic>? videoEquivalentDisplayRisk,
+  }) {
+    return still.available &&
+        still.isReality &&
+        still.probability <= 0.05 &&
+        temporal.available &&
+        temporal.isReality &&
+        temporal.probability <= 0.05 &&
+        videoEquivalentDisplayRisk?['decision'] == 'NO_DISPLAY_EVIDENCE' &&
+        _hasNoStrongOpticalDisplayTrace(stillOptical) &&
+        _hasNoStrongOpticalDisplayTrace(temporalOptical);
+  }
+
   static bool _physicalRepeatingTextureGuard({
     Map<String, dynamic>? stillOptical,
     Map<String, dynamic>? temporalOptical,
@@ -521,6 +553,7 @@ class _MlEvidence {
   const _MlEvidence({
     this.available = false,
     this.isScreen = false,
+    this.isReality = false,
     this.probability = 0.0,
     this.fullFrameRisk = 0,
     this.contentAreaRisk = 0,
@@ -529,6 +562,7 @@ class _MlEvidence {
 
   final bool available;
   final bool isScreen;
+  final bool isReality;
   final double probability;
   final int fullFrameRisk;
   final int contentAreaRisk;
