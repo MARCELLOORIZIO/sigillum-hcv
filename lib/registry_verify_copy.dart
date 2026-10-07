@@ -70,6 +70,18 @@ class RegistryVerifyCopy {
           'VERIFICA NON ESEGUIBILE\\nIl riferimento originale protetto SIGILLUM non è disponibile in questo momento. Nessun controllo più debole viene usato per dichiarare compatibile il file social.',
       'officialReferenceUnavailableDetail':
           'Il riferimento originale protetto SIGILLUM deve risultare registrato e disponibile prima della verifica di una copia social. Se la registrazione è ancora in corso, riprova tra poco.',
+      'officialReferenceCheckErrorTitle':
+          'VERIFICA TECNICA TEMPORANEAMENTE NON DISPONIBILE',
+      'officialReferenceCheckError':
+          'VERIFICA TECNICA NON COMPLETATA\nIl riferimento esiste, ma il confronto automatico non è stato completato. Questo stato non viene classificato come copia conforme, modificata o non conclusiva.',
+      'officialReferenceNetworkErrorDetail':
+          'La rete non ha consentito di completare il confronto con il riferimento originale protetto. Riprova quando la connessione è disponibile.',
+      'officialReferenceProviderErrorDetail':
+          'Il riferimento R2 risulta registrato, ma il provider non ha consentito di completare il confronto in questo momento. Riprova più tardi.',
+      'officialReferenceTechnicalErrorDetail':
+          'Il confronto automatico ha incontrato un errore tecnico. Nessun verdetto forense viene dedotto da questo errore.',
+      'officialReferenceRateLimitedDetail':
+          'Sono state richieste troppe verifiche in un intervallo breve. Riprova tra poco; nessun verdetto forense è stato prodotto.',
       'authorizedSubtitleConforming':
           'DERIVAZIONE SIGILLUM VERIFICATA\nIl video con sottotitoli corrisponde a una derivazione autorizzata e registrata da SIGILLUM a partire dall’originale certificato.',
       'authorizedSubtitleConformingTitle': 'DERIVAZIONE SIGILLUM VERIFICATA',
@@ -119,6 +131,7 @@ class RegistryVerifyCopy {
           'Tempo verifica: {total} s · riferimento {reference} s · confronto locale {local} s',
       'techReferenceVerification': 'RIFERIMENTO ORIGINALE SIGILLUM',
       'techReferenceMode': 'Modalità confronto',
+      'techReferenceCheckStatus': 'Stato confronto riferimento',
       'techReferenceLive': 'Riferimento originale disponibile',
       'techReferenceCommentsDisabled': 'Dato provider accessorio',
       'techReferenceServerMs': 'Controllo riferimento ms',
@@ -270,6 +283,18 @@ class RegistryVerifyCopy {
           'VERIFICATION CANNOT RUN\\nThe protected SIGILLUM original reference is not available right now. No weaker check is used to declare the social file compatible.',
       'officialReferenceUnavailableDetail':
           'The protected SIGILLUM original reference must be registered and available before a social copy can be verified. If registration is still in progress, try again shortly.',
+      'officialReferenceCheckErrorTitle':
+          'TECHNICAL VERIFICATION TEMPORARILY UNAVAILABLE',
+      'officialReferenceCheckError':
+          'TECHNICAL VERIFICATION NOT COMPLETED\nThe reference exists, but the automatic comparison did not complete. This state is not classified as conforming, modified, or inconclusive.',
+      'officialReferenceNetworkErrorDetail':
+          'The network did not allow comparison with the protected original reference to complete. Try again when connectivity is available.',
+      'officialReferenceProviderErrorDetail':
+          'The R2 reference is registered, but the provider could not complete the comparison right now. Try again later.',
+      'officialReferenceTechnicalErrorDetail':
+          'The automatic comparison encountered a technical error. No forensic verdict is inferred from this error.',
+      'officialReferenceRateLimitedDetail':
+          'Too many verification requests were made in a short interval. Try again shortly; no forensic verdict was produced.',
       'authorizedSubtitleConforming':
           'AUTHORIZED SIGILLUM DERIVATION VERIFIED\nThe captioned video matches an authorized derivation registered by SIGILLUM from the certified original.',
       'authorizedSubtitleConformingTitle':
@@ -320,6 +345,7 @@ class RegistryVerifyCopy {
           'Verification time: {total} s · reference {reference} s · local comparison {local} s',
       'techReferenceVerification': 'SIGILLUM ORIGINAL REFERENCE',
       'techReferenceMode': 'Comparison mode',
+      'techReferenceCheckStatus': 'Reference check status',
       'techReferenceLive': 'Original reference available',
       'techReferenceCommentsDisabled': 'Provider auxiliary state',
       'techReferenceServerMs': 'Reference check ms',
@@ -473,6 +499,18 @@ class RegistryVerifyCopy {
           'VERIFICACIÓN NO EJECUTABLE\\nLa referencia original protegida de SIGILLUM no está disponible en este momento. No se usa un control más débil para declarar compatible el archivo social.',
       'officialReferenceUnavailableDetail':
           'La referencia original protegida de SIGILLUM debe estar registrada y disponible antes de verificar una copia social. Si el registro sigue en curso, inténtalo de nuevo en breve.',
+      'officialReferenceCheckErrorTitle':
+          'VERIFICACIÓN TÉCNICA TEMPORALMENTE NO DISPONIBLE',
+      'officialReferenceCheckError':
+          'VERIFICACIÓN TÉCNICA NO COMPLETADA\nLa referencia existe, pero la comparación automática no se completó. Este estado no se clasifica como copia compatible, modificada o no concluyente.',
+      'officialReferenceNetworkErrorDetail':
+          'La red no permitió completar la comparación con la referencia original protegida. Inténtalo de nuevo cuando haya conexión.',
+      'officialReferenceProviderErrorDetail':
+          'La referencia R2 está registrada, pero el proveedor no permitió completar la comparación en este momento. Inténtalo de nuevo más tarde.',
+      'officialReferenceTechnicalErrorDetail':
+          'La comparación automática encontró un error técnico. No se deduce ningún veredicto forense de este error.',
+      'officialReferenceRateLimitedDetail':
+          'Se solicitaron demasiadas verificaciones en poco tiempo. Inténtalo de nuevo en breve; no se produjo ningún veredicto forense.',
       'authorizedSubtitleConforming':
           'DERIVACIÓN SIGILLUM VERIFICADA\nEl vídeo subtitulado coincide con una derivación autorizada y registrada por SIGILLUM a partir del original certificado.',
       'authorizedSubtitleConformingTitle': 'DERIVACIÓN SIGILLUM VERIFICADA',
@@ -522,6 +560,7 @@ class RegistryVerifyCopy {
           'Tiempo de verificación: {total} s · referencia {reference} s · comparación local {local} s',
       'techReferenceVerification': 'REFERENCIA ORIGINAL SIGILLUM',
       'techReferenceMode': 'Modo de comparación',
+      'techReferenceCheckStatus': 'Estado del control de referencia',
       'techReferenceLive': 'Referencia original disponible',
       'techReferenceCommentsDisabled': 'Estado auxiliar del proveedor',
       'techReferenceServerMs': 'Control de referencia ms',
@@ -674,6 +713,18 @@ class RegistryVerifyCopy {
           'ПРОВЕРКА НЕ МОЖЕТ БЫТЬ ВЫПОЛНЕНА\\nЗащищённый оригинальный эталон SIGILLUM сейчас недоступен. Более слабая проверка не используется для признания файла из соцсети совместимым.',
       'officialReferenceUnavailableDetail':
           'Защищённый оригинальный эталон SIGILLUM должен быть зарегистрирован и доступен до проверки копии из соцсети. Если регистрация ещё выполняется, повторите попытку немного позже.',
+      'officialReferenceCheckErrorTitle':
+          'ТЕХНИЧЕСКАЯ ПРОВЕРКА ВРЕМЕННО НЕДОСТУПНА',
+      'officialReferenceCheckError':
+          'ТЕХНИЧЕСКАЯ ПРОВЕРКА НЕ ЗАВЕРШЕНА\nЭталон существует, но автоматическое сравнение не завершилось. Это состояние не классифицируется как совместимая, изменённая или неоднозначная копия.',
+      'officialReferenceNetworkErrorDetail':
+          'Сеть не позволила завершить сравнение с защищённым оригинальным эталоном. Повторите попытку при доступном соединении.',
+      'officialReferenceProviderErrorDetail':
+          'Эталон R2 зарегистрирован, но провайдер сейчас не позволил завершить сравнение. Повторите попытку позже.',
+      'officialReferenceTechnicalErrorDetail':
+          'При автоматическом сравнении произошла техническая ошибка. Из этой ошибки не выводится судебно-технический вердикт.',
+      'officialReferenceRateLimitedDetail':
+          'За короткое время было запрошено слишком много проверок. Повторите попытку позже; судебно-технический вердикт не формировался.',
       'authorizedSubtitleConforming':
           'АВТОРИЗОВАННАЯ ПРОИЗВОДНАЯ ВЕРСИЯ SIGILLUM ПРОВЕРЕНА\nВидео с субтитрами соответствует авторизованной производной версии, зарегистрированной SIGILLUM на основе сертифицированного оригинала.',
       'authorizedSubtitleConformingTitle':
@@ -723,6 +774,7 @@ class RegistryVerifyCopy {
           'Время проверки: {total} с · эталон {reference} с · локальное сравнение {local} с',
       'techReferenceVerification': 'ОРИГИНАЛЬНЫЙ ЭТАЛОН SIGILLUM',
       'techReferenceMode': 'Режим сравнения',
+      'techReferenceCheckStatus': 'Статус проверки эталона',
       'techReferenceLive': 'Оригинальный эталон доступен',
       'techReferenceCommentsDisabled': 'Дополнительное состояние провайдера',
       'techReferenceServerMs': 'Проверка эталона, мс',
