@@ -48,6 +48,29 @@ class VerifiedSubtitlePublishResult {
   final String subtitleSha256;
 }
 
+enum VerifiedPhotoCopyStatus {
+  conforming,
+  modified,
+  inconclusive,
+  referenceUnavailable,
+  networkError,
+  providerUnavailable,
+  rateLimited,
+  technicalError,
+}
+
+class VerifiedPhotoCopyCheck {
+  const VerifiedPhotoCopyCheck({
+    required this.status,
+    this.code,
+    this.metrics = const <String, dynamic>{},
+  });
+
+  final VerifiedPhotoCopyStatus status;
+  final String? code;
+  final Map<String, dynamic> metrics;
+}
+
 class VerifiedOriginalsPublishService {
   const VerifiedOriginalsPublishService({
     this.registry = const HCVRegistryService(),
@@ -120,6 +143,161 @@ class VerifiedOriginalsPublishService {
       'GET',
       '/api/verified-originals/$hcvId/verification-reference',
     );
+  }
+
+  Future<String?> _photoMimeFromBytes(File file) async {
+    if (!await file.exists()) return null;
+    final handle = await file.open();
+    try {
+      final prefix = await handle.read(8);
+      if (prefix.length >= 3 &&
+          prefix[0] == 0xff &&
+          prefix[1] == 0xd8 &&
+          prefix[2] == 0xff) {
+        return 'image/jpeg';
+      }
+      const png = <int>[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+      if (prefix.length >= png.length) {
+        var matches = true;
+        for (var i = 0; i < png.length; i++) {
+          if (prefix[i] != png[i]) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) return 'image/png';
+      }
+      return null;
+    } finally {
+      await handle.close();
+    }
+  }
+
+  Future<VerifiedPhotoCopyCheck> verifyPhotoCopy({
+    required String hcvId,
+    required File candidate,
+  }) async {
+    final mime = await _photoMimeFromBytes(candidate);
+    if (mime == null) {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.technicalError,
+        code: 'VERIFICATION_MEDIA_TYPE_UNSUPPORTED',
+      );
+    }
+
+    final length = await candidate.length();
+    if (length <= 0) {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.technicalError,
+        code: 'VERIFICATION_CONTENT_LENGTH_INVALID',
+      );
+    }
+
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 20);
+    try {
+      final uri = Uri.parse(
+        '$_base/api/verified-originals/$hcvId/verify-photo-copy',
+      );
+      final request =
+          await client.postUrl(uri).timeout(const Duration(seconds: 20));
+      request.headers.set(HttpHeaders.contentTypeHeader, mime);
+      request.contentLength = length;
+      await request.addStream(candidate.openRead());
+
+      final response =
+          await request.close().timeout(const Duration(minutes: 2));
+      final raw = await utf8.decoder
+          .bind(response)
+          .join()
+          .timeout(const Duration(seconds: 30));
+      Map<String, dynamic> decoded = <String, dynamic>{};
+      if (raw.trim().isNotEmpty) {
+        final parsed = jsonDecode(raw);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      }
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final verdict = decoded['verdict']?.toString().toUpperCase();
+        final metricsRaw = decoded['metrics'];
+        final metrics = metricsRaw is Map
+            ? Map<String, dynamic>.from(metricsRaw)
+            : const <String, dynamic>{};
+        switch (verdict) {
+          case 'CONFORMING':
+            return VerifiedPhotoCopyCheck(
+              status: VerifiedPhotoCopyStatus.conforming,
+              metrics: metrics,
+            );
+          case 'MODIFIED':
+            return VerifiedPhotoCopyCheck(
+              status: VerifiedPhotoCopyStatus.modified,
+              metrics: metrics,
+            );
+          case 'INCONCLUSIVE':
+            return VerifiedPhotoCopyCheck(
+              status: VerifiedPhotoCopyStatus.inconclusive,
+              metrics: metrics,
+            );
+          default:
+            return const VerifiedPhotoCopyCheck(
+              status: VerifiedPhotoCopyStatus.technicalError,
+              code: 'VERIFICATION_RESPONSE_INVALID',
+            );
+        }
+      }
+
+      final code =
+          decoded['error']?.toString() ?? 'HTTP_${response.statusCode}';
+      if (response.statusCode == 404 || code == 'REFERENCE_NOT_AVAILABLE') {
+        return VerifiedPhotoCopyCheck(
+          status: VerifiedPhotoCopyStatus.referenceUnavailable,
+          code: code,
+        );
+      }
+      if (response.statusCode == 503 ||
+          code == 'REFERENCE_PROVIDER_UNAVAILABLE') {
+        return VerifiedPhotoCopyCheck(
+          status: VerifiedPhotoCopyStatus.providerUnavailable,
+          code: code,
+        );
+      }
+      if (response.statusCode == 429 ||
+          code == 'PHOTO_VERIFICATION_RATE_LIMITED') {
+        return VerifiedPhotoCopyCheck(
+          status: VerifiedPhotoCopyStatus.rateLimited,
+          code: code,
+        );
+      }
+      return VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.technicalError,
+        code: code,
+      );
+    } on SocketException {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.networkError,
+        code: 'NETWORK_UNREACHABLE',
+      );
+    } on HandshakeException {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.networkError,
+        code: 'TLS_UNAVAILABLE',
+      );
+    } on TimeoutException {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.networkError,
+        code: 'NETWORK_TIMEOUT',
+      );
+    } on FormatException {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.technicalError,
+        code: 'VERIFICATION_RESPONSE_INVALID',
+      );
+    } finally {
+      client.close(force: true);
+    }
   }
 
   bool _isLiveReference(Map<String, dynamic> live) {
