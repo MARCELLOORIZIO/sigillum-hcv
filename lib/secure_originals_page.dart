@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -34,6 +35,8 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
   final HCVSecurePreviewService _preview = const HCVSecurePreviewService();
   final VerifiedOriginalsPublishService _publisher =
       const VerifiedOriginalsPublishService();
+  static const MethodChannel _photoLibraryChannel =
+      MethodChannel('hcv.photoLibrary');
 
   final Map<String, Future<File?>> _previewFutures = {};
   List<HCVSecureOriginalRecord> _records = const [];
@@ -218,6 +221,89 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
         ),
       ),
     );
+  }
+
+  Future<_ShareDecision?> _saveDecision() async {
+    var rights = false;
+    return showDialog<_ShareDecision>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: Text(_t('secureOriginalsSaveTitle')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_t('secureOriginalsSaveDisclosure')),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: rights,
+                  onChanged: (value) =>
+                      setLocalState(() => rights = value == true),
+                  title: Text(_t('secureOriginalsRightsConfirm')),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(_t('cancel')),
+            ),
+            FilledButton(
+              onPressed: rights
+                  ? () => Navigator.pop(
+                        dialogContext,
+                        const _ShareDecision(),
+                      )
+                  : null,
+              child: Text(_t('secureOriginalsContinueSave')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveOriginal(HCVSecureOriginalRecord record) async {
+    if (_busyId != null) return;
+    final decision = await _saveDecision();
+    if (decision == null || !mounted) return;
+
+    setState(() {
+      _busyId = record.hcvId;
+      _message = _t('secureOriginalsSaving');
+    });
+
+    File? clear;
+    try {
+      await _publisher.ensureReference(record);
+
+      final refreshed = await _vault.find(record.hcvId) ?? record;
+      clear = await _vault.materializeOriginal(refreshed, purpose: 'save');
+      final saved = await _photoLibraryChannel.invokeMethod<bool>(
+        'saveMedia',
+        <String, dynamic>{
+          'path': clear.path,
+          'mediaType': refreshed.mediaType,
+        },
+      );
+      if (saved != true) {
+        throw StateError('PHOTO_LIBRARY_SAVE_NOT_CONFIRMED');
+      }
+      if (!mounted) return;
+      setState(() => _message = _t('secureOriginalsSaved'));
+      await _reload();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message = _t('secureOriginalsSaveError'));
+      }
+    } finally {
+      if (clear != null) await _vault.deleteMaterialized(clear);
+      if (mounted) setState(() => _busyId = null);
+    }
   }
 
   Future<void> _share(HCVSecureOriginalRecord record) async {
@@ -520,6 +606,13 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                                     : null,
                                 icon: const Icon(Icons.ios_share),
                                 label: Text(_t('secureOriginalsShare')),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _busyId == null
+                                    ? () => _saveOriginal(record)
+                                    : null,
+                                icon: const Icon(Icons.save_alt_rounded),
+                                label: Text(_t('secureOriginalsSave')),
                               ),
                               if (record.hasReference)
                                 OutlinedButton.icon(
