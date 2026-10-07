@@ -24,8 +24,8 @@ void main() {
     final source =
         File('lib/commercial_billing_service.dart').readAsStringSync();
 
-    expect(source, contains("'com.sigillum.hcv.pro.weekly'"));
-    expect(source, contains("'com.sigillum.hcv.pro.monthly'"));
-    expect(source, contains("'com.sigillum.hcv.pro.annual'"));
+    expect(source, contains("'com.sigillum.hcv.creator.weekly'"));
+    expect(source, contains("'com.sigillum.hcv.creator.monthly'"));
+    expect(source, contains("'com.sigillum.hcv.creator.annual'"));
   });
 }
