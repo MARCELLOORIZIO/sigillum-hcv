@@ -274,12 +274,22 @@ class SigillumCopy {
           'Ritiro registrato. L’eliminazione del riferimento tecnico è ancora in attesa; puoi ritentare da questa schermata.',
       'secureOriginalsView': 'VISUALIZZA ORIGINALE',
       'secureOriginalsShare': 'CONDIVIDI ORIGINALE',
+      'secureOriginalsSave': 'SALVA ORIGINALE',
+      'secureOriginalsSaveTitle': 'Salva originale SIGILLUM',
+      'secureOriginalsSaveDisclosure':
+          'Prima di salvare l’originale in Foto, SIGILLUM verifica l’originale e registra il riferimento originale protetto sul server. Solo dopo salva la copia in Foto.',
+      'secureOriginalsContinueSave': 'CONTINUA E SALVA',
+      'secureOriginalsSaving':
+          'Verifica dell’originale e registrazione del riferimento protetto prima del salvataggio...',
+      'secureOriginalsSaved':
+          'Originale salvato in Foto. Il riferimento originale protetto è registrato.',
+      'secureOriginalsSaveError': 'Impossibile salvare l’originale in Foto.',
       'secureOriginalsOfficialCopy': 'APRI RIFERIMENTO ORIGINALE',
       'secureOriginalsViewerTitle': 'Originale SIGILLUM',
       'secureOriginalStored':
           'Originale e HCVPACK cifrati nell’area protetta SIGILLUM.',
       'secureOriginalStorageDetail':
-          'L’originale non è salvato in Foto né esposto nella cartella File. Aprilo o condividilo da Originali protetti.',
+          'L’originale resta nell’area protetta e non viene salvato automaticamente in Foto né esposto nella cartella File. Puoi aprirlo, condividerlo o scegliere Salva originale da Originali protetti.',
       'secureOriginalsOpen': 'APRI ORIGINALI PROTETTI',
       'secureOriginalsHomeSubtitle':
           'Apri, salva o condividi i tuoi originali certificati.',
@@ -548,12 +558,22 @@ class SigillumCopy {
           'Withdrawal recorded. Removal of the technical reference is still pending; you can retry from this screen.',
       'secureOriginalsView': 'VIEW ORIGINAL',
       'secureOriginalsShare': 'SHARE ORIGINAL',
+      'secureOriginalsSave': 'SAVE ORIGINAL',
+      'secureOriginalsSaveTitle': 'Save SIGILLUM original',
+      'secureOriginalsSaveDisclosure':
+          'Before saving the original to Photos, SIGILLUM verifies it and registers the protected original reference on the server. Only then is the copy saved to Photos.',
+      'secureOriginalsContinueSave': 'CONTINUE AND SAVE',
+      'secureOriginalsSaving':
+          'Verifying the original and registering the protected reference before saving...',
+      'secureOriginalsSaved':
+          'Original saved to Photos. The protected original reference is registered.',
+      'secureOriginalsSaveError': 'Unable to save the original to Photos.',
       'secureOriginalsOfficialCopy': 'OPEN ORIGINAL REFERENCE',
       'secureOriginalsViewerTitle': 'SIGILLUM original',
       'secureOriginalStored':
           'Original and HCVPACK encrypted in the protected SIGILLUM area.',
       'secureOriginalStorageDetail':
-          'The original is not saved to Photos or exposed in the Files folder. Open or share it from Protected originals.',
+          'The original stays in the protected area and is not saved to Photos automatically or exposed in the Files folder. You can open it, share it, or choose Save original from Protected originals.',
       'secureOriginalsOpen': 'OPEN PROTECTED ORIGINALS',
       'secureOriginalsHomeSubtitle': 'Open, save or share your certified originals.',
       'verifiedOriginalsTitle': 'SIGILLUM REFERENCE',
@@ -823,12 +843,22 @@ class SigillumCopy {
           'Retirada registrada. La eliminación de la referencia técnica sigue pendiente; puedes volver a intentarlo desde esta pantalla.',
       'secureOriginalsView': 'VER ORIGINAL',
       'secureOriginalsShare': 'COMPARTIR ORIGINAL',
+      'secureOriginalsSave': 'GUARDAR ORIGINAL',
+      'secureOriginalsSaveTitle': 'Guardar original SIGILLUM',
+      'secureOriginalsSaveDisclosure':
+          'Antes de guardar el original en Fotos, SIGILLUM lo verifica y registra en el servidor la referencia original protegida. Solo después guarda la copia en Fotos.',
+      'secureOriginalsContinueSave': 'CONTINUAR Y GUARDAR',
+      'secureOriginalsSaving':
+          'Verificando el original y registrando la referencia protegida antes de guardarlo...',
+      'secureOriginalsSaved':
+          'Original guardado en Fotos. La referencia original protegida está registrada.',
+      'secureOriginalsSaveError': 'No se puede guardar el original en Fotos.',
       'secureOriginalsOfficialCopy': 'ABRIR REFERENCIA ORIGINAL',
       'secureOriginalsViewerTitle': 'Original SIGILLUM',
       'secureOriginalStored':
           'Original y HCVPACK cifrados en el área protegida de SIGILLUM.',
       'secureOriginalStorageDetail':
-          'El original no se guarda en Fotos ni se expone en la carpeta Archivos. Ábrelo o compártelo desde Originales protegidos.',
+          'El original permanece en el área protegida y no se guarda automáticamente en Fotos ni se expone en la carpeta Archivos. Puedes abrirlo, compartirlo o elegir Guardar original desde Originales protegidos.',
       'secureOriginalsOpen': 'ABRIR ORIGINALES PROTEGIDOS',
       'secureOriginalsHomeSubtitle':
           'Abre, guarda o comparte tus originales certificados.',
@@ -1096,12 +1126,22 @@ class SigillumCopy {
           'Отзыв зарегистрирован. Удаление технического эталона ещё ожидается; повторите попытку с этого экрана.',
       'secureOriginalsView': 'ПОСМОТРЕТЬ ОРИГИНАЛ',
       'secureOriginalsShare': 'ПОДЕЛИТЬСЯ ОРИГИНАЛОМ',
+      'secureOriginalsSave': 'СОХРАНИТЬ ОРИГИНАЛ',
+      'secureOriginalsSaveTitle': 'Сохранить оригинал SIGILLUM',
+      'secureOriginalsSaveDisclosure':
+          'Перед сохранением оригинала в «Фото» SIGILLUM проверяет его и регистрирует защищённый оригинальный эталон на сервере. Только после этого копия сохраняется в «Фото».',
+      'secureOriginalsContinueSave': 'ПРОДОЛЖИТЬ И СОХРАНИТЬ',
+      'secureOriginalsSaving':
+          'Проверка оригинала и регистрация защищённого эталона перед сохранением...',
+      'secureOriginalsSaved':
+          'Оригинал сохранён в «Фото». Защищённый оригинальный эталон зарегистрирован.',
+      'secureOriginalsSaveError': 'Не удалось сохранить оригинал в «Фото».',
       'secureOriginalsOfficialCopy': 'ОТКРЫТЬ ОРИГИНАЛЬНЫЙ ЭТАЛОН',
       'secureOriginalsViewerTitle': 'Оригинал SIGILLUM',
       'secureOriginalStored':
           'Оригинал и HCVPACK зашифрованы в защищённой области SIGILLUM.',
       'secureOriginalStorageDetail':
-          'Оригинал не сохраняется в Photos и не отображается в папке Files. Открывайте и отправляйте его из раздела «Защищённые оригиналы».',
+          'Оригинал остаётся в защищённой области и не сохраняется автоматически в «Фото» и не отображается в папке «Файлы». Его можно открыть, отправить или выбрать «Сохранить оригинал» в разделе «Защищённые оригиналы».',
       'secureOriginalsOpen': 'ОТКРЫТЬ ЗАЩИЩЁННЫЕ ОРИГИНАЛЫ',
       'secureOriginalsHomeSubtitle':
           'Открывайте, сохраняйте или отправляйте сертифицированные оригиналы.',
