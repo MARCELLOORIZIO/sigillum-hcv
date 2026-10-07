@@ -122,6 +122,9 @@ const _commercialGateCopy = <String, Map<String, String>>{
         'La verifica è stata inviata a Stripe. Attendi l’esito prima di avviare altre procedure.',
     'refreshVerification': 'AGGIORNA STATO VERIFICA',
     'purchaseFailed': 'Acquisto non completato.',
+    'subscriptionLinkedElsewhere':
+        'Questo abbonamento App Store risulta già associato a un altro account SIGILLUM. Usa l’account collegato oppure un diverso account App Store.',
+    'operationFailed': 'Operazione non completata. Riprova.',
     'openResourceFailed': 'Impossibile aprire questa risorsa.',
   },
   'en': {
@@ -216,6 +219,9 @@ const _commercialGateCopy = <String, Map<String, String>>{
         'The verification was submitted to Stripe. Wait for the result before starting another procedure.',
     'refreshVerification': 'REFRESH VERIFICATION STATUS',
     'purchaseFailed': 'Purchase not completed.',
+    'subscriptionLinkedElsewhere':
+        'This App Store subscription is already linked to another SIGILLUM account. Use the linked account or a different App Store account.',
+    'operationFailed': 'The operation could not be completed. Please try again.',
     'openResourceFailed': 'Unable to open this resource.',
   },
   'es': {
@@ -313,6 +319,9 @@ const _commercialGateCopy = <String, Map<String, String>>{
         'La verificación se envió a Stripe. Espera el resultado antes de iniciar otro procedimiento.',
     'refreshVerification': 'ACTUALIZAR ESTADO DE VERIFICACIÓN',
     'purchaseFailed': 'Compra no completada.',
+    'subscriptionLinkedElsewhere':
+        'Esta suscripción de App Store ya está vinculada a otra cuenta SIGILLUM. Usa la cuenta vinculada u otra cuenta de App Store.',
+    'operationFailed': 'No se pudo completar la operación. Inténtalo de nuevo.',
     'openResourceFailed': 'No se puede abrir este recurso.',
   },
   'ru': {
@@ -405,6 +414,9 @@ const _commercialGateCopy = <String, Map<String, String>>{
         'Проверка отправлена в Stripe. Дождитесь результата перед запуском новой процедуры.',
     'refreshVerification': 'ОБНОВИТЬ СТАТУС ПРОВЕРКИ',
     'purchaseFailed': 'Покупка не завершена.',
+    'subscriptionLinkedElsewhere':
+        'Эта подписка App Store уже связана с другой учётной записью SIGILLUM. Используйте связанную учётную запись или другую учётную запись App Store.',
+    'operationFailed': 'Не удалось завершить операцию. Повторите попытку.',
     'openResourceFailed': 'Не удалось открыть ресурс.',
   },
 };
@@ -840,11 +852,35 @@ class _CommercialGateState extends State<CommercialGate>
         'MAGGIORENNE_RICHIESTO': 'validationConfirmations',
         'EMAIL_NON_VERIFICATA': 'emailNotVerified',
         'ABBONAMENTO_NON_ATTIVO': 'subscriptionInactive',
+        'APPLE_SUBSCRIPTION_ALREADY_LINKED': 'subscriptionLinkedElsewhere',
       };
       final key = error.code == null ? null : codeToKey[error.code!];
       if (key != null) return _t(key);
+      if (error.statusCode == 402) return _t('subscriptionInactive');
+
+      final trustedLocalMessages = <String>{
+        _t('newPasswordShort'),
+        _t('subscriptionFailed'),
+        _t('purchaseFailed'),
+      };
+      if (trustedLocalMessages.contains(error.message)) return error.message;
+      return _t('operationFailed');
     }
-    return error.toString();
+    if (error is PlatformException) return _t('storeError');
+    return _t('operationFailed');
+  }
+
+  String _localizedSubscriptionError(Object error) {
+    if (error is CommercialAccountException) {
+      if (error.code == 'APPLE_SUBSCRIPTION_ALREADY_LINKED') {
+        return _t('subscriptionLinkedElsewhere');
+      }
+      if (error.statusCode == 402 ||
+          error.code == 'ABBONAMENTO_NON_ATTIVO') {
+        return _t('subscriptionInactive');
+      }
+    }
+    return _t('subscriptionFailed');
   }
 
   Future<void> _bootstrap() async {
@@ -1003,7 +1039,7 @@ class _CommercialGateState extends State<CommercialGate>
           : await CommercialBillingService.instance
               .localizedDisplayPrices(_products);
     } catch (error) {
-      _message = "${_t('storeError')}: $error";
+      _message = _t('storeError');
       _products = const [];
       _productDisplayPrices = const {};
     }
@@ -1061,7 +1097,7 @@ class _CommercialGateState extends State<CommercialGate>
         } catch (error) {
           if (!mounted) return;
           setState(() {
-            _message = "${_t('subscriptionFailed')}: $error";
+            _message = _localizedSubscriptionError(error);
           });
         } finally {
           if (mounted) setState(() => _busy = false);
@@ -1070,7 +1106,7 @@ class _CommercialGateState extends State<CommercialGate>
 
       if (purchase.status == PurchaseStatus.error && mounted) {
         setState(() {
-          _message = purchase.error?.message ?? _t('purchaseFailed');
+          _message = _t('purchaseFailed');
         });
       }
     }
