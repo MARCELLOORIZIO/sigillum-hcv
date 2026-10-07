@@ -21,13 +21,15 @@ void main() {
     final materialize = method.indexOf(
       "materializeOriginal(refreshed, purpose: 'save')",
     );
-    final nativeSave = method.indexOf("invokeMethod<bool>('saveMedia'");
+    final nativeSave = method.indexOf('invokeMethod<bool>');
+    final saveMethodName = method.indexOf("'saveMedia'", nativeSave);
     final cleanup = method.indexOf('await _vault.deleteMaterialized(clear);');
 
     expect(ensure, greaterThanOrEqualTo(0));
     expect(materialize, greaterThan(ensure));
     expect(nativeSave, greaterThan(materialize));
-    expect(cleanup, greaterThan(nativeSave));
+    expect(saveMethodName, greaterThan(nativeSave));
+    expect(cleanup, greaterThan(saveMethodName));
   });
 
   test('iOS native save bridge uses Photos add-only authorization', () {
