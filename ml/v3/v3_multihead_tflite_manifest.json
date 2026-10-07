@@ -1,5 +1,5 @@
 {
-  "type": "SIGILLUM_V3_MULTIHEAD_TFLITE_V1",
+  "type": "SIGILLUM_V3_MULTIHEAD_TFLITE_V2_HARD_NEGATIVE",
   "modelFile": "sigillum_screen_replay_v3_multihead.tflite",
   "classes": [
     "SCREEN_MONITOR",
@@ -19,8 +19,22 @@
   "inputRange": "0..1 float32",
   "outputs": [
     "hard",
-    "clean"
+    "clean",
+    "hardNegativeReality"
   ],
+  "hardNegativeHead": {
+    "type": "SIGILLUM_V3_HARD_NEGATIVE_HEAD_V1",
+    "hardNegativeHcvId": "HCV-172AC10B5D714EAB",
+    "hardNegativeSha256": "bec00aa607631a6a449b38f1030cf10df7a3d86fd43e8aa03dcdf3288406d707",
+    "threshold": 0.9837759923934937,
+    "inputFeatureSize": 96,
+    "hiddenSize": 16,
+    "externalGate": {
+      "screenCount": 17,
+      "falsePositiveCount": 0,
+      "screenMax": 0.9747834205627441
+    }
+  },
   "kerasParityMaxAbs": 1.1920928955078125e-07,
   "tfliteParityMaxAbs": 4.76837158203125e-07,
   "benchmarkRule": {
@@ -33,6 +47,8 @@
     "role": "PHOTO_V2_FALSE_POSITIVE_VETO_ONLY",
     "v2High": 0.8,
     "v3RealityVeto": 0.2,
+    "hardNegativeRealityThreshold": 0.9837759923934937,
+    "hardNegativeRole": "PHOTO_STRONG_V2_FALSE_POSITIVE_VETO_ONLY",
     "screenPromotion": false,
     "affectsVideo": false
   },
