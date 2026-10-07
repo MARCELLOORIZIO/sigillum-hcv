@@ -6,9 +6,15 @@ void main() {
   test('commercial gate never exposes raw StoreKit or exception text', () {
     final source = File('lib/commercial_gate.dart').readAsStringSync();
 
-    expect(source, isNot(contains('${_t(\'subscriptionFailed\')}: $error')));
+    expect(
+      source,
+      isNot(contains(r"${_t('subscriptionFailed')}: $error")),
+    );
     expect(source, isNot(contains('purchase.error?.message')));
-    expect(source, isNot(contains('${_t(\'storeError\')}: $error')));
+    expect(
+      source,
+      isNot(contains(r"${_t('storeError')}: $error")),
+    );
     expect(source, isNot(contains('return error.toString();')));
     expect(source, contains('String _localizedSubscriptionError(Object error)'));
     expect(source, contains("'APPLE_SUBSCRIPTION_ALREADY_LINKED'"));
