@@ -16,6 +16,7 @@ class HCVMLV3PhotoResidual {
   static const v2HighThreshold = 0.80;
   static const realityVetoThreshold = 0.20;
   static const hardNegativeRealityThreshold = 0.9837759923934937;
+  static const hardNegativeRealityThreshold = 0.9837759923934937;
 
   static const classes = <String>[
     'SCREEN_MONITOR',
@@ -105,6 +106,7 @@ class HCVMLV3PhotoResidual {
         'hardScreenProbability': _round(hardScreen),
         'cleanScreenProbability': _round(cleanScreen),
         'maxScreenProbability': _round(maxScreen),
+        'hardNegativeRealityProbability': _round(hardNegativeReality),
         'hardPredictedClass': classes[_topIndex(hard)],
         'cleanPredictedClass': classes[_topIndex(clean)],
         'hardClassProbabilities': <String, double>{
