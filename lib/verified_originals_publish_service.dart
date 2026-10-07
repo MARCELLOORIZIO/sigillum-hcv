@@ -177,15 +177,24 @@ class VerifiedOriginalsPublishService {
     required String hcvId,
     required File candidate,
   }) async {
-    final mime = await _photoMimeFromBytes(candidate);
+    String? mime;
+    int length;
+    try {
+      mime = await _photoMimeFromBytes(candidate);
+      length = await candidate.length();
+    } on FileSystemException {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.technicalError,
+        code: 'CANDIDATE_MEDIA_UNREADABLE',
+      );
+    }
+
     if (mime == null) {
       return const VerifiedPhotoCopyCheck(
         status: VerifiedPhotoCopyStatus.technicalError,
         code: 'VERIFICATION_MEDIA_TYPE_UNSUPPORTED',
       );
     }
-
-    final length = await candidate.length();
     if (length <= 0) {
       return const VerifiedPhotoCopyCheck(
         status: VerifiedPhotoCopyStatus.technicalError,
@@ -280,6 +289,11 @@ class VerifiedOriginalsPublishService {
         status: VerifiedPhotoCopyStatus.networkError,
         code: 'NETWORK_UNREACHABLE',
       );
+    } on HttpException {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.networkError,
+        code: 'HTTP_TRANSPORT_ERROR',
+      );
     } on HandshakeException {
       return const VerifiedPhotoCopyCheck(
         status: VerifiedPhotoCopyStatus.networkError,
@@ -289,6 +303,11 @@ class VerifiedOriginalsPublishService {
       return const VerifiedPhotoCopyCheck(
         status: VerifiedPhotoCopyStatus.networkError,
         code: 'NETWORK_TIMEOUT',
+      );
+    } on FileSystemException {
+      return const VerifiedPhotoCopyCheck(
+        status: VerifiedPhotoCopyStatus.technicalError,
+        code: 'CANDIDATE_MEDIA_UNREADABLE',
       );
     } on FormatException {
       return const VerifiedPhotoCopyCheck(
