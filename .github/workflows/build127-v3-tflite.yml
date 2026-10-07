@@ -3,9 +3,10 @@ name: BUILD127 V3 TFLite conversion
 on:
   push:
     branches:
-      - fix/build127-ml-hard-negatives-20260921
+      - fix/v3-hardnegative-172a-20261008
     paths:
       - ml/v3/v3_multihead_weights_fp16.json
+      - ml/v3/v3_hard_negative_head_172a_fp16.json
       - ml/v3/v3_parity_vectors.json
       - ml/v3/convert_v3_to_tflite.py
       - .github/workflows/build127-v3-tflite.yml
@@ -42,7 +43,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git pull --rebase origin fix/build127-ml-hard-negatives-20260921
+          git pull --rebase origin fix/v3-hardnegative-172a-20261008
           cp ml/v3/out/sigillum_screen_replay_v3_multihead.tflite assets/ml/sigillum_screen_replay_v3_multihead.tflite
           cp ml/v3/out/manifest.json ml/v3/v3_multihead_tflite_manifest.json
           git config user.name "github-actions[bot]"
@@ -52,5 +53,5 @@ jobs:
             echo "Verified V3 asset already committed"
             exit 0
           fi
-          git commit -m "BUILD127: commit parity-verified V3 multi-head TFLite"
-          git push origin HEAD:fix/build127-ml-hard-negatives-20260921
+          git commit -m "V3: commit parity-verified 172A hard-negative model"
+          git push origin HEAD:fix/v3-hardnegative-172a-20261008
