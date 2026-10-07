@@ -11,7 +11,7 @@ void main() {
     expect(
       service,
       contains(
-        r"'\$_base/api/verified-originals/\$hcvId/verify-photo-copy'",
+        r"'$_base/api/verified-originals/$hcvId/verify-photo-copy'",
       ),
     );
     expect(service, contains('VerifiedPhotoCopyStatus.networkError'));
