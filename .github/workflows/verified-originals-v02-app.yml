@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/verified-originals-v02-trusted-20260924
+      - release/testflight-final-20260827
   pull_request:
     paths:
       - 'lib/verified_originals_*.dart'
