@@ -855,8 +855,8 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
           availability['comparisonMode']?.toString();
       _officialReferenceLiveAvailable =
           availability['availability'] == 'REFERENCE_AVAILABLE' &&
-              (availability['referenceLive'] == true ||
-                  availability['youtubeLive'] == true);
+              availability['platform'] == 'r2' &&
+              availability['referenceLive'] == true;
       final commentsDisabled = availability['commentsDisabled'];
       _officialReferenceCommentsDisabled =
           commentsDisabled is bool ? commentsDisabled : null;
