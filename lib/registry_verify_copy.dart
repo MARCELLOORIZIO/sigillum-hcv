@@ -52,15 +52,15 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM\nIl confronto con l’originale di riferimento non rileva differenze oltre quelle tollerate dai controlli previsti per ricompressioni e trasformazioni tecniche.',
       'officialReferenceConformingDetail':
-          'Confronto locale V3 compatibile con la fingerprint firmata del riferimento originale SIGILLUM.',
+          'Il confronto automatico con il riferimento originale protetto SIGILLUM è compatibile con la fingerprint firmata.',
       'officialReferenceModified':
           'COPIA MODIFICATA\nIl confronto con il riferimento SIGILLUM ha rilevato differenze locali significative non compatibili con la sola ricompressione prevista.',
       'officialReferenceModifiedDetail':
-          'Il confronto locale V3 ha rilevato variazioni non compatibili con la sola ricompressione social, incluse possibili aggiunte, rimozioni o alterazioni di elementi.',
+          'Il confronto automatico con il riferimento originale protetto SIGILLUM ha rilevato variazioni non compatibili con la sola ricompressione social, incluse possibili aggiunte, rimozioni o alterazioni di elementi.',
       'officialReferenceInconclusive':
           'VERIFICA NON CONCLUSIVA\nIl riferimento SIGILLUM è disponibile, ma i controlli non producono evidenza sufficiente per classificare la copia come compatibile o modificata.',
       'officialReferenceInconclusiveDetail':
-          'Qualità, ritaglio, trasformazioni o allineamento non consentono un confronto locale V3 affidabile.',
+          'Qualità, ritaglio, trasformazioni o allineamento non consentono un confronto automatico affidabile con il riferimento originale protetto.',
       'officialReferenceConformingTitle': 'COPIA COMPATIBILE CON IL RIFERIMENTO SIGILLUM',
       'officialReferenceModifiedTitle': 'COPIA MODIFICATA RISPETTO AL RIFERIMENTO',
       'officialReferenceInconclusiveTitle': 'VERIFICA NON CONCLUSIVA',
@@ -128,14 +128,14 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'Impossibile aprire il riferimento originale protetto SIGILLUM.',
       'verificationTiming':
-          'Tempo verifica: {total} s · riferimento {reference} s · confronto locale {local} s',
+          'Tempo verifica: {total} s · riferimento {reference} s · confronto {local} s',
       'techReferenceVerification': 'RIFERIMENTO ORIGINALE SIGILLUM',
       'techReferenceMode': 'Modalità confronto',
       'techReferenceCheckStatus': 'Stato confronto riferimento',
       'techReferenceLive': 'Riferimento originale disponibile',
       'techReferenceCommentsDisabled': 'Dato provider accessorio',
       'techReferenceServerMs': 'Controllo riferimento ms',
-      'techReferenceLocalMs': 'Confronto locale ms',
+      'techReferenceLocalMs': 'Confronto riferimento ms',
       'techVerificationTotalMs': 'Verifica totale ms',
       'audioMismatchDetected':
           'HCV-ID e fingerprint visivo sono compatibili, ma il fingerprint audio non corrisponde. Possibile audio sostituito, rimosso o alterato oltre la tolleranza di ricompressione.',
@@ -266,15 +266,15 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE\nComparison with the original reference found no differences beyond those tolerated by the checks for expected recompression and technical transformations.',
       'officialReferenceConformingDetail':
-          'Local V3 comparison is compatible with the signed fingerprint of the SIGILLUM original reference.',
+          'The automatic comparison with the protected SIGILLUM original reference is compatible with its signed fingerprint.',
       'officialReferenceModified':
           'MODIFIED COPY\nComparison with the SIGILLUM reference found significant local differences not compatible with expected recompression alone.',
       'officialReferenceModifiedDetail':
-          'Local V3 comparison detected changes not compatible with social recompression alone, including possible inserted, removed, or altered elements.',
+          'The automatic comparison with the protected SIGILLUM original reference detected changes not compatible with social recompression alone, including possible inserted, removed, or altered elements.',
       'officialReferenceInconclusive':
           'VERIFICATION INCONCLUSIVE\nThe SIGILLUM reference is available, but the checks do not provide enough evidence to classify the copy as compatible or modified.',
       'officialReferenceInconclusiveDetail':
-          'Quality, cropping, transformations, or alignment prevent a reliable local V3 comparison.',
+          'Quality, cropping, transformations, or alignment prevent a reliable automatic comparison with the protected original reference.',
       'officialReferenceConformingTitle': 'COPY COMPATIBLE WITH THE SIGILLUM REFERENCE',
       'officialReferenceModifiedTitle': 'COPY MODIFIED FROM THE REFERENCE',
       'officialReferenceInconclusiveTitle': 'VERIFICATION INCONCLUSIVE',
@@ -342,14 +342,14 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'Unable to open the protected SIGILLUM original reference.',
       'verificationTiming':
-          'Verification time: {total} s · reference {reference} s · local comparison {local} s',
+          'Verification time: {total} s · reference {reference} s · comparison {local} s',
       'techReferenceVerification': 'SIGILLUM ORIGINAL REFERENCE',
       'techReferenceMode': 'Comparison mode',
       'techReferenceCheckStatus': 'Reference check status',
       'techReferenceLive': 'Original reference available',
       'techReferenceCommentsDisabled': 'Provider auxiliary state',
       'techReferenceServerMs': 'Reference check ms',
-      'techReferenceLocalMs': 'Local comparison ms',
+      'techReferenceLocalMs': 'Reference comparison ms',
       'techVerificationTotalMs': 'Total verification ms',
       'audioMismatchDetected':
           'The HCV-ID and visual fingerprint are compatible, but the audio fingerprint does not match. Audio may have been replaced, removed, or altered beyond recompression tolerance.',
@@ -482,15 +482,15 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM\nLa comparación con la referencia original no detecta diferencias fuera de las toleradas por los controles para recompresión y transformaciones técnicas previstas.',
       'officialReferenceConformingDetail':
-          'La comparación local V3 es compatible con la huella firmada de la referencia original SIGILLUM.',
+          'La comparación automática con la referencia original protegida de SIGILLUM es compatible con su huella firmada.',
       'officialReferenceModified':
           'COPIA MODIFICADA\nLa comparación con la referencia SIGILLUM detectó diferencias locales significativas no compatibles únicamente con la recompresión prevista.',
       'officialReferenceModifiedDetail':
-          'La comparación local V3 detectó cambios no compatibles únicamente con recompresión social, incluidas posibles inserciones, eliminaciones o alteraciones de elementos.',
+          'La comparación automática con la referencia original protegida de SIGILLUM detectó cambios no compatibles únicamente con recompresión social, incluidas posibles inserciones, eliminaciones o alteraciones de elementos.',
       'officialReferenceInconclusive':
           'VERIFICACIÓN NO CONCLUYENTE\nLa referencia SIGILLUM está disponible, pero los controles no aportan evidencia suficiente para clasificar la copia como compatible o modificada.',
       'officialReferenceInconclusiveDetail':
-          'La calidad, el recorte, las transformaciones o la alineación impiden una comparación local V3 fiable.',
+          'La calidad, el recorte, las transformaciones o la alineación impiden una comparación automática fiable con la referencia original protegida.',
       'officialReferenceConformingTitle': 'COPIA COMPATIBLE CON LA REFERENCIA SIGILLUM',
       'officialReferenceModifiedTitle': 'COPIA MODIFICADA RESPECTO A LA REFERENCIA',
       'officialReferenceInconclusiveTitle': 'VERIFICACIÓN NO CONCLUYENTE',
@@ -557,14 +557,14 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'No se puede abrir la referencia original protegida de SIGILLUM.',
       'verificationTiming':
-          'Tiempo de verificación: {total} s · referencia {reference} s · comparación local {local} s',
+          'Tiempo de verificación: {total} s · referencia {reference} s · comparación {local} s',
       'techReferenceVerification': 'REFERENCIA ORIGINAL SIGILLUM',
       'techReferenceMode': 'Modo de comparación',
       'techReferenceCheckStatus': 'Estado del control de referencia',
       'techReferenceLive': 'Referencia original disponible',
       'techReferenceCommentsDisabled': 'Estado auxiliar del proveedor',
       'techReferenceServerMs': 'Control de referencia ms',
-      'techReferenceLocalMs': 'Comparación local ms',
+      'techReferenceLocalMs': 'Comparación de referencia ms',
       'techVerificationTotalMs': 'Verificación total ms',
       'audioMismatchDetected':
           'El HCV-ID y la huella visual son compatibles, pero la huella de audio no coincide. El audio puede haber sido sustituido, eliminado o modificado más allá de la tolerancia de recompresión.',
@@ -695,15 +695,15 @@ class RegistryVerifyCopy {
       'officialReferenceConforming':
           'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM\nСравнение с оригинальным эталоном не выявило различий сверх допустимых для ожидаемого перекодирования и технических преобразований.',
       'officialReferenceConformingDetail':
-          'Локальное сравнение V3 совместимо с подписанным отпечатком оригинального эталона SIGILLUM.',
+          'Автоматическое сравнение с защищённым оригинальным эталоном SIGILLUM совместимо с его подписанным отпечатком.',
       'officialReferenceModified':
           'КОПИЯ ИЗМЕНЕНА\nСравнение с эталоном SIGILLUM выявило значимые локальные различия, несовместимые только с ожидаемым перекодированием.',
       'officialReferenceModifiedDetail':
-          'Локальное сравнение V3 выявило изменения, не объясняемые только социальным перекодированием, включая возможное добавление, удаление или изменение элементов.',
+          'Автоматическое сравнение с защищённым оригинальным эталоном SIGILLUM выявило изменения, не объясняемые только социальным перекодированием, включая возможное добавление, удаление или изменение элементов.',
       'officialReferenceInconclusive':
           'ПРОВЕРКА НЕОДНОЗНАЧНА\nЭталон SIGILLUM доступен, но проверок недостаточно, чтобы классифицировать копию как совместимую или изменённую.',
       'officialReferenceInconclusiveDetail':
-          'Качество, кадрирование, преобразования или выравнивание не позволяют выполнить надёжное локальное сравнение V3.',
+          'Качество, кадрирование, преобразования или выравнивание не позволяют выполнить надёжное автоматическое сравнение с защищённым оригинальным эталоном.',
       'officialReferenceConformingTitle': 'КОПИЯ СОВМЕСТИМА С ЭТАЛОНОМ SIGILLUM',
       'officialReferenceModifiedTitle': 'КОПИЯ ИЗМЕНЕНА ОТНОСИТЕЛЬНО ЭТАЛОНА',
       'officialReferenceInconclusiveTitle':
@@ -771,14 +771,14 @@ class RegistryVerifyCopy {
       'manualCompareOpenError':
           'Не удалось открыть защищённый оригинальный эталон SIGILLUM.',
       'verificationTiming':
-          'Время проверки: {total} с · эталон {reference} с · локальное сравнение {local} с',
+          'Время проверки: {total} с · эталон {reference} с · сравнение {local} с',
       'techReferenceVerification': 'ОРИГИНАЛЬНЫЙ ЭТАЛОН SIGILLUM',
       'techReferenceMode': 'Режим сравнения',
       'techReferenceCheckStatus': 'Статус проверки эталона',
       'techReferenceLive': 'Оригинальный эталон доступен',
       'techReferenceCommentsDisabled': 'Дополнительное состояние провайдера',
       'techReferenceServerMs': 'Проверка эталона, мс',
-      'techReferenceLocalMs': 'Локальное сравнение, мс',
+      'techReferenceLocalMs': 'Сравнение с эталоном, мс',
       'techVerificationTotalMs': 'Общее время проверки, мс',
       'audioMismatchDetected':
           'HCV-ID и визуальный отпечаток совместимы, но аудиоотпечаток не совпадает. Аудио могло быть заменено, удалено или изменено сверх допустимого при перекодировании.',
