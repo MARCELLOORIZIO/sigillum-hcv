@@ -321,7 +321,8 @@ class VerifiedOriginalsPublishService {
 
   bool _isLiveReference(Map<String, dynamic> live) {
     return live['availability'] == 'REFERENCE_AVAILABLE' &&
-        (live['referenceLive'] == true || live['youtubeLive'] == true);
+        live['platform'] == 'r2' &&
+        live['referenceLive'] == true;
   }
 
   bool _providerLocatorValid(
@@ -329,12 +330,9 @@ class VerifiedOriginalsPublishService {
     required String publicUrl,
   }) {
     final platform = response['platform']?.toString() ?? '';
-    if (platform == 'youtube') return publicUrl.isNotEmpty;
-    if (platform == 'r2') {
-      return response['referenceAccess'] == 'SHORT_LIVED_AUTHORIZATION' &&
-          publicUrl.isEmpty;
-    }
-    return false;
+    return platform == 'r2' &&
+        response['referenceAccess'] == 'SHORT_LIVED_AUTHORIZATION' &&
+        publicUrl.isEmpty;
   }
 
   Future<Map<String, dynamic>> entitledLiveReference(String hcvId) async {
