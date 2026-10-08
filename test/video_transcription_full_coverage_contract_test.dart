@@ -12,7 +12,13 @@ void main() {
     expect(service, contains('_captionSegmentsWithFullCoverage'));
     expect(service, contains('_tokenCoverage'));
     expect(service, contains('_captionsFromFullText'));
-    expect(service, contains("mediaDuration: (raw['duration'] as num?)?.toDouble()"));
+    expect(
+      service,
+      contains("final mediaDuration = (raw['duration'] as num?)?.toDouble();"),
+    );
+    expect(service, contains('mediaDuration: mediaDuration'));
+    expect(service, contains('final remaining = mediaDuration - lastEnd;'));
+    expect(service, contains('startSeconds: tailStart'));
 
     expect(speechPatch, contains('var timeline = [Int: [String: Any]]()'));
     expect(speechPatch, contains('segment.timestamp / 0.08'));

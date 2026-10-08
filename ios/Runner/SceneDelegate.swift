@@ -303,6 +303,7 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
         self.transcribeVideo(
           path: path,
           languageCode: (args["languageCode"] as? String) ?? "it",
+          startSeconds: max(0, (args["startSeconds"] as? NSNumber)?.doubleValue ?? 0),
           result: result
         )
       } else if call.method == "burnSubtitles" {
@@ -785,6 +786,7 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
   private func transcribeVideo(
     path: String,
     languageCode: String,
+    startSeconds: Double,
     result: @escaping FlutterResult
   ) {
     SFSpeechRecognizer.requestAuthorization { status in
@@ -800,7 +802,10 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
       }
 
       let videoURL = URL(fileURLWithPath: path)
-      self.exportAudioForSpeech(videoURL: videoURL) { audioURL, exportError in
+      self.exportAudioForSpeech(
+        videoURL: videoURL,
+        startSeconds: startSeconds
+      ) { audioURL, exportError in
         if let exportError = exportError {
           DispatchQueue.main.async {
             result(FlutterError(
@@ -865,26 +870,27 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
           let segments = transcription.segments.map { segment in
             return [
               "text": segment.substring,
-              "start": segment.timestamp,
+              "start": startSeconds + segment.timestamp,
               "duration": segment.duration,
             ] as [String: Any]
           }
 
           for segment in transcription.segments {
             // 80 ms buckets absorb small timestamp shifts between successive
-            // hypotheses. Newer recognizer output replaces the same moment;
-            // moments omitted by a later partial remain preserved.
-            let bucket = Int((segment.timestamp / 0.08).rounded())
+            // hypotheses. Tail retries are offset to the original media
+            // timeline before merging in Dart.
+            let absoluteStart = startSeconds + segment.timestamp
+            let bucket = Int((absoluteStart / 0.08).rounded())
             timeline[bucket] = [
               "text": segment.substring,
-              "start": segment.timestamp,
+              "start": absoluteStart,
               "duration": segment.duration,
             ]
           }
 
           let coverage = transcription.segments.last.map {
-            $0.timestamp + $0.duration
-          } ?? 0
+            startSeconds + $0.timestamp + $0.duration
+          } ?? startSeconds
           let characterCount = text.count
           if coverage > bestCoverage + 0.05 ||
              (abs(coverage - bestCoverage) <= 0.05 && characterCount > bestCharacterCount) ||
@@ -992,6 +998,7 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
 
   private func exportAudioForSpeech(
     videoURL: URL,
+    startSeconds: Double = 0,
     completion: @escaping (URL?, Error?) -> Void
   ) {
     let asset = AVURLAsset(url: videoURL)
@@ -1013,6 +1020,22 @@ class SceneDelegate: FlutterSceneDelegate, PHPickerViewControllerDelegate {
     try? FileManager.default.removeItem(at: output)
     exporter.outputURL = output
     exporter.outputFileType = .m4a
+
+    let sourceDuration = asset.duration.seconds
+    if startSeconds > 0,
+       sourceDuration.isFinite,
+       sourceDuration > startSeconds {
+      let start = CMTimeMakeWithSeconds(
+        startSeconds,
+        preferredTimescale: 600
+      )
+      let remaining = CMTimeMakeWithSeconds(
+        sourceDuration - startSeconds,
+        preferredTimescale: 600
+      )
+      exporter.timeRange = CMTimeRange(start: start, duration: remaining)
+    }
+
     exporter.exportAsynchronously {
       switch exporter.status {
       case .completed:

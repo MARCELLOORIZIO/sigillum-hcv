@@ -65,12 +65,9 @@ class VideoTranscriptionService {
       );
     }
 
-    final raw = await _channel.invokeMapMethod<String, dynamic>(
-      'transcribeVideo',
-      {
-        'path': videoPath,
-        'languageCode': languageCode,
-      },
+    final raw = await _invokeTranscription(
+      videoPath,
+      languageCode: languageCode,
     );
     if (raw == null) {
       throw PlatformException(
@@ -79,17 +76,9 @@ class VideoTranscriptionService {
       );
     }
 
-    final text = raw['text']?.toString().trim() ?? '';
-    final rawSegments = raw['segments'];
-    final wordSegments = <VideoTranscriptSegment>[];
-    if (rawSegments is List) {
-      for (final item in rawSegments) {
-        if (item is Map) {
-          final segment = VideoTranscriptSegment.fromMap(item);
-          if (segment.text.trim().isNotEmpty) wordSegments.add(segment);
-        }
-      }
-    }
+    var text = raw['text']?.toString().trim() ?? '';
+    var wordSegments = _segmentsFromRaw(raw['segments']);
+    final mediaDuration = (raw['duration'] as num?)?.toDouble();
 
     if (text.isEmpty && wordSegments.isEmpty) {
       throw PlatformException(
@@ -98,10 +87,58 @@ class VideoTranscriptionService {
       );
     }
 
+    // Apple Speech may occasionally mark a file result final even though its
+    // timed segments stop well before the source media ends. A token-coverage
+    // check cannot detect that failure because both the returned text and the
+    // returned segments are truncated at the same point. Retry only the
+    // uncovered tail and merge absolute timestamps; never stretch invented
+    // words across an unrecognized portion of the video.
+    if (mediaDuration != null && mediaDuration.isFinite && mediaDuration > 0) {
+      var attempts = 0;
+      while (wordSegments.isNotEmpty && attempts < 6) {
+        final lastEnd = _lastSegmentEnd(wordSegments);
+        final remaining = mediaDuration - lastEnd;
+        if (remaining <= 1.5) break;
+
+        final tailStart = (lastEnd + 0.05).clamp(
+          0.0,
+          mediaDuration,
+        ).toDouble();
+        Map<String, dynamic>? tailRaw;
+        try {
+          tailRaw = await _invokeTranscription(
+            videoPath,
+            languageCode: languageCode,
+            startSeconds: tailStart,
+          );
+        } on PlatformException catch (error) {
+          if (error.code == 'NO_SPEECH') break;
+          rethrow;
+        }
+        if (tailRaw == null) break;
+
+        final tailSegments = _segmentsFromRaw(tailRaw['segments']);
+        if (tailSegments.isEmpty) break;
+        final merged = _mergeSegments(wordSegments, tailSegments);
+        final mergedEnd = _lastSegmentEnd(merged);
+        if (mergedEnd <= lastEnd + 0.35) break;
+
+        final tailText = tailRaw['text']?.toString().trim() ?? '';
+        if (tailText.isNotEmpty) {
+          text = [text, tailText]
+              .where((part) => part.trim().isNotEmpty)
+              .join(' ')
+              .trim();
+        }
+        wordSegments = merged;
+        attempts++;
+      }
+    }
+
     final captions = _captionSegmentsWithFullCoverage(
       wordSegments,
       fullText: text,
-      mediaDuration: (raw['duration'] as num?)?.toDouble(),
+      mediaDuration: mediaDuration,
     );
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
@@ -152,6 +189,60 @@ class VideoTranscriptionService {
       subtitlePath: subtitlePath,
       captionedVideoPath: returnedPath,
     );
+  }
+
+  Future<Map<String, dynamic>?> _invokeTranscription(
+    String videoPath, {
+    required String languageCode,
+    double startSeconds = 0,
+  }) {
+    return _channel.invokeMapMethod<String, dynamic>(
+      'transcribeVideo',
+      {
+        'path': videoPath,
+        'languageCode': languageCode,
+        'startSeconds': startSeconds,
+      },
+    );
+  }
+
+  List<VideoTranscriptSegment> _segmentsFromRaw(dynamic rawSegments) {
+    final segments = <VideoTranscriptSegment>[];
+    if (rawSegments is List) {
+      for (final item in rawSegments) {
+        if (item is Map) {
+          final segment = VideoTranscriptSegment.fromMap(item);
+          if (segment.text.trim().isNotEmpty) segments.add(segment);
+        }
+      }
+    }
+    segments.sort((a, b) => a.start.compareTo(b.start));
+    return segments;
+  }
+
+  double _lastSegmentEnd(List<VideoTranscriptSegment> segments) {
+    if (segments.isEmpty) return 0;
+    return segments
+        .map((segment) => segment.end)
+        .reduce((a, b) => a > b ? a : b);
+  }
+
+  List<VideoTranscriptSegment> _mergeSegments(
+    List<VideoTranscriptSegment> base,
+    List<VideoTranscriptSegment> tail,
+  ) {
+    final merged = <VideoTranscriptSegment>[...base];
+    for (final candidate in tail) {
+      final duplicate = merged.any((existing) {
+        final sameText = existing.text.trim().toLowerCase() ==
+            candidate.text.trim().toLowerCase();
+        final nearTimestamp = (existing.start - candidate.start).abs() <= 0.18;
+        return sameText && nearTimestamp;
+      });
+      if (!duplicate) merged.add(candidate);
+    }
+    merged.sort((a, b) => a.start.compareTo(b.start));
+    return merged;
   }
 
   List<VideoTranscriptSegment> _captionSegmentsWithFullCoverage(
@@ -239,7 +330,11 @@ class VideoTranscriptionService {
         VideoTranscriptSegment(
           text: groups[i],
           start: start + (perGroup * i),
-          duration: perGroup.clamp(0.9, 5.0).toDouble(),
+          duration: (
+            (i == groups.length - 1)
+                ? end - (start + (perGroup * i))
+                : perGroup
+          ).clamp(0.9, 359999.0).toDouble(),
         ),
     ];
   }
