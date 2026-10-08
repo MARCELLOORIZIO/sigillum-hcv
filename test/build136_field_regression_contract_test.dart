@@ -33,12 +33,18 @@ void main() {
       expect(getBlock, isNot(contains('consumeSharedPath()')));
     });
 
-    test('manual YouTube comparison explicitly seeks even at zero', () {
-      expect(manual, contains("'start': '\$seconds'"));
-      expect(manual, contains("'t': '\${seconds}s'"));
-      expect(manual, contains('position >= duration - const Duration(seconds: 1)'));
+    test('manual R2 comparison preserves the selected video timestamp', () {
+      expect(
+        manual,
+        contains('position >= duration - const Duration(seconds: 1)'),
+      );
       expect(manual, contains('await controller.seekTo(Duration.zero);'));
-      expect(manual, isNot(contains('if (seconds > 0)')));
+      expect(
+        manual,
+        contains('initialPosition: Duration(seconds: seconds)'),
+      );
+      expect(manual, isNot(contains('Uri.https(')));
+      expect(manual, isNot(contains('LaunchMode.externalApplication')));
     });
 
     test('share-extension photo handoff adds no lossy JPEG recompression', () {
