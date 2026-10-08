@@ -10,21 +10,21 @@ void main() {
     'certificateVerdict': 'CERTIFICATE_RECORD_VERIFIED',
     'socialFileVerdict': 'NOT_VERIFIED',
     'publicationStatus': 'PUBLISHED',
-    'platform': 'youtube',
-    'publicUrl': 'https://www.youtube.com/watch?v=AbCdEfGhI_1',
+    'platform': 'r2',
+    'referenceAccess': 'SHORT_LIVED_AUTHORIZATION',
     'originalContentSha256': List.filled(64, 'a').join(),
     'referenceSha256': List.filled(64, 'b').join(),
-    'derivationType': 'video_transcode_h264_aac_v1',
+    'derivationType': 'primary_reference_identity_v1',
   };
 
-  test('free discovery exposes availability without a locator', () {
+  test('free discovery accepts R2 availability without a locator', () {
     final free = <String, dynamic>{
       'hcvId': id,
       'availability': 'REFERENCE_AVAILABLE',
       'certificateVerdict': 'CERTIFICATE_RECORD_VERIFIED',
       'socialFileVerdict': 'NOT_VERIFIED',
       'publicationStatus': 'PUBLISHED',
-      'platform': 'youtube',
+      'platform': 'r2',
       'viewAccess': 'SUBSCRIPTION_REQUIRED',
     };
     expect(
@@ -36,21 +36,29 @@ void main() {
     );
     expect(
       VerifiedOriginalsReference.isAvailable(
-        {...free, 'publicUrl': 'https://www.youtube.com/watch?v=AbCdEfGhI_1'},
+        {...free, 'publicUrl': 'https://example.invalid/reference'},
+        requestedHcvId: id,
+      ),
+      isFalse,
+    );
+    expect(
+      VerifiedOriginalsReference.isAvailable(
+        {...free, 'platform': 'youtube'},
         requestedHcvId: id,
       ),
       isFalse,
     );
   });
 
-  test('paid view returns a locator, not a social integrity verdict', () {
+  test('paid view accepts only private short-lived R2 access', () {
     final ref = VerifiedOriginalsReference.fromRegistry(
       valid,
       requestedHcvId: id,
     );
     expect(ref, isNotNull);
-    expect(ref!.publicUrl!.host, 'www.youtube.com');
-    expect(ref.platform, 'youtube');
+    expect(ref!.platform, 'r2');
+    expect(ref.isPrivateR2, isTrue);
+    expect(ref.publicUrl, isNull);
   });
 
   test('never accepts copied ID or positive social integrity assertion', () {
@@ -96,27 +104,29 @@ void main() {
     );
   });
 
-  test('blocks open redirects and non-canonical platform references', () {
-    for (final url in [
-      'https://evil.example/watch?v=AbCdEfGhI_1',
-      'http://www.youtube.com/watch?v=AbCdEfGhI_1',
-      'https://www.youtube.com/watch?v=AbCdEfGhI_1&redirect=x',
-      'https://www.youtube.com/watch?v=../',
-    ]) {
+  test('rejects public locators and every non-R2 platform', () {
+    expect(
+      VerifiedOriginalsReference.fromRegistry(
+        {...valid, 'publicUrl': 'https://example.invalid/reference'},
+        requestedHcvId: id,
+      ),
+      isNull,
+    );
+    expect(
+      VerifiedOriginalsReference.fromRegistry(
+        {...valid, 'platformPostId': 'legacy'},
+        requestedHcvId: id,
+      ),
+      isNull,
+    );
+    for (final platform in ['youtube', 'arbitrary', '']) {
       expect(
         VerifiedOriginalsReference.fromRegistry(
-          {...valid, 'publicUrl': url},
+          {...valid, 'platform': platform},
           requestedHcvId: id,
         ),
         isNull,
       );
     }
-    expect(
-      VerifiedOriginalsReference.fromRegistry(
-        {...valid, 'platform': 'arbitrary'},
-        requestedHcvId: id,
-      ),
-      isNull,
-    );
   });
 }
