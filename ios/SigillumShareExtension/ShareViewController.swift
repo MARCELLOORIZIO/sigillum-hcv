@@ -16,6 +16,44 @@ final class ShareViewController: UIViewController {
       ?? "sigillum"
   }
 
+  private var languageCode: String {
+    let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
+    if preferred.hasPrefix("it") { return "it" }
+    if preferred.hasPrefix("es") { return "es" }
+    if preferred.hasPrefix("ru") { return "ru" }
+    return "en"
+  }
+
+  private func localized(_ key: String) -> String {
+    let copy: [String: [String: String]] = [
+      "it": [
+        "loading": "Preparazione contenuto...",
+        "close": "CHIUDI",
+        "saved":
+          "Contenuto salvato in Fotocamera SIGILLUM.\nTocca CHIUDI, poi apri Fotocamera SIGILLUM: la verifica partirà automaticamente.",
+      ],
+      "en": [
+        "loading": "Preparing content...",
+        "close": "CLOSE",
+        "saved":
+          "Content saved to SIGILLUM Camera.\nTap CLOSE, then open SIGILLUM Camera: verification will start automatically.",
+      ],
+      "es": [
+        "loading": "Preparando contenido...",
+        "close": "CERRAR",
+        "saved":
+          "Contenido guardado en Cámara SIGILLUM.\nPulsa CERRAR y abre Cámara SIGILLUM: la verificación se iniciará automáticamente.",
+      ],
+      "ru": [
+        "loading": "Подготовка содержимого...",
+        "close": "ЗАКРЫТЬ",
+        "saved":
+          "Контент сохранён в Камере SIGILLUM.\nНажмите «ЗАКРЫТЬ», затем откройте Камеру SIGILLUM: проверка начнётся автоматически.",
+      ],
+    ]
+    return copy[languageCode]?[key] ?? copy["en"]?[key] ?? key
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = UIColor.systemBackground
@@ -388,7 +426,7 @@ final class ShareViewController: UIViewController {
   private func showLoadingState() {
     let label = UILabel()
     label.translatesAutoresizingMaskIntoConstraints = false
-    label.text = "Preparazione contenuto..."
+    label.text = localized("loading")
     label.textAlignment = .center
     label.numberOfLines = 0
     label.font = .preferredFont(forTextStyle: .headline)
@@ -397,7 +435,7 @@ final class ShareViewController: UIViewController {
 
     let button = UIButton(type: .system)
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.setTitle("CHIUDI", for: .normal)
+    button.setTitle(localized("close"), for: .normal)
     button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
     button.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.16)
     button.layer.cornerRadius = 18
@@ -418,9 +456,8 @@ final class ShareViewController: UIViewController {
 
   private func openHostAppAndFinish() {
     DispatchQueue.main.async {
-      self.statusLabel?.text =
-        "Contenuto salvato in Fotocamera Sigillum.\nTocca CHIUDI, poi apri Fotocamera Sigillum: la verifica partirà automaticamente."
-      self.openButton?.setTitle("CHIUDI", for: .normal)
+      self.statusLabel?.text = self.localized("saved")
+      self.openButton?.setTitle(self.localized("close"), for: .normal)
       self.openButton?.isHidden = false
       self.openButton?.isEnabled = true
     }
@@ -431,9 +468,8 @@ final class ShareViewController: UIViewController {
   }
 
   private func showOpenFailed() {
-    statusLabel?.text =
-      "Contenuto salvato in Fotocamera Sigillum.\nTocca CHIUDI, poi apri Fotocamera Sigillum: la verifica partirà automaticamente."
-    openButton?.setTitle("CHIUDI", for: .normal)
+    statusLabel?.text = localized("saved")
+    openButton?.setTitle(localized("close"), for: .normal)
     openButton?.isHidden = false
     openButton?.isEnabled = true
   }
