@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sigillum_iphone/hcv_ml_v3_photo_residual.dart';
+import 'package:sigillum_iphone/hcv_multi_evidence_display_policy.dart';
 
 void main() {
   group('V3 172A hard-negative residual gate', () {
@@ -80,6 +81,101 @@ void main() {
           hardNegativeRealityProbability: 0.999882340,
         ),
         isFalse,
+      );
+    });
+
+    test('172A fusion no longer resolves as STRONG display', () {
+      final result = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
+        temporalFrequencyProbe: const <String, dynamic>{
+          'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
+          'analysisStatus': 'ANALYZED',
+          'hfrSpatialComparability': 'COMPARABLE',
+          'displayRealityEvidenceV3': <String, dynamic>{
+            'fullFrameDisplay': false,
+            'displayLikeCellCount': 0,
+            'realityLikeCellCount': 0,
+            'spatialFamilyCellCount': 6,
+            'harmonicAwareSpatialFamilyCellCount': 6,
+            'rowTimeFamilyCellCount': 9,
+          },
+          'coherentDisplayPeriodicityEvidence': <String, dynamic>{
+            'periodicCellCount': 0,
+            'stableCellCount': 0,
+            'medianCellPeriodicityStrength': 0.03277382231703225,
+          },
+        },
+        stillMl: const <String, dynamic>{
+          'analysisStatus': 'ANALYZED',
+          'predictedClass': 'SCREEN_MONITOR',
+          'screenProbability': 0.9996,
+          'v3RealityVeto': true,
+          'signals': <String, dynamic>{
+            'fullFrameRiskScore': 100,
+            'contentAreaRiskScore': 100,
+            'v3RealityVeto': true,
+          },
+        },
+        temporalMl: const <String, dynamic>{
+          'analysisStatus': 'ANALYZED',
+          'predictedClass': 'SCREEN_MONITOR',
+          'screenProbability': 0.9996,
+          'videoFrameAnalyses': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'predictedClass': 'SCREEN_MONITOR',
+              'signals': <String, dynamic>{
+                'fullFrameRiskScore': 100,
+                'contentAreaRiskScore': 100,
+              },
+            },
+            <String, dynamic>{
+              'predictedClass': 'SCREEN_MONITOR',
+              'signals': <String, dynamic>{
+                'fullFrameRiskScore': 100,
+                'contentAreaRiskScore': 100,
+              },
+            },
+            <String, dynamic>{
+              'predictedClass': 'SCREEN_MONITOR',
+              'signals': <String, dynamic>{
+                'fullFrameRiskScore': 100,
+                'contentAreaRiskScore': 100,
+              },
+            },
+          ],
+        },
+        stillOptical: const <String, dynamic>{
+          'analysisStatus': 'ANALYZED',
+          'signals': <String, dynamic>{
+            'strongDisplayTrace': false,
+            'structuralDisplayTrace': false,
+            'confirmedDisplayTrace': false,
+          },
+        },
+        temporalOptical: const <String, dynamic>{
+          'analysisStatus': 'ANALYZED',
+          'signals': <String, dynamic>{
+            'strongDisplayTrace': false,
+            'structuralDisplayTrace': false,
+            'confirmedDisplayTrace': false,
+          },
+        },
+        videoEquivalentDisplayRisk: const <String, dynamic>{
+          'decision': 'STRONG_DISPLAY_RISK',
+        },
+      );
+
+      expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+      expect(
+        result.reasons,
+        contains('BUILD127_V3_RESIDUAL_VETO_NO_CORROBORATED_DISPLAY_EVIDENCE'),
+      );
+      expect(
+        result.reasons,
+        isNot(contains('BUILD124_PHOTO_STILL_STRONG_DISPLAY')),
+      );
+      expect(
+        result.reasons,
+        isNot(contains('BUILD124_PHOTO_MULTI_EVIDENCE_DISPLAY')),
       );
     });
 
