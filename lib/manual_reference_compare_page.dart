@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'commercial_account_service.dart';
@@ -181,62 +180,42 @@ class _ManualReferenceComparePageState
       }
     }
 
-    if (reference.isPrivateR2) {
-      File? file;
-      try {
-        file = await _publisher.materializeEntitledReference(widget.hcvId);
-        if (!mounted) {
-          try {
-            await file.delete();
-          } catch (_) {}
-          return;
-        }
-        final ownedFile = file;
-        file = null;
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => VerifiedReferenceViewerPage(
-              file: ownedFile,
-              title: _r('manualCompareOfficialTitle'),
-            ),
-          ),
-        );
-      } catch (_) {
-        if (file != null) {
-          try {
-            await file.delete();
-          } catch (_) {}
-        }
-        if (mounted) {
-          setState(() => _error = _r('manualCompareOpenError'));
-        }
-      }
-      return;
-    }
-
-    final publicUrl = reference.publicUrl;
-    if (publicUrl == null) {
+    if (!reference.isPrivateR2) {
       if (mounted) {
         setState(() => _error = _r('manualCompareOpenError'));
       }
       return;
     }
-    final target = Uri.https(
-      publicUrl.host,
-      publicUrl.path,
-      <String, String>{
-        ...publicUrl.queryParameters,
-        'start': '$seconds',
-        't': '${seconds}s',
-      },
-    );
 
-    final opened = await launchUrl(
-      target,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened && mounted) {
-      setState(() => _error = _r('manualCompareOpenError'));
+    File? file;
+    try {
+      file = await _publisher.materializeEntitledReference(widget.hcvId);
+      if (!mounted) {
+        try {
+          await file.delete();
+        } catch (_) {}
+        return;
+      }
+      final ownedFile = file;
+      file = null;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => VerifiedReferenceViewerPage(
+            file: ownedFile,
+            title: _r('manualCompareOfficialTitle'),
+            initialPosition: Duration(seconds: seconds),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (file != null) {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() => _error = _r('manualCompareOpenError'));
+      }
     }
   }
 
