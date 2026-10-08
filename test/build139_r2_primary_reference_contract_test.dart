@@ -78,6 +78,8 @@ void main() {
       originals,
       contains('_publisher.materializeEntitledReference(record.hcvId)'),
     );
+    expect(originals, isNot(contains('launchUrl(')));
+    expect(originals, isNot(contains('record.referenceUrl')));
     expect(
       manual,
       contains('_publisher.materializeEntitledReference(widget.hcvId)'),
