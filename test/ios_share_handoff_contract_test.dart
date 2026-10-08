@@ -18,10 +18,14 @@ void main() {
       expect(extension, isNot(contains('APRI SIGILLUM')));
     });
 
-    test('share extension saves the file and presents a clear close action', () {
-      expect(extension, contains('Contenuto salvato in Fotocamera Sigillum'));
+    test('share extension saves the file and presents a localized close action', () {
+      expect(extension, contains('"it": ['));
+      expect(extension, contains('"en": ['));
+      expect(extension, contains('"es": ['));
+      expect(extension, contains('"ru": ['));
+      expect(extension, contains('Contenuto salvato in Fotocamera SIGILLUM'));
       expect(extension, contains('la verifica partirà automaticamente'));
-      expect(extension, contains('setTitle("CHIUDI", for: .normal)'));
+      expect(extension, contains('localized("close")'));
       expect(
         extension,
         contains('defaults?.set(destination.path, forKey: sharedPathKey)'),
