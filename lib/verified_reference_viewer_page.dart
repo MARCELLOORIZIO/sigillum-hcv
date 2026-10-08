@@ -9,11 +9,13 @@ class VerifiedReferenceViewerPage extends StatefulWidget {
     super.key,
     required this.file,
     required this.title,
+    this.initialPosition = Duration.zero,
     this.deleteOnDispose = true,
   });
 
   final File file;
   final String title;
+  final Duration initialPosition;
   final bool deleteOnDispose;
 
   @override
@@ -56,6 +58,14 @@ class _VerifiedReferenceViewerPageState
         final controller = VideoPlayerController.file(widget.file);
         await controller.initialize();
         await controller.setLooping(false);
+        final duration = controller.value.duration;
+        if (duration > Duration.zero && widget.initialPosition > Duration.zero) {
+          final targetMs = widget.initialPosition.inMilliseconds.clamp(
+            0,
+            duration.inMilliseconds,
+          );
+          await controller.seekTo(Duration(milliseconds: targetMs));
+        }
         controller.addListener(_onVideoTick);
         if (!mounted) {
           await controller.dispose();
