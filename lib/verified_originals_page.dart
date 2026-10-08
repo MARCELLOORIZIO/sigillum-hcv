@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'commercial_account_service.dart';
 import 'hcv_registry_service.dart';
@@ -155,37 +154,24 @@ class _VerifiedOriginalsPageState extends State<VerifiedOriginalsPage> {
         throw const FormatException('Invalid paid reference');
       }
 
-      if (reference.isYoutube) {
-        final publicUrl = reference.publicUrl;
-        if (publicUrl == null) {
-          throw const FormatException('Missing YouTube reference');
-        }
-        final opened = await launchUrl(
-          publicUrl,
-          mode: LaunchMode.externalApplication,
-        );
-        if (!opened) {
-          throw const FormatException('Unable to open reference');
-        }
-      } else if (reference.isPrivateR2) {
-        final file = await _publisher.materializeEntitledReference(id);
-        if (!mounted) {
-          try {
-            await file.delete();
-          } catch (_) {}
-          return;
-        }
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => VerifiedReferenceViewerPage(
-              file: file,
-              title: _t('voWatch'),
-            ),
-          ),
-        );
-      } else {
+      if (!reference.isPrivateR2) {
         throw const FormatException('Unsupported reference provider');
       }
+      final file = await _publisher.materializeEntitledReference(id);
+      if (!mounted) {
+        try {
+          await file.delete();
+        } catch (_) {}
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => VerifiedReferenceViewerPage(
+            file: file,
+            title: _t('voWatch'),
+          ),
+        ),
+      );
     } on CommercialAccountException catch (error) {
       if (!mounted) return;
       setState(() {
