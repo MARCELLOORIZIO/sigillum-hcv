@@ -28,10 +28,11 @@ void main() {
     expect(reference, contains('bool get isPrivateR2'));
   });
 
-  test('publisher uses provider-neutral live gate and authenticated R2 read',
+  test('publisher uses R2-only live gate and authenticated R2 read',
       () {
+    expect(publisher, contains("live['platform'] == 'r2'"));
     expect(publisher, contains("live['referenceLive'] == true"));
-    expect(publisher, contains("live['youtubeLive'] == true"));
+    expect(publisher, isNot(contains("live['youtubeLive']")));
     expect(
       publisher,
       contains(r"'/api/verified-originals/$hcvId/read-authorization'"),
@@ -58,12 +59,14 @@ void main() {
     expect(vault, contains('String? referenceUrl'));
   });
 
-  test('verification and HCVPACK export use provider-neutral live status', () {
+  test('verification and HCVPACK export require R2 live status', () {
+    expect(verifier, contains("availability['platform'] == 'r2'"));
     expect(verifier, contains("availability['referenceLive'] == true"));
-    expect(verifier, contains("availability['youtubeLive'] == true"));
+    expect(verifier, isNot(contains("availability['youtubeLive']")));
     expect(verifier, contains("availability['providerCheckMs']"));
+    expect(camera, contains("live['platform'] == 'r2'"));
     expect(camera, contains("live['referenceLive'] == true"));
-    expect(camera, contains("live['youtubeLive'] == true"));
+    expect(camera, isNot(contains("live['youtubeLive']")));
   });
 
   test('R2 official references stay inside SIGILLUM', () {
@@ -83,6 +86,8 @@ void main() {
     expect(originals, contains('VerifiedReferenceViewerPage('));
     expect(manual, contains('VerifiedReferenceViewerPage('));
     expect(viewer, contains('VideoPlayerController.file(widget.file)'));
+    expect(viewer, contains('widget.initialPosition'));
+    expect(manual, contains('initialPosition: Duration(seconds: seconds)'));
     expect(viewer, contains('Image.file('));
     expect(viewer, contains('_deleteTemporaryReference()'));
   });
