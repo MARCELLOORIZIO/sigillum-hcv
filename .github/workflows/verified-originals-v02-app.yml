@@ -57,7 +57,7 @@ jobs:
         run: |
           dart format --output=none             lib/hcv_ml_v3_photo_residual.dart             lib/hcv_multi_evidence_display_policy.dart             lib/camera_page.dart             lib/registry_verify_page.dart             lib/registry_verify_copy.dart             lib/verified_originals_publish_service.dart             lib/secure_originals_page.dart             lib/commercial_gate.dart             lib/sigillum_localization.dart             test/photo_hfr_partial_conflict_guard_test.dart             test/verification_color_semantics_test.dart             test/save_original_reference_first_test.dart             test/storekit_user_safe_error_copy_test.dart             test/free_photo_reference_verification_contract_test.dart \
             lib/hcv_ml_v3_photo_residual.dart \
-            test/v3_172a_hard_negative_gate_test.dart             test/v3_hard_negative_172a_gate_test.dart
+            test/v3_hard_negative_172a_gate_test.dart
       - run: flutter test test/verified_originals_reference_test.dart test/verified_originals_v2_contract_test.dart test/build133_live_reference_and_recovery_contract_test.dart test/build143_authorized_subtitle_derivation_contract_test.dart test/build144_prelaunch_hardening_test.dart test/build145_social_verification_recovery_test.dart test/build146_text_verification_entry_test.dart test/build147_gps_photo_integrity_test.dart test/photo_detail_compare_v4_test.dart test/capture_location_contract_test.dart test/reference_visual_fingerprint_v3_test.dart test/quick_hcv_media_gate_contract_test.dart test/v3_hard_negative_172a_gate_test.dart --reporter expanded
       - run: flutter test --reporter expanded
       - run: bash tool/pin_tflite_ios_runtime_20260826.sh
