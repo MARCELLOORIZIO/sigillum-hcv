@@ -1,0 +1,54 @@
+name: Subtitle iOS tail validation
+
+on:
+  push:
+    branches:
+      - fix/subtitle-full-duration-20261008
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-subtitle-tail:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+
+      - name: Resolve locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+
+      - name: Run subtitle regression and full analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter test test/subtitle_tail_coverage_contract_test.dart --reporter expanded
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Resolve CocoaPods
+        shell: bash
+        run: |
+          set -euo pipefail
+          pushd ios >/dev/null
+          pod install --repo-update
+          popd >/dev/null
+          grep -F 'TensorFlowLiteSwift (2.17.0)' ios/Podfile.lock
+
+      - name: Compile unsigned iPhone Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign --no-pub             --build-number=149             --dart-define=SIGILLUM_EDITION=user             --dart-define=SIGILLUM_BUILD_NUMBER=149             --dart-define=GIT_COMMIT="$GITHUB_SHA"
+          test -d build/ios/iphoneos/Runner.app
+          python3 tool/verify_postpatch_release_20260825.py
