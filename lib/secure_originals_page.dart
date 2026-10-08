@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'hcv_registry_service.dart';
@@ -363,17 +362,6 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
 
     File? privateReference;
     try {
-      final raw = record.referenceUrl?.trim() ?? '';
-      final uri = Uri.tryParse(raw);
-      if (uri != null && uri.hasScheme) {
-        final opened =
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-        if (!opened) {
-          throw StateError('REFERENCE_OPEN_FAILED');
-        }
-        return;
-      }
-
       privateReference =
           await _publisher.materializeEntitledReference(record.hcvId);
       if (!mounted) {
