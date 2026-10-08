@@ -132,7 +132,7 @@ void main() {
   });
 
   test(
-      'social verification requires a live YouTube reference before V3 verdict',
+      'social verification requires a live R2 reference before V3 verdict',
       () {
     expect(
       publisher,
@@ -141,7 +141,9 @@ void main() {
       ),
     );
     expect(verifier, contains('.verificationReference(hcvId)'));
+    expect(verifier, contains("availability['platform'] == 'r2'"));
     expect(verifier, contains("availability['referenceLive'] == true"));
+    expect(verifier, isNot(contains("availability['youtubeLive']")));
     expect(
       verifier,
       isNot(contains("availability['commentsDisabled'] == true")),
@@ -186,7 +188,7 @@ void main() {
     expect(existingReference, greaterThan(liveLookup));
   });
 
-  test('HCVPACK export revalidates the live YouTube reference', () {
+  test('HCVPACK export revalidates the live R2 reference', () {
     final packStart = camera.indexOf('Future<void> sharePackage() async');
     final packEnd =
         camera.indexOf('String get _createdContentLabel', packStart);
@@ -201,7 +203,9 @@ void main() {
     expect(packStart, greaterThanOrEqualTo(0));
     expect(localReferenceGate, greaterThanOrEqualTo(0));
     expect(liveReferenceGate, greaterThan(localReferenceGate));
+    expect(method, contains("live['platform'] == 'r2'"));
     expect(method, contains("live['referenceLive'] == true"));
+    expect(method, isNot(contains("live['youtubeLive']")));
     expect(
       method,
       isNot(contains("live['commentsDisabled'] == true")),
@@ -267,11 +271,19 @@ void main() {
       contains('_publisher.entitledLiveReference(widget.hcvId)'),
     );
     expect(manualCompare, contains('VideoPlayerController.file(media)'));
-    expect(manualCompare, contains('target = Uri.https('));
-    expect(manualCompare, contains("'t':"));
-    expect(manualCompare, contains('LaunchMode.externalApplication'));
     expect(
-        manualCompare, contains('materializeEntitledReference(widget.hcvId)'));
+      manualCompare,
+      isNot(contains('LaunchMode.externalApplication')),
+    );
+    expect(manualCompare, isNot(contains('target = Uri.https(')));
+    expect(
+      manualCompare,
+      contains('initialPosition: Duration(seconds: seconds)'),
+    );
+    expect(
+      manualCompare,
+      contains('materializeEntitledReference(widget.hcvId)'),
+    );
 
     expect(verifier, contains('ManualReferenceComparePage('));
     expect(verifier, contains("_r('manualCompareAction')"));
