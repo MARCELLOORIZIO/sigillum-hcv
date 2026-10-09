@@ -82,7 +82,7 @@ void main() {
     expect(camera, contains('ButtonStyle _resultActionButtonStyle()'));
     expect(camera, contains('width: 340'));
     expect(camera, contains('height: 64'));
-    expect(camera, contains('color: Colors.black.withValues(alpha: 0.92)'));
+    expect(camera, contains('color: Colors.black,'));
     expect(camera, contains('CircularProgressIndicator(strokeWidth: 2.2)'));
 
     final actionStart = camera.indexOf('  Widget _actionButtons() {');
