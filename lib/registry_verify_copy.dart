@@ -99,10 +99,10 @@ class RegistryVerifyCopy {
       'authorizedSubtitleDerivationState': 'Sottotitoli autorizzati',
       'authorizedSubtitleDerivationDetail':
           'Trasformazione registrata da SIGILLUM: aggiunta di sottotitoli alla copia derivata protetta.',
-      'manualCompareTitle': 'CONFRONTO MANUALE',
-      'manualCompareAction': 'CONFRONTA MANUALMENTE',
+      'manualCompareTitle': 'CONFRONTO MANUALE VISIVO O AUDITIVO',
+      'manualCompareAction': 'CONFRONTO VISIVO O AUDITIVO',
       'manualCompareSubscriberOnly':
-          'Funzione riservata agli abbonati SIGILLUM.',
+          'Confronto manuale visivo o auditivo riservato agli abbonati SIGILLUM.',
       'manualCompareIntro':
           'Confronta personalmente immagini e audio del file ricevuto con il riferimento originale protetto registrato da SIGILLUM prima della diffusione.',
       'manualCompareAutomaticVerdict': 'Esito automatico',
@@ -119,7 +119,8 @@ class RegistryVerifyCopy {
       'manualComparePlayPause': 'Riproduci / pausa',
       'manualCompareAudio': 'Audio',
       'manualCompareSubscriptionRequired':
-          'Questa funzione richiede un abbonamento SIGILLUM attivo.',
+          'L’esito automatico è già disponibile. Il confronto manuale visivo o auditivo con il riferimento originale protetto è riservato agli abbonati SIGILLUM.',
+      'manualCompareSubscribeAction': 'ATTIVA UN ABBONAMENTO',
       'manualCompareReferenceUnavailable':
           'Il riferimento originale protetto SIGILLUM non è ancora disponibile. Se la registrazione è in corso, riprova tra poco.',
       'manualCompareMediaUnavailable':
@@ -313,10 +314,10 @@ class RegistryVerifyCopy {
       'authorizedSubtitleDerivationState': 'Authorized subtitles',
       'authorizedSubtitleDerivationDetail':
           'SIGILLUM-registered transformation: subtitles added to the protected derived copy.',
-      'manualCompareTitle': 'MANUAL COMPARISON',
-      'manualCompareAction': 'COMPARE MANUALLY',
+      'manualCompareTitle': 'MANUAL VISUAL OR AUDITORY COMPARISON',
+      'manualCompareAction': 'VISUAL OR AUDITORY COMPARISON',
       'manualCompareSubscriberOnly':
-          'This feature is available to SIGILLUM subscribers.',
+          'Manual visual or auditory comparison is available to SIGILLUM subscribers.',
       'manualCompareIntro':
           'Personally compare the images and audio of the received file with the protected original reference SIGILLUM registered before distribution.',
       'manualCompareAutomaticVerdict': 'Automatic result',
@@ -333,7 +334,8 @@ class RegistryVerifyCopy {
       'manualComparePlayPause': 'Play / pause',
       'manualCompareAudio': 'Audio',
       'manualCompareSubscriptionRequired':
-          'This feature requires an active SIGILLUM subscription.',
+          'The automatic result is already available. Manual visual or auditory comparison with the protected original reference is reserved for SIGILLUM subscribers.',
+      'manualCompareSubscribeAction': 'ACTIVATE A SUBSCRIPTION',
       'manualCompareReferenceUnavailable':
           'The protected SIGILLUM original reference is not available yet. If registration is still in progress, try again shortly.',
       'manualCompareMediaUnavailable':
@@ -528,10 +530,10 @@ class RegistryVerifyCopy {
       'authorizedSubtitleDerivationState': 'Subtítulos autorizados',
       'authorizedSubtitleDerivationDetail':
           'Transformación registrada por SIGILLUM: subtítulos añadidos a la copia derivada protegida.',
-      'manualCompareTitle': 'COMPARACIÓN MANUAL',
-      'manualCompareAction': 'COMPARAR MANUALMENTE',
+      'manualCompareTitle': 'COMPARACIÓN MANUAL VISUAL O AUDITIVA',
+      'manualCompareAction': 'COMPARACIÓN VISUAL O AUDITIVA',
       'manualCompareSubscriberOnly':
-          'Esta función está reservada a suscriptores de SIGILLUM.',
+          'La comparación manual visual o auditiva está reservada a suscriptores de SIGILLUM.',
       'manualCompareIntro':
           'Compara personalmente las imágenes y el audio del archivo recibido con la referencia original protegida que SIGILLUM registró antes de la difusión.',
       'manualCompareAutomaticVerdict': 'Resultado automático',
@@ -548,7 +550,8 @@ class RegistryVerifyCopy {
       'manualComparePlayPause': 'Reproducir / pausa',
       'manualCompareAudio': 'Audio',
       'manualCompareSubscriptionRequired':
-          'Esta función requiere una suscripción SIGILLUM activa.',
+          'El resultado automático ya está disponible. La comparación manual visual o auditiva con la referencia original protegida está reservada a suscriptores de SIGILLUM.',
+      'manualCompareSubscribeAction': 'ACTIVAR UNA SUSCRIPCIÓN',
       'manualCompareReferenceUnavailable':
           'La referencia original protegida de SIGILLUM aún no está disponible. Si el registro sigue en curso, inténtalo de nuevo en breve.',
       'manualCompareMediaUnavailable':
@@ -743,9 +746,10 @@ class RegistryVerifyCopy {
       'authorizedSubtitleDerivationState': 'Авторизованные субтитры',
       'authorizedSubtitleDerivationDetail':
           'Зарегистрированное SIGILLUM преобразование: добавление субтитров к защищённой производной копии.',
-      'manualCompareTitle': 'РУЧНОЕ СРАВНЕНИЕ',
-      'manualCompareAction': 'СРАВНИТЬ ВРУЧНУЮ',
-      'manualCompareSubscriberOnly': 'Функция доступна подписчикам SIGILLUM.',
+      'manualCompareTitle': 'РУЧНОЕ ВИЗУАЛЬНОЕ ИЛИ АУДИОСРАВНЕНИЕ',
+      'manualCompareAction': 'ВИЗУАЛЬНОЕ ИЛИ АУДИОСРАВНЕНИЕ',
+      'manualCompareSubscriberOnly':
+          'Ручное визуальное или аудиосравнение доступно подписчикам SIGILLUM.',
       'manualCompareIntro':
           'Самостоятельно сравните изображение и аудио полученного файла с защищённым оригинальным эталоном, зарегистрированным SIGILLUM до распространения.',
       'manualCompareAutomaticVerdict': 'Автоматический результат',
@@ -762,7 +766,8 @@ class RegistryVerifyCopy {
       'manualComparePlayPause': 'Воспроизведение / пауза',
       'manualCompareAudio': 'Звук',
       'manualCompareSubscriptionRequired':
-          'Для этой функции требуется активная подписка SIGILLUM.',
+          'Автоматический результат уже доступен. Ручное визуальное или аудиосравнение с защищённым оригинальным эталоном доступно подписчикам SIGILLUM.',
+      'manualCompareSubscribeAction': 'АКТИВИРОВАТЬ ПОДПИСКУ',
       'manualCompareReferenceUnavailable':
           'Защищённый оригинальный эталон SIGILLUM пока недоступен. Если регистрация ещё выполняется, повторите попытку немного позже.',
       'manualCompareMediaUnavailable':
