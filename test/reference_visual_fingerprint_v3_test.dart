@@ -253,6 +253,80 @@ void main() {
       },
     );
 
+    test('video with a trimmed opening is never conforming', () {
+      Map<String, dynamic> frame(String hash, int value) => {
+            'globalHash': hash,
+            'localFeatures': base64Encode(
+              Uint8List(16 * 9 * 6)..fillRange(0, 16 * 9 * 6, value),
+            ),
+          };
+
+      Map<String, dynamic> fingerprint(List<Map<String, dynamic>> frames) => {
+            'type': HCVReferenceVisualFingerprintV3.type,
+            'version': HCVReferenceVisualFingerprintV3.version,
+            'algorithm': HCVReferenceVisualFingerprintV3.algorithm,
+            'mediaType': 'video',
+            'width': HCVReferenceVisualFingerprintV3.width,
+            'height': HCVReferenceVisualFingerprintV3.height,
+            'gridColumns': HCVReferenceVisualFingerprintV3.gridColumns,
+            'gridRows': HCVReferenceVisualFingerprintV3.gridRows,
+            'featureBytesPerTile': 6,
+            'samplingFps': HCVReferenceVisualFingerprintV3.videoFps,
+            'maxFrames': HCVReferenceVisualFingerprintV3.maxVideoFrames,
+            'frameCount': frames.length,
+            'frames': frames,
+          };
+
+      final expected = fingerprint(<Map<String, dynamic>>[
+        frame('0000000000000000', 10),
+        frame('1111111111111111', 25),
+        frame('2222222222222222', 40),
+        frame('3333333333333333', 55),
+        frame('4444444444444444', 70),
+        frame('5555555555555555', 85),
+        frame('6666666666666666', 100),
+        frame('7777777777777777', 115),
+      ]);
+      final trimmed = fingerprint(<Map<String, dynamic>>[
+        frame('2222222222222222', 40),
+        frame('3333333333333333', 55),
+        frame('4444444444444444', 70),
+        frame('5555555555555555', 85),
+        frame('6666666666666666', 100),
+        frame('7777777777777777', 115),
+      ]);
+
+      final comparison =
+          HCVReferenceVisualFingerprintV3.compare(expected, trimmed);
+
+      expect(comparison.verdict, HCVReferenceVisualVerdict.modified);
+    });
+
+    test('sub-second opening drift remains eligible for comparison', () {
+      final expectedFrames = List<Uint8List>.generate(
+        8,
+        (index) => _baseFrame(seed: index),
+      );
+      final candidateFrames = <Uint8List>[
+        _recompressedLike(expectedFrames.first),
+        for (final frame in expectedFrames.skip(1)) _recompressedLike(frame),
+      ];
+
+      final expected = HCVReferenceVisualFingerprintV3.buildFromGrayFrames(
+        expectedFrames,
+        mediaType: 'video',
+      );
+      final candidate = HCVReferenceVisualFingerprintV3.buildFromGrayFrames(
+        candidateFrames,
+        mediaType: 'video',
+      );
+
+      expect(
+        HCVReferenceVisualFingerprintV3.compare(expected, candidate).verdict,
+        HCVReferenceVisualVerdict.conforming,
+      );
+    });
+
     test('RGB social-like recompression remains conforming', () {
       final expected = HCVReferenceVisualFingerprintV3.buildFromRgbFrames(
         <Uint8List>[_baseRgbFrame()],
