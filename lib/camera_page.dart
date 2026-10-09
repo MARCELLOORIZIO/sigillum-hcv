@@ -2733,7 +2733,7 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Widget _registryCard() {
-    if (registryStatus == null) {
+    if (_transcribingAudio || _subtitlePublishing || registryStatus == null) {
       return const SizedBox.shrink();
     }
 
@@ -2754,6 +2754,9 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Widget _createdFilesCard() {
+    if (_transcribingAudio || _subtitlePublishing) {
+      return const SizedBox.shrink();
+    }
     if (_secureOriginalRecord == null &&
         videoPath == null &&
         hcvPath == null &&
