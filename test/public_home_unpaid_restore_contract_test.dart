@@ -40,7 +40,11 @@ void main() {
     );
     expect(
       source,
-      contains('if (widget.initialBillingMode && mounted)'),
+      contains('this.returnAfterSubscriptionActivation = false'),
+    );
+    expect(
+      source,
+      contains('serverActive && widget.returnAfterSubscriptionActivation'),
     );
   });
 }
