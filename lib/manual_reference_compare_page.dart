@@ -94,8 +94,7 @@ class _ManualReferenceComparePageState
       }
 
       final billing = await const CommercialAccountService().billingStatus();
-      final billingStatus = billing['status']?.toString();
-      if (billingStatus != 'active' && billingStatus != 'grace') {
+      if (billing['status']?.toString() != 'active') {
         throw StateError('SUBSCRIPTION_REQUIRED');
       }
 
