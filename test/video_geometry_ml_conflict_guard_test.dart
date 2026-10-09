@@ -247,7 +247,17 @@ void main() {
       expect(result.decision, 'NON_CONCLUSIVE');
       expect(
         result.reasons,
-        contains('VIDEO_STRONG_ML_CONFLICT_WITH_POSITIVE_MULTI_DEPTH_REALITY'),
+        contains('BUILD127_VIDEO_LOW_INFORMATION_SEMANTIC_ONLY'),
+      );
+      expect(
+        result.reasons,
+        isNot(
+          contains('VIDEO_STRONG_ML_CONFLICT_WITH_POSITIVE_MULTI_DEPTH_REALITY'),
+        ),
+      );
+      expect(
+        result.reasons,
+        isNot(contains('BUILD124_VIDEO_PERSISTENT_STRONG_DISPLAY')),
       );
     });
 
@@ -270,10 +280,16 @@ void main() {
         ),
       );
 
-      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(result.decision, 'NON_CONCLUSIVE');
       expect(
         result.reasons,
-        contains('BUILD124_VIDEO_PERSISTENT_STRONG_DISPLAY'),
+        contains('BUILD127_VIDEO_LOW_INFORMATION_SEMANTIC_ONLY'),
+      );
+      expect(
+        result.reasons,
+        isNot(
+          contains('VIDEO_STRONG_ML_CONFLICT_WITH_POSITIVE_MULTI_DEPTH_REALITY'),
+        ),
       );
     });
   });
