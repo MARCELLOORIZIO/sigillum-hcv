@@ -1629,7 +1629,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
             sceneDetail: unprovenDerivative
                 ? _r('unprovenDerivativeDetail')
                 : sceneWarning
-                    ? 'Piu segnali coerenti indicano una possibile ripresa da schermo.'
+                    ? 'Piu segnali tecnici concordanti indicano un forte rischio di ripresa da schermo.'
                     : sceneUncertain
                         ? 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.'
                         : 'Nessun indizio tecnico sufficiente di ripresa da schermo.',
@@ -2223,7 +2223,7 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isNonExactPhotoOrVideo) return _r('unprovenDerivativeDetail');
     if (sceneDetail != null) return sceneDetail!;
     if (_isStrongDisplayRisk) {
-      return 'Piu segnali coerenti indicano una possibile ripresa da schermo.';
+      return 'Piu segnali tecnici concordanti indicano un forte rischio di ripresa da schermo.';
     }
     if (_isDisplayNonConclusive) {
       return 'Sono presenti anomalie ambigue, ma non prove sufficienti di ripresa da schermo.';

@@ -22,7 +22,14 @@ import 'text_social_verify_page.dart';
 import 'user_home_page.dart';
 
 class CommercialGate extends StatefulWidget {
-  const CommercialGate({super.key});
+  const CommercialGate({
+    super.key,
+    this.initialBillingMode = false,
+    this.returnAfterSubscriptionActivation = false,
+  });
+
+  final bool initialBillingMode;
+  final bool returnAfterSubscriptionActivation;
 
   @override
   State<CommercialGate> createState() => _CommercialGateState();
@@ -893,7 +900,9 @@ class _CommercialGateState extends State<CommercialGate>
         return;
       }
       _applyEnvelope(envelope);
-      await _routeAuthenticated(returnToLandingIfUnpaid: true);
+      await _routeAuthenticated(
+        returnToLandingIfUnpaid: !widget.initialBillingMode,
+      );
     } catch (_) {
       if (mounted) setState(() => _stage = _GateStage.landing);
     }
@@ -987,6 +996,13 @@ class _CommercialGateState extends State<CommercialGate>
     // StoreKit transactions during ordinary login: stale queue cleanup belongs
     // to the purchase/restore paths and must not hold the login spinner open.
 
+    if (serverActive && widget.returnAfterSubscriptionActivation) {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
+      return;
+    }
+
     if (!serverActive) {
       if (returnToLandingIfUnpaid) {
         if (mounted) setState(() => _stage = _GateStage.landing);
@@ -995,6 +1011,17 @@ class _CommercialGateState extends State<CommercialGate>
       await _prepareBilling();
       if (mounted) setState(() => _stage = _GateStage.billing);
       return;
+    }
+
+    // Premium feature entry is a short subscription flow, not a second copy
+    // of the Creator home. Once StoreKit/server entitlement is active, return
+    // to the requesting feature so it can re-check access immediately.
+    if (widget.initialBillingMode && mounted) {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.pop(true);
+        return;
+      }
     }
 
     final kyc = _accountData['kycStatus']?.toString() ?? 'not_started';

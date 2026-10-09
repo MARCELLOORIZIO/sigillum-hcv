@@ -6,9 +6,12 @@ void main() {
   test('restored unpaid sessions return to public home only at bootstrap', () {
     final source = File('lib/commercial_gate.dart').readAsStringSync();
 
+    expect(source, contains('this.initialBillingMode = false'));
     expect(
       source,
-      contains('await _routeAuthenticated(returnToLandingIfUnpaid: true);'),
+      contains(
+        'returnToLandingIfUnpaid: !widget.initialBillingMode',
+      ),
     );
     expect(
       source,
@@ -28,9 +31,20 @@ void main() {
     );
 
     expect(
-      'returnToLandingIfUnpaid: true'.allMatches(source).length,
+      'returnToLandingIfUnpaid: !widget.initialBillingMode'
+          .allMatches(source)
+          .length,
       1,
-      reason: 'Only app bootstrap may bypass the paywall to the public home.',
+      reason:
+          'Ordinary app bootstrap returns unpaid sessions to public home, while an explicit premium-feature entry opens billing.',
+    );
+    expect(
+      source,
+      contains('this.returnAfterSubscriptionActivation = false'),
+    );
+    expect(
+      source,
+      contains('serverActive && widget.returnAfterSubscriptionActivation'),
     );
   });
 }

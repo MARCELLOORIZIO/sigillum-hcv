@@ -125,8 +125,9 @@ void main() {
 
     expect(
       camera,
-      contains('if (_secureOriginalRecord != null) ...['),
+      contains('final hasSecureOriginal = _secureOriginalRecord != null;'),
     );
+    expect(camera, contains('if (hasSecureOriginal) ...['));
 
     final packStart = camera.indexOf('Future<void> sharePackage() async');
     final packEnd = camera.indexOf(

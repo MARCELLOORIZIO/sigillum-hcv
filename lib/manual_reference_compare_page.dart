@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import 'commercial_account_service.dart';
+import 'commercial_gate.dart';
 import 'registry_verify_copy.dart';
 import 'sigillum_theme.dart';
 import 'verified_originals_publish_service.dart';
@@ -40,6 +41,7 @@ class _ManualReferenceComparePageState
   String? _error;
   bool _loading = true;
   bool _muted = false;
+  bool _subscriptionRequired = false;
 
   String _r(String key) => RegistryVerifyCopy.t(widget.languageCode, key);
 
@@ -78,6 +80,13 @@ class _ManualReferenceComparePageState
   }
 
   Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _subscriptionRequired = false;
+      });
+    }
     try {
       final media = File(widget.mediaPath);
       if (!await media.exists() || (!_isVideo && !_isPhoto)) {
@@ -121,6 +130,7 @@ class _ManualReferenceComparePageState
       setState(() {
         _loading = false;
         if (raw.contains('SUBSCRIPTION_REQUIRED')) {
+          _subscriptionRequired = true;
           _error = _r('manualCompareSubscriptionRequired');
         } else if (raw.contains('REFERENCE_PLATFORM_UNAVAILABLE') ||
             raw.contains('REFERENCE_NOT_AVAILABLE')) {
@@ -132,6 +142,19 @@ class _ManualReferenceComparePageState
         }
       });
     }
+  }
+
+  Future<void> _openSubscriptionPlans() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CommercialGate(
+          initialBillingMode: true,
+          returnAfterSubscriptionActivation: true,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _load();
   }
 
   String _format(Duration value) {
@@ -361,21 +384,34 @@ class _ManualReferenceComparePageState
                 if (_loading)
                   const Center(child: CircularProgressIndicator())
                 else if (_error != null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: SigillumTheme.border),
-                    ),
-                    child: Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: SigillumTheme.ink,
-                        fontWeight: FontWeight.w700,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: SigillumTheme.border),
+                        ),
+                        child: Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: SigillumTheme.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (_subscriptionRequired) ...[
+                        const SizedBox(height: 14),
+                        FilledButton.icon(
+                          onPressed: _openSubscriptionPlans,
+                          icon: const Icon(Icons.workspace_premium_outlined),
+                          label: Text(_r('manualCompareSubscribeAction')),
+                        ),
+                      ],
+                    ],
                   )
                 else ...[
                   Text(
