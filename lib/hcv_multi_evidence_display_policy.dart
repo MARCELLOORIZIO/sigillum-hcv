@@ -528,9 +528,12 @@ class HCVMultiEvidenceDisplayPolicy {
     final opticalSignals = _map(passiveOptical['signals']);
     final opticalScore =
         (passiveOptical['screenReplayRiskScore'] as num?)?.toInt() ?? 100;
+    final rgbPhase =
+        (opticalSignals['rgbPhaseConsistencyScore'] as num?)?.toDouble() ?? 1.0;
     if (opticalScore > 30 ||
         opticalSignals['flatSceneUniformity'] != true ||
-        opticalSignals['lowMicroVariation'] != true) {
+        opticalSignals['lowMicroVariation'] != true ||
+        rgbPhase >= 0.50) {
       return false;
     }
 
