@@ -264,7 +264,7 @@ void main() {
     );
     expect(
       manualCompare,
-      contains("billing['status']?.toString() != 'active'"),
+      contains("billingStatus != 'active' && billingStatus != 'grace'"),
     );
     expect(
       manualCompare,
