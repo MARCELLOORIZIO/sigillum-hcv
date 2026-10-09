@@ -25,7 +25,10 @@ void main() {
 
       expect(compare, contains('initialBillingMode: true'));
       expect(compare, contains('returnAfterSubscriptionActivation: true'));
-      expect(compare, contains("billingStatus != 'active' && billingStatus != 'grace'"));
+      expect(
+        compare,
+        contains("billing['status']?.toString() != 'active'"),
+      );
       expect(gate, contains('returnAfterSubscriptionActivation'));
       expect(gate, contains('Navigator.of(context).pop(true)'));
     });
