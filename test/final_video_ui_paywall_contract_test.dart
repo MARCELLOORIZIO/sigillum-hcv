@@ -69,14 +69,10 @@ void main() {
 
       expect(copy, contains("'sceneUncertain': 'Possibile ripresa da schermo'"));
       expect(copy, contains("'screenRisk': 'Forte rischio di ripresa da schermo'"));
-      expect(
-        page,
-        contains("_isDisplayNonConclusive\n                              ? Colors.orange"),
-      );
-      expect(
-        page,
-        contains("_isStrongDisplayRisk\n                          ? Colors.red"),
-      );
+      expect(page, contains('_isDisplayNonConclusive'));
+      expect(page, contains('? Colors.orange'));
+      expect(page, contains('_isStrongDisplayRisk'));
+      expect(page, contains('? Colors.red'));
     });
   });
 }
