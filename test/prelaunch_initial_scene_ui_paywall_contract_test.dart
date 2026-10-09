@@ -27,13 +27,17 @@ void main() {
     );
     expect(
       manual,
-      contains('CommercialGate(initialBillingMode: true)'),
+      contains('initialBillingMode: true'),
     );
     expect(manual, contains("manualCompareSubscribeAction"));
     expect(manual, contains('await _load();'));
     expect(gate, contains('this.initialBillingMode = false'));
-    expect(gate, contains('if (widget.initialBillingMode && mounted)'));
-    expect(gate, contains('navigator.pop(true)'));
+    expect(gate, contains('this.returnAfterSubscriptionActivation = false'));
+    expect(
+      gate,
+      contains('serverActive && widget.returnAfterSubscriptionActivation'),
+    );
+    expect(gate, contains('Navigator.of(context).pop(true)'));
 
     // The existing three commercial products are intentionally preserved.
     final billing =
