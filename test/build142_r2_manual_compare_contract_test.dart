@@ -50,7 +50,18 @@ void main() {
     expect(
       copy,
       contains(
-        'Questa funzione richiede un abbonamento SIGILLUM attivo.',
+        'L’esito automatico è già disponibile. Il confronto manuale visivo o auditivo '
+        'con il riferimento originale protetto è riservato agli abbonati SIGILLUM.',
+      ),
+    );
+    expect(
+      copy,
+      contains("'manualCompareSubscribeAction': 'ATTIVA UN ABBONAMENTO'"),
+    );
+    expect(
+      copy,
+      contains(
+        "'manualCompareTitle': 'CONFRONTO MANUALE VISIVO O AUDITIVO'",
       ),
     );
 
