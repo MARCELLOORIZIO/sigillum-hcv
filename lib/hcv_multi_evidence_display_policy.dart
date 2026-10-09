@@ -362,7 +362,7 @@ class HCVMultiEvidenceDisplayPolicy {
 
   static List<Map<String, dynamic>> _videoDecisionFrames(
     Map<String, dynamic>? ml, {
-    required double maxDecisionSecond,
+    double? maxDecisionSecond,
   }) {
     if (ml == null || ml['analysisStatus'] != 'ANALYZED') {
       return const <Map<String, dynamic>>[];
@@ -378,7 +378,11 @@ class HCVMultiEvidenceDisplayPolicy {
       // Legacy fixtures/certificates may not carry per-frame timestamps.
       // Preserve their historical behaviour instead of silently discarding
       // their ML evidence. Modern VIDEO analyses always carry the timestamp.
-      if (second != null && second > maxDecisionSecond + 0.001) continue;
+      if (maxDecisionSecond != null &&
+          second != null &&
+          second > maxDecisionSecond + 0.001) {
+        continue;
+      }
       frames.add(frame);
     }
     frames.sort((a, b) {
@@ -414,7 +418,7 @@ class HCVMultiEvidenceDisplayPolicy {
 
   static _VideoEvidence _videoMlEvidence(
     Map<String, dynamic>? ml, {
-    required double maxDecisionSecond,
+    double? maxDecisionSecond,
   }) {
     final frames = _videoDecisionFrames(
       ml,
@@ -675,7 +679,7 @@ class HCVMultiEvidenceDisplayPolicy {
     if (passiveOptical == null ||
         passiveOptical['analysisStatus'] != 'ANALYZED' ||
         passiveOptical['scanMode'] != 'EVERY_15_SECONDS_FAST_SAMPLE' ||
-        !_hasNoStrongOpticalDisplayTrace(initialOptical)) {
+        !_hasNoStrongOpticalDisplayTrace(passiveOptical)) {
       return false;
     }
     final opticalSignals = _map(passiveOptical['signals']);
