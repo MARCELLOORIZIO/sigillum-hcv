@@ -42,6 +42,8 @@ class HCVReferenceVisualFingerprintV3 {
   static const int gridRows = 9;
   static const int videoFps = 2;
   static const int maxVideoFrames = 120;
+  static const int initialAnchorFrames = 4;
+  static const int _maxConformingFrameCountDelta = 1;
   static const int _featureBytesPerTile = 6;
   static const int _rgbChannels = 3;
   static const int _frameBytes = width * height * _rgbChannels;
@@ -213,6 +215,82 @@ class HCVReferenceVisualFingerprintV3 {
         modifiedFrames: residual.tampered ? 1 : 0,
         inconclusiveFrames: residual.comparable ? 0 : 1,
         expectedFrames: 1,
+      );
+    }
+
+    // VIDEO provenance is anchored to the beginning of the certified
+    // recording. Social transcoding may change encoding, but a copy that
+    // removes the opening segment must never become CONFORMING. For uncapped
+    // videos, a material frame-count loss is an immediate modification.
+    if (expectedFrames.length < maxVideoFrames &&
+        currentFrames.length + _maxConformingFrameCountDelta <
+            expectedFrames.length) {
+      return HCVReferenceVisualComparison(
+        verdict: HCVReferenceVisualVerdict.modified,
+        alignedFrames: 0,
+        modifiedFrames: 1,
+        inconclusiveFrames: 0,
+        expectedFrames: expectedFrames.length,
+      );
+    }
+
+    final anchorCount = min(
+      initialAnchorFrames,
+      min(expectedFrames.length, currentFrames.length),
+    );
+    for (var i = 0; i < anchorCount; i++) {
+      final direct = _compareFrame(
+        expectedFrames[i] as Map,
+        currentFrames[i] as Map,
+      );
+      if (direct.comparable) {
+        if (direct.tampered) {
+          return HCVReferenceVisualComparison(
+            verdict: HCVReferenceVisualVerdict.modified,
+            alignedFrames: i,
+            modifiedFrames: 1,
+            inconclusiveFrames: 0,
+            expectedFrames: expectedFrames.length,
+          );
+        }
+        continue;
+      }
+
+      // A certified opening frame found only later in the candidate is direct
+      // evidence that the candidate timeline starts after the original.
+      final searchHigh = min(
+        currentFrames.length - 1,
+        i + initialAnchorFrames,
+      );
+      var shiftedOpeningFound = false;
+      for (var candidateIndex = i + 1;
+          candidateIndex <= searchHigh;
+          candidateIndex++) {
+        final shifted = _compareFrame(
+          expectedFrames[i] as Map,
+          currentFrames[candidateIndex] as Map,
+        );
+        if (shifted.comparable && !shifted.tampered) {
+          shiftedOpeningFound = true;
+          break;
+        }
+      }
+      if (shiftedOpeningFound) {
+        return HCVReferenceVisualComparison(
+          verdict: HCVReferenceVisualVerdict.modified,
+          alignedFrames: i,
+          modifiedFrames: 1,
+          inconclusiveFrames: 0,
+          expectedFrames: expectedFrames.length,
+        );
+      }
+
+      return HCVReferenceVisualComparison(
+        verdict: HCVReferenceVisualVerdict.inconclusive,
+        alignedFrames: i,
+        modifiedFrames: 0,
+        inconclusiveFrames: 1,
+        expectedFrames: expectedFrames.length,
       );
     }
 
