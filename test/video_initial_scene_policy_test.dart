@@ -68,6 +68,57 @@ void main() {
       );
     });
 
+    test('HFR full-frame display remains STRONG even with REALITY context', () {
+      final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
+        temporalFrequencyProbe: _hfr(
+          display: 9,
+          reality: 0,
+          periodic: 9,
+          stable: 9,
+          median: 0.30,
+          fullFrame: true,
+        ),
+        ml: _videoMl(<Map<String, dynamic>>[
+          _frame(0, 'REALITY_ROOM', 0.08, 8),
+          _frame(3, 'REALITY_ROOM', 0.09, 9),
+        ]),
+        passiveOptical: _optical(<Map<String, dynamic>>[
+          _opticalSegment(0, 0, strong: false, flat: false),
+        ]),
+        passiveSceneContext: _realityGeometry(),
+      );
+
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(result.reasons, contains('BUILD124_HFR_FULL_FRAME_DISPLAY'));
+    });
+
+    test('historical partial-HFR TV stays STRONG without the full reality guard',
+        () {
+      final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
+        temporalFrequencyProbe: _hfr(
+          display: 7,
+          reality: 0,
+          periodic: 8,
+          stable: 7,
+          median: 0.21,
+        ),
+        ml: _videoMl(<Map<String, dynamic>>[
+          _frame(0, 'REALITY_OUTDOOR', 0.20, 20),
+          _frame(3, 'REALITY_OUTDOOR', 0.30, 30),
+        ]),
+        passiveOptical: _optical(<Map<String, dynamic>>[
+          _opticalSegment(0, 0, strong: false, flat: false),
+        ]),
+        passiveSceneContext: _unknownGeometry(),
+      );
+
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(
+        result.reasons,
+        contains('BUILD124_HFR_PARTIAL_CORROBORATED_DISPLAY'),
+      );
+    });
+
     test('Archive 1 HFR partial conflicts with REALITY opening and is amber', () {
       final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
         temporalFrequencyProbe: _hfr(
@@ -150,13 +201,14 @@ Map<String, dynamic> _hfr({
   required int periodic,
   required int stable,
   required double median,
+  bool fullFrame = false,
 }) =>
     <String, dynamic>{
       'type': 'SIGILLUM_TEMPORAL_FREQUENCY_PROBE_V3_2',
       'analysisStatus': 'ANALYZED',
       'hfrSpatialComparability': 'COMPARABLE',
       'displayRealityEvidenceV3': <String, dynamic>{
-        'fullFrameDisplay': false,
+        'fullFrameDisplay': fullFrame,
         'displayLikeCellCount': display,
         'realityLikeCellCount': reality,
         'spatialFamilyCellCount': 9,
