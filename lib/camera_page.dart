@@ -2912,7 +2912,7 @@ class _CameraPageState extends State<CameraPage> {
       margin: const EdgeInsets.only(top: 4, bottom: 8),
       padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.92),
+        color: Colors.black,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.14),
