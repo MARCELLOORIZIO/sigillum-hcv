@@ -181,6 +181,41 @@ void main() {
       );
     });
 
+    test('historical 20BC strong result is preserved until ground truth is known', () {
+      final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
+        temporalFrequencyProbe: _hfr(
+          display: 0,
+          reality: 0,
+          periodic: 0,
+          stable: 0,
+          median: 0.02682346662046087,
+          spatial: 9,
+          harmonic: 9,
+          row: 9,
+        ),
+        ml: _videoMl(
+          probability: 0.9975,
+          scores: const <int>[100, 100],
+        ),
+        passiveOptical: _optical(
+          score: 20,
+          flat: true,
+          lowMicro: true,
+          rgbPhase: 0.7178,
+        ),
+        passiveSceneContext: _realityGeometry(
+          depthDispersion: 0.5367,
+          planarCoherence: 0.2642,
+        ),
+      );
+
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(
+        result.reasons,
+        contains('BUILD124_VIDEO_PERSISTENT_STRONG_DISPLAY'),
+      );
+    });
+
     test('known archive90 textile VIDEO false positive is also guarded', () {
       final result = HCVMultiEvidenceDisplayPolicy.resolveVideo(
         temporalFrequencyProbe: _hfr(
