@@ -152,8 +152,15 @@ class HCVMultiEvidenceDisplayPolicy {
     final hfr = _hfrEvidence(temporalFrequencyProbe);
     final hfrDecisionEligible = _hfrDecisionEligible(temporalFrequencyProbe);
     final hfrNonDecisionable = _hfrNonDecisionable(temporalFrequencyProbe);
-    final video = _videoMlEvidence(ml);
-    final aggregate = _mlEvidence(ml);
+    final initialOptical = _initialVideoOptical(passiveOptical);
+    final video = _videoMlEvidence(
+      ml,
+      maxDecisionSecond: 6.0,
+    );
+    final aggregate = _videoInitialMlAggregate(
+      ml,
+      maxDecisionSecond: 6.0,
+    );
 
     if (hfr.fullFrameDisplay) {
       return _display(
@@ -164,6 +171,17 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     if (hfr.partialCorroboratedDisplay) {
+      if (_videoHfrPartialRealityConflict(
+        aggregate: aggregate,
+        video: video,
+        passiveOptical: initialOptical,
+        passiveSceneContext: passiveSceneContext,
+      )) {
+        return _nonConclusive(
+          'VIDEO_INITIAL_SCENE_HFR_CONFLICT_WITH_MULTI_DEPTH_REALITY',
+          sceneContextConflictGuardUsed: true,
+        );
+      }
       return _display(
         95,
         'BUILD124_HFR_PARTIAL_CORROBORATED_DISPLAY',
@@ -177,8 +195,8 @@ class HCVMultiEvidenceDisplayPolicy {
     if (aggregate.isScreen &&
         aggregate.probability >= 0.80 &&
         video.framesAtLeast80 >= 2 &&
-        _hasPhysicalRepeatingTexture(passiveOptical) &&
-        _hasNoStrongOpticalDisplayTrace(passiveOptical)) {
+        _hasPhysicalRepeatingTexture(initialOptical) &&
+        _hasNoStrongOpticalDisplayTrace(initialOptical)) {
       return _nonConclusive(
         'BUILD127_VIDEO_PHYSICAL_REPEATING_TEXTURE_GUARD',
       );
@@ -192,7 +210,7 @@ class HCVMultiEvidenceDisplayPolicy {
     if (aggregate.isScreen &&
         aggregate.probability >= 0.80 &&
         video.framesAtLeast80 >= 2 &&
-        _isLowInformationSemanticOnlyVideo(passiveOptical)) {
+        _isLowInformationSemanticOnlyVideo(initialOptical)) {
       return _nonConclusive(
         'BUILD127_VIDEO_LOW_INFORMATION_SEMANTIC_ONLY',
       );
@@ -205,7 +223,7 @@ class HCVMultiEvidenceDisplayPolicy {
         _videoMlPhysicalRealityConflict(
           hfrDecisionEligible: hfrDecisionEligible,
           hfr: hfr,
-          passiveOptical: passiveOptical,
+          passiveOptical: initialOptical,
           passiveSceneContext: passiveSceneContext,
         )) {
       return _nonConclusive(
@@ -267,8 +285,8 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     return _reality(
-      stillOptical: passiveOptical,
-      reason: 'BUILD124_VIDEO_NO_CORROBORATED_DISPLAY_EVIDENCE',
+      stillOptical: initialOptical,
+      reason: 'VIDEO_INITIAL_SCENE_NO_CORROBORATED_DISPLAY_EVIDENCE',
     );
   }
 
@@ -341,21 +359,71 @@ class HCVMultiEvidenceDisplayPolicy {
     );
   }
 
-  static _VideoEvidence _videoMlEvidence(Map<String, dynamic>? ml) {
+  static List<Map<String, dynamic>> _videoDecisionFrames(
+    Map<String, dynamic>? ml, {
+    required double maxDecisionSecond,
+  }) {
     if (ml == null || ml['analysisStatus'] != 'ANALYZED') {
-      return const _VideoEvidence();
+      return const <Map<String, dynamic>>[];
     }
-    final frames = ml['videoFrameAnalyses'];
-    if (frames is! List) return const _VideoEvidence();
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (rawFrames is! List) return const <Map<String, dynamic>>[];
+
+    final frames = <Map<String, dynamic>>[];
+    for (final rawFrame in rawFrames) {
+      if (rawFrame is! Map) continue;
+      final frame = Map<String, dynamic>.from(rawFrame);
+      final second = (frame['approxVideoSecond'] as num?)?.toDouble();
+      if (second == null || second > maxDecisionSecond + 0.001) continue;
+      frames.add(frame);
+    }
+    frames.sort((a, b) {
+      final aSecond = (a['approxVideoSecond'] as num?)?.toDouble() ?? 0.0;
+      final bSecond = (b['approxVideoSecond'] as num?)?.toDouble() ?? 0.0;
+      return aSecond.compareTo(bSecond);
+    });
+    return frames;
+  }
+
+  static _MlEvidence _videoInitialMlAggregate(
+    Map<String, dynamic>? ml, {
+    required double maxDecisionSecond,
+  }) {
+    final frames = _videoDecisionFrames(
+      ml,
+      maxDecisionSecond: maxDecisionSecond,
+    );
+    if (frames.isEmpty) return const _MlEvidence();
+
+    Map<String, dynamic>? worst;
+    var worstProbability = -1.0;
+    for (final frame in frames) {
+      final probability =
+          (frame['screenProbability'] as num?)?.toDouble() ?? 0.0;
+      if (probability > worstProbability) {
+        worst = frame;
+        worstProbability = probability;
+      }
+    }
+    return _mlEvidence(worst);
+  }
+
+  static _VideoEvidence _videoMlEvidence(
+    Map<String, dynamic>? ml, {
+    required double maxDecisionSecond,
+  }) {
+    final frames = _videoDecisionFrames(
+      ml,
+      maxDecisionSecond: maxDecisionSecond,
+    );
+    if (frames.isEmpty) return const _VideoEvidence();
 
     var ge60 = 0;
     var ge80 = 0;
     var ge90 = 0;
     var screenClassFrames = 0;
     var maxRisk = 0;
-    for (final rawFrame in frames) {
-      if (rawFrame is! Map) continue;
-      final frame = Map<String, dynamic>.from(rawFrame);
+    for (final frame in frames) {
       final signals = _map(frame['signals']);
       final score = (signals['fullFrameRiskScore'] as num?)?.toInt() ?? 0;
       if (score >= 60) ge60++;
@@ -368,6 +436,7 @@ class HCVMultiEvidenceDisplayPolicy {
     }
 
     return _VideoEvidence(
+      initialFrameCount: frames.length,
       framesAtLeast60: ge60,
       framesAtLeast80: ge80,
       framesAtLeast90: ge90,
@@ -502,6 +571,86 @@ class HCVMultiEvidenceDisplayPolicy {
         _hasNoStrongOpticalDisplayTrace(temporalOptical);
   }
 
+  static Map<String, dynamic>? _initialVideoOptical(
+    Map<String, dynamic>? raw, {
+    double maxDecisionSecond = 6.0,
+  }) {
+    if (raw == null || raw['analysisStatus'] != 'ANALYZED') return raw;
+    final rawSegments = raw['segments'];
+    if (rawSegments is! List) return raw;
+
+    final initial = <Map<String, dynamic>>[];
+    for (final entry in rawSegments) {
+      if (entry is! Map) continue;
+      final segment = Map<String, dynamic>.from(entry);
+      final start = (segment['startSecond'] as num?)?.toDouble();
+      if (start == null || start > maxDecisionSecond + 0.001) continue;
+      initial.add(segment);
+    }
+    if (initial.isEmpty) return raw;
+
+    initial.sort((a, b) {
+      final aScore = (a['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+      final bScore = (b['screenReplayRiskScore'] as num?)?.toInt() ?? 0;
+      return bScore.compareTo(aScore);
+    });
+    final worst = initial.first;
+    return <String, dynamic>{
+      ...raw,
+      ...worst,
+      'analysisStatus': 'ANALYZED',
+      'scanMode': raw['scanMode'] ?? 'EVERY_15_SECONDS_FAST_SAMPLE',
+      'segments': initial,
+      'segmentsAnalyzed': initial.length,
+      'worstSegmentSecond': worst['startSecond'],
+      'signals': _map(worst['signals']),
+      'decisionWindowSeconds': maxDecisionSecond,
+      'laterSegmentsDiagnosticOnly': true,
+    };
+  }
+
+  static bool _videoHfrPartialRealityConflict({
+    required _MlEvidence aggregate,
+    required _VideoEvidence video,
+    Map<String, dynamic>? passiveOptical,
+    Map<String, dynamic>? passiveSceneContext,
+  }) {
+    if (!aggregate.available ||
+        !aggregate.isReality ||
+        aggregate.probability > 0.45 ||
+        video.initialFrameCount < 2 ||
+        video.screenClassFrames != 0 ||
+        video.maxFullFrameRisk > 45) {
+      return false;
+    }
+
+    if (passiveOptical == null ||
+        passiveOptical['analysisStatus'] != 'ANALYZED' ||
+        !_hasNoStrongOpticalDisplayTrace(passiveOptical)) {
+      return false;
+    }
+    final opticalScore =
+        (passiveOptical['screenReplayRiskScore'] as num?)?.toInt() ?? 100;
+    if (opticalScore > 30) return false;
+
+    if (passiveSceneContext == null ||
+        passiveSceneContext['analysisStatus'] != 'ANALYZED') {
+      return false;
+    }
+    final geometry = _map(passiveSceneContext['geometryChallenge']);
+    if (geometry['sceneClass'] != 'REALITY' ||
+        geometry['realityEvidence'] != true ||
+        geometry['planarEvidence'] == true) {
+      return false;
+    }
+    final rawReasons = geometry['reasons'];
+    final reasons = rawReasons is List
+        ? rawReasons.map((value) => value.toString()).toSet()
+        : const <String>{};
+    return reasons.contains('MULTI_DEPTH_PARALLAX_DETECTED') &&
+        reasons.contains('NON_PLANAR_CAMERA_MOTION_RESPONSE');
+  }
+
   static bool _videoMlPhysicalRealityConflict({
     required bool hfrDecisionEligible,
     required _HfrEvidence hfr,
@@ -522,7 +671,7 @@ class HCVMultiEvidenceDisplayPolicy {
     if (passiveOptical == null ||
         passiveOptical['analysisStatus'] != 'ANALYZED' ||
         passiveOptical['scanMode'] != 'EVERY_15_SECONDS_FAST_SAMPLE' ||
-        !_hasNoStrongOpticalDisplayTrace(passiveOptical)) {
+        !_hasNoStrongOpticalDisplayTrace(initialOptical)) {
       return false;
     }
     final opticalSignals = _map(passiveOptical['signals']);
@@ -646,6 +795,7 @@ class _MlEvidence {
 
 class _VideoEvidence {
   const _VideoEvidence({
+    this.initialFrameCount = 0,
     this.framesAtLeast60 = 0,
     this.framesAtLeast80 = 0,
     this.framesAtLeast90 = 0,
@@ -653,6 +803,7 @@ class _VideoEvidence {
     this.maxFullFrameRisk = 0,
   });
 
+  final int initialFrameCount;
   final int framesAtLeast60;
   final int framesAtLeast80;
   final int framesAtLeast90;
