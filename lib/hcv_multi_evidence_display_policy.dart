@@ -397,6 +397,30 @@ class HCVMultiEvidenceDisplayPolicy {
     Map<String, dynamic>? ml, {
     required double maxDecisionSecond,
   }) {
+    if (ml == null || ml['analysisStatus'] != 'ANALYZED') {
+      return const _MlEvidence();
+    }
+
+    final rawFrames = ml['videoFrameAnalyses'];
+    if (rawFrames is! List || rawFrames.isEmpty) {
+      return _mlEvidence(ml);
+    }
+
+    // Historical certificates/tests did not always persist the timestamp and
+    // complete semantic output on each sampled frame. Those records must keep
+    // the exact pre-initial-window behaviour: top-level aggregate ML plus the
+    // legacy frame counters. Only modern timestamped frame evidence is scoped
+    // to the first six seconds.
+    final modernTimedFrames = rawFrames.whereType<Map>().every((raw) {
+      final frame = Map<String, dynamic>.from(raw);
+      return frame['approxVideoSecond'] is num &&
+          frame['screenProbability'] is num &&
+          (frame['predictedClass']?.toString().isNotEmpty ?? false);
+    });
+    if (!modernTimedFrames) {
+      return _mlEvidence(ml);
+    }
+
     final frames = _videoDecisionFrames(
       ml,
       maxDecisionSecond: maxDecisionSecond,
