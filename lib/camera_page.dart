@@ -1842,8 +1842,10 @@ class _CameraPageState extends State<CameraPage> {
       liveSignals: lastLiveSignals,
       audioCaptured: true,
     );
-    // BUILD124: VIDEO uses persistent ML plus native HFR corroboration.
-    // Scene context remains diagnostic-only.
+    // VIDEO scene classification is anchored to the pre-record physics plus
+    // the first six recorded seconds. Later display observations remain
+    // diagnostic-only; scene geometry can only downgrade a contradictory
+    // initial display hypothesis to NON_CONCLUSIVE.
     final displayRisk = HCVMultiEvidenceDisplayPolicy.resolveVideo(
       temporalFrequencyProbe: temporalFrequencyProbe,
       ml: mlScreenReplayAnalysis,
