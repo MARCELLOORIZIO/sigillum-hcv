@@ -25,9 +25,11 @@ class CommercialGate extends StatefulWidget {
   const CommercialGate({
     super.key,
     this.initialBillingMode = false,
+    this.returnAfterSubscriptionActivation = false,
   });
 
   final bool initialBillingMode;
+  final bool returnAfterSubscriptionActivation;
 
   @override
   State<CommercialGate> createState() => _CommercialGateState();
@@ -993,6 +995,13 @@ class _CommercialGateState extends State<CommercialGate>
     // and an account-bound Apple server reconcile. Do not replay unfinished
     // StoreKit transactions during ordinary login: stale queue cleanup belongs
     // to the purchase/restore paths and must not hold the login spinner open.
+
+    if (serverActive && widget.returnAfterSubscriptionActivation) {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
+      return;
+    }
 
     if (!serverActive) {
       if (returnToLandingIfUnpaid) {
