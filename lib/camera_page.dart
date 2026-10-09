@@ -1848,6 +1848,7 @@ class _CameraPageState extends State<CameraPage> {
       temporalFrequencyProbe: temporalFrequencyProbe,
       ml: mlScreenReplayAnalysis,
       passiveOptical: screenReplayAnalysis,
+      passiveSceneContext: sceneContextProbe,
     );
     final sceneContext = _sceneContextFromProbe(sceneContextProbe);
     final detectedScreenReplayRisk = displayRisk.risk;

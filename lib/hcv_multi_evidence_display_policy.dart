@@ -147,6 +147,7 @@ class HCVMultiEvidenceDisplayPolicy {
     required Map<String, dynamic>? temporalFrequencyProbe,
     required Map<String, dynamic>? ml,
     Map<String, dynamic>? passiveOptical,
+    Map<String, dynamic>? passiveSceneContext,
   }) {
     final hfr = _hfrEvidence(temporalFrequencyProbe);
     final hfrDecisionEligible = _hfrDecisionEligible(temporalFrequencyProbe);
@@ -194,6 +195,22 @@ class HCVMultiEvidenceDisplayPolicy {
         _isLowInformationSemanticOnlyVideo(passiveOptical)) {
       return _nonConclusive(
         'BUILD127_VIDEO_LOW_INFORMATION_SEMANTIC_ONLY',
+      );
+    }
+
+    if (aggregate.isScreen &&
+        aggregate.probability >= 0.80 &&
+        video.framesAtLeast80 >= 2 &&
+        video.framesAtLeast90 >= 1 &&
+        _videoMlPhysicalRealityConflict(
+          hfrDecisionEligible: hfrDecisionEligible,
+          hfr: hfr,
+          passiveOptical: passiveOptical,
+          passiveSceneContext: passiveSceneContext,
+        )) {
+      return _nonConclusive(
+        'VIDEO_STRONG_ML_CONFLICT_WITH_POSITIVE_MULTI_DEPTH_REALITY',
+        sceneContextConflictGuardUsed: true,
       );
     }
 
@@ -435,7 +452,10 @@ class HCVMultiEvidenceDisplayPolicy {
     );
   }
 
-  static HCVDisplayRiskResult _nonConclusive(String reason) =>
+  static HCVDisplayRiskResult _nonConclusive(
+    String reason, {
+    bool sceneContextConflictGuardUsed = false,
+  }) =>
       HCVDisplayRiskResult(
         risk: 'MEDIUM',
         score: 45,
@@ -446,7 +466,9 @@ class HCVMultiEvidenceDisplayPolicy {
         reasons: <String>[
           reason,
           'ABSENCE_OF_DISPLAY_PROOF_IS_NOT_POSITIVE_REALITY_PROOF',
-          'SCENE_CONTEXT_NOT_USED_FOR_DISPLAY_VERDICT',
+          sceneContextConflictGuardUsed
+              ? 'SCENE_CONTEXT_USED_ONLY_AS_CONTRADICTION_GUARD'
+              : 'SCENE_CONTEXT_NOT_USED_FOR_DISPLAY_VERDICT',
         ],
       );
 
@@ -478,6 +500,59 @@ class HCVMultiEvidenceDisplayPolicy {
 
     return _hasNoStrongOpticalDisplayTrace(stillOptical) &&
         _hasNoStrongOpticalDisplayTrace(temporalOptical);
+  }
+
+  static bool _videoMlPhysicalRealityConflict({
+    required bool hfrDecisionEligible,
+    required _HfrEvidence hfr,
+    Map<String, dynamic>? passiveOptical,
+    Map<String, dynamic>? passiveSceneContext,
+  }) {
+    if (!hfrDecisionEligible ||
+        hfr.fullFrameDisplay ||
+        hfr.partialCorroboratedDisplay ||
+        hfr.displayLikeCells != 0 ||
+        hfr.realityLikeCells != 0 ||
+        hfr.periodicCells != 0 ||
+        hfr.stableCells != 0 ||
+        hfr.medianPeriodicity >= 0.05) {
+      return false;
+    }
+
+    if (passiveOptical == null ||
+        passiveOptical['analysisStatus'] != 'ANALYZED' ||
+        passiveOptical['scanMode'] != 'EVERY_15_SECONDS_FAST_SAMPLE' ||
+        !_hasNoStrongOpticalDisplayTrace(passiveOptical)) {
+      return false;
+    }
+    final opticalSignals = _map(passiveOptical['signals']);
+    final opticalScore =
+        (passiveOptical['screenReplayRiskScore'] as num?)?.toInt() ?? 100;
+    final rgbPhase =
+        (opticalSignals['rgbPhaseConsistencyScore'] as num?)?.toDouble() ?? 1.0;
+    if (opticalScore > 30 ||
+        opticalSignals['flatSceneUniformity'] != true ||
+        opticalSignals['lowMicroVariation'] != true ||
+        rgbPhase >= 0.50) {
+      return false;
+    }
+
+    if (passiveSceneContext == null ||
+        passiveSceneContext['analysisStatus'] != 'ANALYZED') {
+      return false;
+    }
+    final geometry = _map(passiveSceneContext['geometryChallenge']);
+    if (geometry['sceneClass'] != 'REALITY' ||
+        geometry['realityEvidence'] != true ||
+        geometry['planarEvidence'] == true) {
+      return false;
+    }
+    final rawReasons = geometry['reasons'];
+    final reasons = rawReasons is List
+        ? rawReasons.map((value) => value.toString()).toSet()
+        : const <String>{};
+    return reasons.contains('MULTI_DEPTH_PARALLAX_DETECTED') &&
+        reasons.contains('NON_PLANAR_CAMERA_MOTION_RESPONSE');
   }
 
   static bool _isLowInformationSemanticOnlyVideo(

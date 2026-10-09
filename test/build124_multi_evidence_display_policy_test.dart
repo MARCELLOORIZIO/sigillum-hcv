@@ -199,13 +199,17 @@ void main() {
       expect(source, isNot(contains("v3['stableCellCount']")));
     });
 
-    test('scene context geometry and sensors cannot enter BUILD124 verdict',
-        () {
+    test('scene context can only enter VIDEO as a contradiction guard', () {
       final source =
           File('lib/hcv_multi_evidence_display_policy.dart').readAsStringSync();
 
       expect(source, isNot(contains('HCVSceneContextEvidence')));
-      expect(source, isNot(contains('geometryProbe')));
+      expect(source, contains('passiveSceneContext'));
+      expect(source, contains('_videoMlPhysicalRealityConflict'));
+      expect(
+        source,
+        contains('SCENE_CONTEXT_USED_ONLY_AS_CONTRADICTION_GUARD'),
+      );
       expect(source, isNot(contains('sensorSignals')));
       expect(source, isNot(contains('DISPLAY_EMBEDDED_IN_REALITY')));
     });
