@@ -1004,6 +1004,17 @@ class _CommercialGateState extends State<CommercialGate>
       return;
     }
 
+    // Premium feature entry is a short subscription flow, not a second copy
+    // of the Creator home. Once StoreKit/server entitlement is active, return
+    // to the requesting feature so it can re-check access immediately.
+    if (widget.initialBillingMode && mounted) {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.pop(true);
+        return;
+      }
+    }
+
     final kyc = _accountData['kycStatus']?.toString() ?? 'not_started';
     if (kyc != 'verified') {
       if (mounted) setState(() => _stage = _GateStage.identity);
