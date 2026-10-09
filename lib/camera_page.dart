@@ -2711,10 +2711,18 @@ class _CameraPageState extends State<CameraPage> {
               style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: copyVerificationLink,
-              icon: const Icon(Icons.copy),
-              label: Text(_c('copyHcvId')),
+            SizedBox(
+              width: 340,
+              height: 64,
+              child: ElevatedButton.icon(
+                style: _resultActionButtonStyle(),
+                onPressed: copyVerificationLink,
+                icon: const Icon(Icons.copy),
+                label: Text(
+                  _c('copyHcvId'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           ],
         ),
@@ -2849,95 +2857,121 @@ class _CameraPageState extends State<CameraPage> {
     );
   }
 
+  ButtonStyle _resultActionButtonStyle() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF1FC7D4),
+      foregroundColor: const Color(0xFF280D5F),
+      disabledBackgroundColor: const Color(0xFFB8E8EB),
+      disabledForegroundColor: const Color(0xFF665C86),
+      minimumSize: const Size.fromHeight(64),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      textStyle: const TextStyle(
+        fontWeight: FontWeight.w900,
+        fontSize: 14,
+      ),
+    );
+  }
+
+  Widget _resultActionButton({
+    required VoidCallback? onPressed,
+    required Widget icon,
+    required String label,
+  }) {
+    return SizedBox(
+      width: 340,
+      height: 64,
+      child: ElevatedButton.icon(
+        style: _resultActionButtonStyle(),
+        onPressed: onPressed,
+        icon: icon,
+        label: Text(
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+        ),
+      ),
+    );
+  }
+
   Widget _actionButtons() {
-    return Column(
-      children: [
-        if (_secureOriginalRecord != null) ...[
-          SizedBox(
-            width: 300,
-            child: ElevatedButton.icon(
-              onPressed: shareVideoAndCertificate,
+    final hasSecureOriginal = _secureOriginalRecord != null;
+    final hasVideoActions = createdContentKind == 'video' &&
+        (videoPath != null || _secureOriginalRecord?.mediaType == 'video') &&
+        Platform.isIOS;
+    if (!hasSecureOriginal && !hasVideoActions) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: 360,
+      margin: const EdgeInsets.only(top: 4, bottom: 8),
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Column(
+        children: [
+          if (hasSecureOriginal) ...[
+            _resultActionButton(
+              onPressed: _transcribingAudio ? null : shareVideoAndCertificate,
               icon: const Icon(Icons.share),
-              label: Text(_secureOriginalRecord != null
-                  ? _t('secureOriginalsOpen')
-                  : _t('shareContent')),
+              label: _t('secureOriginalsOpen'),
             ),
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (_secureOriginalRecord != null) ...[
-          SizedBox(
-            width: 300,
-            child: ElevatedButton.icon(
-              onPressed: sharePackage,
+            const SizedBox(height: 10),
+            _resultActionButton(
+              onPressed: _transcribingAudio ? null : sharePackage,
               icon: const Icon(Icons.inventory_2),
-              label: Text(_t('shareOfflinePack')),
+              label: _t('shareOfflinePack'),
             ),
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (createdContentKind == 'video' &&
-            (videoPath != null ||
-                _secureOriginalRecord?.mediaType == 'video') &&
-            Platform.isIOS) ...[
-          SizedBox(
-            width: 340,
-            child: ElevatedButton.icon(
+            const SizedBox(height: 10),
+          ],
+          if (hasVideoActions) ...[
+            _resultActionButton(
               onPressed: _transcribingAudio ? null : _transcribeCreatedVideo,
-              icon: const Icon(Icons.subtitles_rounded),
-              label: Text(
-                _transcribingAudio
-                    ? _c('transcribing')
-                    : _c('createCaptionedVideo'),
-              ),
+              icon: _transcribingAudio
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : const Icon(Icons.subtitles_rounded),
+              label: _transcribingAudio
+                  ? _c('transcribing')
+                  : _c('createCaptionedVideo'),
             ),
-          ),
-          const SizedBox(height: 10),
-          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
-            SizedBox(
-              width: 340,
-              child: ElevatedButton.icon(
+            if (_secureOriginalRecord?.hasSubtitleDerivative == true) ...[
+              const SizedBox(height: 10),
+              _resultActionButton(
                 onPressed:
                     _subtitlePublishing ? null : _saveCaptionedVideoToPhotos,
                 icon: const Icon(Icons.photo_library_outlined),
-                label: Text(
-                  _subtitlePublishing
-                      ? _c('subtitleReferencePublishing')
-                      : _c('saveCaptionedPhotos'),
-                ),
+                label: _subtitlePublishing
+                    ? _c('subtitleReferencePublishing')
+                    : _c('saveCaptionedPhotos'),
               ),
-            ),
-          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
-            const SizedBox(height: 10),
-          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
-            SizedBox(
-              width: 340,
-              child: ElevatedButton.icon(
+              const SizedBox(height: 10),
+              _resultActionButton(
                 onPressed: _subtitlePublishing ? null : _shareCaptionedVideo,
                 icon: const Icon(Icons.closed_caption_rounded),
-                label: Text(_c('shareCaptionedVideo')),
+                label: _c('shareCaptionedVideo'),
               ),
-            ),
-          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
-            const SizedBox(height: 10),
-          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
-            SizedBox(
-              width: 340,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1FC7D4),
-                  foregroundColor: const Color(0xFF280D5F),
-                  minimumSize: const Size.fromHeight(64),
-                ),
+              const SizedBox(height: 10),
+              _resultActionButton(
                 onPressed: _subtitlePublishing ? null : _shareSubtitleFile,
                 icon: const Icon(Icons.ios_share_rounded),
-                label: Text(_c('shareSrt')),
+                label: _c('shareSrt'),
               ),
-            ),
-          if (_secureOriginalRecord?.hasSubtitleDerivative == true)
-            const SizedBox(height: 10),
+            ],
+          ],
         ],
-      ],
+      ),
     );
   }
 
