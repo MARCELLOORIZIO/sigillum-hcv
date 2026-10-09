@@ -374,7 +374,10 @@ class HCVMultiEvidenceDisplayPolicy {
       if (rawFrame is! Map) continue;
       final frame = Map<String, dynamic>.from(rawFrame);
       final second = (frame['approxVideoSecond'] as num?)?.toDouble();
-      if (second == null || second > maxDecisionSecond + 0.001) continue;
+      // Legacy fixtures/certificates may not carry per-frame timestamps.
+      // Preserve their historical behaviour instead of silently discarding
+      // their ML evidence. Modern VIDEO analyses always carry the timestamp.
+      if (second != null && second > maxDecisionSecond + 0.001) continue;
       frames.add(frame);
     }
     frames.sort((a, b) {
@@ -393,7 +396,7 @@ class HCVMultiEvidenceDisplayPolicy {
       ml,
       maxDecisionSecond: maxDecisionSecond,
     );
-    if (frames.isEmpty) return const _MlEvidence();
+    if (frames.isEmpty) return _mlEvidence(ml);
 
     Map<String, dynamic>? worst;
     var worstProbability = -1.0;
