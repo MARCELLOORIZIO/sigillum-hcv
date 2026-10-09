@@ -570,55 +570,97 @@ class _SecureOriginalsPageState extends State<SecureOriginalsPage> {
                             label: Text(_t('secureOriginalsSelect')),
                           )
                         else
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 8,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              OutlinedButton.icon(
-                                onPressed: _busyId == null
-                                    ? () => _view(record)
-                                    : null,
-                                icon: const Icon(Icons.play_circle_outline),
-                                label: Text(_t('secureOriginalsView')),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: _busyId == null
-                                    ? () => _verify(record)
-                                    : null,
-                                icon: const Icon(Icons.verified_user_outlined),
-                                label: Text(_t('verifyTitle')),
-                              ),
-                              FilledButton.icon(
-                                onPressed: _busyId == null
-                                    ? () => _share(record)
-                                    : null,
-                                icon: const Icon(Icons.ios_share),
-                                label: Text(_t('secureOriginalsShare')),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: _busyId == null
-                                    ? () => _saveOriginal(record)
-                                    : null,
-                                icon: const Icon(Icons.save_alt_rounded),
-                                label: Text(_t('secureOriginalsSave')),
-                              ),
-                              if (record.hasReference)
-                                OutlinedButton.icon(
-                                  onPressed: _busyId == null
-                                      ? () => _openOfficialCopy(record)
-                                      : null,
-                                  icon: const Icon(Icons.open_in_new),
-                                  label:
-                                      Text(_t('secureOriginalsOfficialCopy')),
+                              Text(
+                                _t('secureOriginalsDeviceSection'),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.4,
                                 ),
-                              if (record.hasReference)
-                                OutlinedButton.icon(
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 56,
+                                child: OutlinedButton.icon(
                                   onPressed: _busyId == null
-                                      ? () => _withdraw(record)
+                                      ? () => _view(record)
                                       : null,
-                                  icon: const Icon(Icons.link_off),
-                                  label: Text(_t('secureOriginalsWithdraw')),
+                                  icon: const Icon(Icons.play_circle_outline),
+                                  label: Text(_t('secureOriginalsView')),
                                 ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 56,
+                                child: OutlinedButton.icon(
+                                  onPressed: _busyId == null
+                                      ? () => _verify(record)
+                                      : null,
+                                  icon:
+                                      const Icon(Icons.verified_user_outlined),
+                                  label: Text(_t('verifyTitle')),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 56,
+                                child: FilledButton.icon(
+                                  onPressed: _busyId == null
+                                      ? () => _share(record)
+                                      : null,
+                                  icon: const Icon(Icons.ios_share),
+                                  label: Text(_t('secureOriginalsShare')),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 56,
+                                child: OutlinedButton.icon(
+                                  onPressed: _busyId == null
+                                      ? () => _saveOriginal(record)
+                                      : null,
+                                  icon: const Icon(Icons.save_alt_rounded),
+                                  label: Text(_t('secureOriginalsSave')),
+                                ),
+                              ),
+                              if (record.hasReference) ...[
+                                const SizedBox(height: 18),
+                                Text(
+                                  _t('secureOriginalsReferenceSection'),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 56,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _busyId == null
+                                        ? () => _openOfficialCopy(record)
+                                        : null,
+                                    icon: const Icon(Icons.open_in_new),
+                                    label:
+                                        Text(_t('secureOriginalsOfficialCopy')),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 56,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _busyId == null
+                                        ? () => _withdraw(record)
+                                        : null,
+                                    icon: const Icon(Icons.link_off),
+                                    label:
+                                        Text(_t('secureOriginalsWithdraw')),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         if (_busyId == record.hcvId) ...[
