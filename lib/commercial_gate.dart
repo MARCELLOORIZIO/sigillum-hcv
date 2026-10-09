@@ -22,7 +22,12 @@ import 'text_social_verify_page.dart';
 import 'user_home_page.dart';
 
 class CommercialGate extends StatefulWidget {
-  const CommercialGate({super.key});
+  const CommercialGate({
+    super.key,
+    this.initialBillingMode = false,
+  });
+
+  final bool initialBillingMode;
 
   @override
   State<CommercialGate> createState() => _CommercialGateState();
@@ -893,7 +898,9 @@ class _CommercialGateState extends State<CommercialGate>
         return;
       }
       _applyEnvelope(envelope);
-      await _routeAuthenticated(returnToLandingIfUnpaid: true);
+      await _routeAuthenticated(
+        returnToLandingIfUnpaid: !widget.initialBillingMode,
+      );
     } catch (_) {
       if (mounted) setState(() => _stage = _GateStage.landing);
     }
