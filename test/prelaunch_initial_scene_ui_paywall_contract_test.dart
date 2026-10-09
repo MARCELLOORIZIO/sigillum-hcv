@@ -38,9 +38,18 @@ void main() {
     // The existing three commercial products are intentionally preserved.
     final billing =
         File('lib/commercial_billing_service.dart').readAsStringSync();
-    expect(billing, contains('sigillum_creator_weekly'));
-    expect(billing, contains('sigillum_creator_monthly'));
-    expect(billing, contains('sigillum_creator_annual'));
+    expect(
+      billing,
+      contains("weeklyProductId = 'com.sigillum.hcv.creator.weekly'"),
+    );
+    expect(
+      billing,
+      contains("monthlyProductId = 'com.sigillum.hcv.creator.monthly'"),
+    );
+    expect(
+      billing,
+      contains("annualProductId = 'com.sigillum.hcv.creator.annual'"),
+    );
   });
 
   test('protected originals distinguish device original from R2 reference', () {
