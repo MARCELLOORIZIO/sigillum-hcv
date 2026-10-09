@@ -173,7 +173,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'HCV-ID valido nel Registry, ma non rilevato automaticamente nel file selezionato. La corrispondenza del media non è verificata.',
       'sceneWarning':
-          'ATTENZIONE: sono presenti segnali tecnici compatibili con una possibile ripresa da schermo ({risk}). Il contenuto resta collegato al certificato, ma questo dato va considerato nella valutazione della cattura.',
+          'ATTENZIONE: più segnali tecnici concordanti indicano un forte rischio di ripresa da schermo ({risk}). Il contenuto resta collegato al certificato, ma questo dato va considerato nella valutazione della cattura.',
       'registryNotFoundDetail':
           'Certificato non presente nel Registry. Questo non dimostra una modifica del file: la registrazione online potrebbe essere ancora in attesa.',
       'registryUnavailableDetail':
@@ -388,7 +388,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'The HCV-ID is valid in the Registry but was not detected automatically in the selected file. Media correspondence is not verified.',
       'sceneWarning':
-          'CAUTION: technical signals are consistent with a possible screen recapture ({risk}). The content remains linked to the certificate, but this signal should be considered when assessing the capture.',
+          'CAUTION: multiple concordant technical signals indicate a strong risk of screen recapture ({risk}). The content remains linked to the certificate, but this signal should be considered when assessing the capture.',
       'registryNotFoundDetail':
           'Certificate not found in the Registry. This does not prove the file was modified; online registration may still be pending.',
       'registryUnavailableDetail':
@@ -604,7 +604,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'El HCV-ID es válido en Registry, pero no se detectó automáticamente en el archivo seleccionado. La correspondencia del media no está verificada.',
       'sceneWarning':
-          'ATENCIÓN: hay señales técnicas compatibles con una posible recaptura de pantalla ({risk}). El contenido sigue vinculado al certificado, pero esta señal debe tenerse en cuenta al valorar la captura.',
+          'ATENCIÓN: varias señales técnicas concordantes indican un fuerte riesgo de recaptura de pantalla ({risk}). El contenido sigue vinculado al certificado, pero esta señal debe tenerse en cuenta al valorar la captura.',
       'registryNotFoundDetail':
           'Certificado no encontrado en Registry. Esto no demuestra que el archivo haya sido modificado; el registro en línea puede seguir pendiente.',
       'registryUnavailableDetail':
@@ -820,7 +820,7 @@ class RegistryVerifyCopy {
       'idNotDetected':
           'HCV-ID действителен в Registry, но автоматически не обнаружен в выбранном файле. Соответствие медиа не подтверждено.',
       'sceneWarning':
-          'ВНИМАНИЕ: технические сигналы совместимы с возможной пересъёмкой с экрана ({risk}). Контент остаётся связан с сертификатом, но этот сигнал следует учитывать при оценке захвата.',
+          'ВНИМАНИЕ: несколько согласующихся технических сигналов указывают на высокий риск пересъёмки с экрана ({risk}). Контент остаётся связан с сертификатом, но этот сигнал следует учитывать при оценке захвата.',
       'registryNotFoundDetail':
           'Сертификат не найден в Registry. Это не доказывает изменение файла: онлайн-регистрация может ещё ожидать завершения.',
       'registryUnavailableDetail':
