@@ -94,7 +94,8 @@ class _ManualReferenceComparePageState
       }
 
       final billing = await const CommercialAccountService().billingStatus();
-      if (billing['status']?.toString() != 'active') {
+      final billingStatus = billing['status']?.toString();
+      if (billingStatus != 'active' && billingStatus != 'grace') {
         throw StateError('SUBSCRIPTION_REQUIRED');
       }
 
@@ -147,7 +148,10 @@ class _ManualReferenceComparePageState
   Future<void> _openSubscriptionPlans() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const CommercialGate(initialBillingMode: true),
+        builder: (_) => const CommercialGate(
+          initialBillingMode: true,
+          returnAfterSubscriptionActivation: true,
+        ),
       ),
     );
     if (!mounted) return;
