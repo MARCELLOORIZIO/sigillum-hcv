@@ -10,9 +10,10 @@ import 'hcv_display_risk_fusion.dart';
 /// - VIDEO persistent ML frame evidence;
 /// - optical evidence may corroborate score/reasons but never decides alone.
 ///
-/// Scene context, geometry and sensors are deliberately excluded from the
-/// DISPLAY/REALITY verdict. Borderline screen-like cases become NON_CONCLUSIVE
-/// rather than being silently converted into REALITY.
+/// Scene context never establishes DISPLAY or REALITY by itself. For VIDEO,
+/// positive multi-depth geometry may only act as a contradiction guard when
+/// independent initial-window ML/optical evidence conflicts with HFR/ML display
+/// evidence. Such conflicts become NON_CONCLUSIVE, never automatic REALITY.
 class HCVMultiEvidenceDisplayPolicy {
   const HCVMultiEvidenceDisplayPolicy._();
 
