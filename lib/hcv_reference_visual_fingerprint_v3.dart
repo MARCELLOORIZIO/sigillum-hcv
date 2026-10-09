@@ -238,13 +238,23 @@ class HCVReferenceVisualFingerprintV3 {
       initialAnchorFrames,
       min(expectedFrames.length, currentFrames.length),
     );
+    var anchorPreviousMatchedIndex = -1;
     for (var i = 0; i < anchorCount; i++) {
-      final direct = _compareFrame(
-        expectedFrames[i] as Map,
-        currentFrames[i] as Map,
-      );
-      if (direct.comparable) {
-        if (direct.tampered) {
+      var matchedIndex = -1;
+
+      // Permit at most one 2-fps frame (0.5 s) of technical timestamp drift.
+      // Anything farther into the candidate is not acceptable as its start.
+      final allowedLow = max(anchorPreviousMatchedIndex + 1, i);
+      final allowedHigh = min(currentFrames.length - 1, i + 1);
+      for (var candidateIndex = allowedLow;
+          candidateIndex <= allowedHigh;
+          candidateIndex++) {
+        final residual = _compareFrame(
+          expectedFrames[i] as Map,
+          currentFrames[candidateIndex] as Map,
+        );
+        if (!residual.comparable) continue;
+        if (residual.tampered) {
           return HCVReferenceVisualComparison(
             verdict: HCVReferenceVisualVerdict.modified,
             alignedFrames: i,
@@ -253,17 +263,21 @@ class HCVReferenceVisualFingerprintV3 {
             expectedFrames: expectedFrames.length,
           );
         }
+        matchedIndex = candidateIndex;
+        break;
+      }
+      if (matchedIndex >= 0) {
+        anchorPreviousMatchedIndex = matchedIndex;
         continue;
       }
 
-      // A certified opening frame found only later in the candidate is direct
-      // evidence that the candidate timeline starts after the original.
+      // If the missing certified opening appears only two or more frames later,
+      // the candidate has a shifted/trimmed opening and is MODIFIED.
       final searchHigh = min(
         currentFrames.length - 1,
         i + initialAnchorFrames,
       );
-      var shiftedOpeningFound = false;
-      for (var candidateIndex = i + 1;
+      for (var candidateIndex = i + 2;
           candidateIndex <= searchHigh;
           candidateIndex++) {
         final shifted = _compareFrame(
@@ -271,20 +285,18 @@ class HCVReferenceVisualFingerprintV3 {
           currentFrames[candidateIndex] as Map,
         );
         if (shifted.comparable && !shifted.tampered) {
-          shiftedOpeningFound = true;
-          break;
+          return HCVReferenceVisualComparison(
+            verdict: HCVReferenceVisualVerdict.modified,
+            alignedFrames: i,
+            modifiedFrames: 1,
+            inconclusiveFrames: 0,
+            expectedFrames: expectedFrames.length,
+          );
         }
       }
-      if (shiftedOpeningFound) {
-        return HCVReferenceVisualComparison(
-          verdict: HCVReferenceVisualVerdict.modified,
-          alignedFrames: i,
-          modifiedFrames: 1,
-          inconclusiveFrames: 0,
-          expectedFrames: expectedFrames.length,
-        );
-      }
 
+      // A heavily degraded opening is not enough to prove trimming, but it is
+      // never allowed to become CONFORMING.
       return HCVReferenceVisualComparison(
         verdict: HCVReferenceVisualVerdict.inconclusive,
         alignedFrames: i,
