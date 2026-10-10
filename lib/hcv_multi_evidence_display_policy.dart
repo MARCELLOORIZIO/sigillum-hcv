@@ -73,6 +73,30 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
+    // PHOTO-only recovery: a pre-capture temporal HIGH finding must not be
+    // silently discarded when the still classifier independently identifies
+    // a screen. Retain the V3 hard-negative veto and the physical texture guard
+    // above to protect BMW upholstery / lamellae from false promotion.
+    //
+    // No change to VIDEO policy, HFR precedence, or reference verification.
+    final temporalStrong =
+        videoEquivalentDisplayRisk?['decision'] == 'STRONG_DISPLAY_RISK' &&
+        videoEquivalentDisplayRisk?['risk'] == 'HIGH';
+    if (still.isScreen &&
+        still.probability >= 0.80 &&
+        !still.v3RealityVeto &&
+        temporalStrong) {
+      return _display(
+        90,
+        'PHOTO_STILL_AND_PRECAPTURE_TEMPORAL_HIGH_DISPLAY',
+        const <String>[
+          'PHOTO_STILL_SCREEN_PROBABILITY_AT_LEAST_0_80',
+          'PHOTO_PRECAPTURE_TEMPORAL_STRONG_DISPLAY',
+          'PHOTO_V3_REALITY_VETO_NOT_ACTIVE',
+        ],
+      );
+    }
+
     if (still.isScreen &&
         !still.v3RealityVeto &&
         still.probability >= 0.90 &&
