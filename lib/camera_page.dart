@@ -30,6 +30,7 @@ import 'hcv_ml_screen_replay_classifier.dart';
 import 'hcv_ml_v3_photo_residual.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_multi_evidence_display_policy.dart';
+import 'hcv_photo_framing_evidence.dart';
 import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
@@ -1366,6 +1367,10 @@ class _CameraPageState extends State<CameraPage> {
           ? Map<String, dynamic>.from(photoVideoEquivalentRaw)
           : null;
 
+      final framingEvidence = HCVPhotoFramingEvidence.fromSceneContext(
+        _sceneContextFromProbe(sceneContextProbe).toJson(),
+      );
+
       // BUILD124: restore multi-evidence fusion. Scene context remains
       // diagnostic-only and cannot absolve or promote DISPLAY.
       final displayRisk = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
@@ -1375,6 +1380,7 @@ class _CameraPageState extends State<CameraPage> {
         stillOptical: screenReplayAnalysis,
         temporalOptical: photoTemporalOptical,
         videoEquivalentDisplayRisk: photoVideoEquivalent,
+        photoFramingEvidence: framingEvidence,
       );
       final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final detectedScreenReplayRisk = displayRisk.risk;
