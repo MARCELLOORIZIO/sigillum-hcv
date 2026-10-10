@@ -1367,8 +1367,9 @@ class _CameraPageState extends State<CameraPage> {
           ? Map<String, dynamic>.from(photoVideoEquivalentRaw)
           : null;
 
+      final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final framingEvidence = HCVPhotoFramingEvidence.fromSceneContext(
-        _sceneContextFromProbe(sceneContextProbe).toJson(),
+        sceneContext.toJson(),
       );
 
       // BUILD124: restore multi-evidence fusion. Scene context remains
@@ -1382,7 +1383,6 @@ class _CameraPageState extends State<CameraPage> {
         videoEquivalentDisplayRisk: photoVideoEquivalent,
         photoFramingEvidence: framingEvidence,
       );
-      final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final detectedScreenReplayRisk = displayRisk.risk;
       final detectedScreenReplayScore = displayRisk.score;
       final displayRiskDecision = displayRisk.decision;
@@ -1443,6 +1443,7 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskMeaning": _displayRiskMeaning(displayRiskDecision),
         "displayRiskEvidence": displayRisk.toJson(),
         "sceneContextEvidence": sceneContext.toJson(),
+        "photoFramingEvidence": framingEvidence,
         "passiveSceneContextProbe": sceneContextProbe,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
