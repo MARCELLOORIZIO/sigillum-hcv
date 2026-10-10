@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'hcv_display_risk_fusion.dart';
+import 'hcv_photo_framing_evidence.dart';
 
 /// BUILD124 multi-evidence DISPLAY/REALITY policy.
 ///
@@ -24,6 +25,7 @@ class HCVMultiEvidenceDisplayPolicy {
     Map<String, dynamic>? stillOptical,
     Map<String, dynamic>? temporalOptical,
     Map<String, dynamic>? videoEquivalentDisplayRisk,
+    Map<String, dynamic>? photoFramingEvidence,
   }) {
     final hfr = _hfrEvidence(temporalFrequencyProbe);
     final hfrDecisionEligible = _hfrDecisionEligible(temporalFrequencyProbe);
@@ -31,6 +33,18 @@ class HCVMultiEvidenceDisplayPolicy {
     final still = _mlEvidence(stillMl);
     final temporalAggregate = _mlEvidence(temporalMl);
     final temporal = _videoMlEvidence(temporalMl);
+
+    // Explicit corroborated geometry of a display embedded in a real scene
+    // contradicts a full-frame display verdict. Never convert UNKNOWN to
+    // full-frame DISPLAY, or call the image "verified real" on geometry alone.
+    if (HCVPhotoFramingEvidence.isCorroboratedEmbedded(
+      photoFramingEvidence,
+    )) {
+      return _nonConclusive(
+        'PHOTO_EMBEDDED_REAL_SCENE_CONTRADICTS_FULL_FRAME_DISPLAY',
+        sceneContextConflictGuardUsed: true,
+      );
+    }
 
     if (hfr.fullFrameDisplay) {
       return _display(
