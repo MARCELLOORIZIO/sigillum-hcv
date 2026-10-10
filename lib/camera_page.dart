@@ -31,6 +31,7 @@ import 'hcv_ml_v3_photo_residual.dart';
 import 'hcv_display_risk_fusion.dart';
 import 'hcv_multi_evidence_display_policy.dart';
 import 'hcv_photo_framing_evidence.dart';
+import 'hcv_photo_visual_framing.dart';
 import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
 import 'sigillum_localization.dart';
@@ -1367,6 +1368,8 @@ class _CameraPageState extends State<CameraPage> {
           ? Map<String, dynamic>.from(photoVideoEquivalentRaw)
           : null;
 
+      final visualFramingDiagnostic =
+          await HCVPhotoVisualFraming.analyzeFile(savedPhotoPath);
       final sceneContext = _sceneContextFromProbe(sceneContextProbe);
       final framingEvidence = HCVPhotoFramingEvidence.fromSceneContext(
         sceneContext.toJson(),
@@ -1444,6 +1447,7 @@ class _CameraPageState extends State<CameraPage> {
         "displayRiskEvidence": displayRisk.toJson(),
         "sceneContextEvidence": sceneContext.toJson(),
         "photoFramingEvidence": framingEvidence,
+        "photoVisualFramingDiagnostic": visualFramingDiagnostic,
         "passiveSceneContextProbe": sceneContextProbe,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
         "captureCreatedAt": capturedAt.toUtc().toIso8601String(),
