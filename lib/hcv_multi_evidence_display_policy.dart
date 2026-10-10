@@ -73,6 +73,36 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
+    // PHOTO only: the temporal video ML result alone is not an independent
+    // display proof (PHOTO paper and upholstery archive counterexamples).
+    // Promote only when the temporal OPTICAL analyzer independently reports a
+    // strong display trace, no comparable HFR reality-like cells are present,
+    // and neither residual V3 nor physical texture evidence vetoes the scene.
+    final temporalDisplay = videoEquivalentDisplayRisk?['decision'] ==
+            'STRONG_DISPLAY_RISK' &&
+        videoEquivalentDisplayRisk?['risk'] == 'HIGH';
+    final temporalOpticalSignals = _map(temporalOptical?['signals']);
+    final independentOpticalTrace =
+        temporalOptical?['analysisStatus'] == 'ANALYZED' &&
+            temporalOpticalSignals['strongDisplayTrace'] == true;
+    if (still.isScreen &&
+        still.probability >= 0.80 &&
+        !still.v3RealityVeto &&
+        temporalDisplay &&
+        independentOpticalTrace &&
+        (!hfrDecisionEligible || hfr.realityLikeCells == 0)) {
+      return _display(
+        90,
+        'PHOTO_TEMPORAL_INDEPENDENT_OPTICAL_DISPLAY_CONFIRMATION',
+        const <String>[
+          'PHOTO_STILL_SCREEN_V2_AT_LEAST_0_80',
+          'PHOTO_TEMPORAL_HIGH',
+          'PHOTO_TEMPORAL_OPTICAL_STRONG_DISPLAY_TRACE',
+          'PHOTO_NO_COMPARABLE_HFR_REALITY_CONFLICT',
+        ],
+      );
+    }
+
     if (still.isScreen &&
         !still.v3RealityVeto &&
         still.probability >= 0.90 &&
