@@ -32,6 +32,7 @@ import 'hcv_display_risk_fusion.dart';
 import 'hcv_multi_evidence_display_policy.dart';
 import 'hcv_photo_framing_evidence.dart';
 import 'hcv_photo_visual_framing.dart';
+import 'hcv_photo_semantic_framing_runner.dart';
 import 'hcv_photo_semantic_framing_inference.dart';
 import 'hcv_scene_context_evidence.dart';
 import 'hcv_capture_timestamp.dart';
@@ -1371,6 +1372,10 @@ class _CameraPageState extends State<CameraPage> {
 
       final visualFramingDiagnostic =
           await HCVPhotoVisualFraming.analyzeFile(savedPhotoPath);
+      final semanticFramingRunner = HCVPhotoSemanticFramingRunner.instance;
+      await semanticFramingRunner.initialize(verifiedModelManifest: true);
+      final semanticFramingDiagnostic =
+          await semanticFramingRunner.analyzePhoto(savedPhotoPath);
       final semanticFramingDiagnostic =
           await HCVPhotoSemanticFramingInference.instance.analyzePhoto(savedPhotoPath);
       final sceneContext = _sceneContextFromProbe(sceneContextProbe);
@@ -1451,6 +1456,7 @@ class _CameraPageState extends State<CameraPage> {
         "sceneContextEvidence": sceneContext.toJson(),
         "photoFramingEvidence": framingEvidence,
         "photoVisualFramingDiagnostic": visualFramingDiagnostic,
+        "photoSemanticFramingDiagnostic": semanticFramingDiagnostic,
         "photoSemanticFramingDiagnostic": semanticFramingDiagnostic,
         "passiveSceneContextProbe": sceneContextProbe,
         "aiProofLevel": "STILL_IMAGE_CAPTURE_V1",
