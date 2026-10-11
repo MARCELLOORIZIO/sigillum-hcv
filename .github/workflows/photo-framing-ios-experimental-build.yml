@@ -1,0 +1,59 @@
+name: PHOTO experimental iOS IPA build
+on:
+  push:
+    branches:
+      - experiment/photo-framing-context-guard-20261010
+    paths:
+      - '.github/workflows/photo-framing-ios-experimental-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trigger-isolated-ios-development-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CM_API_TOKEN: ${{ secrets.CM_API_TOKEN }}
+      CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
+    steps:
+      - name: Trigger Codemagic iOS development IPA for experimental branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="${CM_API_TOKEN:-${CODEMAGIC_API_TOKEN:-}}"
+          if [[ -z "$token" ]]; then
+            echo "::error::CODEMAGIC_API_TOKEN_MISSING; experimental iOS build not started."
+            exit 2
+          fi
+          python3 - <<'PY' > /tmp/payload.json
+          import json
+          print(json.dumps({
+            'appId':'6a0747e8d58afdcf30d2793c',
+            'workflowId':'ios-workflow',
+            'branch':'experiment/photo-framing-context-guard-20261010'
+          }))
+          PY
+          code=$(curl --silent --show-error --output /tmp/codemagic-response.json --write-out '%{http_code}' \
+            --header "Content-Type: application/json" \
+            --header "x-auth-token: $token" \
+            --request POST \
+            --data @/tmp/payload.json https://api.codemagic.io/builds)
+          cat /tmp/codemagic-response.json
+          if [[ "$code" != "200" && "$code" != "201" && "$code" != "202" ]]; then
+            echo "::error::Codemagic refused experimental build (HTTP $code)."
+            exit 3
+          fi
+          python3 - <<'PY'
+          import json
+          r=json.load(open('/tmp/codemagic-response.json'))
+          ids=r.get('buildId') or r.get('_id') or (r.get('build') or {}).get('_id')
+          if not ids: raise RuntimeError('No build ID in Codemagic response')
+          print('CODEMAGIC_EXPERIMENTAL_IPA_BUILD_ID='+str(ids))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sigillum-experimental-ios-trigger-evidence
+          path: /tmp/codemagic-response.json
+          if-no-files-found: ignore
+          retention-days: 7
