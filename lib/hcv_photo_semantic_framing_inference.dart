@@ -18,7 +18,7 @@ class HCVPhotoSemanticFramingInference {
 
   // Set only after the model is built and the TFLite/checkpoint parity gate
   // passes. An empty checksum forces a non-decisional NOT_ANALYZED result.
-  static const parityApprovedSha256 = '';
+  static const parityApprovedSha256 = 'fb66682d213e15f2418ab802c3d00af375b57646e94c50fd0d18a8c8422c567f';
 
   Interpreter? _interpreter;
   String? _modelSha256;
