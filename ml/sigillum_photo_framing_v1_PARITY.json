@@ -1,0 +1,104 @@
+{
+  "status": "PARITY_PASSED",
+  "decisionRole": "DIAGNOSTIC_ONLY",
+  "tflite_bytes": 3816772,
+  "tflite_sha256": "fb66682d213e15f2418ab802c3d00af375b57646e94c50fd0d18a8c8422c567f",
+  "model_source": "Official torchvision MobileNetV3-Small ImageNet V1 + SIGILLUM frozen-backbone trained fused head",
+  "training_classifications": "PRELIMINARY_NOT_INDEPENDENTLY_VALIDATED",
+  "input_layout": "NCHW_RGB_FLOAT32_0_TO_1",
+  "input_shape": [
+    1,
+    3,
+    160,
+    160
+  ],
+  "output_shape": [
+    1,
+    3
+  ],
+  "classes": [
+    "PHYSICAL_SURFACE_OR_SCENE",
+    "DISPLAY_IN_REAL_SCENE",
+    "POSSIBLE_FULL_FRAME_DISPLAY"
+  ],
+  "head_blob_sha256": "e68f16a7af160dc32e9024ea3a75b771406f34417084b4f8a43bc2f0b960204b",
+  "max_tflite_vs_reconstructed_torch_error": 2.4139881134033203e-06,
+  "max_reconstructed_torch_vs_original_trained_model_error": 0.00010335445404052734,
+  "details": [
+    {
+      "seed": 20261011,
+      "converted": [
+        0.2687062919139862,
+        4.806831384485122e-06,
+        0.7312888503074646
+      ],
+      "torch": [
+        0.2687045931816101,
+        4.806829110748367e-06,
+        0.7312905788421631
+      ],
+      "tflite_error": 1.7285346984863281e-06,
+      "trained_checkpoint_reference_error": 4.9233436584472656e-05
+    },
+    {
+      "seed": 42,
+      "converted": [
+        0.20096929371356964,
+        9.02640476851957e-06,
+        0.7990216612815857
+      ],
+      "torch": [
+        0.2009686529636383,
+        9.026436600834131e-06,
+        0.7990223169326782
+      ],
+      "tflite_error": 6.556510925292969e-07,
+      "trained_checkpoint_reference_error": 5.5208802223205566e-05
+    },
+    {
+      "seed": 121,
+      "converted": [
+        0.45449012517929077,
+        5.982803031656658e-06,
+        0.5455039143562317
+      ],
+      "torch": [
+        0.4544893205165863,
+        5.9827780205523595e-06,
+        0.5455047488212585
+      ],
+      "tflite_error": 8.344650268554688e-07,
+      "trained_checkpoint_reference_error": 0.00010335445404052734
+    },
+    {
+      "seed": 7,
+      "converted": [
+        0.4267621338367462,
+        5.760552085121162e-06,
+        0.573232114315033
+      ],
+      "torch": [
+        0.4267597198486328,
+        5.760564818046987e-06,
+        0.573234498500824
+      ],
+      "tflite_error": 2.4139881134033203e-06,
+      "trained_checkpoint_reference_error": 6.496906280517578e-05
+    },
+    {
+      "seed": 2026,
+      "converted": [
+        0.6293453574180603,
+        4.112696842639707e-06,
+        0.3706505298614502
+      ],
+      "torch": [
+        0.6293437480926514,
+        4.112706392334076e-06,
+        0.37065210938453674
+      ],
+      "tflite_error": 1.6093254089355469e-06,
+      "trained_checkpoint_reference_error": 6.133317947387695e-05
+    }
+  ]
+}
