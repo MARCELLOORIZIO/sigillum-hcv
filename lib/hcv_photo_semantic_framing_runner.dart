@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:crypto/crypto.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'hcv_photo_semantic_framing_contract.dart';
@@ -15,6 +16,8 @@ class HCVPhotoSemanticFramingRunner {
 
   static const assetPath = 'assets/ml/sigillum_photo_framing_v1.tflite';
   static const imageSize = 160;
+  static const verifiedAssetSha256 =
+      'fb66682d213e15f2418ab802c3d00af375b57646e94c50fd0d18a8c8422c567f';
 
   Interpreter? _interpreter;
   bool _parityVerified = false;
@@ -24,8 +27,12 @@ class HCVPhotoSemanticFramingRunner {
     if (_interpreter != null) return _parityVerified;
     try {
       final data = await rootBundle.load(assetPath);
-      final interpreter =
-          Interpreter.fromBuffer(data.buffer.asUint8List());
+      final bytes = data.buffer.asUint8List(
+          data.offsetInBytes, data.lengthInBytes);
+      if (sha256.convert(bytes).toString() != verifiedAssetSha256) {
+        return false;
+      }
+      final interpreter = Interpreter.fromBuffer(bytes);
       final inputs = interpreter.getInputTensors();
       final outputs = interpreter.getOutputTensors();
       if (inputs.length != 1 || outputs.length != 1 ||
