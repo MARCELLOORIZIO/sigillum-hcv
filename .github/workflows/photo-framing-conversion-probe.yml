@@ -17,11 +17,11 @@ jobs:
       - name: Install converter and CPU framework
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ai-edge-torch tensorflow-cpu torchvision
+          python -m pip install litert-torch torchvision ai-edge-litert
       - name: Export and numerically verify MobileNetV3 backbone
         run: |
           python - <<'PY'
-          import torch, numpy as np, tensorflow as tf, ai_edge_torch, json
+          import torch, numpy as np, litert_torch, json
           from torchvision.models import mobilenet_v3_small, MobileNet_V3_Small_Weights
           torch.set_num_threads(2)
           b=mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.IMAGENET1K_V1).eval()
@@ -35,19 +35,14 @@ jobs:
                   return self.pool(self.features((x-self.mu)/self.sd)).flatten(1)
           m=Encoder(b).eval()
           x=torch.rand((1,3,160,160),dtype=torch.float32)
-          lite=ai_edge_torch.convert(m,(x,))
+          lite=litert_torch.convert(m,(x,))
           lite.export('mobilenetv3_backbone_probe.tflite')
-          it=tf.lite.Interpreter(model_path='mobilenetv3_backbone_probe.tflite')
-          it.allocate_tensors()
-          ins=it.get_input_details();outs=it.get_output_details()
-          assert len(ins)==1 and len(outs)==1, 'bad tensor number'
           rng=np.random.default_rng(20261011)
           errors=[]
           for k in range(3):
               a=rng.random((1,3,160,160),dtype=np.float32)
               with torch.no_grad():expected=m(torch.from_numpy(a)).numpy()
-              it.set_tensor(ins[0]['index'],a);it.invoke()
-              actual=it.get_tensor(outs[0]['index'])
+              actual=np.asarray(lite(torch.from_numpy(a)))
               assert expected.shape==actual.shape,(expected.shape,actual.shape)
               errors.append(float(np.max(np.abs(expected-actual))))
           report={'errors':errors,'max_abs_error':max(errors),'output_shape':list(actual.shape)}
