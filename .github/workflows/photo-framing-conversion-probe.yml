@@ -1,0 +1,64 @@
+name: PHOTO MobileNetV3 TFLite conversion proof
+on:
+  push:
+    branches: [experiment/photo-framing-context-guard-20261010]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  convert-pretrained-backbone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install converter and CPU framework
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ai-edge-torch tensorflow-cpu torchvision
+      - name: Export and numerically verify MobileNetV3 backbone
+        run: |
+          python - <<'PY'
+          import torch, numpy as np, tensorflow as tf, ai_edge_torch, json
+          from torchvision.models import mobilenet_v3_small, MobileNet_V3_Small_Weights
+          torch.set_num_threads(2)
+          b=mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.IMAGENET1K_V1).eval()
+          class Encoder(torch.nn.Module):
+              def __init__(self,m):
+                  super().__init__()
+                  self.features=m.features; self.pool=m.avgpool
+                  self.register_buffer('mu',torch.tensor([.485,.456,.406]).view(1,3,1,1))
+                  self.register_buffer('sd',torch.tensor([.229,.224,.225]).view(1,3,1,1))
+              def forward(self,x):
+                  return self.pool(self.features((x-self.mu)/self.sd)).flatten(1)
+          m=Encoder(b).eval()
+          x=torch.rand((1,3,160,160),dtype=torch.float32)
+          lite=ai_edge_torch.convert(m,(x,))
+          lite.export('mobilenetv3_backbone_probe.tflite')
+          it=tf.lite.Interpreter(model_path='mobilenetv3_backbone_probe.tflite')
+          it.allocate_tensors()
+          ins=it.get_input_details();outs=it.get_output_details()
+          assert len(ins)==1 and len(outs)==1, 'bad tensor number'
+          rng=np.random.default_rng(20261011)
+          errors=[]
+          for k in range(3):
+              a=rng.random((1,3,160,160),dtype=np.float32)
+              with torch.no_grad():expected=m(torch.from_numpy(a)).numpy()
+              it.set_tensor(ins[0]['index'],a);it.invoke()
+              actual=it.get_tensor(outs[0]['index'])
+              assert expected.shape==actual.shape,(expected.shape,actual.shape)
+              errors.append(float(np.max(np.abs(expected-actual))))
+          report={'errors':errors,'max_abs_error':max(errors),'output_shape':list(actual.shape)}
+          print(json.dumps(report))
+          assert max(errors)<.005,report
+          open('conversion_probe_result.json','w').write(json.dumps(report,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobilenetv3-backbone-tflite-parity
+          path: |
+            mobilenetv3_backbone_probe.tflite
+            conversion_probe_result.json
+          retention-days: 2
