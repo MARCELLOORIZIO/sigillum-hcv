@@ -60,3 +60,10 @@
 - [Full Flutter run 38395961028](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38395961028): **SUCCESS**, commit `88a7139a1e85c70c55c624d96d27147a75d5a6a4`.
 - [Latest documentation-head Flutter run 38396005997](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38396005997): **SUCCESS**, commit `037658c52f26de20ec9aca4c70996a869659c56e`.
 - Compiled model byte identity has now been exercised in unsigned iOS CI, but **neither a signed IPA nor a TestFlight installation/device inference/Apple IAP test has been executed**. No release or Render deploy in this turn.
+
+## Vault deletion parity audit (2026-10-13)
+
+- Read `lib/hcv_secure_media_vault.dart` deletion and subtitle materialization intervals, and relevant `camera_page.dart` save path. Found that `wipeAccountVault` enumerated encrypted captioned media + subtitle but fallback `wipeCreatorVault` deleted only media, pack, certificate.
+- Implemented matching deletion of both encrypted derivative files for Creator fallback (`2be2ed6c`); added static contract test `test/creator_vault_subtitle_cleanup_contract_test.dart` (`9883c6d3`). No changes to cipher, keys, signing, reference R2, matching or display thresholds.
+- This is source-level deletion parity, not a demonstrated end-to-end account-delete trial. Verify integration/call-site and ephemeral materialization hygiene before considering lifecycle closed. Historical inventory total read coverage must not be overstated.
+- Independent observation: `saveContentToGallery` detects captioned media by filename `_sottotitolato`, but `materializeCaptionedVideo(... purpose: 'subtitle-save')` uses another suffix. The Snackbar displays the captioned save sentence; a separate registryStatus line may nevertheless use the original label. Diagnose widget-visible behavior before changing labels.
