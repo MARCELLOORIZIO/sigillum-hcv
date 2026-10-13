@@ -5,6 +5,11 @@ on:
       - fix/build157-provenance-localization-20261013
     paths:
       - '.github/workflows/build157-candidate-ios-unsigned.yml'
+      - 'lib/**'
+      - 'ios/**'
+      - 'assets/ml/**'
+      - 'tool/build_testflight_ipa_rc2_20260825.sh'
+      - 'tool/pin_tflite_ios_runtime_20260826.sh'
   workflow_dispatch:
 permissions:
   contents: read
