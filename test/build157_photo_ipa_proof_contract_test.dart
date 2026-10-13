@@ -13,7 +13,7 @@ void main() {
     ]) {
       expect(RegExp(RegExp.escape(model)).allMatches(script).length, greaterThanOrEqualTo(2), reason: 'Model must be included in source hash and packaged IPA byte comparison: $model');
     }
-    expect(script, contains('cmp -s "$SOURCE_FILE" "$BUILT_FILE"'));
+    expect(script, contains(r'cmp -s "$SOURCE_FILE" "$BUILT_FILE"'));
     expect(script, contains('BUILT_MODEL_MISMATCH'));
   });
 }
