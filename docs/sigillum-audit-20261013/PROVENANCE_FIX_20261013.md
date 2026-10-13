@@ -85,3 +85,9 @@
 - Three subtitle CI runs [38403124766](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38403124766), [38403157659](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38403157659), and [38403196246](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38403196246) **SUCCESS**.
 - Read complete `lib/commercial_billing_service.dart` and relevant purchase handler/listener in `lib/commercial_gate.dart`. Billing forwards purchase stream errors with `_purchaseController.addError(error, stackTrace)` while Gate subscribed with no `onError` callback. Added handler rendering existing safe localized `purchaseFailed` without exception text; test `test/storekit_purchase_stream_error_contract_test.dart` guards contract. Commits `dca6d213` and `05e147d8`.
 - No change to Apple entitlement verification, transaction completion, purchases, recovery, pricing, product IDs, or access control. Physical Sandbox/TestFlight subscription lifecycle remains unverified and is a release gate.
+
+## StoreKit restore-button error recovery (2026-10-13)
+
+- Found that the Restore button called `CommercialBillingService.instance.restore()` without `_run`; unlike purchases it had no guarded busy/error UI path for asynchronous `restorePurchases` rejection. Routed restore through the existing `_run` handler to prevent duplicate taps and display safe localized errors. This does not grant entitlement or bypass verification; purchase stream still drives entitlement decisions.
+- Regression: `test/storekit_restore_busy_error_contract_test.dart`; commits `dd34fa72`, `6eabec0c`. Confirmed `_localizedError` maps unknown errors to a generic translated operation failure rather than showing raw exception text.
+- iPhone/TestFlight StoreKit Sandbox buy, restore, cancel and foreign-Apple-ID flows remain untested; full CI for latest commits must complete before release qualification.
