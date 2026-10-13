@@ -1,0 +1,47 @@
+name: Build157 candidate unsigned iOS and PHOTO proof
+on:
+  push:
+    branches:
+      - fix/build157-provenance-localization-20261013
+    paths:
+      - '.github/workflows/build157-candidate-ios-unsigned.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios-unsigned:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Resolve dependencies and existing pinned native runtime
+        run: |
+          set -euo pipefail
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+      - name: Build iOS User app without signing
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign --dart-define=SIGILLUM_EDITION=user 2>&1 | tee /tmp/build157-ios-unsigned.log
+      - name: Assert PHOTO asset copied intact into compiled Flutter bundle
+        run: |
+          set -euo pipefail
+          source_asset="assets/ml/sigillum_photo_framing_v1.tflite"
+          built_asset="build/ios/iphoneos/Runner.app/Frameworks/App.framework/flutter_assets/$source_asset"
+          test -s "$built_asset"
+          cmp "$source_asset" "$built_asset"
+          shasum -a 256 "$source_asset" "$built_asset" | tee /tmp/build157-photo-hashes.txt
+      - name: Preserve unsigned build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build157-ios-unsigned-evidence
+          path: |
+            /tmp/build157-ios-unsigned.log
+            /tmp/build157-photo-hashes.txt
+          if-no-files-found: ignore
+          retention-days: 7
