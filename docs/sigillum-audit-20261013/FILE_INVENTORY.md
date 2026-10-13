@@ -9,7 +9,7 @@ Gli import, canali, metodi nativi e stringhe API sono in [SOURCE_INDEX.json.gz](
 
 ## app
 
-File: 1186. Stati: indexed-only: 1124, source-read-complete: 58, source-read-partial: 4.
+File: 1186. Stati: indexed-only: 1120, source-read-complete: 64, source-read-partial: 2.
 
 | File | Ruolo/categoria | Lettura |
 | --- | --- | --- |
@@ -312,7 +312,7 @@ File: 1186. Stati: indexed-only: 1124, source-read-complete: 58, source-read-par
 | `lib/HcvImportService.txt` | certification/import/verification | indexed-only |
 | `lib/Untitled-2.txt` | app source; see import edges | indexed-only |
 | `lib/account_page.dart` | account/device/entitlement | indexed-only |
-| `lib/camera_page.dart` | capture/finalization/native media | source-read-partial; 440–660,663–2665 |
+| `lib/camera_page.dart` | capture/finalization/native media | source-read-complete |
 | `lib/camera_service.dart` | capture/finalization/native media | indexed-only |
 | `lib/camera_ui_copy.dart` | UI copy/localization/theme | indexed-only |
 | `lib/camera_ui_extended_copy.dart` | UI copy/localization/theme | indexed-only |
@@ -346,7 +346,7 @@ File: 1186. Stati: indexed-only: 1124, source-read-complete: 58, source-read-par
 | `lib/hcv_live_screen_probe_geometry.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_live_screen_probe_models.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_live_screen_probe_sampling.dart` | scene/ML/optical evidence | indexed-only |
-| `lib/hcv_live_signals.dart` | scene/ML/optical evidence | indexed-only |
+| `lib/hcv_live_signals.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_location_image_watermark.dart` | capture/finalization/native media | indexed-only |
 | `lib/hcv_location_video_watermark.dart` | capture/finalization/native media | indexed-only |
 | `lib/hcv_logo_badge.dart` | app source; see import edges | indexed-only |
@@ -368,7 +368,7 @@ File: 1186. Stati: indexed-only: 1124, source-read-complete: 58, source-read-par
 | `lib/hcv_reference_visual_fingerprint_v3.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_registry_provenance.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_registry_service.dart` | app source; see import edges | source-read-complete |
-| `lib/hcv_scene_context_evidence.dart` | scene/ML/optical evidence | indexed-only |
+| `lib/hcv_scene_context_evidence.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_scene_decision_fusion.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_scene_geometry_classifier.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_screen_replay_analyzer.dart` | scene/ML/optical evidence | indexed-only |
@@ -378,10 +378,10 @@ File: 1186. Stati: indexed-only: 1124, source-read-complete: 58, source-read-par
 | `lib/hcv_social_fingerprint.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_software_attestation.dart` | app source; see import edges | source-read-complete |
 | `lib/hcv_spatial_fingerprint_v2.dart` | certification/import/verification | source-read-complete |
-| `lib/hcv_temporal_capture_probe.dart` | capture/finalization/native media | indexed-only |
+| `lib/hcv_temporal_capture_probe.dart` | capture/finalization/native media | source-read-complete |
 | `lib/hcv_temporal_frequency_probe.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_text_integrity.dart` | certification/import/verification | source-read-complete |
-| `lib/hcv_trust_analyzer.dart` | app source; see import edges | indexed-only |
+| `lib/hcv_trust_analyzer.dart` | app source; see import edges | source-read-complete |
 | `lib/hcv_verifier.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_video_photo_spatial_evidence.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_video_watermark.dart` | capture/finalization/native media | indexed-only |
@@ -398,7 +398,7 @@ File: 1186. Stati: indexed-only: 1124, source-read-complete: 58, source-read-par
 | `lib/quick_hcv_media_gate_page.dart` | app source; see import edges | indexed-only |
 | `lib/recent_account_service.dart` | account/device/entitlement | indexed-only |
 | `lib/registry_verify_copy.dart` | UI copy/localization/theme | indexed-only |
-| `lib/registry_verify_page.dart` | certification/import/verification | source-read-partial; 830–1004,1296–1957,2068–2305,2494–2613 |
+| `lib/registry_verify_page.dart` | certification/import/verification | source-read-complete |
 | `lib/screen_replay_calibration_page.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/screen_replay_diagnostics_page.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/secure_originals_page.dart` | local custody/reference/export | indexed-only |

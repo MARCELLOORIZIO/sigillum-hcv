@@ -20,6 +20,8 @@ L'assistente aveva scelto erroneamente `fe52264622aa0b08cc61b525efc5bac7761e53be
 
 Ulteriore lettura completa: provenance chain/canonicalizzazione, testo, fingerprint audio/social/spaziale/V3, comparator dettagli foto app/backend, binding/provenance/firma del Registry, App Store billing/config e lifecycle/provider R2. Sono stati letti i quattro test PHOTO e il test dettaglio foto Dart/backend. L'indice comprende anche import package:sigillum_iphone dai test ai sorgenti.
 
+Sono state completate anche CameraPage e RegistryVerifyPage, inclusi UI, OCR/recovery, condivisione e mapper colori/traduzioni; letti scene_context_evidence, temporal_capture_probe, live_signals e trust_analyzer. Difetto accertato nel mapper provenienza: la negazione 'Non verificata' viene intercettata dalla substring positiva 'verificat'. Registrato in OPEN_ISSUES; nessuna patch funzionale applicata.
+
 ## Stato remoto ricontrollato
 
 PR backend #49 e #50 integrate. PR #51 integrata al merge `a678bdfd976b554e38679160efba6b08896a6ef6`. PR app #139 aperta, in bozza; HEAD `cd8caf39b92114e27d78451bdd48af4ee316f5af`.

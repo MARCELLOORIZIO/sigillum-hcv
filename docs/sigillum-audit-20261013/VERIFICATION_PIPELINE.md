@@ -45,3 +45,5 @@ Testo: HCVTextIntegrity normalizza CRLF/CR e trim per l'hash detto exact; il can
 La validità dell'hash non prova la credibilità della scena. Una foto può essere l'originale certificato di uno schermo realmente presente. Un rischio display non prova una modifica del file.
 
 RegistryVerifyPage distingue severe issue (invalid, media not verified, unproven derivative, official modified) e intermediate issue (rete, inconclusive, riferimento assente/errore, screen warning). Il colore complessivo non sostituisce la lettura delle singole assi; la classificazione segnalata dall'utente va ricondotta all'esatta stringa result e alle claims della build interessata.
+
+La lettura integrale ha individuato un difetto nella presentazione: il mapper provenienza cerca 'verificat' prima della negazione e può mostrare 'Verificata' per lo stato 'Non verificata'. Il dettaglio provenienza usa inoltre una frase positiva in modo generico. Questo problema di rendering non dimostra un bypass della verifica RSA o una decisione errata del modello, ma deve essere corretto e coperto da test prima della candidata.
