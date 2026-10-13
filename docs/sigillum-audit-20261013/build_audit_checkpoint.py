@@ -19,17 +19,17 @@ APP_FULL = '''main.dart sigillum_edition.dart hcv_engine.dart hcv_identity.dart 
 APP_EXTRA = ['ios/Runner/AppDelegate.swift', 'ios/Runner/SceneDelegate.swift', 'ios/SigillumShareExtension/ShareViewController.swift', 'codemagic.yaml', 'tool/README_materialization_20260826.md', 'tool/pin_tflite_ios_runtime_20260826.sh', 'tool/build_testflight_ipa_rc2_20260825.sh']
 APP_FULL += '''hcv_crypto.dart hcv_provenance_chain.dart hcv_text_integrity.dart hcv_photo_detail_compare.dart hcv_audio_fingerprint.dart hcv_social_fingerprint.dart hcv_spatial_fingerprint_v2.dart hcv_display_final_policy.dart hcv_context_free_display_policy.dart hcv_reference_visual_fingerprint_v3.dart'''.split()
 APP_FULL += '''camera_page.dart registry_verify_page.dart hcv_scene_context_evidence.dart hcv_temporal_capture_probe.dart hcv_live_signals.dart hcv_trust_analyzer.dart'''.split()
+APP_FULL += '''hcv_temporal_frequency_probe.dart hcv_video_photo_spatial_evidence.dart hcv_display_risk_fusion.dart hcv_live_screen_probe.dart hcv_live_screen_probe_models.dart hcv_live_screen_probe_core.dart hcv_active_display_classifier.dart hcv_live_screen_probe_geometry.dart hcv_live_screen_probe_sampling.dart hcv_projective_motion_model.dart hcv_planar_motion_model.dart hcv_screen_replay_analyzer.dart hcv_display_lattice_discriminator.dart'''.split()
+APP_FULL += '''verified_originals_page.dart quick_hcv_media_gate_page.dart secure_originals_page.dart commercial_profile_page.dart hcv_media_id_ocr.dart import_page.dart hcv_image_watermark.dart hcv_location_image_watermark.dart hcv_location_video_watermark.dart hcv_video_watermark.dart hcv_capture_timestamp.dart recent_account_service.dart camera_service.dart'''.split()
 APP_EXTRA += '''test/photo_detail_compare_v4_test.dart test/photo_semantic_capture_isolation_test.dart test/photo_semantic_opencv_preprocessing_parity_test.dart test/photo_semantic_framing_tflite_asset_test.dart ml/sigillum_photo_framing_v1_PARITY.json'''.split()
 BACKEND_FULL = '''primary_reference_read_auth.js primary_reference_manifest.js sigillum_connector_runtime.js sigillum_connector_remote.js sigillum_mcp_service.js sigillum_mcp_dispatcher.js sigillum_mcp_auth.js sigillum_connector_bridge.js sigillum_connector_grant_adapter.js sigillum_connector_r2_capture.js sigillum_connector_oauth.js sigillum_mcp_credentials.js sigillum_owner_web_auth.js sigillum_connector_audit_request.js sigillum_connector_oauth_ui.js package.json render.production.yaml tool/apply_verified_originals_production.py tool/apply_sigillum_connector_runtime.py docs/sigillum/HANDOFF.md docs/sigillum/OPEN_ISSUES.md docs/sigillum/DEPLOYMENT_STATE.md REFERENCE_PROVIDER_DECISION_20261001.md'''.split()
 BACKEND_FULL += '''photo_detail_compare.js photo_detail_compare_test.js certificate_account_binding.js registry_provenance_v2.js hcv_signature_canonical.js app_store_billing.js production_config.js primary_reference_lifecycle.js primary_reference_provider.js'''.split()
+BACKEND_FULL += '''production_server.js verified_originals_production.js audit_reference_scope.js delegated_reference_audit.js delegated_reference_audit_ui.js tool/ensure_device_enrollment_schema.js'''.split()
 PARTIAL = {
  'app': {
   'lib/commercial_gate.dart': [[564,1415]],
-  'lib/commercial_profile_page.dart': [[465,539]],
  },
  'backend': {
-  'production_server.js': [[1,90],[397,421],[590,820],[879,901],[1169,1219],[1378,1552]],
-  'verified_originals_production.js': [[1,85],[1377,1518],[1915,2197],[2759,2882],[4870,4989]],
  }
 }
 
@@ -82,6 +82,9 @@ for repo,data in indexes.items():
   f['runtime_materialized_difference']=f['snapshot_sha256']!=f['sha256']
   try: source=b.decode('utf-8')
   except UnicodeDecodeError: continue
+  f['snapshot_line_count']=len(source.splitlines())
+  if f['runtime_materialized_difference'] and f['review']=='source-read-complete':
+   f['review_target']='scratch-materialized-runtime; original hash retained separately'
   # Supplement original import extractor with Node requires after precheck.
   if repo=='backend' and f['runtime_materialized_difference']:
    f['materialized_imports']=re.findall(r'require\([\'"]([^\'"]+)[\'"]\)',source)

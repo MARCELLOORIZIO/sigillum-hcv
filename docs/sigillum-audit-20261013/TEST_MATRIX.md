@@ -6,6 +6,8 @@ Non equiparare implementazione, test sintetico, CI, compilazione iOS, dispositiv
 | --- | --- | --- |
 | Snapshot/dependency index | 1.186 file app +173 backend, hash/static imports, ledger esplicito | Inventario completo, revisione semantica parziale |
 | Materializzazione backend | Patcher Python precheck su copia isolata; server1743 righe | Ricostruzione codice runtime senza esecuzione DB/server |
+| Copertura alla ripresa | 90 file app +38 backend integralmente letti; CommercialGate parziale; 883 relazioni statiche | Lettura critica ampliata, revisione integrale ancora incompleta |
+| Pubblicazione/ritiro R2 | production_server e verified_originals_production integralmente letti | Timer takedown e sospensione cancellazione account confermati nel sorgente, non nuovi test LIVE |
 | Base157 f702 | CI38169122649 Verified Originals app e38169119613 PHOTO unsigned iOS: success osservato nella sessione | Test/compilazione CI della base; nessuna equivalenza automatica a prova iPhone |
 | Candidatafe522 | Run38372626893:852 test, audit, build iOS no-codesign success | Solo vecchia base; NON certifica157 o nuova release |
 | Connector OAuth/HTTPS | 77 test locali precedenti, quattro suite CI verdi su32e7d7d e bac064e8 | Sintetico/CI, incluso client SDK e fixture AES/SQL |

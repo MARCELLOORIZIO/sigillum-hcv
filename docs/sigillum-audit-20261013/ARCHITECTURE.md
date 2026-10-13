@@ -54,7 +54,19 @@ Il provider R2 deriva una chiave con HKDF dal master key, salt e binding canonic
 
 YouTube/Telegram sono ricerca o percorsi precedenti: non ripristinarli come custodia primaria. La decisione documentata è R2 per il riferimento tecnico e distribuzione social distinta.
 
-Il lifecycle PG distingue PENDING, UPLOADING, RETRY_WAIT, COMMITTED, DELETE_PENDING, DELETED e FAILED_PERMANENT. Un indice unico impedisce autorità simultanee per HCV-ID/ruolo; il claim upload è atomico e le code batch usano SKIP LOCKED. Il commit confronta ogni campo del receipt col binding. Le cancellazioni richiedono conferma HEAD/404 prima di DELETED; retry con backoff. I metodi esistenti non dimostrano, da soli, che tutti i worker di recupero siano pianificati nel server.
+Il lifecycle PG distingue PENDING, UPLOADING, RETRY_WAIT, COMMITTED, DELETE_PENDING, DELETED e FAILED_PERMANENT. Un indice unico impedisce autorità simultanee per HCV-ID/ruolo; il claim upload è atomico e le code batch usano SKIP LOCKED. Il commit confronta ogni campo del receipt col binding. Le cancellazioni richiedono conferma HEAD/404 prima di DELETED; retry con backoff. La lettura completa di verified_originals_production conferma che initSchema avvia il timer di takedown, normalmente ogni cinque minuti: riprova ritiri registrati e job DELETE_PENDING. Questo non dimostra un worker autonomo equivalente per recuperare gli upload senza un nuovo invio dall'app.
+
+Il consenso viene ricontrollato con lock prima della registrazione della pubblicazione. Il ritiro aggiorna consenso WITHDRAWN e pubblicazione REVOKED nella transazione, quindi tenta la cancellazione provider. withdrawAllForAccount sospende la cancellazione dell'account con 503 finché il takedown non è COMPLETED. I derivati sottotitoli hanno ruolo, hash sorgente, hash sottotitoli e firma binding distinti; il riferimento R2 primario conserva i byte finali originali, mentre il percorso storico YouTube crea una transcodifica.
+
+SecureOriginalsPage richiede diritti confermati per Salva/Condividi, chiama ensureReference prima dell'esportazione e cancella il materiale temporaneo in finally. Il viewer privato assume la custodia del proprio temporaneo. VerifiedOriginalsPage separa ricerca pubblica da apertura del riferimento che richiede subscriptionStatus active. Il profilo considera anche grace come abbonamento attivo nell'etichetta; le route riferimento richiedono active: distinguere rappresentazione e diritto effettivo.
+
+## Ottica e OCR: lettura completata il 13 ottobre
+
+Il probe temporale usa profili di righe in nove regioni, frequenze spaziali/temporali, timestamp, esposizione e lock attestati. Il recupero HFR non basta senza comparabilità geometrica e corroborazioni previste. fullFrameReality non viene promosso dal semplice silenzio del probe. La geometria passiva confronta movimento locale, piano proiettivo e residui; il helper planare storico non deve essere scambiato per il modello proiettivo attivo.
+
+ScreenReplayAnalyzer campiona segmenti limitati di video; per foto usa indizi statici e griglia/lattice, non inventa flicker temporale da una singola immagine. Il discriminator lattice protegge dall'uso ingenuo di pattern periodici come prova di display. Nessuna soglia modificata.
+
+L'OCR foto combina immagine intera, ritagli superiori ingranditi e maschera gialla; la selezione usa consenso di letture. Le varianti esadecimali C/0, B/8, E/6 sono costruite per recovery solo dopo assenza Registry della prima lettura. QuickHcvMediaGatePage prova due frame iniziali 0,2 e 0,8 secondi con fallback mirato prima di restituire nessun HCV-ID; questa pre-verifica non è il confronto integrità completo.
 
 `hcv_crypto.dart` contiene Ed25519 con nuova chiave per chiamata, ma la ricerca dei call site in lib non trova utilizzatori del simbolo HCVCrypto. La certificazione camera usa RSA persistente: non sostituirla con l'helper storico. Anche HCVContextFreeDisplayPolicy, HCVDisplayFinalPolicy e il comparator foto Dart hanno definizioni ma nessun call site in lib nella base esaminata; la policy attiva camera è multi-evidenza e il dettaglio foto moderno è lato backend.
 

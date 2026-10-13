@@ -1,6 +1,6 @@
 # SIGILLUM — punto di ripresa verificato, 13 ottobre 2026
 
-**Stato: revisione dei sorgenti in corso. Non è una dichiarazione di app pronta alla pubblicazione.**
+**Aggiornamento: 13 ottobre 2026, preparazione comando di ripresa. Revisione dei sorgenti in corso. Non è una dichiarazione di app pronta alla pubblicazione.**
 
 ## Ordine utente e base corretta
 
@@ -22,6 +22,10 @@ Ulteriore lettura completa: provenance chain/canonicalizzazione, testo, fingerpr
 
 Sono state completate anche CameraPage e RegistryVerifyPage, inclusi UI, OCR/recovery, condivisione e mapper colori/traduzioni; letti scene_context_evidence, temporal_capture_probe, live_signals e trust_analyzer. Difetto accertato nel mapper provenienza: la negazione 'Non verificata' viene intercettata dalla substring positiva 'verificat'. Registrato in OPEN_ISSUES; nessuna patch funzionale applicata.
 
+Ultimo gruppo completato: probe temporale/fusione display, moduli live screen, modelli di movimento, replay/lattice; pagine Originali certificati/Originali protetti, profilo commerciale, gate rapido, OCR/import e watermark/timestamp. Letti integralmente production_server materializzato e verified_originals_production, inclusi pubblicazione, sottotitoli, revoca e worker cancellazioni; delega audit e installer schema dispositivi. Il ledger ora registra **90 file app +38 backend completi, un file app parziale**, su 1.359 file indicizzati. Non sono 1.359 file letti semanticamente. CommercialGate resta parziale; altri moduli UI, localizzazione, test, operazioni e legacy risultano indexed-only. Gli output troncati non sono usati per assegnare una lettura completa.
+
+È stato letto il nuovo screenshot allegato: il banner dice «You've hit your usage limit». È un limite d'uso dell'interfaccia ChatGPT, distinto da SIGILLUM. Inizialmente l'utente aveva ricevuto messaggi file non trovato; nell'ultima lettura il PNG locale era disponibile. Non creare/modificare screenshot per diagnosticare questo errore.
+
 ## Stato remoto ricontrollato
 
 PR backend #49 e #50 integrate. PR #51 integrata al merge `a678bdfd976b554e38679160efba6b08896a6ef6`. PR app #139 aperta, in bozza; HEAD `cd8caf39b92114e27d78451bdd48af4ee316f5af`.
@@ -42,6 +46,8 @@ Gli strumenti SIGILLUM non sono esposti in questa conversazione al controllo eff
 2. Leggere i test specifici e collegarli ai comportamenti; conservare la distinzione tra test sintetici, CI, iPhone e produzione.
 3. Per ogni difetto segnalato ricostruire input, versione e decisione prima di correggere. Nessuna regolazione delle soglie per ottenere un colore desiderato.
 4. Solo dopo questa revisione creare la candidata dalla base f702385 e dalle correzioni dimostrate, preservando il PHOTO diagnostico. Verificare IPA/commit/CFBundleVersion/attestazione e poi prove reali.
+
+Il testo completo da incollare nella nuova chat è [NEXT_CHAT_COMMAND.md](NEXT_CHAT_COMMAND.md). Al ripristino scaricare i documenti dal ramo di audit; i percorsi scratch non sono una fonte persistente. Non continuare il loop di richieste di autorizzazione o chiedere di nuovo di identificare la build 157.
 
 Le autorizzazioni utente già ricevute rimangono valide nel loro ambito. Il lavoro corrente è documentale e reversibile. Le modifiche locali non tracciate nel checkout backend preesistente non sono state incorporate né sovrascritte.
 
