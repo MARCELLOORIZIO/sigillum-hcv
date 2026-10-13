@@ -91,3 +91,9 @@
 - Found that the Restore button called `CommercialBillingService.instance.restore()` without `_run`; unlike purchases it had no guarded busy/error UI path for asynchronous `restorePurchases` rejection. Routed restore through the existing `_run` handler to prevent duplicate taps and display safe localized errors. This does not grant entitlement or bypass verification; purchase stream still drives entitlement decisions.
 - Regression: `test/storekit_restore_busy_error_contract_test.dart`; commits `dd34fa72`, `6eabec0c`. Confirmed `_localizedError` maps unknown errors to a generic translated operation failure rather than showing raw exception text.
 - iPhone/TestFlight StoreKit Sandbox buy, restore, cancel and foreign-Apple-ID flows remain untested; full CI for latest commits must complete before release qualification.
+
+## TestFlight source attestation hardening (2026-10-13)
+
+- Added commercial gate, billing service, secure media vault and video transcription service to `release_source_hashes` in `tool/build_testflight_ipa_rc2_20260825.sh`. These hashes are compared before and after the signed IPA build, alongside the pre-existing PHOTO and V1/V2/V3 model proof. Added `test/build157_release_source_hash_coverage_test.dart` as a static regression.
+- The selected source pubspec build number remains `1.0.0+149`; the signed-build script chooses max(source build number, next App Store Connect TestFlight build number). No manual number bump or signing credential was fabricated.
+- The Codemagic `ios-testflight` workflow presently triggers only on historical release branches, not PR #140. There is no verified direct Codemagic trigger capability in this session. These changes do **not** constitute a new signed IPA, App Store Connect upload or TestFlight installation. Do not merge/publish merely on the passing unsigned iOS and Flutter runs.
