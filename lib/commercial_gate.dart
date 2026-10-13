@@ -81,6 +81,8 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'weekly': '7 GIORNI',
     'restore': 'RIPRISTINA ACQUISTI',
     'logout': 'ESCI DALL’ACCOUNT',
+    'recentAccountsTitle': 'Account usati su questo iPhone',
+    'recentAccountsHint': 'Scegli prima l’account. Se iOS mostra una sola password, tocca Password/chiave sulla tastiera e seleziona l’altra credenziale salvata.',
     'identityLastStep': 'Ultimo passaggio: verifica la tua identità',
     'identityBody':
         'Per associare i certificati a un Creator reale, SIGILLUM utilizza Stripe Identity. La procedura richiede un documento valido e un controllo selfie. I documenti vengono gestiti tramite Stripe; SIGILLUM conserva lo stato della verifica e i dati tecnici minimi necessari.',
@@ -179,6 +181,8 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'weekly': '7 DAYS',
     'restore': 'RESTORE PURCHASES',
     'logout': 'LOG OUT',
+    'recentAccountsTitle': 'Accounts used on this iPhone',
+    'recentAccountsHint': 'Choose the account first. If iOS shows only one password, tap Passwords/Key on the keyboard and select the other saved credential.',
     'identityLastStep': 'Final step: verify your identity',
     'identityBody':
         'To link certificates to a real Creator, SIGILLUM uses Stripe Identity. The process requires a valid identity document and a selfie check. Documents are handled through Stripe; SIGILLUM stores the verification status and the minimum technical data required.',
@@ -276,6 +280,8 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'weekly': '7 DÍAS',
     'restore': 'RESTAURAR COMPRAS',
     'logout': 'CERRAR SESIÓN',
+    'recentAccountsTitle': 'Cuentas utilizadas en este iPhone',
+    'recentAccountsHint': 'Primero elige la cuenta. Si iOS muestra solo una contraseña, toca Contraseñas/llave en el teclado y selecciona la otra credencial guardada.',
     'identityLastStep': 'Último paso: verifica tu identidad',
     'identityBody':
         'Para vincular los certificados a un Creator real, SIGILLUM utiliza Stripe Identity. El proceso requiere un documento de identidad válido y una comprobación mediante selfie. Los documentos se gestionan a través de Stripe; SIGILLUM conserva el estado de verificación y los datos técnicos mínimos necesarios.',
@@ -376,6 +382,8 @@ const _commercialGateCopy = <String, Map<String, String>>{
     'weekly': '7 ДНЕЙ',
     'restore': 'ВОССТАНОВИТЬ ПОКУПКИ',
     'logout': 'ВЫЙТИ ИЗ АККАУНТА',
+    'recentAccountsTitle': 'Аккаунты на этом iPhone',
+    'recentAccountsHint': 'Сначала выберите аккаунт. Если iOS показывает только один пароль, нажмите «Пароли/ключ» на клавиатуре и выберите другие сохранённые данные.',
     'identityLastStep': 'Последний шаг: подтвердите личность',
     'identityBody':
         'Чтобы связать сертификаты с реальным Creator, SIGILLUM использует Stripe Identity. Процедура требует действительного документа и проверки селфи. Документы обрабатываются через Stripe; SIGILLUM хранит статус проверки и минимально необходимые технические данные.',
@@ -752,8 +760,8 @@ class _CommercialGateState extends State<CommercialGate>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Account usati su questo iPhone',
+          Text(
+            _t('recentAccountsTitle'),
             style: TextStyle(
               color: SigillumTheme.ink,
               fontWeight: FontWeight.w900,
@@ -776,8 +784,8 @@ class _CommercialGateState extends State<CommercialGate>
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Scegli prima l’account. Se iOS mostra una sola password, tocca Password/chiave sulla tastiera e seleziona l’altra credenziale salvata.',
+          Text(
+            _t('recentAccountsHint'),
             style: TextStyle(
               color: SigillumTheme.muted,
               fontSize: 12.5,
