@@ -27,3 +27,9 @@
 3. Verify snapshot parity and the PHOTO asset hash inside signed IPA; test inference on physical iPhone.
 4. Reproduce user media cases using actual media and signed evidence before changing decision policies; exercise subscription, captions, social import, consent/revoke/R2.
 5. Confirm Codemagic credentials/IPA/sourceCommit/CFBundleVersion and a matching TestFlight build prior to App Store submission.
+
+## Incremental verification (2026-10-13)
+
+- GitHub Actions run [38393600718](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38393600718) completed successfully on the preceding revision of this branch, including full flutter test, parse check, postpatch verification, TFLite pin and flutter analyze with warnings/infos not fatal.
+- Additional review of HCVRegistryException cases found that network/server/notFound/invalidResponse provenance state values remained hard-coded in Italian. A subsequent targeted change maps these values to the localized `verificationIncomplete` string (all four languages); static assertions updated. **This subsequent commit requires fresh CI** before merge.
+- No new signed IPA, device runtime, TestFlight build, StoreKit live transaction or actual large-media connector acceptance test exists from this change.
