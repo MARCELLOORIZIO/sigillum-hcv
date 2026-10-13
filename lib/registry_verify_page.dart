@@ -2407,8 +2407,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
       return _r('unprovenDerivativeAxis');
     }
     if (axis == 'scene' && _signedRealityScene) return _v('realityDetected');
-    if (axis == 'provenance' && value.contains('verificat'))
+    if (axis == 'provenance' && value.contains('non verificata')) {
+      return _v('notVerified');
+    }
+    if (axis == 'provenance' && value.trim() == 'verificata') {
       return _v('verified');
+    }
     if (axis == 'integrity' &&
         value.contains('originale') &&
         value.contains('integro')) return _v('originalIntact');
@@ -2451,7 +2455,19 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (_isUnprovenDerivative) {
       return _r('unprovenDerivativeDetail');
     }
-    if (axis == 'provenance') return _v('provenanceOkDetail');
+    if (axis == 'provenance') {
+      final state = _effectiveProvenanceState.toLowerCase().trim();
+      if (state.contains('non verificata') || _isInvalidResult) {
+        return _v('provenanceFailedDetail');
+      }
+      if (state == '-' || state.contains('non determinata') ||
+          state.contains('non conclusiva') ||
+          _isRegistryWarningResult) {
+        return _v('provenanceUnavailableDetail');
+      }
+      if (state == 'verificata') return _v('provenanceOkDetail');
+      return _v('provenanceUnavailableDetail');
+    }
     if (axis == 'integrity') {
       if (_isSocialLimited) return _r('socialLimitedDetail');
       return _isForensicResult ? _v('originalDetail') : _v('derivedDetail');
