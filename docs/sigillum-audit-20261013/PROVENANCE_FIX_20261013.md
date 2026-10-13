@@ -53,3 +53,10 @@
 - Full app workflow [38395494551](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38395494551) **SUCCESS** on `1a8b898a10288f20783f784da6a4316fb7ee6c3a`, after the Dart test shell-literal fix.
 - Introduced isolated workflow `.github/workflows/build157-candidate-ios-unsigned.yml` to compile the User edition on macOS without signing, then `cmp` the packaged PHOTO model against the tracked source asset. Run [38395953513](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38395953513) was **QUEUED** at the time of checkpoint; do not report it green without checking the run.
 - Unsigned iOS build is not an IPA, StoreKit/iPhone test, PHOTO runtime parity or TestFlight evidence. The PR remains a draft and no merge/Render deploy is authorized by the mere successful Flutter CI.
+
+## CI verification after iOS workflow execution (2026-10-13)
+
+- [Unsigned iOS build + PHOTO bundle byte check run 38395953513](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38395953513): **SUCCESS**, commit `88a7139a1e85c70c55c624d96d27147a75d5a6a4`.
+- [Full Flutter run 38395961028](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38395961028): **SUCCESS**, commit `88a7139a1e85c70c55c624d96d27147a75d5a6a4`.
+- [Latest documentation-head Flutter run 38396005997](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38396005997): **SUCCESS**, commit `037658c52f26de20ec9aca4c70996a869659c56e`.
+- Compiled model byte identity has now been exercised in unsigned iOS CI, but **neither a signed IPA nor a TestFlight installation/device inference/Apple IAP test has been executed**. No release or Render deploy in this turn.
