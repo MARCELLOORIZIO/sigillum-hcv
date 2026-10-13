@@ -582,6 +582,10 @@ class _CommercialGateState extends State<CommercialGate>
     CommercialBillingService.instance.startListening();
     _purchaseSub = CommercialBillingService.instance.purchases.listen(
       _onPurchases,
+      onError: (Object error, StackTrace stackTrace) {
+        if (!mounted) return;
+        setState(() => _message = _t('purchaseFailed'));
+      },
     );
     _intentChannel.setMethodCallHandler(_handleNativeIntent);
     Future.microtask(_checkInitialIntent);
