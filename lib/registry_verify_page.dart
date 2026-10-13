@@ -2413,6 +2413,12 @@ class _RegistryVerifyPageState extends State<RegistryVerifyPage> {
     if (axis == 'provenance' && value.trim() == 'verificata') {
       return _v('verified');
     }
+    if (axis == 'provenance' &&
+        (value.contains('non raggiungibile') ||
+            value.contains('non presente online') ||
+            value.contains('incompleta'))) {
+      return _v('verificationIncomplete');
+    }
     if (axis == 'integrity' &&
         value.contains('originale') &&
         value.contains('integro')) return _v('originalIntact');
