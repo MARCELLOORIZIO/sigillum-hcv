@@ -31,7 +31,7 @@ class HCVPhotoObjectFramingPolicy {
 
     String framing = unresolved;
     String reason = 'FRAMING_EVIDENCE_INSUFFICIENT';
-    if (embeddedCorroborated && !strongLegacy) {
+    if (embeddedCorroborated &&\n        predicted == 'POSSIBLE_FULL_FRAME_DISPLAY') {\n      reason = 'EMBEDDED_GEOMETRY_CONFLICTS_WITH_SEMANTIC_FULL_FRAME';\n    } else if (embeddedCorroborated && !strongLegacy) {
       framing = objectInScene;
       reason = 'INDEPENDENT_EMBEDDED_REAL_SCENE_GEOMETRY';
     } else if (embeddedCorroborated && strongLegacy) {
