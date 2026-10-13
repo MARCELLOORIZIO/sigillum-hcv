@@ -47,3 +47,9 @@
 - Added `test/build157_photo_ipa_proof_contract_test.dart` guarding all four model paths and comparison tokens.
 - **This only enhances future IPA validation.** No IPA has been produced by this patch; PHOTO iPhone inference/parity remains untested here. This script is macOS/Codemagic-specific and was not executed in a signed archive environment.
 - Keep PR draft until final-HEAD CI passes and signed IPA, PHOTO device runtime and remaining media/subscription regressions are established.
+
+## Final Flutter CI and independent unsigned iOS build (2026-10-13)
+
+- Full app workflow [38395494551](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38395494551) **SUCCESS** on `1a8b898a10288f20783f784da6a4316fb7ee6c3a`, after the Dart test shell-literal fix.
+- Introduced isolated workflow `.github/workflows/build157-candidate-ios-unsigned.yml` to compile the User edition on macOS without signing, then `cmp` the packaged PHOTO model against the tracked source asset. Run [38395953513](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38395953513) was **QUEUED** at the time of checkpoint; do not report it green without checking the run.
+- Unsigned iOS build is not an IPA, StoreKit/iPhone test, PHOTO runtime parity or TestFlight evidence. The PR remains a draft and no merge/Render deploy is authorized by the mere successful Flutter CI.
