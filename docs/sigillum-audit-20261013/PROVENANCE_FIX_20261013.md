@@ -67,3 +67,9 @@
 - Implemented matching deletion of both encrypted derivative files for Creator fallback (`2be2ed6c`); added static contract test `test/creator_vault_subtitle_cleanup_contract_test.dart` (`9883c6d3`). No changes to cipher, keys, signing, reference R2, matching or display thresholds.
 - This is source-level deletion parity, not a demonstrated end-to-end account-delete trial. Verify integration/call-site and ephemeral materialization hygiene before considering lifecycle closed. Historical inventory total read coverage must not be overstated.
 - Independent observation: `saveContentToGallery` detects captioned media by filename `_sottotitolato`, but `materializeCaptionedVideo(... purpose: 'subtitle-save')` uses another suffix. The Snackbar displays the captioned save sentence; a separate registryStatus line may nevertheless use the original label. Diagnose widget-visible behavior before changing labels.
+
+## Captioned-video save status correction (2026-10-13)
+
+- Previous vault fix validated by full workflows [38401491151](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38401491151), [38401519103](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38401519103), and [38401562057](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38401562057), all **SUCCESS**.
+- Confirmed `materializeCaptionedVideo(purpose: 'subtitle-save')` generates a temporary filename not containing `_sottotitolato`, whereas `saveContentToGallery` inferred captioned media only via that filename marker. Corrected UI categorization by passing explicit `isCaptionedVideo: true` from subtitle-save action, leaving older filename recognition and iOS save behavior untouched.
+- Added `test/captioned_video_photo_save_label_contract_test.dart` (static contract). The patch fixes only status copy; it is not proof that all captions reach the video end or that saving succeeds on every iPhone.
