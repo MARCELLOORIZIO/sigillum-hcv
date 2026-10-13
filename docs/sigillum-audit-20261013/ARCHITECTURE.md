@@ -54,6 +54,10 @@ Il provider R2 deriva una chiave con HKDF dal master key, salt e binding canonic
 
 YouTube/Telegram sono ricerca o percorsi precedenti: non ripristinarli come custodia primaria. La decisione documentata è R2 per il riferimento tecnico e distribuzione social distinta.
 
+Il lifecycle PG distingue PENDING, UPLOADING, RETRY_WAIT, COMMITTED, DELETE_PENDING, DELETED e FAILED_PERMANENT. Un indice unico impedisce autorità simultanee per HCV-ID/ruolo; il claim upload è atomico e le code batch usano SKIP LOCKED. Il commit confronta ogni campo del receipt col binding. Le cancellazioni richiedono conferma HEAD/404 prima di DELETED; retry con backoff. I metodi esistenti non dimostrano, da soli, che tutti i worker di recupero siano pianificati nel server.
+
+`hcv_crypto.dart` contiene Ed25519 con nuova chiave per chiamata, ma la ricerca dei call site in lib non trova utilizzatori del simbolo HCVCrypto. La certificazione camera usa RSA persistente: non sostituirla con l'helper storico. Anche HCVContextFreeDisplayPolicy, HCVDisplayFinalPolicy e il comparator foto Dart hanno definizioni ma nessun call site in lib nella base esaminata; la policy attiva camera è multi-evidenza e il dettaglio foto moderno è lato backend.
+
 ## Connector e delega
 
 OAuth authorization code + S256, client pubblico predefinito, callback esatta. Flow 5 minuti, code 60 secondi, access token 30 minuti; nessun refresh token implementato. Le credenziali in DB sono hash, legate ad account/dispositivo/client/issuer/resource/scope.

@@ -13,6 +13,9 @@ Non equiparare implementazione, test sintetico, CI, compilazione iOS, dispositiv
 | Originali prioritari | Resoconto utente dalla conversazione audit: due schermi visibili | Ricezione/visione riferita; non ispezione indipendente eseguita qui |
 | Expiry/revoca/replay reali | Test sintetici presenti; nessun risultato reale completo documentato | Da collaudare senza riutilizzare grant scaduti |
 | PHOTO preprocessing | Input/hash/resize/classes letti; marker parity iOS non verificata | Implementazione presente, validazione dispositivo pendente |
+| PHOTO test/parità | Quattro file test e PARITY.json letti: hash/TFL3, isolamento, 6pixel resize, 5seed conversione | Copertura sintetica limitata; nessun nuovo test runtime lanciato |
+| Dettaglio foto | Test Dart noise/overlay/edit locale/tono/input errato; backend4fixture sintetiche letti | Non costituisce collaudo Messenger reale |
+| Fingerprint audio/video | Audio max15s, visivo V3 max120frame a2fps, ancora iniziale4frame | Bounds accertati nel sorgente; confronto percettivo non prova integrità byte completa |
 | Copia identica | Hash esatto precede matching nel codice | Comportamento letto; riproduzione dei reclami pendente |
 | Copia Messenger/crop/alterata | Comparator backend e fingerprint diversi da SHA | Prove di corpus e percorso decisionale da collegare |
 | Sottotitoli | Retry Speech/timeline/burn-in/vault/binding presenti | iPhone e audio fino alla fine da verificare |

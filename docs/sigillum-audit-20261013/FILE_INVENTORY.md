@@ -9,7 +9,7 @@ Gli import, canali, metodi nativi e stringhe API sono in [SOURCE_INDEX.json.gz](
 
 ## app
 
-File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-partial: 4.
+File: 1186. Stati: indexed-only: 1124, source-read-complete: 58, source-read-partial: 4.
 
 | File | Ruolo/categoria | Lettura |
 | --- | --- | --- |
@@ -322,15 +322,15 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `lib/commercial_profile_page.dart` | account/device/entitlement | source-read-partial; 465–539 |
 | `lib/hcv_active_display_classifier.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_ai_training_service.dart` | app source; see import edges | indexed-only |
-| `lib/hcv_audio_fingerprint.dart` | certification/import/verification | indexed-only |
+| `lib/hcv_audio_fingerprint.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_auth_service.dart` | account/device/entitlement | source-read-complete |
 | `lib/hcv_capture_location.dart` | capture/finalization/native media | source-read-complete |
 | `lib/hcv_capture_provenance.dart` | capture/finalization/native media | source-read-complete |
 | `lib/hcv_capture_timestamp.dart` | capture/finalization/native media | indexed-only |
 | `lib/hcv_checkpoint_manifest.json` | app source; see import edges | indexed-only |
-| `lib/hcv_context_free_display_policy.dart` | scene/ML/optical evidence | indexed-only |
-| `lib/hcv_crypto.dart` | certification/import/verification | indexed-only |
-| `lib/hcv_display_final_policy.dart` | scene/ML/optical evidence | indexed-only |
+| `lib/hcv_context_free_display_policy.dart` | scene/ML/optical evidence | source-read-complete |
+| `lib/hcv_crypto.dart` | certification/import/verification | source-read-complete |
+| `lib/hcv_display_final_policy.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_display_lattice_discriminator.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_display_risk_fusion.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_engine.dart` | app source; see import edges | source-read-complete |
@@ -356,7 +356,7 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `lib/hcv_ml_v3_photo_residual.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_multi_evidence_display_policy.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_package.dart` | certification/import/verification | source-read-complete |
-| `lib/hcv_photo_detail_compare.dart` | scene/ML/optical evidence | indexed-only |
+| `lib/hcv_photo_detail_compare.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_photo_framing_evidence.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_photo_semantic_framing_contract.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_photo_semantic_framing_inference.dart` | scene/ML/optical evidence | source-read-complete |
@@ -364,8 +364,8 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `lib/hcv_photo_visual_framing.dart` | scene/ML/optical evidence | source-read-complete |
 | `lib/hcv_planar_motion_model.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/hcv_projective_motion_model.dart` | scene/ML/optical evidence | indexed-only |
-| `lib/hcv_provenance_chain.dart` | certification/import/verification | indexed-only |
-| `lib/hcv_reference_visual_fingerprint_v3.dart` | certification/import/verification | indexed-only |
+| `lib/hcv_provenance_chain.dart` | certification/import/verification | source-read-complete |
+| `lib/hcv_reference_visual_fingerprint_v3.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_registry_provenance.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_registry_service.dart` | app source; see import edges | source-read-complete |
 | `lib/hcv_scene_context_evidence.dart` | scene/ML/optical evidence | indexed-only |
@@ -375,12 +375,12 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `lib/hcv_secure_media_vault.dart` | local custody/reference/export | source-read-complete |
 | `lib/hcv_secure_preview_service.dart` | app source; see import edges | source-read-complete |
 | `lib/hcv_secure_store.dart` | account/device/entitlement | source-read-complete |
-| `lib/hcv_social_fingerprint.dart` | certification/import/verification | indexed-only |
+| `lib/hcv_social_fingerprint.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_software_attestation.dart` | app source; see import edges | source-read-complete |
-| `lib/hcv_spatial_fingerprint_v2.dart` | certification/import/verification | indexed-only |
+| `lib/hcv_spatial_fingerprint_v2.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_temporal_capture_probe.dart` | capture/finalization/native media | indexed-only |
 | `lib/hcv_temporal_frequency_probe.dart` | scene/ML/optical evidence | indexed-only |
-| `lib/hcv_text_integrity.dart` | certification/import/verification | indexed-only |
+| `lib/hcv_text_integrity.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_trust_analyzer.dart` | app source; see import edges | indexed-only |
 | `lib/hcv_verifier.dart` | certification/import/verification | source-read-complete |
 | `lib/hcv_video_photo_spatial_evidence.dart` | scene/ML/optical evidence | indexed-only |
@@ -398,7 +398,7 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `lib/quick_hcv_media_gate_page.dart` | app source; see import edges | indexed-only |
 | `lib/recent_account_service.dart` | account/device/entitlement | indexed-only |
 | `lib/registry_verify_copy.dart` | UI copy/localization/theme | indexed-only |
-| `lib/registry_verify_page.dart` | certification/import/verification | source-read-partial; 1296–1957,2068–2305,2494–2613 |
+| `lib/registry_verify_page.dart` | certification/import/verification | source-read-partial; 830–1004,1296–1957,2068–2305,2494–2613 |
 | `lib/screen_replay_calibration_page.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/screen_replay_diagnostics_page.dart` | scene/ML/optical evidence | indexed-only |
 | `lib/secure_originals_page.dart` | local custody/reference/export | indexed-only |
@@ -470,7 +470,7 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `ml/photo_framing_fused_head_fp16.b85` | source/configuration; see dependency edges | indexed-only |
 | `ml/prepare_dataset.py` | source/configuration; see dependency edges | indexed-only |
 | `ml/requirements.txt` | source/configuration; see dependency edges | indexed-only |
-| `ml/sigillum_photo_framing_v1_PARITY.json` | source/configuration; see dependency edges | indexed-only |
+| `ml/sigillum_photo_framing_v1_PARITY.json` | source/configuration; see dependency edges | source-read-complete |
 | `ml/test_prepare_dataset_hard_negatives.py` | source/configuration; see dependency edges | indexed-only |
 | `ml/train_tflite.py` | source/configuration; see dependency edges | indexed-only |
 | `ml/v3/convert_v3_to_tflite.py` | source/configuration; see dependency edges | indexed-only |
@@ -1010,7 +1010,7 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `test/paywall_native_storefront_contract_test.dart` | test | indexed-only |
 | `test/phase_c_48_case_promotion_matrix_test.dart` | test | indexed-only |
 | `test/phase_c_ml_geometry_persistence_regression_test.dart` | test | indexed-only |
-| `test/photo_detail_compare_v4_test.dart` | test | indexed-only |
+| `test/photo_detail_compare_v4_test.dart` | test | source-read-complete |
 | `test/photo_display_risk_policy_test.dart` | test | indexed-only |
 | `test/photo_framing_embedded_context_guard_test.dart` | test | indexed-only |
 | `test/photo_hfr_partial_conflict_guard_test.dart` | test | indexed-only |
@@ -1018,10 +1018,10 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 | `test/photo_ocr_registry_recovery_contract_test.dart` | test | indexed-only |
 | `test/photo_pre_capture_only_contract_test.dart` | test | indexed-only |
 | `test/photo_quick_negative_latency_contract_test.dart` | test | indexed-only |
-| `test/photo_semantic_capture_isolation_test.dart` | test | indexed-only |
+| `test/photo_semantic_capture_isolation_test.dart` | test | source-read-complete |
 | `test/photo_semantic_framing_contract_test.dart` | test | indexed-only |
-| `test/photo_semantic_framing_tflite_asset_test.dart` | test | indexed-only |
-| `test/photo_semantic_opencv_preprocessing_parity_test.dart` | test | indexed-only |
+| `test/photo_semantic_framing_tflite_asset_test.dart` | test | source-read-complete |
+| `test/photo_semantic_opencv_preprocessing_parity_test.dart` | test | source-read-complete |
 | `test/photo_temporal_fast_contract_test.dart` | test | indexed-only |
 | `test/photo_temporal_four_frame_sampling_contract_test.dart` | test | indexed-only |
 | `test/photo_temporal_v2_c8ff_regression_test.dart` | test | indexed-only |
@@ -1202,7 +1202,7 @@ File: 1186. Stati: indexed-only: 1139, source-read-complete: 43, source-read-par
 
 ## backend
 
-File: 173. Stati: indexed-only: 147, source-read-complete: 23, source-read-partial: 3.
+File: 173. Stati: indexed-only: 139, source-read-complete: 32, source-read-partial: 2.
 
 | File | Ruolo/categoria | Lettura |
 | --- | --- | --- |
@@ -1233,7 +1233,7 @@ File: 173. Stati: indexed-only: 147, source-read-complete: 23, source-read-parti
 | `TELEGRAM_REFERENCE_ACCEPTANCE.md` | documentation | indexed-only |
 | `YOUTUBE_OAUTH_VERIFICATION_DEMO.md` | documentation | indexed-only |
 | `app_store_account_binding_test.js` | test | indexed-only |
-| `app_store_billing.js` | source/configuration; see dependency edges | indexed-only |
+| `app_store_billing.js` | source/configuration; see dependency edges | source-read-complete |
 | `app_store_ocsp_fallback_test.js` | test | indexed-only |
 | `app_store_weekly_product_test.js` | test | indexed-only |
 | `apple_associated_domains_test.js` | test | indexed-only |
@@ -1247,7 +1247,7 @@ File: 173. Stati: indexed-only: 147, source-read-complete: 23, source-read-parti
 | `auth_proxy.js` | source/configuration; see dependency edges | indexed-only |
 | `auth_smoke_test.js` | test | indexed-only |
 | `billing_status_freshness_runtime_test.js` | test | indexed-only |
-| `certificate_account_binding.js` | source/configuration; see dependency edges | indexed-only |
+| `certificate_account_binding.js` | source/configuration; see dependency edges | source-read-complete |
 | `certificate_account_binding_runtime_test.js` | test | indexed-only |
 | `certificate_account_binding_test.js` | test | indexed-only |
 | `consumer_theme_account_reuse_test.js` | test | indexed-only |
@@ -1266,7 +1266,7 @@ File: 173. Stati: indexed-only: 147, source-read-complete: 23, source-read-parti
 | `docs/sigillum/VERIFICATION_PIPELINE.md` | documentation | indexed-only |
 | `evidence/delegated-audit-cloud-browser.jpg` | private reference/audit lifecycle | indexed-only |
 | `flutter` | source/configuration; see dependency edges | indexed-only |
-| `hcv_signature_canonical.js` | source/configuration; see dependency edges | indexed-only |
+| `hcv_signature_canonical.js` | source/configuration; see dependency edges | source-read-complete |
 | `hcv_signature_canonical_test.js` | test | indexed-only |
 | `kyc_proxy.js` | source/configuration; see dependency edges | indexed-only |
 | `kyc_session_safety_test.js` | test | indexed-only |
@@ -1280,23 +1280,23 @@ File: 173. Stati: indexed-only: 147, source-read-complete: 23, source-read-parti
 | `package-lock.json` | source/configuration; see dependency edges | indexed-only |
 | `package.json` | source/configuration; see dependency edges | source-read-complete |
 | `photo_copy_verification_contract_test.js` | test | indexed-only |
-| `photo_detail_compare.js` | source/configuration; see dependency edges | indexed-only |
-| `photo_detail_compare_test.js` | test | indexed-only |
+| `photo_detail_compare.js` | source/configuration; see dependency edges | source-read-complete |
+| `photo_detail_compare_test.js` | test | source-read-complete |
 | `prelaunch_cleanup_test_state.js` | source/configuration; see dependency edges | indexed-only |
 | `prelaunch_email_test.js` | test | indexed-only |
 | `prelaunch_kyc_status_test.js` | test | indexed-only |
 | `prelaunch_kyc_test.js` | test | indexed-only |
 | `prelaunch_login_test.js` | test | indexed-only |
 | `prelaunch_seed_subscription.js` | source/configuration; see dependency edges | indexed-only |
-| `primary_reference_lifecycle.js` | private reference/audit lifecycle | indexed-only |
+| `primary_reference_lifecycle.js` | private reference/audit lifecycle | source-read-complete |
 | `primary_reference_lifecycle_pg_test.js` | test | indexed-only |
 | `primary_reference_manifest.js` | private reference/audit lifecycle | source-read-complete |
 | `primary_reference_manifest_test.js` | test | indexed-only |
-| `primary_reference_provider.js` | private reference/audit lifecycle | source-read-partial; 115–329 |
+| `primary_reference_provider.js` | private reference/audit lifecycle | source-read-complete |
 | `primary_reference_provider_test.js` | test | indexed-only |
 | `primary_reference_read_auth.js` | private reference/audit lifecycle | source-read-complete |
 | `primary_reference_read_auth_pg_test.js` | test | indexed-only |
-| `production_config.js` | source/configuration; see dependency edges | indexed-only |
+| `production_config.js` | source/configuration; see dependency edges | source-read-complete |
 | `production_config_test.js` | test | indexed-only |
 | `production_server.js` | source/configuration; see dependency edges | source-read-partial; 1–90,397–421,590–820,879–901,1169–1219,1378–1552 |
 | `production_smoke_test.js` | test | indexed-only |
@@ -1304,7 +1304,7 @@ File: 173. Stati: indexed-only: 147, source-read-complete: 23, source-read-parti
 | `r2_reference_acceptance_test.js` | test | indexed-only |
 | `reference_visual_fingerprint_v3_real_media_test.js` | test | indexed-only |
 | `reference_visual_fingerprint_v3_test.js` | test | indexed-only |
-| `registry_provenance_v2.js` | source/configuration; see dependency edges | indexed-only |
+| `registry_provenance_v2.js` | source/configuration; see dependency edges | source-read-complete |
 | `registry_provenance_v2_runtime_test.js` | test | indexed-only |
 | `registry_provenance_v2_test.js` | test | indexed-only |
 | `render.production.yaml` | source/configuration; see dependency edges | source-read-complete |

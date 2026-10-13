@@ -18,6 +18,8 @@ L'assistente aveva scelto erroneamente `fe52264622aa0b08cc61b525efc5bac7761e53be
 - Ricostruiti i collegamenti principali di certificazione, firma nativa, modelli PHOTO/V2/V3, scena, archivio cifrato, sottoscrizione, pubblicazione R2, confronto e connector OAuth/MCP. Restano moduli grandi e test da leggere integralmente; gli intervalli sono espliciti nell'inventario.
 - Nessuna modifica funzionale dell'app, nessuna soglia cambiata, nessun nuovo deploy durante questa ricognizione.
 
+Ulteriore lettura completa: provenance chain/canonicalizzazione, testo, fingerprint audio/social/spaziale/V3, comparator dettagli foto app/backend, binding/provenance/firma del Registry, App Store billing/config e lifecycle/provider R2. Sono stati letti i quattro test PHOTO e il test dettaglio foto Dart/backend. L'indice comprende anche import package:sigillum_iphone dai test ai sorgenti.
+
 ## Stato remoto ricontrollato
 
 PR backend #49 e #50 integrate. PR #51 integrata al merge `a678bdfd976b554e38679160efba6b08896a6ef6`. PR app #139 aperta, in bozza; HEAD `cd8caf39b92114e27d78451bdd48af4ee316f5af`.

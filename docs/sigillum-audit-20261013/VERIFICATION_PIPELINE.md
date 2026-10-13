@@ -22,6 +22,14 @@ Alla fine si attende stabilità del contenitore, si processano watermark, hash, 
 
 I sottotitoli usano Apple Speech e retry sulle code mancanti; l'output è una copia derivata separata, cifrata nel vault. La pubblicazione del derivato richiede firma che vincola parent SHA, captioned SHA, subtitle SHA e pack SHA. Non sostituire il riferimento primario.
 
+Limiti dei fingerprint letti integralmente: audio PCM mono8kHz, finestre1s/hop0,5s, al massimo15s/29 frame; V3 visivo2fps e al massimo120 frame (circa60s). V3 richiede un'ancora sui primi4 frame, tollera un frame tecnico di drift e usa matching monotono. Per il resto del video applica una quota di frame comparabili; questa è una tolleranza percettiva, non uguaglianza crittografica dell'intero contenuto. L'hash SHA del certificato copre invece tutti i byte finalizzati.
+
+Foto dettaglio backend e helper Dart: normalizzazione RGB24 a256×256, luma sfocata3×3/griglia16×16, seguita da residual512×512/griglia64×64 che può soltanto rafforzare MODIFIED. Il pass fine richiede cluster locali e rifiuta eccessiva diffusione sospetta; nessuno di questi bounds certifica l'assenza di qualunque alterazione. Le fixture lette sono pattern sintetici, non una prova completa su Messenger reale.
+
+Test PHOTO letti: SHA/size/TFL3 dell'asset; isolamento diagnostica/assenza input diretto alla policy; resize320→160 su sei posizioni RGB con tolleranza1. Il PARITY.json riporta cinque seed e max errore TFLite/Torch circa2,414e-6. Questi sono riscontri di conversione/fixture; non rimuovono il requisito di collaudo su iPhone e immagini reali.
+
+Testo: HCVTextIntegrity normalizza CRLF/CR e trim per l'hash detto exact; il canonical social normalizza soltanto spazi/NBSP, non riscrive parole. La verifica rimuove il marker SIGILLUM finale, distingue exact/formattingOnly/modified e usa le claims firmate. Il pacchetto testo conserva original.txt, certificate.hcv e hash dei byte in meta.json; il controllo della firma viene svolto dal verificatore chiamante, non dal solo lettore ZIP.
+
 ## Verifica online
 
 1. Identificazione HCV-ID (nome/OCR/testo o input), recupero certificato Registry.
