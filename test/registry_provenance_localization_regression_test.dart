@@ -27,5 +27,10 @@ void main() {
     expect(positive, greaterThan(negative));
     expect(source, contains("return _v('provenanceFailedDetail');"));
     expect(source, contains("return _v('provenanceUnavailableDetail');"));
+    expect(source, contains("value.contains('non raggiungibile')"));
+    expect(source, contains("value.contains('non presente online')"));
+    expect(source, contains("value.contains('incompleta')"));
+    expect(source, contains("return _v('verificationIncomplete');"));
+
   });
 }
