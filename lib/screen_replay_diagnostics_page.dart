@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'hcv_screen_replay_analyzer.dart';
 import 'hcv_ml_screen_replay_classifier.dart';
+import 'hcv_photo_semantic_framing_inference.dart';
 import 'lab_ui_copy.dart';
 
 class ScreenReplayDiagnosticsPage extends StatefulWidget {
@@ -64,6 +65,11 @@ class _ScreenReplayDiagnosticsPageState
           ? await HCVMLScreenReplayClassifier.instance.analyzeVideo(path)
           : await HCVMLScreenReplayClassifier.instance.analyzeImage(path);
       final data = _combine(staticData, mlData);
+      if (!isVideo) {
+        // Evidence only: PHOTO never changes the legacy diagnostic risk.
+        data['photoSemanticFraming'] =
+            await HCVPhotoSemanticFramingInference.instance.analyzePhoto(path);
+      }
 
       if (!mounted) return;
       setState(() {
@@ -72,6 +78,7 @@ class _ScreenReplayDiagnosticsPageState
           'createdAt': DateTime.now().toIso8601String(),
           'file': path,
           'kind': isVideo ? 'video' : 'photo',
+          'photoSemanticFraming': data['photoSemanticFraming'],
           'risk': data['screenReplayRisk'],
           'score': data['screenReplayRiskScore'],
           'mlClass': _mapValue(
@@ -272,6 +279,10 @@ class _ScreenReplayDiagnosticsPageState
       'mlPredictedClass: ${_nestedValue('mlScreenReplayAnalysis', 'predictedClass')}',
       'mlScreenProbability: ${_nestedValue('mlScreenReplayAnalysis', 'screenProbability')}',
       'mlReason: ${_nestedValue('mlScreenReplayAnalysis', 'reason')}',
+      'photoAnalysisStatus: ${_nestedValue('photoSemanticFraming', 'analysisStatus')}',
+      'photoPredictedClass: ${_nestedValue('photoSemanticFraming', 'predictedClass')}',
+      'photoConfidence: ${_nestedValue('photoSemanticFraming', 'confidence')}',
+      'photoModelSha256: ${_nestedValue('photoSemanticFraming', 'modelSha256')}',
       'localTemporalFlickerScore: ${_nestedValue('staticScreenReplayAnalysis', 'localTemporalFlickerScore')}',
       'refreshBandScore: ${_nestedValue('staticScreenReplayAnalysis', 'refreshBandScore')}',
       'pixelGridUniformityScore: ${_nestedValue('staticScreenReplayAnalysis', 'pixelGridUniformityScore')}',
