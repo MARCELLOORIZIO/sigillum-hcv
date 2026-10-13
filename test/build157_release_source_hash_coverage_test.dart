@@ -16,6 +16,6 @@ void main() {
     ]) {
       expect(hashes, contains(file), reason: 'Missing release-source SHA-256 proof: $file');
     }
-    expect(script, contains('release_source_hashes > "$AUDIT_DIR/release-source-after-build.sha256"'));
+    expect(script, contains(r'release_source_hashes > "$AUDIT_DIR/release-source-after-build.sha256"'));
   });
 }
