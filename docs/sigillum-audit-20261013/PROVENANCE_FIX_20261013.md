@@ -40,3 +40,10 @@
 - Updated `lib/commercial_gate.dart` to resolve `recentAccountsTitle` and `recentAccountsHint` via `_t` with IT/EN/ES/RU entries; added `test/commercial_recent_accounts_localization_test.dart` static regression.
 - This is localized UI only; account ownership, purchase flows, subscription policy, KYC, storage and cryptography unchanged. The long `commercial_gate.dart` file remains **not certified semantically read in full**; do not upgrade inventory status.
 - All newer commits require successful CI after the previous green run 38393600718.
+
+## Signed-IPA PHOTO proof hardening
+
+- Read the exact packaging stage of `tool/build_testflight_ipa_rc2_20260825.sh` and confirmed it compared V1/V2/V3 only. Added `assets/ml/sigillum_photo_framing_v1.tflite` to source SHA attestation and archived `App.framework/flutter_assets` byte-level comparison.
+- Added `test/build157_photo_ipa_proof_contract_test.dart` guarding all four model paths and comparison tokens.
+- **This only enhances future IPA validation.** No IPA has been produced by this patch; PHOTO iPhone inference/parity remains untested here. This script is macOS/Codemagic-specific and was not executed in a signed archive environment.
+- Keep PR draft until final-HEAD CI passes and signed IPA, PHOTO device runtime and remaining media/subscription regressions are established.
