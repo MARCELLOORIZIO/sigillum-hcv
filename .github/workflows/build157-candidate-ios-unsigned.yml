@@ -29,6 +29,7 @@ jobs:
           flutter pub get
           bash tool/pin_tflite_ios_runtime_20260826.sh
       - name: Build iOS User app without signing
+        timeout-minutes: 40
         run: |
           set -o pipefail
           flutter build ios --release --no-codesign --dart-define=SIGILLUM_EDITION=user 2>&1 | tee /tmp/build157-ios-unsigned.log
