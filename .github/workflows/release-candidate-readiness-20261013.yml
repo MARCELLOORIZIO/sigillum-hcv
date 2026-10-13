@@ -1,0 +1,46 @@
+name: SIGILLUM release candidate readiness
+on:
+  push:
+    branches: [experiment/photo-framing-context-guard-20261010]
+    paths: ['.github/workflows/release-candidate-readiness-20261013.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-validation:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fe52264622aa0b08cc61b525efc5bac7761e53be
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Record exact release source
+        run: |
+          git rev-parse HEAD
+          sed -n '1,8p' pubspec.yaml
+      - name: Resolve committed release dependencies
+        run: |
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock
+      - name: Analyze release
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Run complete release regressions
+        run: |
+          set -o pipefail
+          flutter test --reporter expanded 2>&1 | tee /tmp/sigillum-release-tests.log
+          python3 tool/verify_postpatch_release_20260825.py
+      - name: Compile actual release on iOS without publication
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign --dart-define=SIGILLUM_EDITION=user 2>&1 | tee /tmp/sigillum-release-ios.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sigillum-release-readiness-evidence
+          path: /tmp/sigillum-release-*.log
+          retention-days: 14

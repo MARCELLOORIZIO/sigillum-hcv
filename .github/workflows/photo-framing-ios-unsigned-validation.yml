@@ -1,0 +1,37 @@
+name: PHOTO experimental unsigned iOS compilation
+on:
+  push:
+    branches:
+      - experiment/photo-framing-context-guard-20261010
+    paths:
+      - '.github/workflows/photo-framing-ios-unsigned-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios-native-build:
+    runs-on: macos-15
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - name: Resolve dependencies and pin existing TFLite runtime
+        run: |
+          set -euo pipefail
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+      - name: Native iOS compilation without signing or distribution
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign --dart-define=SIGILLUM_EDITION=user 2>&1 | tee /tmp/sigillum-photo-ios-native.log
+      - name: Save native build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigillum-photo-unsigned-ios-compile-log
+          path: /tmp/sigillum-photo-ios-native.log
+          if-no-files-found: ignore
+          retention-days: 7

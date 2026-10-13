@@ -1,0 +1,49 @@
+name: SIGILLUM guarded TestFlight candidate
+on:
+  push:
+    branches: [experiment/photo-framing-context-guard-20261010]
+    paths: ['.github/workflows/testflight-candidate-20261013.yml']
+permissions:
+  contents: read
+jobs:
+  guarded-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CM_API_TOKEN: ${{ secrets.CM_API_TOKEN }}
+      CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
+    steps:
+      - name: Require successful pinned iOS readiness then start isolated TestFlight build
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,os,time,urllib.request
+          api='https://api.github.com/repos/MARCELLOORIZIO/sigillum-hcv'
+          expected='fe52264622aa0b08cc61b525efc5bac7761e53be'
+          branch='release/testflight-candidate-20261013'
+          def get(path):
+              with urllib.request.urlopen(urllib.request.Request(api+path,headers={'Accept':'application/vnd.github+json'}),timeout=30) as r:
+                  return json.load(r)
+          for attempt in range(60):
+              run=get('/actions/runs/38372626893')
+              if run['head_sha']!='59d7a340c2e5ee45fe110f16dee76c88e97fcdba':
+                  raise SystemExit('READINESS_SOURCE_MISMATCH')
+              if run['status']=='completed':
+                  if run['conclusion']!='success': raise SystemExit('READINESS_FAILED_NO_BUILD')
+                  break
+              print('Waiting for release readiness',flush=True)
+              time.sleep(20)
+          else: raise SystemExit('READINESS_TIMEOUT_NO_BUILD')
+          current=get('/git/ref/heads/'+branch)['object']['sha']
+          if current!=expected: raise SystemExit('CANDIDATE_MOVED_NO_BUILD')
+          token=os.environ.get('CM_API_TOKEN') or os.environ.get('CODEMAGIC_API_TOKEN')
+          if not token: raise SystemExit('CODEMAGIC_TOKEN_MISSING_NO_BUILD')
+          payload=json.dumps({'appId':'6a0747e8d58afdcf30d2793c','workflowId':'ios-testflight','branch':branch}).encode()
+          req=urllib.request.Request('https://api.codemagic.io/builds',data=payload,headers={'Content-Type':'application/json','x-auth-token':token},method='POST')
+          with urllib.request.urlopen(req,timeout=45) as response: data=json.load(response)
+          build_id=data.get('buildId') or data.get('_id')
+          if not build_id: raise SystemExit('CODEMAGIC_BUILD_ID_MISSING')
+          print('CODEMAGIC_CANDIDATE_BUILD_ID='+str(build_id))
+          print('SOURCE_COMMIT='+expected)
+          print('TestFlight upload only; no App Store review submission')
+          PY

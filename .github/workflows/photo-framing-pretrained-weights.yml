@@ -1,0 +1,29 @@
+name: PHOTO framing pretrained weights transfer
+on:
+  push:
+    branches:
+      - experiment/photo-framing-context-guard-20261010
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  retrieve-official-weights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Download and verify official torchvision weights
+        run: |
+          python3 - <<'PY'
+          import hashlib, urllib.request, pathlib
+          u='https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth'
+          f=pathlib.Path('mobilenet_v3_small-047dcff4.pth')
+          urllib.request.urlretrieve(u,f)
+          sha=hashlib.sha256(f.read_bytes()).hexdigest()
+          print('checkpoint_bytes',f.stat().st_size,'sha256',sha)
+          assert f.stat().st_size > 9000000
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: official-mobilenet-v3-small-weights
+          path: mobilenet_v3_small-047dcff4.pth
+          retention-days: 1
