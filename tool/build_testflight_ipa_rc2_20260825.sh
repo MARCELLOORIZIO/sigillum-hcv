@@ -28,6 +28,10 @@ release_source_hashes() {
     lib/camera_ui_extended_copy.dart \
     lib/registry_verify_page.dart \
     lib/verification_ui_copy.dart \
+    lib/commercial_gate.dart \
+    lib/commercial_billing_service.dart \
+    lib/hcv_secure_media_vault.dart \
+    lib/video_transcription_service.dart \
     lib/hcv_package.dart \
     lib/hcvpack_player_page.dart \
     lib/hcv_display_risk_fusion.dart \
