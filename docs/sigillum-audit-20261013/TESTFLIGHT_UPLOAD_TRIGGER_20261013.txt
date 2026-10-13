@@ -1,0 +1,8 @@
+SIGILLUM PHOTO AUDIT TESTFLIGHT UPLOAD
+Date: 2026-10-13
+Source candidate: PR #140, diagnostics commit 7a6bce07be0f702e08ad79cceb037e8bc2a78ae1
+Release workflow: ios-testflight-photo-audit
+Target: App Store Connect / TestFlight via Codemagic-HCV integration
+The workflow builds and signs from committed source, selects the next TestFlight build number, and uploads via Codemagic publishing.
+This file deliberately contains no credentials and changes no application behavior.
+Status at push: upload requested, not yet independently confirmed.
