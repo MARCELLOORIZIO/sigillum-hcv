@@ -24,3 +24,9 @@ Build numbering is max(source build149, latest TestFlight build+1), checked agai
 These are device acceptance requirements, not completed results. Native compile and automated tests cannot establish StoreKit purchases, camera scene behavior or UI usability on the user's iPhone.
 
 Registry OAuth connector has been deployed and activated independently. Current callback connector_platform_oauth_redirect. User supplied screenshot from another ChatGPT conversation reports actual receipt/rendering of two screen-present originals; this repo session has not directly viewed those original image bytes. No false-positive diagnosis follows from those two positive cases.
+
+## Verified readiness and distribution checkpoint — 2026-10-13 09:05 UTC
+
+Readiness38372626893 completed SUCCESS: 852 tests passed, post-patch audit PASS, native iOS Runner.app compiled185.9MB. Guarded API trigger38372978802 failed CODEMAGIC_TOKEN_MISSING_NO_BUILD; no API build was created. CM_API_TOKEN and CODEMAGIC_API_TOKEN were absent in that runner; no secret values retrieved or requested in chat.
+
+Fallback: enabled the existing native Codemagic push trigger for branch release/testflight-candidate-20261013 by adding exactly that pattern to ios-testflight. Candidate head0e18ec123be279d7165e094aac92a23253db0afa differs from verified fe52264622aa0b08cc61b525efc5bac7761e53be only in codemagic.yaml trigger configuration. Existing full analyze/tests/audit and signed build/attestation remain in the Codemagic pipeline. This push may be consumed by the existing Codemagic webhook; acceptance/start is not yet established. GitHub check-runs and status were empty immediately afterwards. No signed IPA, upload, TestFlight availability or App Store submission claimed. The candidate branch moved intentionally for this trigger; the failed original SHA guard must not be rerun unchanged.
