@@ -2276,8 +2276,9 @@ class _CommercialGateState extends State<CommercialGate>
             const SizedBox(height: 10),
           ],
         OutlinedButton(
-          onPressed:
-              _busy ? null : () => CommercialBillingService.instance.restore(),
+          onPressed: _busy
+              ? null
+              : () => _run(() => CommercialBillingService.instance.restore()),
           child: Text(_t('restore')),
         ),
         if (_message.isNotEmpty)
