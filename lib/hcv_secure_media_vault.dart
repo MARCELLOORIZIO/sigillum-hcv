@@ -1345,6 +1345,9 @@ class HCVSecureMediaVault {
           item.encryptedMediaPath,
           item.encryptedHcvpackPath,
           item.certificatePath,
+          if (item.encryptedCaptionedMediaPath != null)
+            item.encryptedCaptionedMediaPath!,
+          if (item.encryptedSubtitlePath != null) item.encryptedSubtitlePath!,
         ]) {
           try {
             final file = File(path);
