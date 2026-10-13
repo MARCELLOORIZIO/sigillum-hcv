@@ -33,3 +33,10 @@
 - GitHub Actions run [38393600718](https://github.com/MARCELLOORIZIO/sigillum-hcv/actions/runs/38393600718) completed successfully on the preceding revision of this branch, including full flutter test, parse check, postpatch verification, TFLite pin and flutter analyze with warnings/infos not fatal.
 - Additional review of HCVRegistryException cases found that network/server/notFound/invalidResponse provenance state values remained hard-coded in Italian. A subsequent targeted change maps these values to the localized `verificationIncomplete` string (all four languages); static assertions updated. **This subsequent commit requires fresh CI** before merge.
 - No new signed IPA, device runtime, TestFlight build, StoreKit live transaction or actual large-media connector acceptance test exists from this change.
+
+## Recent-account picker four-language follow-up (2026-10-13)
+
+- Audited `CommercialGate._recentAccountPicker` and its four in-file locale maps; found two hardcoded Italian widget texts.
+- Updated `lib/commercial_gate.dart` to resolve `recentAccountsTitle` and `recentAccountsHint` via `_t` with IT/EN/ES/RU entries; added `test/commercial_recent_accounts_localization_test.dart` static regression.
+- This is localized UI only; account ownership, purchase flows, subscription policy, KYC, storage and cryptography unchanged. The long `commercial_gate.dart` file remains **not certified semantically read in full**; do not upgrade inventory status.
+- All newer commits require successful CI after the previous green run 38393600718.
