@@ -58,7 +58,7 @@ void main() {
       expect(HCVPhotoFramingEvidence.isCorroboratedEmbedded(evidence), isFalse);
     });
 
-    test('strong HFR with corroborated real-scene framing is conflict, not red', () {
+    test('confirmed full-frame HFR survives conflicting embedded geometry', () {
       final evidence = HCVPhotoFramingEvidence.fromSceneContext(
         <String, dynamic>{
           'analysisStatus': 'ANALYZED',
@@ -78,7 +78,8 @@ void main() {
         temporalMl: null,
         photoFramingEvidence: evidence,
       );
-      expect(result.decision, 'NON_CONCLUSIVE');
+      expect(result.decision, 'STRONG_DISPLAY_RISK');
+      expect(result.reasons, contains('BUILD124_HFR_FULL_FRAME_DISPLAY'));
     });
   });
 }
