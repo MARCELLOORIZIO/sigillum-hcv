@@ -2245,11 +2245,11 @@ class _CameraPageState extends State<CameraPage> {
     );
   }
 
-  Future<bool> saveContentToGallery(String path) async {
+  Future<bool> saveContentToGallery(String path, {bool isCaptionedVideo = false}) async {
     if (!Platform.isIOS) return false;
 
     final lower = path.toLowerCase();
-    final isCaptioned = lower.contains('_sottotitolato');
+    final isCaptioned = isCaptionedVideo || lower.contains('_sottotitolato');
     final isPhoto = lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.png');
@@ -2390,7 +2390,7 @@ class _CameraPageState extends State<CameraPage> {
         record,
         purpose: 'subtitle-save',
       );
-      final saved = await saveContentToGallery(clear.path);
+      final saved = await saveContentToGallery(clear.path, isCaptionedVideo: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

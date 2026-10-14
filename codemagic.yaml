@@ -96,6 +96,135 @@ workflows:
       - build/ios/archive/*.xcarchive
       - /tmp/xcodebuild_logs/*.log
 
+  ios-signed-candidate:
+    name: SIGILLUM signed IPA candidate (no publish)
+    max_build_duration: 120
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'fix/build157-provenance-localization-20261013'
+          include: true
+          source: true
+      cancel_previous_builds: true
+    environment:
+      flutter: 3.47.1
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sigillum.hcv
+      vars:
+        APP_STORE_APPLE_ID: "6800755999"
+    integrations:
+      app_store_connect: Codemagic-HCV
+    scripts:
+      - name: Resolve locked Flutter dependencies
+        script: |
+          set -euo pipefail
+          echo "Building committed materialized source $(git rev-parse HEAD)"
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Validate committed materialized source
+        script: |
+          set -euo pipefail
+          mkdir -p /tmp/xcodebuild_logs
+          git diff --exit-code -- lib test ios/Runner ios/Podfile
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test --reporter expanded 2>&1 | tee /tmp/xcodebuild_logs/flutter-tests-materialized.log
+          python3 tool/verify_postpatch_release_20260825.py
+          git diff --exit-code -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Configure SIGILLUM User edition for App Store
+        script: |
+          cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
+          SIGILLUM_APP_DISPLAY_NAME=Fotocamera Sigillum
+          SIGILLUM_BUNDLE_ID=com.sigillum.hcv
+          SIGILLUM_SHARE_BUNDLE_ID=com.sigillum.hcv.share
+          SIGILLUM_APP_GROUP_ID=group.com.sigillum.hcv
+          SIGILLUM_URL_SCHEME=sigillum
+          SIGILLUM_APP_PROFILE=SIGILLUM HCV App Store
+          SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share App Store
+          XCCONFIG
+
+      - name: Apply App Store signing profiles
+        script: xcode-project use-profiles
+
+      - name: Build and attest signed candidate IPA (do not publish)
+        script: bash tool/build_testflight_ipa_rc2_20260825.sh
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+
+  ios-testflight-photo-audit:
+    name: SIGILLUM PHOTO audit TestFlight upload
+    max_build_duration: 120
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'release/testflight-photo-framing-20261014'
+          include: true
+          source: true
+      cancel_previous_builds: true
+    environment:
+      flutter: 3.47.1
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sigillum.hcv
+      vars:
+        APP_STORE_APPLE_ID: "6800755999"
+    integrations:
+      app_store_connect: Codemagic-HCV
+    scripts:
+      - name: Resolve locked Flutter dependencies
+        script: |
+          set -euo pipefail
+          echo "Building committed materialized source $(git rev-parse HEAD)"
+          flutter pub get
+          bash tool/pin_tflite_ios_runtime_20260826.sh
+          git diff --exit-code -- pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Validate committed materialized source
+        script: |
+          set -euo pipefail
+          mkdir -p /tmp/xcodebuild_logs
+          git diff --exit-code -- lib test ios/Runner ios/Podfile
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test --reporter expanded 2>&1 | tee /tmp/xcodebuild_logs/flutter-tests-materialized.log
+          python3 tool/verify_postpatch_release_20260825.py
+          git diff --exit-code -- lib test ios/Runner ios/Podfile pubspec.yaml pubspec.lock analysis_options.yaml
+
+      - name: Configure SIGILLUM User edition for App Store
+        script: |
+          cat > ios/Flutter/SigillumEdition.xcconfig <<'XCCONFIG'
+          SIGILLUM_APP_DISPLAY_NAME=Fotocamera Sigillum
+          SIGILLUM_BUNDLE_ID=com.sigillum.hcv
+          SIGILLUM_SHARE_BUNDLE_ID=com.sigillum.hcv.share
+          SIGILLUM_APP_GROUP_ID=group.com.sigillum.hcv
+          SIGILLUM_URL_SCHEME=sigillum
+          SIGILLUM_APP_PROFILE=SIGILLUM HCV App Store
+          SIGILLUM_SHARE_PROFILE=SIGILLUM HCV Share App Store
+          XCCONFIG
+
+      - name: Apply App Store signing profiles
+        script: xcode-project use-profiles
+
+      - name: Build and attest signed PHOTO audit IPA
+        script: bash tool/build_testflight_ipa_rc2_20260825.sh
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+
   ios-testflight:
     name: SIGILLUM iOS TestFlight
     max_build_duration: 120

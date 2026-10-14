@@ -34,18 +34,6 @@ class HCVMultiEvidenceDisplayPolicy {
     final temporalAggregate = _mlEvidence(temporalMl);
     final temporal = _videoMlEvidence(temporalMl);
 
-    // Explicit corroborated geometry of a display embedded in a real scene
-    // contradicts a full-frame display verdict. Never convert UNKNOWN to
-    // full-frame DISPLAY, or call the image "verified real" on geometry alone.
-    if (HCVPhotoFramingEvidence.isCorroboratedEmbedded(
-      photoFramingEvidence,
-    )) {
-      return _nonConclusive(
-        'PHOTO_EMBEDDED_REAL_SCENE_CONTRADICTS_FULL_FRAME_DISPLAY',
-        sceneContextConflictGuardUsed: true,
-      );
-    }
-
     if (hfr.fullFrameDisplay) {
       return _display(
         98,
@@ -73,6 +61,18 @@ class HCVMultiEvidenceDisplayPolicy {
           'HFR_ZERO_REALITY_LIKE_CELLS',
           'HFR_PARTIAL_DISPLAY_CELLS_WITH_PERIODIC_STABLE_FULL_GRID_FAMILY',
         ],
+      );
+    }
+
+    // Confirmed, spatially comparable HFR display evidence has precedence.
+    // Embedded-scene geometry may contradict semantic-only SCREEN signals,
+    // but must never erase independently corroborated full-frame physics.
+    if (HCVPhotoFramingEvidence.isCorroboratedEmbedded(
+      photoFramingEvidence,
+    )) {
+      return _nonConclusive(
+        'PHOTO_EMBEDDED_REAL_SCENE_CONTRADICTS_FULL_FRAME_DISPLAY',
+        sceneContextConflictGuardUsed: true,
       );
     }
 

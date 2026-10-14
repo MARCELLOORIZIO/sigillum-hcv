@@ -253,6 +253,14 @@ class VideoTranscriptionService {
     final normalCaptions = _captionSegments(words, fallbackText: fullText);
     final complete = fullText.trim();
     if (complete.isEmpty) return normalCaptions;
+    // With text but no timed words, avoid the legacy 10-second fallback:
+    // distribute only the actually recognized transcript across media length.
+    if (words.isEmpty &&
+        mediaDuration != null &&
+        mediaDuration.isFinite &&
+        mediaDuration > 0) {
+      return _captionsFromFullText(complete, start: 0, end: mediaDuration);
+    }
 
     final captionText = normalCaptions.map((segment) => segment.text).join(' ');
     final fullTokens = _normalizedTokens(complete);

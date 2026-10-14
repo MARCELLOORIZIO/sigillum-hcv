@@ -28,6 +28,10 @@ release_source_hashes() {
     lib/camera_ui_extended_copy.dart \
     lib/registry_verify_page.dart \
     lib/verification_ui_copy.dart \
+    lib/commercial_gate.dart \
+    lib/commercial_billing_service.dart \
+    lib/hcv_secure_media_vault.dart \
+    lib/video_transcription_service.dart \
     lib/hcv_package.dart \
     lib/hcvpack_player_page.dart \
     lib/hcv_display_risk_fusion.dart \
@@ -39,7 +43,8 @@ release_source_hashes() {
     ios/Runner/SceneDelegate.swift \
     assets/ml/sigillum_screen_replay_v3_multihead.tflite \
     assets/ml/sigillum_screen_replay_v2.tflite \
-    assets/ml/sigillum_screen_replay_v1.tflite
+    assets/ml/sigillum_screen_replay_v1.tflite \
+    assets/ml/sigillum_photo_framing_v1.tflite
 }
 
 assert_committed_source_unchanged() {
@@ -242,10 +247,12 @@ FLUTTER_ASSETS="$APP/Frameworks/App.framework/flutter_assets"
 BUILT_V3="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v3_multihead.tflite"
 BUILT_V2="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v2.tflite"
 BUILT_V1="$FLUTTER_ASSETS/assets/ml/sigillum_screen_replay_v1.tflite"
+BUILT_PHOTO="$FLUTTER_ASSETS/assets/ml/sigillum_photo_framing_v1.tflite"
 for pair in \
   "assets/ml/sigillum_screen_replay_v3_multihead.tflite|$BUILT_V3" \
   "assets/ml/sigillum_screen_replay_v2.tflite|$BUILT_V2" \
-  "assets/ml/sigillum_screen_replay_v1.tflite|$BUILT_V1"; do
+  "assets/ml/sigillum_screen_replay_v1.tflite|$BUILT_V1" \
+  "assets/ml/sigillum_photo_framing_v1.tflite|$BUILT_PHOTO"; do
   SOURCE_FILE="${pair%%|*}"
   BUILT_FILE="${pair#*|}"
   if [[ ! -f "$BUILT_FILE" ]]; then
