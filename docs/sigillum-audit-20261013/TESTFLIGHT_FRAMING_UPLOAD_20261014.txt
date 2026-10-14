@@ -1,0 +1,5 @@
+SIGILLUM TESTFLIGHT PHOTO FRAMING RELEASE 2026-10-14
+Source app fix 59fa5549c6e0ae152bbc1753fdd312369caf2ae4.
+Dedicated Codemagic workflow ios-testflight-photo-audit triggers on release/testflight-photo-framing-20261014.
+Apple Connect publishing enabled via Codemagic-HCV.
+V2 V3 and PHOTO models unchanged; new scene/object framing remains diagnostic.
