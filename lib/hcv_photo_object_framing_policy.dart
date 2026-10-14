@@ -60,7 +60,7 @@ class HCVPhotoObjectFramingPolicy {
       'decisionRole': 'DIAGNOSTIC_ONLY',
       'framing': framing,
       'reason': reason,
-      'screenObjectVisible': embeddedCorroborated ? true : null,
+      'screenObjectVisible': framing == objectInScene ? true : null,
       'physicalRecaptureProven': false,
       'legacyDisplayRiskDecisionUnchanged': priorDecision,
       'semanticPhotoModelSha256': semanticPhoto?['modelSha256'],
