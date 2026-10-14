@@ -17,15 +17,16 @@ class HCVPhotoObjectFramingPolicy {
     required Map<String, dynamic>? photoFramingEvidence,
     required Map<String, dynamic>? legacyDisplayRisk,
   }) {
-    final semanticAnalyzed = semanticPhoto?['analysisStatus'] == 'ANALYZED' &&
-        semanticPhoto?['decisionRole'] == 'DIAGNOSTIC_ONLY';
+    final semanticAnalyzed = semanticPhoto != null &&
+        semanticPhoto['analysisStatus'] == 'ANALYZED' &&
+        semanticPhoto['decisionRole'] == 'DIAGNOSTIC_ONLY';
     final predicted = semanticAnalyzed
-        ? semanticPhoto?['predictedClass']?.toString()
+        ? semanticPhoto['predictedClass']?.toString()
         : null;
-    final embeddedCorroborated =
-        photoFramingEvidence?['analysisStatus'] == 'ANALYZED' &&
-        photoFramingEvidence?['sceneFraming'] == 'DISPLAY_IN_REAL_SCENE' &&
-        photoFramingEvidence?['positiveEmbeddedRealityEvidence'] == true;
+    final embeddedCorroborated = photoFramingEvidence != null &&
+        photoFramingEvidence['analysisStatus'] == 'ANALYZED' &&
+        photoFramingEvidence['sceneFraming'] == 'DISPLAY_IN_REAL_SCENE' &&
+        photoFramingEvidence['positiveEmbeddedRealityEvidence'] == true;
     final priorDecision = legacyDisplayRisk?['decision']?.toString();
     final strongLegacy = priorDecision == 'STRONG_DISPLAY_RISK';
 
