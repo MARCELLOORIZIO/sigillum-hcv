@@ -73,9 +73,9 @@ class _ScreenReplayDiagnosticsPageState
         data['photoObjectFraming'] = HCVPhotoObjectFramingPolicy.evaluate(
           semanticPhoto: data['photoSemanticFraming'] as Map<String, dynamic>?,
           photoFramingEvidence: null,
-          legacyDisplayRisk: <String, dynamic>{
-            'decision': data['screenReplayRisk'],
-          },
+          // The lab risk label (LOW/MEDIUM/HIGH) is not a certified
+          // displayRiskDecision. Do not misrepresent it as one.
+          legacyDisplayRisk: null,
         );
       }
 
