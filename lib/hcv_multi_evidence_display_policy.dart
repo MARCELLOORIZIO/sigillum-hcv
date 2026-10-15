@@ -149,6 +149,24 @@ class HCVMultiEvidenceDisplayPolicy {
       );
     }
 
+    // PHOTO: V3 remains a residual veto against semantic V2 confidence.
+    // Independent static RGB pixel-grid evidence can, however, contradict
+    // an automatic REALITY conclusion. Keep the veto (never promote to red)
+    // and report the unresolved conflict as yellow. Physical repeating
+    // texture and the earlier HFR/geometry guards retain precedence.
+    final opticalSignals = stillOptical?['signals'];
+    if (still.isScreen &&
+        still.v3RealityVeto &&
+        still.probability >= 0.90 &&
+        opticalSignals is Map &&
+        opticalSignals['uniformPixelGrid'] == true &&
+        opticalSignals['structuralDisplayTrace'] == true &&
+        opticalSignals['physicalRepeatingTextureLikely'] != true) {
+      return _nonConclusive(
+        'PHOTO_V3_VETO_CONFLICT_WITH_INDEPENDENT_PIXEL_GRID',
+      );
+    }
+
     return _reality(
       stillOptical: stillOptical,
       temporalOptical: temporalOptical,
