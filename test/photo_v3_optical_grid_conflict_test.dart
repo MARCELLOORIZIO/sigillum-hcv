@@ -61,6 +61,29 @@ void main() {
         isNot(contains('PHOTO_V3_VETO_CONFLICT_WITH_INDEPENDENT_PIXEL_GRID')));
   });
 
+  test('without V3 veto, strong V2 still produces the historical red', () {
+    final result = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
+      temporalFrequencyProbe: null,
+      stillMl: _ml(veto: false),
+      temporalMl: null,
+      stillOptical: _optics(),
+    );
+    expect(result.decision, 'STRONG_DISPLAY_RISK');
+  });
+
+  test('structural display trace is required, not merely a grid hint', () {
+    final optical = _optics();
+    (optical['signals'] as Map<String, dynamic>)['structuralDisplayTrace'] =
+        false;
+    final result = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
+      temporalFrequencyProbe: null,
+      stillMl: _ml(),
+      temporalMl: null,
+      stillOptical: optical,
+    );
+    expect(result.decision, 'NO_DISPLAY_EVIDENCE');
+  });
+
   test('independent full frame HFR keeps red precedence over V3 conflict', () {
     final result = HCVMultiEvidenceDisplayPolicy.resolvePhoto(
       temporalFrequencyProbe: <String, dynamic>{
