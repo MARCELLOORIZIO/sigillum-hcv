@@ -836,7 +836,8 @@ class HCVSecureMediaVault {
           !await File(mediaPath).exists() ||
           !await File(hcvpackPath).exists() ||
           !await File(certificatePath).exists()) {
-        await _removePendingSeal(hcvId);
+        // A temporarily missing source must not erase recovery evidence.
+        // Keep the journal until an explicit, audited recovery decision.
         continue;
       }
 
