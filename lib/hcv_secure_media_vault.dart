@@ -525,6 +525,34 @@ class HCVSecureMediaVault {
     }
   }
 
+  Future<void> _verifyExistingCiphertext(
+    String encryptedPath,
+    String expectedSha256,
+  ) async {
+    // Reuse only an authenticated ciphertext. Keep the temporary plaintext in
+    // the same scratch area that is purged on cold startup.
+    final tempRoot = await getTemporaryDirectory();
+    final scratch =
+        Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+    await scratch.create(recursive: true);
+    final destination = File(p.join(
+      scratch.path,
+      'vault-verify-${DateTime.now().microsecondsSinceEpoch}-'
+      '${Random.secure().nextInt(1 << 32)}.tmp',
+    ));
+    try {
+      await _decryptFile(
+        encrypted: File(encryptedPath),
+        destination: destination,
+        expectedSha256: expectedSha256,
+      );
+    } finally {
+      try {
+        if (await destination.exists()) await destination.delete();
+      } catch (_) {}
+    }
+  }
+
   Future<List<HCVSecureOriginalRecord>> _loadIndex() async {
     final file = await _indexFile();
     await _restoreMissingJsonFromTemp(file, 'SIGILLUM_SECURE_ORIGINALS_INDEX');
@@ -707,6 +735,17 @@ class HCVSecureMediaVault {
     if (existingBefore != null &&
         await File(existingBefore.encryptedMediaPath).exists() &&
         await File(existingBefore.encryptedHcvpackPath).exists()) {
+      // Files merely existing is insufficient: a prior crash might leave a
+      // truncated ciphertext. Verify both authenticated payloads before
+      // claiming that the original is already sealed.
+      await _verifyExistingCiphertext(
+        existingBefore.encryptedMediaPath,
+        existingBefore.mediaSha256,
+      );
+      await _verifyExistingCiphertext(
+        existingBefore.encryptedHcvpackPath,
+        existingBefore.hcvpackSha256,
+      );
       await media.delete();
       await pack.delete();
       await _removePendingSeal(cleanId);
