@@ -185,6 +185,7 @@ class HCVSecureMediaVault {
   static final RegExp _shaPattern = RegExp(r'^[a-f0-9]{64}$');
   static Future<void> _indexTail = Future<void>.value();
   static Future<void> _pendingSealTail = Future<void>.value();
+  static Future<void> _sealTail = Future<void>.value();
 
   Future<Directory> _vaultDirectory() async {
     final root = await getApplicationSupportDirectory();
@@ -668,6 +669,36 @@ class HCVSecureMediaVault {
   }
 
   Future<HCVSecureOriginalRecord> seal({
+    required String hcvId,
+    required String mediaType,
+    required String mediaPath,
+    required String hcvpackPath,
+    required String certificatePath,
+    required String expectedMediaSha256,
+  }) {
+    // Serialize the complete read/encrypt/commit sequence in this process.
+    // The index mutex alone does not protect the earlier ciphertext check.
+    final previous = _sealTail;
+    final release = Completer<void>();
+    _sealTail = release.future;
+    return () async {
+      await previous;
+      try {
+        return await _sealUnlocked(
+          hcvId: hcvId,
+          mediaType: mediaType,
+          mediaPath: mediaPath,
+          hcvpackPath: hcvpackPath,
+          certificatePath: certificatePath,
+          expectedMediaSha256: expectedMediaSha256,
+        );
+      } finally {
+        if (!release.isCompleted) release.complete();
+      }
+    }();
+  }
+
+  Future<HCVSecureOriginalRecord> _sealUnlocked({
     required String hcvId,
     required String mediaType,
     required String mediaPath,
