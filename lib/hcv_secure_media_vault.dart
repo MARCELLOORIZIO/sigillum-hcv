@@ -973,8 +973,12 @@ class HCVSecureMediaVault {
       ),
     );
 
+    // A matching ciphertext may be the last surviving copy after a crash.
+    // Never delete or overwrite it while recreating a subtitle derivative.
     for (final target in [encryptedCaptioned, encryptedSubtitle]) {
-      if (await target.exists()) await target.delete();
+      if (await target.exists()) {
+        throw StateError('SECURE_VAULT_SUBTITLE_CIPHERTEXT_ALREADY_EXISTS');
+      }
     }
 
     final oldCaptionedPath = current.encryptedCaptionedMediaPath;
@@ -1276,6 +1280,17 @@ class HCVSecureMediaVault {
   }
 
   Future<void> purgeMaterializedPlaintext() async {
+    // Subtitle generation writes intermediates to Application Support. A
+    // force-quit may bypass the normal post-encryption cleanup. Clear only
+    // the dedicated scratch directory during cold startup, before any new
+    // transcription can be started.
+    try {
+      final support = await getApplicationSupportDirectory();
+      final scratch = Directory(p.join(support.path, 'sigillum_private_derivations'));
+      if (await scratch.exists()) {
+        await scratch.delete(recursive: true);
+      }
+    } catch (_) {}
     try {
       final tempRoot = await getTemporaryDirectory();
       for (final name in const [
