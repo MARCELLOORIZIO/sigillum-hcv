@@ -245,10 +245,14 @@ class HCVSecureMediaVault {
           decoded['records'] is! List) {
         throw StateError('SECURE_VAULT_PENDING_SEALS_INVALID');
       }
-      return (decoded['records'] as List)
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList();
+      final records = <Map<String, dynamic>>[];
+      for (final entry in decoded['records'] as List) {
+        if (entry is! Map) {
+          throw StateError('SECURE_VAULT_PENDING_SEAL_RECORD_INVALID');
+        }
+        records.add(Map<String, dynamic>.from(entry));
+      }
+      return records;
     } catch (error) {
       throw StateError('SECURE_VAULT_PENDING_SEALS_UNREADABLE: $error');
     }
