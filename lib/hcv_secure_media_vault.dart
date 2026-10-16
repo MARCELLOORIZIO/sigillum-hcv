@@ -217,22 +217,40 @@ class HCVSecureMediaVault {
     }();
   }
 
+  // Recover a flushed candidate from an interrupted first write, never
+  // accepting an incomplete or malformed document as an empty vault.
+  Future<void> _restoreMissingJsonFromTemp(File file, String schema) async {
+    if (await file.exists()) return;
+    final temp = File('${file.path}.tmp');
+    if (!await temp.exists()) return;
+    final decoded = jsonDecode(await temp.readAsString());
+    if (decoded is! Map<String, dynamic> ||
+        decoded['schema'] != schema ||
+        decoded['records'] is! List) {
+      throw StateError('SECURE_VAULT_TEMP_DOCUMENT_INVALID');
+    }
+    await temp.rename(file.path);
+  }
+
   Future<List<Map<String, dynamic>>> _loadPendingSeals() async {
     final file = await _pendingSealFile();
+    await _restoreMissingJsonFromTemp(file, 'SIGILLUM_PENDING_SEALS');
     if (!await file.exists()) return <Map<String, dynamic>>[];
     try {
       final raw = await file.readAsString();
-      if (raw.trim().isEmpty) return <Map<String, dynamic>>[];
+      if (raw.trim().isEmpty) throw StateError('SECURE_VAULT_PENDING_SEALS_EMPTY');
       final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic> || decoded['records'] is! List) {
-        return <Map<String, dynamic>>[];
+      if (decoded is! Map<String, dynamic> ||
+          decoded['schema'] != 'SIGILLUM_PENDING_SEALS' ||
+          decoded['records'] is! List) {
+        throw StateError('SECURE_VAULT_PENDING_SEALS_INVALID');
       }
       return (decoded['records'] as List)
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
           .toList();
-    } catch (_) {
-      return <Map<String, dynamic>>[];
+    } catch (error) {
+      throw StateError('SECURE_VAULT_PENDING_SEALS_UNREADABLE: $error');
     }
   }
 
@@ -247,7 +265,8 @@ class HCVSecureMediaVault {
       }),
       flush: true,
     );
-    if (await file.exists()) await file.delete();
+    // On iOS the same-directory rename replaces the old file atomically.
+    // Never create a gap by deleting the live index/journal first.
     await temp.rename(file.path);
   }
 
@@ -500,11 +519,14 @@ class HCVSecureMediaVault {
 
   Future<List<HCVSecureOriginalRecord>> _loadIndex() async {
     final file = await _indexFile();
+    await _restoreMissingJsonFromTemp(file, 'SIGILLUM_SECURE_ORIGINALS_INDEX');
     if (!await file.exists()) return <HCVSecureOriginalRecord>[];
     final raw = await file.readAsString();
-    if (raw.trim().isEmpty) return <HCVSecureOriginalRecord>[];
+    if (raw.trim().isEmpty) throw StateError('SECURE_VAULT_INDEX_EMPTY');
     final decoded = jsonDecode(raw);
-    if (decoded is! Map<String, dynamic> || decoded['records'] is! List) {
+    if (decoded is! Map<String, dynamic> ||
+        decoded['schema'] != 'SIGILLUM_SECURE_ORIGINALS_INDEX' ||
+        decoded['records'] is! List) {
       throw StateError('SECURE_VAULT_INDEX_INVALID');
     }
     return (decoded['records'] as List)
@@ -530,7 +552,8 @@ class HCVSecureMediaVault {
       }),
       flush: true,
     );
-    if (await file.exists()) await file.delete();
+    // On iOS the same-directory rename replaces the old file atomically.
+    // Never create a gap by deleting the live index/journal first.
     await temp.rename(file.path);
   }
 
@@ -670,8 +693,12 @@ class HCVSecureMediaVault {
     final encryptedMedia = File(p.join(dir.path, '$safe.$mediaTag.media.enc'));
     final encryptedPack = File(p.join(dir.path, '$safe.$packTag.hcvpack.enc'));
 
+    // An unindexed .enc may be the only remaining copy after a crash.
+    // Fail closed rather than overwriting or deleting it during recovery.
     for (final target in [encryptedMedia, encryptedPack]) {
-      if (await target.exists()) await target.delete();
+      if (await target.exists()) {
+        throw StateError('SECURE_VAULT_UNINDEXED_ENCRYPTED_FILE');
+      }
     }
 
     final record = HCVSecureOriginalRecord(
