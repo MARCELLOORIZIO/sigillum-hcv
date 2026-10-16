@@ -109,4 +109,18 @@ void main() {
         isNot(contains('await _removePendingSeal(hcvId);')));
   });
 
+  test('existing sealed payloads are authenticated before recovery accepts them', () {
+    final start = vault.indexOf('if (existingBefore != null &&\\n        await File(existingBefore.encryptedMediaPath).exists()');
+    final end = vault.indexOf('final dir = await _vaultDirectory();', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final body = vault.substring(start, end);
+    expect(body, contains('await _verifyExistingCiphertext('));
+    expect(body, contains('existingBefore.mediaSha256'));
+    expect(body, contains('existingBefore.hcvpackSha256'));
+    expect(body.indexOf('await _verifyExistingCiphertext('),
+        lessThan(body.indexOf('await media.delete();')));
+    expect(vault, contains('await _decryptFile('));
+  });
+
 }
