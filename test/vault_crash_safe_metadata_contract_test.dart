@@ -133,4 +133,18 @@ void main() {
     expect(body, isNot(contains('.whereType<Map>()')));
   });
 
+  test('recovery authenticates both unindexed ciphertexts before index commit', () {
+    final start = vault.indexOf('final mediaCipherExists =');
+    final end = vault.indexOf('final record = HCVSecureOriginalRecord(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final body = vault.substring(start, end);
+    expect(body, contains('mediaCipherExists != packCipherExists'));
+    expect(body, contains('SECURE_VAULT_UNINDEXED_ENCRYPTED_FILE'));
+    expect(body, contains('_verifyExistingCiphertext(encryptedMedia.path, mediaHash)'));
+    expect(body, contains('_verifyExistingCiphertext(encryptedPack.path, packHash)'));
+    expect(vault, contains('if (!committed && !recoveredCipherPair)'));
+    expect(vault, contains('if (!recoveredCipherPair) {'));
+  });
+
 }
