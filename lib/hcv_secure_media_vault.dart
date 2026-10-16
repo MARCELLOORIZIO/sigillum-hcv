@@ -529,16 +529,24 @@ class HCVSecureMediaVault {
         decoded['records'] is! List) {
       throw StateError('SECURE_VAULT_INDEX_INVALID');
     }
-    return (decoded['records'] as List)
-        .whereType<Map>()
-        .map((item) => HCVSecureOriginalRecord.fromJson(
-              Map<String, dynamic>.from(item),
-            ))
-        .where((item) =>
-            _hcvPattern.hasMatch(item.hcvId) &&
-            _shaPattern.hasMatch(item.mediaSha256) &&
-            _shaPattern.hasMatch(item.hcvpackSha256))
-        .toList();
+    // Never silently discard a malformed entry: a later write would make
+    // a still-encrypted original unreachable by permanently omitting it.
+    final records = <HCVSecureOriginalRecord>[];
+    for (final entry in decoded['records'] as List) {
+      if (entry is! Map) {
+        throw StateError('SECURE_VAULT_INDEX_RECORD_INVALID');
+      }
+      final item = HCVSecureOriginalRecord.fromJson(
+        Map<String, dynamic>.from(entry),
+      );
+      if (!_hcvPattern.hasMatch(item.hcvId) ||
+          !_shaPattern.hasMatch(item.mediaSha256) ||
+          !_shaPattern.hasMatch(item.hcvpackSha256)) {
+        throw StateError('SECURE_VAULT_INDEX_RECORD_INVALID');
+      }
+      records.add(item);
+    }
+    return records;
   }
 
   Future<void> _saveIndex(List<HCVSecureOriginalRecord> records) async {
