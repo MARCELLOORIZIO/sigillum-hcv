@@ -84,4 +84,15 @@ void main() {
     expect(body, contains("entity.path.endsWith('.enc')"));
   });
 
+  test('master key cannot be regenerated while ciphertext survives', () {
+    final start = vault.indexOf('Future<SecretKey> _masterKey()');
+    final end = vault.indexOf('Future<String> _sha256File(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final body = vault.substring(start, end);
+    expect(body, contains('SECURE_VAULT_MASTER_KEY_MISSING_WITH_CIPHERTEXT'));
+    expect(body.indexOf('SECURE_VAULT_MASTER_KEY_MISSING_WITH_CIPHERTEXT'),
+        lessThan(body.indexOf('Random.secure()')));
+  });
+
 }
