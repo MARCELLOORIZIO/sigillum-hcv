@@ -520,7 +520,18 @@ class HCVSecureMediaVault {
   Future<List<HCVSecureOriginalRecord>> _loadIndex() async {
     final file = await _indexFile();
     await _restoreMissingJsonFromTemp(file, 'SIGILLUM_SECURE_ORIGINALS_INDEX');
-    if (!await file.exists()) return <HCVSecureOriginalRecord>[];
+    if (!await file.exists()) {
+      // A missing index is not an empty vault when ciphertext survives.
+      // Preserve orphaned originals and demand explicit recovery instead of
+      // overwriting their metadata with a fresh empty index.
+      final dir = await _vaultDirectory();
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File && entity.path.endsWith('.enc')) {
+          throw StateError('SECURE_VAULT_INDEX_MISSING_WITH_CIPHERTEXT');
+        }
+      }
+      return <HCVSecureOriginalRecord>[];
+    }
     final raw = await file.readAsString();
     if (raw.trim().isEmpty) throw StateError('SECURE_VAULT_INDEX_EMPTY');
     final decoded = jsonDecode(raw);
