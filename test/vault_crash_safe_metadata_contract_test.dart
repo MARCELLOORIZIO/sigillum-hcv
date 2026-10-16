@@ -147,4 +147,17 @@ void main() {
     expect(vault, contains('if (!recoveredCipherPair) {'));
   });
 
+  test('seal serializes ciphertext creation before index commit', () {
+    final start = vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
+    final unlocked = vault.indexOf('Future<HCVSecureOriginalRecord> _sealUnlocked({', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(unlocked, greaterThan(start));
+    final wrapper = vault.substring(start, unlocked);
+    expect(wrapper, contains('final previous = _sealTail;'));
+    expect(wrapper, contains('_sealTail = release.future;'));
+    expect(wrapper, contains('await previous;'));
+    expect(wrapper, contains('return await _sealUnlocked('));
+    expect(wrapper, contains('release.complete()'));
+  });
+
 }
