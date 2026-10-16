@@ -185,6 +185,7 @@ class HCVSecureMediaVault {
   static final RegExp _shaPattern = RegExp(r'^[a-f0-9]{64}$');
   static Future<void> _indexTail = Future<void>.value();
   static Future<void> _pendingSealTail = Future<void>.value();
+  static Future<void> _sealTail = Future<void>.value();
 
   Future<Directory> _vaultDirectory() async {
     final root = await getApplicationSupportDirectory();
@@ -217,22 +218,44 @@ class HCVSecureMediaVault {
     }();
   }
 
+  // Recover a flushed candidate from an interrupted first write, never
+  // accepting an incomplete or malformed document as an empty vault.
+  Future<void> _restoreMissingJsonFromTemp(File file, String schema) async {
+    if (await file.exists()) return;
+    final temp = File('${file.path}.tmp');
+    if (!await temp.exists()) return;
+    final decoded = jsonDecode(await temp.readAsString());
+    if (decoded is! Map<String, dynamic> ||
+        decoded['schema'] != schema ||
+        decoded['records'] is! List) {
+      throw StateError('SECURE_VAULT_TEMP_DOCUMENT_INVALID');
+    }
+    await temp.rename(file.path);
+  }
+
   Future<List<Map<String, dynamic>>> _loadPendingSeals() async {
     final file = await _pendingSealFile();
+    await _restoreMissingJsonFromTemp(file, 'SIGILLUM_PENDING_SEALS');
     if (!await file.exists()) return <Map<String, dynamic>>[];
     try {
       final raw = await file.readAsString();
-      if (raw.trim().isEmpty) return <Map<String, dynamic>>[];
+      if (raw.trim().isEmpty) throw StateError('SECURE_VAULT_PENDING_SEALS_EMPTY');
       final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic> || decoded['records'] is! List) {
-        return <Map<String, dynamic>>[];
+      if (decoded is! Map<String, dynamic> ||
+          decoded['schema'] != 'SIGILLUM_PENDING_SEALS' ||
+          decoded['records'] is! List) {
+        throw StateError('SECURE_VAULT_PENDING_SEALS_INVALID');
       }
-      return (decoded['records'] as List)
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList();
-    } catch (_) {
-      return <Map<String, dynamic>>[];
+      final records = <Map<String, dynamic>>[];
+      for (final entry in decoded['records'] as List) {
+        if (entry is! Map) {
+          throw StateError('SECURE_VAULT_PENDING_SEAL_RECORD_INVALID');
+        }
+        records.add(Map<String, dynamic>.from(entry));
+      }
+      return records;
+    } catch (error) {
+      throw StateError('SECURE_VAULT_PENDING_SEALS_UNREADABLE: $error');
     }
   }
 
@@ -247,7 +270,8 @@ class HCVSecureMediaVault {
       }),
       flush: true,
     );
-    if (await file.exists()) await file.delete();
+    // On iOS the same-directory rename replaces the old file atomically.
+    // Never create a gap by deleting the live index/journal first.
     await temp.rename(file.path);
   }
 
@@ -324,6 +348,14 @@ class HCVSecureMediaVault {
       return SecretKey(bytes);
     }
 
+    // Re-keying an existing vault would permanently orphan its ciphertext.
+    // A missing key is recoverable only from secure backup, not regeneration.
+    final vault = await _vaultDirectory();
+    await for (final entity in vault.list(followLinks: false)) {
+      if (entity is File && entity.path.endsWith('.enc')) {
+        throw StateError('SECURE_VAULT_MASTER_KEY_MISSING_WITH_CIPHERTEXT');
+      }
+    }
     final random = Random.secure();
     final bytes = List<int>.generate(32, (_) => random.nextInt(256));
     await HCVSecureStore.write(_masterKeyStoreKey, base64Encode(bytes));
@@ -498,25 +530,75 @@ class HCVSecureMediaVault {
     }
   }
 
+  Future<void> _verifyExistingCiphertext(
+    String encryptedPath,
+    String expectedSha256,
+  ) async {
+    // Reuse only an authenticated ciphertext. Keep the temporary plaintext in
+    // the same scratch area that is purged on cold startup.
+    final tempRoot = await getTemporaryDirectory();
+    final scratch =
+        Directory(p.join(tempRoot.path, 'sigillum_secure_materialized'));
+    await scratch.create(recursive: true);
+    final destination = File(p.join(
+      scratch.path,
+      'vault-verify-${DateTime.now().microsecondsSinceEpoch}-'
+      '${Random.secure().nextInt(1 << 32)}.tmp',
+    ));
+    try {
+      await _decryptFile(
+        encrypted: File(encryptedPath),
+        destination: destination,
+        expectedSha256: expectedSha256,
+      );
+    } finally {
+      try {
+        if (await destination.exists()) await destination.delete();
+      } catch (_) {}
+    }
+  }
+
   Future<List<HCVSecureOriginalRecord>> _loadIndex() async {
     final file = await _indexFile();
-    if (!await file.exists()) return <HCVSecureOriginalRecord>[];
+    await _restoreMissingJsonFromTemp(file, 'SIGILLUM_SECURE_ORIGINALS_INDEX');
+    if (!await file.exists()) {
+      // A missing index is not an empty vault when ciphertext survives.
+      // Preserve orphaned originals and demand explicit recovery instead of
+      // overwriting their metadata with a fresh empty index.
+      final dir = await _vaultDirectory();
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File && entity.path.endsWith('.enc')) {
+          throw StateError('SECURE_VAULT_INDEX_MISSING_WITH_CIPHERTEXT');
+        }
+      }
+      return <HCVSecureOriginalRecord>[];
+    }
     final raw = await file.readAsString();
-    if (raw.trim().isEmpty) return <HCVSecureOriginalRecord>[];
+    if (raw.trim().isEmpty) throw StateError('SECURE_VAULT_INDEX_EMPTY');
     final decoded = jsonDecode(raw);
-    if (decoded is! Map<String, dynamic> || decoded['records'] is! List) {
+    if (decoded is! Map<String, dynamic> ||
+        decoded['schema'] != 'SIGILLUM_SECURE_ORIGINALS_INDEX' ||
+        decoded['records'] is! List) {
       throw StateError('SECURE_VAULT_INDEX_INVALID');
     }
-    return (decoded['records'] as List)
-        .whereType<Map>()
-        .map((item) => HCVSecureOriginalRecord.fromJson(
-              Map<String, dynamic>.from(item),
-            ))
-        .where((item) =>
-            _hcvPattern.hasMatch(item.hcvId) &&
-            _shaPattern.hasMatch(item.mediaSha256) &&
-            _shaPattern.hasMatch(item.hcvpackSha256))
-        .toList();
+    // Never silently discard a malformed entry: a later write would make
+    // a still-encrypted original unreachable by permanently omitting it.
+    final records = <HCVSecureOriginalRecord>[];
+    for (final entry in decoded['records'] as List) {
+      if (entry is! Map) {
+        throw StateError('SECURE_VAULT_INDEX_RECORD_INVALID');
+      }
+      final item = HCVSecureOriginalRecord.fromJson(
+        Map<String, dynamic>.from(entry),
+      );
+      if (!_hcvPattern.hasMatch(item.hcvId) ||
+          !_shaPattern.hasMatch(item.mediaSha256) ||
+          !_shaPattern.hasMatch(item.hcvpackSha256)) {
+        throw StateError('SECURE_VAULT_INDEX_RECORD_INVALID');
+      }
+      records.add(item);
+    }
+    return records;
   }
 
   Future<void> _saveIndex(List<HCVSecureOriginalRecord> records) async {
@@ -530,7 +612,8 @@ class HCVSecureMediaVault {
       }),
       flush: true,
     );
-    if (await file.exists()) await file.delete();
+    // On iOS the same-directory rename replaces the old file atomically.
+    // Never create a gap by deleting the live index/journal first.
     await temp.rename(file.path);
   }
 
@@ -586,6 +669,36 @@ class HCVSecureMediaVault {
   }
 
   Future<HCVSecureOriginalRecord> seal({
+    required String hcvId,
+    required String mediaType,
+    required String mediaPath,
+    required String hcvpackPath,
+    required String certificatePath,
+    required String expectedMediaSha256,
+  }) {
+    // Serialize the complete read/encrypt/commit sequence in this process.
+    // The index mutex alone does not protect the earlier ciphertext check.
+    final previous = _sealTail;
+    final release = Completer<void>();
+    _sealTail = release.future;
+    return () async {
+      await previous;
+      try {
+        return await _sealUnlocked(
+          hcvId: hcvId,
+          mediaType: mediaType,
+          mediaPath: mediaPath,
+          hcvpackPath: hcvpackPath,
+          certificatePath: certificatePath,
+          expectedMediaSha256: expectedMediaSha256,
+        );
+      } finally {
+        if (!release.isCompleted) release.complete();
+      }
+    }();
+  }
+
+  Future<HCVSecureOriginalRecord> _sealUnlocked({
     required String hcvId,
     required String mediaType,
     required String mediaPath,
@@ -657,6 +770,17 @@ class HCVSecureMediaVault {
     if (existingBefore != null &&
         await File(existingBefore.encryptedMediaPath).exists() &&
         await File(existingBefore.encryptedHcvpackPath).exists()) {
+      // Files merely existing is insufficient: a prior crash might leave a
+      // truncated ciphertext. Verify both authenticated payloads before
+      // claiming that the original is already sealed.
+      await _verifyExistingCiphertext(
+        existingBefore.encryptedMediaPath,
+        existingBefore.mediaSha256,
+      );
+      await _verifyExistingCiphertext(
+        existingBefore.encryptedHcvpackPath,
+        existingBefore.hcvpackSha256,
+      );
       await media.delete();
       await pack.delete();
       await _removePendingSeal(cleanId);
@@ -670,8 +794,19 @@ class HCVSecureMediaVault {
     final encryptedMedia = File(p.join(dir.path, '$safe.$mediaTag.media.enc'));
     final encryptedPack = File(p.join(dir.path, '$safe.$packTag.hcvpack.enc'));
 
-    for (final target in [encryptedMedia, encryptedPack]) {
-      if (await target.exists()) await target.delete();
+    // A crash after encryption but before index commit can leave BOTH
+    // ciphertexts intact. Reattach only after authenticating each against
+    // the hashes recomputed from the staged source files. Never overwrite
+    // either ciphertext, and never repair a partial pair by deleting it.
+    final mediaCipherExists = await encryptedMedia.exists();
+    final packCipherExists = await encryptedPack.exists();
+    final recoveredCipherPair = mediaCipherExists && packCipherExists;
+    if (mediaCipherExists != packCipherExists) {
+      throw StateError('SECURE_VAULT_UNINDEXED_ENCRYPTED_FILE');
+    }
+    if (recoveredCipherPair) {
+      await _verifyExistingCiphertext(encryptedMedia.path, mediaHash);
+      await _verifyExistingCiphertext(encryptedPack.path, packHash);
     }
 
     final record = HCVSecureOriginalRecord(
@@ -706,20 +841,22 @@ class HCVSecureMediaVault {
 
     var committed = false;
     try {
-      await _encryptFile(
-        source: media,
-        destination: encryptedMedia,
-        sha256Hex: mediaHash,
-        mimeType: mediaType == 'video' ? 'video/mp4' : _photoMime(media.path),
-        originalName: p.basename(media.path),
-      );
-      await _encryptFile(
-        source: pack,
-        destination: encryptedPack,
-        sha256Hex: packHash,
-        mimeType: 'application/vnd.sigillum.hcvpack',
-        originalName: p.basename(pack.path),
-      );
+      if (!recoveredCipherPair) {
+        await _encryptFile(
+          source: media,
+          destination: encryptedMedia,
+          sha256Hex: mediaHash,
+          mimeType: mediaType == 'video' ? 'video/mp4' : _photoMime(media.path),
+          originalName: p.basename(media.path),
+        );
+        await _encryptFile(
+          source: pack,
+          destination: encryptedPack,
+          sha256Hex: packHash,
+          mimeType: 'application/vnd.sigillum.hcvpack',
+          originalName: p.basename(pack.path),
+        );
+      }
 
       await _withIndexLock(() async {
         final records = await _loadIndex();
@@ -740,7 +877,7 @@ class HCVSecureMediaVault {
       });
       committed = true;
     } finally {
-      if (!committed) {
+      if (!committed && !recoveredCipherPair) {
         for (final target in [encryptedMedia, encryptedPack]) {
           try {
             if (await target.exists()) await target.delete();
@@ -782,7 +919,8 @@ class HCVSecureMediaVault {
           !await File(mediaPath).exists() ||
           !await File(hcvpackPath).exists() ||
           !await File(certificatePath).exists()) {
-        await _removePendingSeal(hcvId);
+        // A temporarily missing source must not erase recovery evidence.
+        // Keep the journal until an explicit, audited recovery decision.
         continue;
       }
 
@@ -946,8 +1084,12 @@ class HCVSecureMediaVault {
       ),
     );
 
+    // A matching ciphertext may be the last surviving copy after a crash.
+    // Never delete or overwrite it while recreating a subtitle derivative.
     for (final target in [encryptedCaptioned, encryptedSubtitle]) {
-      if (await target.exists()) await target.delete();
+      if (await target.exists()) {
+        throw StateError('SECURE_VAULT_SUBTITLE_CIPHERTEXT_ALREADY_EXISTS');
+      }
     }
 
     final oldCaptionedPath = current.encryptedCaptionedMediaPath;
@@ -1249,6 +1391,17 @@ class HCVSecureMediaVault {
   }
 
   Future<void> purgeMaterializedPlaintext() async {
+    // Subtitle generation writes intermediates to Application Support. A
+    // force-quit may bypass the normal post-encryption cleanup. Clear only
+    // the dedicated scratch directory during cold startup, before any new
+    // transcription can be started.
+    try {
+      final support = await getApplicationSupportDirectory();
+      final scratch = Directory(p.join(support.path, 'sigillum_private_derivations'));
+      if (await scratch.exists()) {
+        await scratch.delete(recursive: true);
+      }
+    } catch (_) {}
     try {
       final tempRoot = await getTemporaryDirectory();
       for (final name in const [
