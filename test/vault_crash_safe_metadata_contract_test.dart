@@ -123,4 +123,14 @@ void main() {
     expect(vault, contains('await _decryptFile('));
   });
 
+  test('malformed journal record never disappears silently', () {
+    final start = vault.indexOf('Future<List<Map<String, dynamic>>> _loadPendingSeals()');
+    final end = vault.indexOf('Future<void> _savePendingSeals(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final body = vault.substring(start, end);
+    expect(body, contains('SECURE_VAULT_PENDING_SEAL_RECORD_INVALID'));
+    expect(body, isNot(contains('.whereType<Map>()')));
+  });
+
 }
