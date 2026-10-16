@@ -95,4 +95,18 @@ void main() {
         lessThan(body.indexOf('Random.secure()')));
   });
 
+  test('missing recovery source preserves the pending-seal journal', () {
+    final start = vault.indexOf('Future<int> recoverPendingSeals()');
+    final end = vault.indexOf('Future<List<HCVSecureOriginalRecord>> list()', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final body = vault.substring(start, end);
+    final missingSourceStart = body.indexOf("!await File(certificatePath).exists()");
+    final retryStart = body.indexOf('try {', missingSourceStart);
+    expect(missingSourceStart, greaterThanOrEqualTo(0));
+    expect(retryStart, greaterThan(missingSourceStart));
+    expect(body.substring(missingSourceStart, retryStart),
+        isNot(contains('await _removePendingSeal(hcvId);')));
+  });
+
 }
