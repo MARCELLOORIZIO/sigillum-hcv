@@ -76,4 +76,12 @@ void main() {
     expect(body, isNot(contains('.whereType<Map>()')));
   });
 
+  test('missing index with encrypted payload does not create a new empty vault', () {
+    final start = vault.indexOf('Future<List<HCVSecureOriginalRecord>> _loadIndex()');
+    final end = vault.indexOf('Future<void> _saveIndex(', start);
+    final body = vault.substring(start, end);
+    expect(body, contains('SECURE_VAULT_INDEX_MISSING_WITH_CIPHERTEXT'));
+    expect(body, contains("entity.path.endsWith('.enc')"));
+  });
+
 }
