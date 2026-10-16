@@ -67,6 +67,11 @@ def check_dataset(root):
    k=sha(p);result['sha_to_paths'].setdefault(k,[]).append(str(p))
   result['splits'][split]={'images':len(images),'missing_labels':missing,'boxes':nbox}
  result['duplicates_sha256']={k:v for k,v in result['sha_to_paths'].items() if len(v)>1}
+ result['image_hashes_by_split']={}
+ for split in ('train','val','valid','test'):
+  folder=base/split/'images'
+  if folder.is_dir():
+   result['image_hashes_by_split'][split]=[sha(p) for p in folder.rglob('*') if p.suffix.lower() in IMG_EXT]
  result.pop('sha_to_paths')
  return f,result
 def run_train(yaml_path,name,epochs,imgsz,batch,device,weights,out):
@@ -97,7 +102,18 @@ def main():
  screen=unpack_screen(Path(args.screen_zip),w/'screen')
  m_yaml,m=check_dataset(mobile);s_yaml,s=check_dataset(screen)
  report={'mobile':m,'screen':s,'warning':'Separate detectors: datasets have incompatible class taxonomies. Test native splits are never used for training.'}
+ for dataset_name,d in (('mobile',m),('screen',s)):
+  splits=d['image_hashes_by_split']; seen_train=set(splits.get('train',[]))
+  for name in ('valid','val','test'):
+   overlap=seen_train.intersection(splits.get(name,[]))
+   if overlap:report.setdefault('split_leakage',[]).append({'dataset':dataset_name,'split':name,'count':len(overlap)})
+ for name,d in (('mobile',m),('screen',s)):
+  for k in d['splits']:
+   if d['splits'][k]['missing_labels']:
+    report.setdefault('missing_labels',[]).append({'dataset':name,'split':k,'count':d['splits'][k]['missing_labels']})
+ report['cross_dataset_duplicate_count']=len(set(sum(m['image_hashes_by_split'].values(),[])).intersection(set(sum(s['image_hashes_by_split'].values(),[]))))
  (w/'audit.json').write_text(json.dumps(report,indent=2,default=str))
+ if report.get('split_leakage'):raise ValueError('Exact image leakage between training and evaluation: see audit.json')
  if m['errors'] or s['errors']:raise ValueError('Invalid YOLO coordinates: see audit.json')
  if args.inspect_only:
   print(json.dumps(report,indent=2));return
