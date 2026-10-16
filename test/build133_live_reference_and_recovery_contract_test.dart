@@ -101,7 +101,7 @@ void main() {
     expect(retry, contains('_registry.retryPendingUploads()'));
   });
 
-  test('vault exposes durable staging and clears deterministic stale journals',
+  test('vault exposes durable staging and preserves missing-source recovery journals',
       () {
     expect(vault, contains('Future<void> stagePendingSeal({'));
     final sealStart = vault.indexOf('Future<HCVSecureOriginalRecord> seal({');
@@ -128,7 +128,16 @@ void main() {
       recoveryStart,
     );
     final recovery = vault.substring(recoveryStart, recoveryEnd);
-    expect(recovery, contains('await _removePendingSeal(hcvId);'));
+    // Missing recovery inputs must not destroy the pending journal entry.
+    // The user may recover the original file in a subsequent app session.
+    final missingSource = recovery.indexOf("!await File(certificatePath).exists()");
+    final nextTry = recovery.indexOf('try {', missingSource);
+    expect(missingSource, greaterThanOrEqualTo(0));
+    expect(nextTry, greaterThan(missingSource));
+    expect(
+      recovery.substring(missingSource, nextTry),
+      isNot(contains('await _removePendingSeal(hcvId);')),
+    );
   });
 
   test(
