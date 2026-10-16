@@ -343,6 +343,14 @@ class HCVSecureMediaVault {
       return SecretKey(bytes);
     }
 
+    // Re-keying an existing vault would permanently orphan its ciphertext.
+    // A missing key is recoverable only from secure backup, not regeneration.
+    final vault = await _vaultDirectory();
+    await for (final entity in vault.list(followLinks: false)) {
+      if (entity is File && entity.path.endsWith('.enc')) {
+        throw StateError('SECURE_VAULT_MASTER_KEY_MISSING_WITH_CIPHERTEXT');
+      }
+    }
     final random = Random.secure();
     final bytes = List<int>.generate(32, (_) => random.nextInt(256));
     await HCVSecureStore.write(_masterKeyStoreKey, base64Encode(bytes));
