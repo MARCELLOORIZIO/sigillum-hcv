@@ -55,6 +55,6 @@ void main() {
   test('legacy extraction currently covers only the initial 15 seconds', () {
     final source = File('lib/hcv_audio_fingerprint.dart').readAsStringSync();
     expect(source, contains('_maxAnalyzedSeconds = 15.0'));
-    expect(source, contains('-t $_maxAnalyzedSeconds'));
+    expect(source, contains('-t \$_maxAnalyzedSeconds'));
   });
 }
