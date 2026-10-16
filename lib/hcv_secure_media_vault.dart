@@ -763,12 +763,19 @@ class HCVSecureMediaVault {
     final encryptedMedia = File(p.join(dir.path, '$safe.$mediaTag.media.enc'));
     final encryptedPack = File(p.join(dir.path, '$safe.$packTag.hcvpack.enc'));
 
-    // An unindexed .enc may be the only remaining copy after a crash.
-    // Fail closed rather than overwriting or deleting it during recovery.
-    for (final target in [encryptedMedia, encryptedPack]) {
-      if (await target.exists()) {
-        throw StateError('SECURE_VAULT_UNINDEXED_ENCRYPTED_FILE');
-      }
+    // A crash after encryption but before index commit can leave BOTH
+    // ciphertexts intact. Reattach only after authenticating each against
+    // the hashes recomputed from the staged source files. Never overwrite
+    // either ciphertext, and never repair a partial pair by deleting it.
+    final mediaCipherExists = await encryptedMedia.exists();
+    final packCipherExists = await encryptedPack.exists();
+    final recoveredCipherPair = mediaCipherExists && packCipherExists;
+    if (mediaCipherExists != packCipherExists) {
+      throw StateError('SECURE_VAULT_UNINDEXED_ENCRYPTED_FILE');
+    }
+    if (recoveredCipherPair) {
+      await _verifyExistingCiphertext(encryptedMedia.path, mediaHash);
+      await _verifyExistingCiphertext(encryptedPack.path, packHash);
     }
 
     final record = HCVSecureOriginalRecord(
@@ -803,20 +810,22 @@ class HCVSecureMediaVault {
 
     var committed = false;
     try {
-      await _encryptFile(
-        source: media,
-        destination: encryptedMedia,
-        sha256Hex: mediaHash,
-        mimeType: mediaType == 'video' ? 'video/mp4' : _photoMime(media.path),
-        originalName: p.basename(media.path),
-      );
-      await _encryptFile(
-        source: pack,
-        destination: encryptedPack,
-        sha256Hex: packHash,
-        mimeType: 'application/vnd.sigillum.hcvpack',
-        originalName: p.basename(pack.path),
-      );
+      if (!recoveredCipherPair) {
+        await _encryptFile(
+          source: media,
+          destination: encryptedMedia,
+          sha256Hex: mediaHash,
+          mimeType: mediaType == 'video' ? 'video/mp4' : _photoMime(media.path),
+          originalName: p.basename(media.path),
+        );
+        await _encryptFile(
+          source: pack,
+          destination: encryptedPack,
+          sha256Hex: packHash,
+          mimeType: 'application/vnd.sigillum.hcvpack',
+          originalName: p.basename(pack.path),
+        );
+      }
 
       await _withIndexLock(() async {
         final records = await _loadIndex();
@@ -837,7 +846,7 @@ class HCVSecureMediaVault {
       });
       committed = true;
     } finally {
-      if (!committed) {
+      if (!committed && !recoveredCipherPair) {
         for (final target in [encryptedMedia, encryptedPack]) {
           try {
             if (await target.exists()) await target.delete();
