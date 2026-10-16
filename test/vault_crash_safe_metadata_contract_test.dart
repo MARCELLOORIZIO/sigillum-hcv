@@ -66,4 +66,14 @@ void main() {
     expect(appStart, contains('purgeMaterializedPlaintext()'));
   });
 
+  test('invalid indexed records fail closed rather than disappearing on rewrite', () {
+    final start = vault.indexOf('Future<List<HCVSecureOriginalRecord>> _loadIndex()');
+    final end = vault.indexOf('Future<void> _saveIndex(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final body = vault.substring(start, end);
+    expect(body, contains('SECURE_VAULT_INDEX_RECORD_INVALID'));
+    expect(body, isNot(contains('.whereType<Map>()')));
+  });
+
 }
