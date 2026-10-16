@@ -46,4 +46,24 @@ void main() {
     expect(body, contains('SECURE_VAULT_UNINDEXED_ENCRYPTED_FILE'));
     expect(body, isNot(contains('await target.delete();')));
   });
+  test('subtitle ciphertext is never deleted before replacement', () {
+    final start = vault.indexOf('final encryptedCaptioned = File(');
+    final end = vault.indexOf('final oldCaptionedPath =', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final body = vault.substring(start, end);
+    expect(body, contains('SECURE_VAULT_SUBTITLE_CIPHERTEXT_ALREADY_EXISTS'));
+    expect(body, isNot(contains('await target.delete();')));
+  });
+
+  test('cold startup purges abandoned plaintext subtitle scratch directory', () {
+    final start = vault.indexOf('Future<void> purgeMaterializedPlaintext()');
+    expect(start, greaterThanOrEqualTo(0));
+    final body = vault.substring(start);
+    expect(body, contains('sigillum_private_derivations'));
+    expect(body, contains('await scratch.delete(recursive: true);'));
+    final appStart = File('lib/main.dart').readAsStringSync();
+    expect(appStart, contains('purgeMaterializedPlaintext()'));
+  });
+
 }
