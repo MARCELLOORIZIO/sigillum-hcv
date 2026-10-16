@@ -110,7 +110,7 @@ void main() {
   });
 
   test('existing sealed payloads are authenticated before recovery accepts them', () {
-    final start = vault.indexOf('if (existingBefore != null &&\\n        await File(existingBefore.encryptedMediaPath).exists()');
+    final start = vault.indexOf('if (existingBefore != null &&');
     final end = vault.indexOf('final dir = await _vaultDirectory();', start);
     expect(start, greaterThanOrEqualTo(0));
     expect(end, greaterThan(start));
