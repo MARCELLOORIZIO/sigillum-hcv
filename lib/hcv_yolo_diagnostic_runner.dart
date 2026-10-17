@@ -124,8 +124,8 @@ class HCVYoloDiagnosticRunner {
     final h = math.max(1, (source.height * scale).round());
     final resized = img.copyResize(source, width: w, height: h,
         interpolation: img.Interpolation.linear);
-    final left = ((side - w) / 2).round();
-    final top = ((side - h) / 2).round();
+    final left = ((side - w) / 2 - 0.1).round();
+    final top = ((side - h) / 2 - 0.1).round();
     final buffer = Float32List(3 * side * side);
     buffer.fillRange(0, buffer.length, 114 / 255);
     for (var y = 0; y < h; y++) {
