@@ -1,0 +1,39 @@
+name: Experimental YOLO diagnostic tests
+
+on:
+  push:
+    branches:
+      - experiment/phone-device-v4-export-20261016
+  pull_request:
+    branches:
+      - fix/build157-provenance-localization-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dart-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Test six-image observation checker
+        run: python -m unittest discover -s ml -p 'test_six_image_detector_baseline.py' -v
+      - name: Test Flutter parity checker (synthetic contract cases)
+        run: python -m unittest discover -s ml -p 'test_flutter_yolo_parity.py' -v
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify experimental Dart sources
+        run: dart analyze lib/hcv_phone_device_v4_contract.dart lib/hcv_screen_detection_contract.dart lib/hcv_yolo_diagnostic_postprocessor.dart lib/hcv_yolo_diagnostic_runner.dart lib/hcv_yolo_parity_report.dart test/hcv_phone_device_v4_contract_test.dart test/hcv_screen_detection_contract_test.dart test/hcv_yolo_diagnostic_postprocessor_test.dart test/hcv_yolo_diagnostic_runner_test.dart test/hcv_yolo_parity_report_test.dart
+      - name: Run experimental diagnostic tests
+        run: |
+          flutter test test/hcv_phone_device_v4_contract_test.dart
+          flutter test test/hcv_screen_detection_contract_test.dart
+          flutter test test/hcv_yolo_diagnostic_postprocessor_test.dart
+          flutter test test/hcv_yolo_diagnostic_runner_test.dart
+          flutter test test/hcv_yolo_parity_report_test.dart
