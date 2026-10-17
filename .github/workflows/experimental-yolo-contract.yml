@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - experiment/phone-device-v4-export-20261016
+  pull_request:
+    branches:
+      - fix/build157-provenance-localization-20261013
   workflow_dispatch:
 
 permissions:
