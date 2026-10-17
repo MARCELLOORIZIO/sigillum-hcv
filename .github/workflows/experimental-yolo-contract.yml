@@ -29,10 +29,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Verify experimental Dart sources
-        run: dart analyze lib/hcv_phone_device_v4_contract.dart lib/hcv_screen_detection_contract.dart lib/hcv_yolo_diagnostic_postprocessor.dart lib/hcv_yolo_diagnostic_runner.dart test/hcv_phone_device_v4_contract_test.dart test/hcv_screen_detection_contract_test.dart test/hcv_yolo_diagnostic_postprocessor_test.dart test/hcv_yolo_diagnostic_runner_test.dart
+        run: dart analyze lib/hcv_phone_device_v4_contract.dart lib/hcv_screen_detection_contract.dart lib/hcv_yolo_diagnostic_postprocessor.dart lib/hcv_yolo_diagnostic_runner.dart lib/hcv_yolo_parity_report.dart test/hcv_phone_device_v4_contract_test.dart test/hcv_screen_detection_contract_test.dart test/hcv_yolo_diagnostic_postprocessor_test.dart test/hcv_yolo_diagnostic_runner_test.dart test/hcv_yolo_parity_report_test.dart
       - name: Run experimental diagnostic tests
         run: |
           flutter test test/hcv_phone_device_v4_contract_test.dart
           flutter test test/hcv_screen_detection_contract_test.dart
           flutter test test/hcv_yolo_diagnostic_postprocessor_test.dart
           flutter test test/hcv_yolo_diagnostic_runner_test.dart
+          flutter test test/hcv_yolo_parity_report_test.dart
