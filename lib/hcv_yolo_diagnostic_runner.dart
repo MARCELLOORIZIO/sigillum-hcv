@@ -69,7 +69,8 @@ class HCVYoloDiagnosticRunner {
       }
 
       final side = inputShape[2];
-      final rawInput = _prepare(img.bakeOrientation(decoded), side);
+      final oriented = img.bakeOrientation(decoded);
+      final rawInput = _prepare(oriented, side);
       final channels = outputShape[1];
       final count = outputShape[2];
       // tflite_flutter's run API expects a nested Dart tensor matching shape.
@@ -87,8 +88,8 @@ class HCVYoloDiagnosticRunner {
         raw: output[0],
         classCount: names.length,
         modelSize: side,
-        originalWidth: decoded.width,
-        originalHeight: decoded.height,
+        originalWidth: oriented.width,
+        originalHeight: oriented.height,
         confidenceThreshold: confidenceThreshold,
       );
       return <String, Object?>{
@@ -126,6 +127,7 @@ class HCVYoloDiagnosticRunner {
     final left = ((side - w) / 2).round();
     final top = ((side - h) / 2).round();
     final buffer = Float32List(3 * side * side);
+    buffer.fillRange(0, buffer.length, 114 / 255);
     for (var y = 0; y < h; y++) {
       for (var x = 0; x < w; x++) {
         final pixel = resized.getPixel(x, y);
