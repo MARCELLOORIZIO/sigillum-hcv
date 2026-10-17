@@ -59,6 +59,24 @@ void main() {
     expect(result.map((e) => e.classId).toSet(), {0, 1});
   });
 
+  test('five-class raw output decodes correct channel and suppresses overlaps', () {
+    // [1,9,N]: xywh plus five class confidence channels.
+    final result = HCVYoloPostprocessor.decode(
+      raw: [
+        [304, 305], [304, 305], [160, 160], [120, 120],
+        [0.01, 0.02], [0.01, 0.01], [0.05, 0.05],
+        [0.03, 0.03], [0.95, 0.85],
+      ],
+      classCount: 5, modelSize: 608, originalWidth: 608,
+      originalHeight: 608,
+    );
+    expect(result.length, 1);
+    expect(result.single.classId, 4);
+    expect(result.single.confidence, closeTo(0.95, 0.0001));
+    expect(result.single.left, closeTo(224, 0.001));
+    expect(result.single.top, closeTo(244, 0.001));
+  });
+
   test('invalid dimensions rejected and non-finite scores ignored', () {
     expect(() => HCVYoloPostprocessor.decode(
       raw: [[0], [0], [5]], classCount: 1, modelSize: 416,
