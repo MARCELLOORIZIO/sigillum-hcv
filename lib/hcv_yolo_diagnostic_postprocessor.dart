@@ -52,8 +52,11 @@ class HCVYoloPostprocessor {
     final scale = math.min(modelSize / originalWidth, modelSize / originalHeight);
     final resizedWidth = (originalWidth * scale).round();
     final resizedHeight = (originalHeight * scale).round();
-    final padLeft = ((modelSize - resizedWidth) / 2).round();
-    final padTop = ((modelSize - resizedHeight) / 2).round();
+    // Ultralytics LetterBox(center=true) uses half-padding minus 0.1
+    // for the left/top integer border; simple round() differs by one pixel
+    // for odd padding and misaligns decoded boxes.
+    final padLeft = ((modelSize - resizedWidth) / 2 - 0.1).round();
+    final padTop = ((modelSize - resizedHeight) / 2 - 0.1).round();
     final results = <HCVYoloDetection>[];
 
     for (var i = 0; i < candidates; i++) {
