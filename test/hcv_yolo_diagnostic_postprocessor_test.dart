@@ -32,6 +32,20 @@ void main() {
     expect(result.single.bottom, closeTo(300, 0.001));
   });
 
+  test('handles odd Ultralytics letterbox padding without one-pixel shift', () {
+    // 800x401 -> 416x209: 207 total padding, top=103 bottom=104.
+    final result = HCVYoloPostprocessor.decode(
+      raw: [[208], [155], [104], [104], [0.9]],
+      classCount: 1, modelSize: 416, originalWidth: 800,
+      originalHeight: 401,
+    );
+    expect(result.length, 1);
+    expect(result.single.left, closeTo(300, 0.001));
+    expect(result.single.top, closeTo(0, 0.001));
+    expect(result.single.right, closeTo(500, 0.001));
+    expect(result.single.bottom, closeTo(200, 0.001));
+  });
+
   test('keeps distinct classes even with overlapping boxes', () {
     final result = HCVYoloPostprocessor.decode(
       raw: [
